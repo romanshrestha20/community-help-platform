@@ -117,16 +117,20 @@ export const deleteUserAccount = async (req: Request, res: Response, next: NextF
     }
 };
 
-
-
 export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
-  const userId = req.user?.userId;
-  const { password, newPassword } = req.body;
-
   try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    const { password, newPassword } = req.body;
+
     if (!password || !newPassword) {
       return next(new AppError("Old and new passwords are required", 400));
     }
+
     if (password === newPassword) {
       return next(new AppError("New password must be different", 400));
     }
@@ -134,16 +138,15 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     if (newPassword.length < 6) {
       return next(new AppError("Password must be at least 6 characters", 400));
     }
-    // Get user
-    const user = await prisma.userModel.findUnique({
-      where: { id: userId },
-    });
+
+    // Fetch the user
+    const user = await prisma.userModel.findUnique({ where: { id: userId } });
 
     if (!user) {
       return next(new AppError("User not found", 404));
     }
 
-    // Compare password
+    // Verify current password
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) {
       return next(new AppError("Current password is incorrect", 401));
@@ -152,16 +155,18 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     // Hash new password
     const newHashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password
+    // Update password in DB
     await prisma.userModel.update({
       where: { id: userId },
       data: { passwordHash: newHashedPassword },
     });
+
     res.status(200).json({
       status: "success",
       message: "Password changed successfully",
     });
   } catch (error) {
+    console.error("Error in changePassword:", error);
     next(error);
   }
 };
