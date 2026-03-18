@@ -1,0 +1,169 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ======================
+// MODELS
+// ======================
+
+model User {
+  id           String  @id @default(uuid())
+  email        String  @unique
+  phone        String  @unique
+  passwordHash String
+  isVerified   Boolean @default(false)
+
+  profile Profile?
+
+  requests HelpRequest[] @relation("UserRequests")
+  bids     Bid[]         @relation("UserBids")
+
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ----------------------
+
+model Profile {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  fullName String
+  address  String
+  bio      String?
+
+  userType UserType @default(GENERAL)
+
+  rating    Float @default(0)
+  helpCount Int   @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+// ----------------------
+
+model HelpRequest {
+  id String @id @default(uuid())
+
+  requesterId String
+  requester   User   @relation("UserRequests", fields: [requesterId], references: [id])
+
+  title       String
+  description String
+  category    String
+
+  // 📍 Location (CORE FEATURE)
+  latitude  Float
+  longitude Float
+  radius    Int   @default(800)
+
+  // 💰 Payment flexibility
+  budget Float?
+  isPaid Boolean @default(false)
+
+  status RequestStatus @default(OPEN)
+
+  bids Bid[]
+
+  messages Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([latitude, longitude]) // For geo queries later
+}
+
+// ----------------------
+
+model Bid {
+  id String @id @default(uuid())
+
+  helperId String
+  helper   User   @relation("UserBids", fields: [helperId], references: [id])
+
+  helpRequestId String
+  request       HelpRequest @relation(fields: [helpRequestId], references: [id])
+
+  message String
+  amount  Float?
+
+  status BidStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+}
+
+// ----------------------
+
+model Message {
+  id String @id @default(uuid())
+
+  senderId String
+  sender   User   @relation("SentMessages", fields: [senderId], references: [id])
+
+  receiverId String
+  receiver   User   @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  requestId String
+  request   HelpRequest @relation(fields: [requestId], references: [id])
+
+  content String
+  isRead  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+// ----------------------
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  type    String
+  content String
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+// ======================
+// ENUMS
+// ======================
+
+enum UserType {
+  GENERAL
+  ELDERLY
+  DISABLED
+}
+
+enum RequestStatus {
+  OPEN
+  ASSIGNED
+  COMPLETED
+  CANCELLED
+}
+
+enum BidStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
