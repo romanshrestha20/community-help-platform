@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  REQUESTER
+  HELPER
+  BOTH
+}
+
+enum RequestCategory {
+  GROCERIES
+  TRANSPORTATION
+  SHOPPING
+  CLEANING
+  COOKING
+  TUTORING
+  MEDICAL
+  OTHER
+}
+
+enum RequestStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PriceType {
+  VOLUNTEER
+  PAID
+}
+
+enum BidStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  phone         String?        @unique
+  passwordHash  String
+  role          Role           @default(REQUESTER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  profile       Profile?
+  refreshTokens RefreshToken[]
+  helpRequests  HelpRequest[]
+  bids          Bid[]
+  ratingsGiven  Rating[]       @relation("RaterRelation")
+  ratingsReceived Rating[]     @relation("RateeRelation")
+}
+
+model Profile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName       String
+  profilePicture String?
+  address        String?
+  latitude       Float?
+  longitude      Float?
+  skills         Json?
+  interests      Json?
+  bio            String?
+  certifications Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revoked   Boolean  @default(false)
+}
+
+model HelpRequest {
+  id          String          @id @default(cuid())
+  title       String
+  description String
+  category    RequestCategory
+  status      RequestStatus   @default(OPEN)
+  priceType   PriceType
+  budget      Float?
+  latitude    Float
+  longitude   Float
+  address     String
+  requesterId String
+  requester   User            @relation(fields: [requesterId], references: [id])
+  scheduledAt DateTime?
+  deadline    DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  bids        Bid[]
+}
+
+model Bid {
+  id            String      @id @default(cuid())
+  helpRequestId String
+  helpRequest   HelpRequest @relation(fields: [helpRequestId], references: [id])
+  helperId      String
+  helper        User        @relation(fields: [helperId], references: [id])
+  amount        Float?
+  message       String?
+  status        BidStatus   @default(PENDING)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Rating {
+  id            String   @id @default(cuid())
+  raterId       String
+  rater         User     @relation("RaterRelation", fields: [raterId], references: [id])
+  rateeId       String
+  ratee         User     @relation("RateeRelation", fields: [rateeId], references: [id])
+  helpRequestId String?
+  score         Int
+  comment       String?
+  createdAt     DateTime @default(now())
+}
