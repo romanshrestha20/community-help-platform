@@ -10,14 +10,13 @@ export const authenticateUser = (req: Request, res: Response, next: NextFunction
             return next(new AppError('Unauthorized: No token provided', 401));
         }
         const token = authHeader.split(' ')[1];
-        const decoded = verifyAccessToken(token);
-        if (!decoded) {
-            return next(new AppError('Unauthorized: Invalid token', 401));
-        }
+        verifyAccessToken(token);
+        return next();
 
     } catch (error) {
         if (error instanceof AppError) {
             return next(error);
         }
+        return next(new AppError('Unauthorized', 401));
     }
 };
