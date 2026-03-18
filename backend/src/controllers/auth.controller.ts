@@ -91,3 +91,44 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 };
 
 
+
+
+
+export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.params.userId;
+  const { currentPassword, newPassword } = req.body;
+
+  try {
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    if (!currentPassword || !newPassword) {
+      return next(new AppError("Current and new passwords are required", 400));
+    }
+
+    const user = await prisma.userModel.findUnique({ where: { id: userId } });
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    // Compare current password
+    const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValid) {
+      return next(new AppError("Current password is incorrect", 401));
+    }
+
+    // Hash new password
+    const newHashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await prisma.userModel.update({
+      where: { id: userId },
+      data: { passwordHash: newHashedPassword },
+    });
+
+    res.status(200).json({ message: "Password changed successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
