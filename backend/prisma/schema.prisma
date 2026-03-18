@@ -47,6 +47,8 @@ model Profile {
   fullName String
   address  String
   bio      String?
+  dateOfBirth DateTime?
+  gender String?
 
   userType UserType @default(GENERAL)
 
@@ -55,6 +57,7 @@ model Profile {
 
   user UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  updatedAt DateTime @default(now()) @updatedAt
   createdAt DateTime @default(now())
 }
 
@@ -156,4 +159,10 @@ enum BidStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
 }
