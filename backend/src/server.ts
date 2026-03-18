@@ -3,6 +3,7 @@ import { prisma } from './lib/prisma.js';
 
 
 
+
 (async () => {
   try{
     await prisma.$connect();
@@ -14,7 +15,7 @@ import { prisma } from './lib/prisma.js';
   }
 })();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port http://localhost:${PORT}`);
 });
