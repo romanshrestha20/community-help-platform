@@ -67,11 +67,12 @@ const getUserById = async (req, res, next) => {
 
 const changePassword = async (req, res, next) => {
   try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!newPassword || newPassword.length < 8) {
-      return res.status(422).json({ error: { message: 'New password must be at least 8 characters', status: 422 } });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ error: { message: errors.array()[0].msg, status: 422 } });
     }
+
+    const { currentPassword, newPassword } = req.body;
 
     const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
     if (!user) {

@@ -28,7 +28,7 @@ const prisma = require('../src/utils/prisma');
 const app = require('../src/app');
 
 const makeToken = (userId = 'user-id-1', role = 'REQUESTER') =>
-  jwt.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: '15m' });
+  jwt.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
 
 describe('User Controller', () => {
   beforeEach(() => {

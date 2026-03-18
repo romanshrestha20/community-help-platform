@@ -10,9 +10,10 @@ const generateAccessToken = (userId, role) => {
 };
 
 const generateRefreshToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-  });
+  const expiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+  const token = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, { expiresIn });
+  const expiresAt = new Date(jwt.decode(token).exp * 1000);
+  return { token, expiresAt };
 };
 
 const register = async (req, res, next) => {
@@ -50,14 +51,13 @@ const register = async (req, res, next) => {
     });
 
     const accessToken = generateAccessToken(user.id, user.role);
-    const refreshTokenValue = generateRefreshToken(user.id);
+    const { token: refreshTokenValue, expiresAt } = generateRefreshToken(user.id);
 
-    const decoded = jwt.decode(refreshTokenValue);
     await prisma.refreshToken.create({
       data: {
         token: refreshTokenValue,
         userId: user.id,
-        expiresAt: new Date(decoded.exp * 1000),
+        expiresAt,
       },
     });
 
@@ -100,14 +100,13 @@ const login = async (req, res, next) => {
     }
 
     const accessToken = generateAccessToken(user.id, user.role);
-    const refreshTokenValue = generateRefreshToken(user.id);
+    const { token: refreshTokenValue, expiresAt } = generateRefreshToken(user.id);
 
-    const decoded = jwt.decode(refreshTokenValue);
     await prisma.refreshToken.create({
       data: {
         token: refreshTokenValue,
         userId: user.id,
-        expiresAt: new Date(decoded.exp * 1000),
+        expiresAt,
       },
     });
 
