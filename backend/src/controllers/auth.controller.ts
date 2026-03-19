@@ -4,58 +4,79 @@ import AppError from "../utils/appError.js";
 import bcrypt from "bcrypt";
 import { accessToken } from "../utils/jwt.js";
 
-export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { fullName, email, password, phone, address, gender, dateOfBirth } = req.body;
 
-    if (!fullName || !email || !password || !phone || !address || !gender || !dateOfBirth) {
-      return next(new AppError("All fields are required", 400));
+export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
+  const { email, password, phone, fullName, gender, dateOfBirth, city, country, street, state, latitude, longitude, radius } = req.body;
+
+  try {
+    // Validate required fields
+    if (!email || !password || !phone || !fullName || !gender || !dateOfBirth) {
+      return next(new AppError("Missing required fields", 400));
     }
 
-    // Validate gender
-    const validGenders = ["MALE", "FEMALE", "OTHER"];
-    if (!validGenders.includes(gender)) return next(new AppError("Invalid gender value", 400));
+    // latitude & longitude are required for address
+    if (latitude === undefined || longitude === undefined) {
+      return next(new AppError("Latitude and longitude are required for address", 400));
+    }
 
-    // Validate date
-    const dob = new Date(dateOfBirth);
-    if (isNaN(dob.getTime())) return next(new AppError("Invalid date of birth", 400));
-
-    // Check if email/phone exists
-    const existingUser = await prisma.userModel.findFirst({
-      where: { OR: [{ email }, { phone }] },
-    });
-    if (existingUser) return next(new AppError("Email or phone already in use", 400));
+    // Check if user already exists
+    const existingUser = await prisma.userModel.findUnique({ where: { email } });
+    if (existingUser) return next(new AppError("Email already registered", 400));
 
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create user + profile
+
+    // Create user with profile and nested address
     const newUser = await prisma.userModel.create({
       data: {
         email,
         passwordHash,
         phone,
         profile: {
-          create: { fullName, address, gender, dateOfBirth: dob },
+          create: {
+            fullName,
+            gender,
+            dateOfBirth: new Date(dateOfBirth),
+            address: {
+              create: {
+                latitude,
+                longitude,
+                radius: radius || 800,
+                city: city || null,
+                country: country || null,
+                street: street || null,
+                state: state || null,
+              },
+            },
+          },
         },
       },
-      include: { profile: true },
+      include: {
+        profile: {
+          include: {
+            address: true,
+          },
+        },
+      },
     });
 
-    // Generate JWT
     const token = accessToken({ userId: newUser.id });
-
+    
     res.status(201).json({
-      status: "success",
-      message: "User registered successfully",
-      userId: newUser.id,
+      success: true,
       token,
+      data: newUser,
+      message: "User registered successfully",
     });
+
   } catch (error) {
     console.error("Error in registerUser:", error);
-    next(error);
+    next(new AppError("Failed to register user", 500));
   }
 };
+
+
 export const loginUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = req.body;
