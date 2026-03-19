@@ -8,6 +8,14 @@ import {
   updateHelpRequestStatus
 } from '../controllers/request.controller.js';
 
+import {
+  placeBid,
+  getBidsForHelpRequest,
+  updateBid,
+  respondToBid,
+  deleteBid
+} from '../controllers/bid.controller.js';
+
 import { authenticateUser } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();

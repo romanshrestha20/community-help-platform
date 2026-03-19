@@ -61,73 +61,73 @@ export const createHelpRequest = async (req: Request, res: Response, next: NextF
 
 
 export const getAllHelpRequests = async (req: Request, res: Response) => {
-  try {
-    // ---------------------------
-    // Pagination
-    // ---------------------------
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 10, 50); // max 50 per request
-    const skip = (page - 1) * limit;
+    try {
+        // ---------------------------
+        // Pagination
+        // ---------------------------
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = Math.min(parseInt(req.query.limit as string) || 10, 50); // max 50 per request
+        const skip = (page - 1) * limit;
 
-    // ---------------------------
-    // Filtering
-    // ---------------------------
-    const { category, status } = req.query;
+        // ---------------------------
+        // Filtering
+        // ---------------------------
+        const { category, status } = req.query;
 
-    // Valid values
-    const validCategories = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
-    const validStatuses = ["OPEN", "ASSIGNED", "COMPLETED", "CANCELLED"];
+        // Valid values
+        const validCategories = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
+        const validStatuses = ["OPEN", "ASSIGNED", "COMPLETED", "CANCELLED"];
 
-    // Validate query filters
-    if (category && !validCategories.includes(category as string)) {
-      return res.status(400).json({ success: false, error: "Invalid category" });
+        // Validate query filters
+        if (category && !validCategories.includes(category as string)) {
+            return res.status(400).json({ success: false, error: "Invalid category" });
+        }
+        if (status && !validStatuses.includes(status as string)) {
+            return res.status(400).json({ success: false, error: "Invalid status" });
+        }
+
+        // Build Prisma where object
+        const filters: any = {};
+        if (category) filters.category = category;
+        if (status) filters.status = status;
+
+        // ---------------------------
+        // 3️⃣ Query database
+        // ---------------------------
+        const [requests, total] = await Promise.all([
+            prisma.helpRequest.findMany({
+                where: filters,
+                skip,
+                take: limit,
+                orderBy: { createdAt: "desc" },
+                include: {
+                    location: true,
+                    requester: {
+                        select: {
+                            id: true,
+                            email: true,
+                            profile: true,
+                        },
+                    },
+                },
+            }),
+            prisma.helpRequest.count({ where: filters }),
+        ]);
+
+        // ---------------------------
+        // 4️⃣ Response
+        // ---------------------------
+        res.json({
+            success: true,
+            data: requests,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit),
+        });
+    } catch (error) {
+        console.error("Error fetching help requests:", error);
+        res.status(500).json({ success: false, error: "Failed to fetch help requests" });
     }
-    if (status && !validStatuses.includes(status as string)) {
-      return res.status(400).json({ success: false, error: "Invalid status" });
-    }
-
-    // Build Prisma where object
-    const filters: any = {};
-    if (category) filters.category = category;
-    if (status) filters.status = status;
-
-    // ---------------------------
-    // 3️⃣ Query database
-    // ---------------------------
-    const [requests, total] = await Promise.all([
-      prisma.helpRequest.findMany({
-        where: filters,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-        include: {
-          location: true,
-          requester: {
-            select: {
-              id: true,
-              email: true,
-              profile: true,
-            },
-          },
-        },
-      }),
-      prisma.helpRequest.count({ where: filters }),
-    ]);
-
-    // ---------------------------
-    // 4️⃣ Response
-    // ---------------------------
-    res.json({
-      success: true,
-      data: requests,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
-    });
-  } catch (error) {
-    console.error("Error fetching help requests:", error);
-    res.status(500).json({ success: false, error: "Failed to fetch help requests" });
-  }
 };
 
 // Get single Help Request
@@ -214,26 +214,30 @@ export const updateHelpRequest = async (req: Request, res: Response, next: NextF
             return next(new AppError("Forbidden", 403));
         }
 
-        // update location
+        // Update location (only location fields)
         if (location && existing.locationId) {
             await prisma.location.update({
                 where: { id: existing.locationId },
                 data: {
-                    ...(title && { title }),
-                    ...(description && { description }),
-                    ...(category && { category }),
-                    ...(budget !== undefined && { budget }),
-                }
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                    radius: location.radius || 800,
+                    street: location.street || null,
+                    city: location.city || null,
+                    state: location.state || null,
+                    country: location.country || null,
+                },
             });
         }
 
+        // Update helpRequest fields
         const updated = await prisma.helpRequest.update({
             where: { id },
             data: {
-                title,
-                description,
-                category,
-                budget,
+                ...(title && { title }),
+                ...(description && { description }),
+                ...(category && { category }),
+                ...(budget !== undefined && { budget }),
             },
             include: { location: true },
         });
@@ -244,7 +248,8 @@ export const updateHelpRequest = async (req: Request, res: Response, next: NextF
             message: "Updated successfully",
         });
 
-    } catch {
+    } catch (error) {
+        console.error("Error updating help request:", error);
         next(new AppError("Update failed", 500));
     }
 };
