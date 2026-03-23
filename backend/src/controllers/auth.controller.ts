@@ -82,21 +82,47 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     const { email, password } = req.body;
     if (!email || !password) return next(new AppError("Email and password are required", 400));
 
-    // Find user by email
+    // Find user by email for password check
     const user = await prisma.userModel.findUnique({ where: { email } });
     if (!user) return next(new AppError("Invalid email or password", 401));
 
-    // Compare password
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) return next(new AppError("Invalid email or password", 401));
 
-    // Generate JWT
+    // Return a public user payload (without passwordHash) aligned with mobile contract
+    const publicUser = await prisma.userModel.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        isVerified: true,
+        profile: {
+          select: {
+            id: true,
+            userId: true,
+            fullName: true,
+            bio: true,
+            dateOfBirth: true,
+            gender: true,
+            userType: true,
+            rating: true,
+            helpCount: true,
+            addressId: true,
+            address: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+
     const token = accessToken({ userId: user.id });
 
     res.status(200).json({
-      status: "success",
+      success: true,
       message: "Login successful",
-      userId: user.id,
+      data: publicUser,
       token,
     });
   } catch (error) {
