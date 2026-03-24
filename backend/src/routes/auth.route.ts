@@ -9,7 +9,7 @@ router.post('/register', registerUser);
 router.post('/login', loginUser);
 
 router.get('/profile', authenticateUser, getUserProfile);
-router.put('/profile', authenticateUser, updateUserProfile);
+router.patch('/profile', authenticateUser, updateUserProfile);
 router.delete('/profile', authenticateUser, deleteUserAccount);
 router.post('/change-password', authenticateUser, changePassword);
 
