@@ -1,8 +1,14 @@
 // src/screens/LoginScreen.tsx
 import React, { useState } from "react";
-import { View, TextInput, Button, Text, StyleSheet } from "react-native";
-import { useAuth } from "@/features/auth/auth.hook";
+import { Text, StyleSheet } from "react-native";
+import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useRouter } from "expo-router";
+
+import { Card, Stack, theme } from "@/design-system";
+import { AppButton } from "@/components/ui/AppButton";
+import { AppHeader } from "@/components/ui/AppHeader";
+import { AppInput } from "@/components/ui/AppInput";
+import { FormContainer } from "@/components/ui/FormContainer";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -19,38 +25,50 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-      {error && <Text style={styles.error}>{error}</Text>}
-      <Button title={loadingLogin ? "Logging in..." : "Login"} onPress={onLogin} />
-      <Text
-        style={styles.link}
-        onPress={() => router.push("/register")}
-      >
-        Donot have an account? Register
-      </Text>
-    </View>
+    <FormContainer>
+      <Card>
+        <AppHeader title="Login" subtitle="Welcome back" />
+
+        <Stack>
+          <AppInput
+            label="Email"
+            placeholder="name@example.com"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+          <AppInput
+            label="Password"
+            placeholder="Enter password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          {error && <Text style={styles.error}>{error}</Text>}
+
+          <AppButton title={loadingLogin ? "Logging in..." : "Login"} onPress={onLogin} loading={loadingLogin} />
+
+          <Text style={styles.link} onPress={() => router.push("/register")}>
+            Don&apos;t have an account? Register
+          </Text>
+        </Stack>
+      </Card>
+    </FormContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 20 },
-  title: { fontSize: 28, fontWeight: "bold", marginBottom: 20 },
-  input: { borderWidth: 1, borderColor: "#ccc", padding: 10, marginBottom: 15, borderRadius: 8 },
-  error: { color: "red", marginBottom: 10 },
-  link: { color: "blue", marginTop: 15, textAlign: "center" },
+  error: {
+    color: theme.colors.danger,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  link: {
+    color: theme.colors.primary,
+    marginTop: theme.spacing.xs,
+    textAlign: "center",
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
 });
