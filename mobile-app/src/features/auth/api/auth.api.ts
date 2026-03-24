@@ -1,12 +1,12 @@
-import apiClient from "../../api/api-client";
-import { LoginDto, AuthResponse, RegisterDto } from "./auth.types";
+import apiClient from "../../../api/api-client";
+import { LoginDto, AuthResponse, RegisterDto } from "../types/auth.types";
 
 const normalizeAuthResponse = (payload: any): AuthResponse => {
   const user = payload?.data
     ? {
-        ...payload.data,
-        fullName: payload.data.fullName || payload.data?.profile?.fullName,
-      }
+      ...payload.data,
+      fullName: payload.data.fullName || payload.data?.profile?.fullName,
+    }
     : null;
 
   return {
