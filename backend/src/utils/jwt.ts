@@ -1,6 +1,7 @@
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import AppError from './appError.js';
 import 'dotenv/config';
+import { v4 as uuidv4 } from "uuid";
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -44,7 +45,14 @@ export const verifyAccessToken = (token: string): JwtPayload => {
 // REFRESH TOKEN
 // ======================
 export const signRefreshToken = (payload: JwtPayload): string => {
-    return jwt.sign(payload, REFRESH_SECRET, { expiresIn: REFRESH_EXPIRY });
+    return jwt.sign(
+        {
+            ...payload,
+            jti: uuidv4(), // unique per token
+        },
+        REFRESH_SECRET,
+        { expiresIn: REFRESH_EXPIRY }
+    );
 };
 
 export const verifyRefreshToken = (token: string): JwtPayload => {
