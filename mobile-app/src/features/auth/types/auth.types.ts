@@ -22,6 +22,7 @@ export interface RegisterDto {
 export interface AuthResponse {
   success: boolean;
   token: string;
+  refreshToken?: string;
   data: User | null;
   message: string;
 }

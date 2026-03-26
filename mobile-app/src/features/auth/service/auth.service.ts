@@ -1,23 +1,25 @@
 // src/features/auth/auth.service.ts
 import { AuthResponse, LoginDto, RegisterDto } from "../types/auth.types";
 import * as authApi from "../api/auth.api";
-import { saveToken, removeToken } from "../../../utils/token";
+import { saveTokens, clearTokens } from "../../../utils/token";
 import { useAuthStore } from "../store/auth.store";
-
 
 export const loginUser = async (credentials: LoginDto) => {
   try {
     const response: AuthResponse = await authApi.login(credentials);
-    const { success, token, data: user, message } = response;
+    const { success, token: accessToken, data: user, message, refreshToken } = response;
 
-    if (!success || !token || !user) {
+    console.log("[Auth] Login response:", { success, hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken, accessToken: accessToken?.slice(0, 20) });
+
+    if (!success || !accessToken || !user) {
       return { success: false, message: message || "Login failed" };
     }
 
-    await saveToken(token);
-    useAuthStore.getState().setAuth({ user, token });
+    console.log("[Auth] Saving tokens with refresh:", !!refreshToken);
+    await saveTokens(accessToken, refreshToken || "");
+    useAuthStore.getState().setAuth({ user, token: accessToken });
 
-    return { success: true, token, user };
+    return { success: true, token: accessToken, user };
   } catch (error: any) {
     const backendMessage =
       error?.response?.data?.message ||
@@ -34,16 +36,17 @@ export const loginUser = async (credentials: LoginDto) => {
 export const registerUser = async (credentials: RegisterDto) => {
   try {
     const response = await authApi.register(credentials) as AuthResponse;
-    const { success, token, data: user, message } = response;
+    const { success, token: accessToken, data: user, message } = response;
 
-    if (!success || !token || !user) {
+    if (!success || !accessToken || !user) {
       return { success: false, message: message || "Registration failed" };
     }
 
-    await saveToken(token);
-    useAuthStore.getState().setAuth({ user, token });
+    console.log("[Auth] Register success, saving tokens. Refresh token present:", !!response.refreshToken);
+    await saveTokens(accessToken, response.refreshToken || "");
+    useAuthStore.getState().setAuth({ user, token: accessToken });
 
-    return { success: true, token, user };
+    return { success: true, token: accessToken, user };
 
   } catch (error: any) {
     const backendMessage =
@@ -58,12 +61,28 @@ export const registerUser = async (credentials: RegisterDto) => {
 }
 export const logoutUser = async () => {
   try {
-    await removeToken();
+    await clearTokens();
     useAuthStore.getState().logout();
     return { success: true };
   } catch (error: any) {
     console.error("Logout error:", error);
     return { success: false, message: "An error occurred during logout" };
   }
+}
 
-};
+export const changePassword = async (currentPassword: string, newPassword: string) => {
+  try {
+    const response: AuthResponse = await authApi.changePassword(currentPassword, newPassword) as AuthResponse;
+
+    if (response.success) {
+      await clearTokens();
+      useAuthStore.getState().logout();
+    }
+    return response;
+
+  } catch (error: any) {
+    console.error("Change password error:", error);
+    return { success: false, message: "An error occurred while changing password" };
+
+  }
+}
