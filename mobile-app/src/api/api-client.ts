@@ -1,57 +1,167 @@
-import axios from 'axios';
-import { getToken } from '../utils/token'
-import { showToast } from '../utils/toast';
+import axios, { AxiosRequestConfig } from "axios";
+import {
+  getAccessToken,
+  getRefreshToken,
+  saveTokens,
+  clearTokens,
+} from "../utils/token";
+import { showToast } from "../utils/toast";
+import { useAuthStore } from "@/features/auth/store/auth.store";
+
+type RetryRequest = AxiosRequestConfig & { _retry?: boolean };
 
 const apiClient = axios.create({
-    baseURL: 'http://localhost:5001/api', // Replace with your backend URL
-    timeout: 10000,
-    headers: {
-        'Content-Type': 'application/json',
-    },
+  baseURL: "http://localhost:5001/api",
+  timeout: 10000,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-apiClient.interceptors.request.use(async (config) => {
+// ======================
+// REQUEST INTERCEPTOR
+// ======================
+apiClient.interceptors.request.use(
+  async (config) => {
     try {
-        const token = await getToken();
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
+      const token = await getAccessToken();
+
+      if (token) {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     } catch (error) {
-        // Continue request without auth header if token lookup fails.
-        console.warn("Skipping auth header; token lookup failed:", error);
+      console.warn("Token read failed:", error);
     }
+
     return config;
-}, (error) => {
-    return Promise.reject(error);
-});
+  },
+  (error) => Promise.reject(error)
+);
 
+// ======================
+// REFRESH STATE
+// ======================
+let isRefreshing = false;
+let failedQueue: {
+  resolve: (token: string) => void;
+  reject: (err: any) => void;
+}[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((p) => {
+    if (error) p.reject(error);
+    else p.resolve(token as string);
+  });
+  failedQueue = [];
+};
+
+// ======================
+// RESPONSE INTERCEPTOR
+// ======================
 apiClient.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response) {
-            const status = error.response.status;
-            const data = error.response.data;
-            const message =
-                data?.message ||
-                data?.error?.message ||
-                error.message ||
-                "Something went wrong";
+  (response) => response,
 
-            if (status === 401) {
-                console.warn("Unauthorized: please login again.");
-            }
+  async (error) => {
+    const originalRequest = error.config as RetryRequest;
 
-            showToast(message);
-            console.error("API Error:", message);
-        } else if (error.request) {
-            showToast("No response from server, network error");
-            console.error("No response from server, network error");
-        } else {
-            console.error("Request setup error:", error.message);
+    // prevent infinite loop on refresh endpoint
+    if (originalRequest.url?.includes("/auth/refresh")) {
+      await clearTokens();
+      useAuthStore.getState().logout();
+      return Promise.reject(error);
+    }
+
+    // Skip retry logic for auth endpoints (login/register should not trigger refresh)
+    const isAuthEndpoint = originalRequest.url?.includes("/auth/login") ||
+      originalRequest.url?.includes("/auth/register");
+
+    // ======================
+    // HANDLE 401
+    // ======================
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({
+            resolve: (token: string) => {
+              originalRequest.headers = originalRequest.headers || {};
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(apiClient(originalRequest));
+            },
+            reject,
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = await getRefreshToken();
+        console.log("[API] Got 401, checking refresh token...", refreshToken ? "Found" : "NOT FOUND");
+
+        if (!refreshToken) {
+          console.error("[API] Cannot refresh: no refresh token stored.");
+          await clearTokens();
+          useAuthStore.getState().logout();
+          showToast("Session expired. Please log in again.");
+          return Promise.reject(new Error("No refresh token"));
         }
 
-        return Promise.reject(error);
+        console.log("[API] Calling refresh endpoint with token:", refreshToken.slice(0, 20));
+        // use same base URL client
+        const res = await apiClient.post("/auth/refresh", {
+          refreshToken,
+        });
+
+        const newAccessToken = res.data.token;
+        const newRefreshToken = res.data.refreshToken || refreshToken;
+
+        await saveTokens(newAccessToken, newRefreshToken);
+
+        processQueue(null, newAccessToken);
+
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+        return apiClient(originalRequest);
+      } catch (err) {
+        processQueue(err, null);
+
+        await clearTokens();
+        useAuthStore.getState().logout();
+
+        showToast("Session expired. Please login again.");
+
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
+      }
     }
-)
+
+    // ======================
+    // OTHER ERRORS
+    // ======================
+    if (error.response) {
+      const data = error.response.data;
+
+      const message =
+        data?.message ||
+        data?.error?.message ||
+        error.message ||
+        "Something went wrong";
+
+      showToast(message);
+      console.error("API Error:", message);
+    } else if (error.request) {
+      showToast("Network error");
+      console.error("Network error");
+    } else {
+      console.error("Request error:", error.message);
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export default apiClient;
