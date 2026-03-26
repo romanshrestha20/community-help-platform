@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import Toast from "react-native-toast-message";
+import { ChangePasswordSection } from "@/features/auth/components/ChangePassword";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
@@ -150,7 +151,7 @@ export default function ProfileScreen() {
       )}
 
       <View style={styles.sectionGap} />
-
+<ChangePasswordSection />
       {isDeleteConfirming ? (
         <Stack>
           <Text style={styles.deleteHint}>Confirm your password to delete account:</Text>
@@ -172,7 +173,7 @@ export default function ProfileScreen() {
           <AppButton title="Cancel" onPress={cancelDelete} disabled={loading} />
         </Stack>
       ) : (
-        <AppButton title="Delete Profile" onPress={() => setIsDeleteConfirming(true)} variant="danger" disabled={loading} />
+        <AppButton style={styles.deleteButton} title="Delete Profile" onPress={() => setIsDeleteConfirming(true)} variant="danger" disabled={loading} />
       )}
 
       <Toast />
@@ -198,4 +199,5 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontSize: theme.typography.fontSize.sm,
   },
+ 
 });

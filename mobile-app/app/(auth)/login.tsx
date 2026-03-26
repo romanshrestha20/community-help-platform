@@ -1,8 +1,9 @@
 // src/screens/LoginScreen.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Text, StyleSheet } from "react-native";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useRouter } from "expo-router";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 
 import { Card, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
@@ -13,9 +14,17 @@ import { FormContainer } from "@/components/ui/FormContainer";
 export default function LoginScreen() {
   const router = useRouter();
   const { handleLogin, loadingLogin, error } = useAuth();
+  const token = useAuthStore((state) => state.token);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    if (token) {
+      router.replace("/home");
+      console.log("Already authenticated, redirecting to home");
+    }
+  }, [token, router]);
 
   const onLogin = async () => {
     const result = await handleLogin({ email, password });
