@@ -1,9 +1,15 @@
 import { prisma } from "../lib/prisma.js";
-import { NextFunction, Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.js";
 
+const validCategories = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
+const validStatuses = ["OPEN", "ASSIGNED", "COMPLETED", "CANCELLED"];
 
+const sendResponse = (res: Response, data: any = null, message = "", meta = {}) => {
+    res.json({ success: true, data, message, meta });
+};
 
+// CREATE
 export const createHelpRequest = async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
 
@@ -16,84 +22,59 @@ export const createHelpRequest = async (req: Request, res: Response, next: NextF
             return next(new AppError("All fields are required", 400));
         }
 
-        const validCategories = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
         if (!validCategories.includes(category)) {
             return next(new AppError("Invalid category", 400));
         }
-
-        const newLocation = await prisma.location.create({
-            data: {
-                latitude: location.latitude,
-                longitude: location.longitude,
-                radius: location.radius || 800,
-                street: location.street || null,
-                city: location.city || null,
-                state: location.state || null,
-                country: location.country || null,
-            },
-        });
 
         const newRequest = await prisma.helpRequest.create({
             data: {
                 title,
                 description,
                 category,
-                locationId: newLocation.id,
                 budget: budget || null,
                 requesterId: userId,
+                location: {
+                    create: {
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                        radius: location.radius || 800,
+                        street: location.street || null,
+                        city: location.city || null,
+                        state: location.state || null,
+                        country: location.country || null,
+                    },
+                },
             },
-            include: {
-                location: true,
-            },
+            include: { location: true },
         });
 
-        res.status(201).json({
-            success: true,
-            data: newRequest,
-            message: "Help request created successfully",
-        });
-
-    } catch (error) {
-        console.error(error);
+        sendResponse(res, newRequest, "Help request created");
+    } catch (err) {
         next(new AppError("Failed to create help request", 500));
     }
 };
 
-
-export const getAllHelpRequests = async (req: Request, res: Response) => {
+// GET ALL
+export const getAllHelpRequests = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        // ---------------------------
-        // Pagination
-        // ---------------------------
         const page = parseInt(req.query.page as string) || 1;
-        const limit = Math.min(parseInt(req.query.limit as string) || 10, 50); // max 50 per request
+        const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
         const skip = (page - 1) * limit;
 
-        // ---------------------------
-        // Filtering
-        // ---------------------------
         const { category, status } = req.query;
 
-        // Valid values
-        const validCategories = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
-        const validStatuses = ["OPEN", "ASSIGNED", "COMPLETED", "CANCELLED"];
-
-        // Validate query filters
         if (category && !validCategories.includes(category as string)) {
-            return res.status(400).json({ success: false, error: "Invalid category" });
-        }
-        if (status && !validStatuses.includes(status as string)) {
-            return res.status(400).json({ success: false, error: "Invalid status" });
+            return next(new AppError("Invalid category", 400));
         }
 
-        // Build Prisma where object
+        if (status && !validStatuses.includes(status as string)) {
+            return next(new AppError("Invalid status", 400));
+        }
+
         const filters: any = {};
         if (category) filters.category = category;
         if (status) filters.status = status;
 
-        // ---------------------------
-        // 3️⃣ Query database
-        // ---------------------------
         const [requests, total] = await Promise.all([
             prisma.helpRequest.findMany({
                 where: filters,
@@ -105,214 +86,179 @@ export const getAllHelpRequests = async (req: Request, res: Response) => {
                     requester: {
                         select: {
                             id: true,
-                            email: true,
-                            profile: true,
+                            profile: { select: { fullName: true } },
                         },
                     },
+                    _count: { select: { bids: true } },
                 },
             }),
             prisma.helpRequest.count({ where: filters }),
         ]);
 
-        // ---------------------------
-        // 4️⃣ Response
-        // ---------------------------
-        res.json({
-            success: true,
-            data: requests,
+        const formatted = requests.map((r: any) => ({
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            category: r.category,
+            budget: r.budget,
+            status: r.status,
+            isPaid: r.isPaid,
+            city: r.location?.city,
+            country: r.location?.country,
+            requesterName: r.requester.profile?.fullName,
+            bidCount: r._count.bids,
+            createdAt: r.createdAt,
+        }));
+
+        sendResponse(res, formatted, "", {
             total,
             page,
             totalPages: Math.ceil(total / limit),
         });
-    } catch (error) {
-        console.error("Error fetching help requests:", error);
-        res.status(500).json({ success: false, error: "Failed to fetch help requests" });
+    } catch (err) {
+        next(new AppError("Failed to fetch requests", 500));
     }
 };
 
-// Get single Help Request
-export const getHelpRequestById = async (req: Request, res: Response) => {
-    const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
-    const { id } = req.params;
-
+// GET ONE
+export const getHelpRequestById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const helpRequest = await prisma.helpRequest.findUnique({
+        const { id } = req.params;
+
+        const r = await prisma.helpRequest.findUnique({
             where: { id },
             include: {
                 location: true,
                 requester: {
                     select: {
                         id: true,
-                        email: true,
-                        profile: true,
+                        profile: { select: { fullName: true } },
                     },
                 },
-                bids: true,
-                messages: true,
+                _count: { select: { bids: true } },
             },
         });
 
-        if (!helpRequest) {
-            return res.status(404).json({ success: false, error: "Not found" });
-        }
+        if (!r) return next(new AppError("Not found", 404));
 
-        res.json({ success: true, data: helpRequest });
+        const formatted = {
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            category: r.category,
+            budget: r.budget,
+            status: r.status,
+            isPaid: r.isPaid,
+            city: r.location?.city,
+            country: r.location?.country,
+            requesterName: r.requester.profile?.fullName,
+            bidCount: r._count.bids,
+            createdAt: r.createdAt,
+        };
 
+        sendResponse(res, formatted);
     } catch {
-        res.status(500).json({ success: false, error: "Failed to fetch help request" });
+        next(new AppError("Failed to fetch request", 500));
     }
 };
 
+// DELETE
 export const deleteHelpRequest = async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
-    if (!userId) return next(new AppError("Unauthorized", 401));
-
-    const { id } = req.params;
 
     try {
-        // check if request exists and belongs to user
+        if (!userId) return next(new AppError("Unauthorized", 401));
+
+        const { id } = req.params;
+
         const existing = await prisma.helpRequest.findUnique({ where: { id } });
-
         if (!existing) return next(new AppError("Not found", 404));
-        // only requester can delete request
-        if (existing.requesterId !== userId) {
-            return next(new AppError("Forbidden", 403));
-        }
-        // delete request and associated location in a transaction
-        await prisma.$transaction([
-            prisma.helpRequest.delete({ where: { id } }),
-            existing.locationId
-                ? prisma.location.delete({ where: { id: existing.locationId } })
-                : undefined,
-        ].filter(Boolean)); // filter removes undefined
+        if (existing.requesterId !== userId) return next(new AppError("Forbidden", 403));
 
+        await prisma.helpRequest.delete({ where: { id } });
 
-        res.json({
-            success: true,
-            message: "Deleted successfully",
-        });
-
+        sendResponse(res, null, "Deleted successfully");
     } catch {
         next(new AppError("Delete failed", 500));
     }
 };
 
-export const updateHelpRequest = async (req: Request, res: Response, next: NextFunction) => {
+// UPDATE STATUS
+export const updateHelpRequestStatus = async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
-    if (!userId) return next(new AppError("Unauthorized", 401));
-
     const { id } = req.params;
-    const { title, description, category, location, budget } = req.body;
+    const { status } = req.body;
+
+    const transitions: Record<string, string[]> = {
+        OPEN: ["ASSIGNED", "CANCELLED"],
+        ASSIGNED: ["COMPLETED"],
+        COMPLETED: [],
+        CANCELLED: [],
+    };
 
     try {
+        if (!userId) return next(new AppError("Unauthorized", 401));
+        if (!validStatuses.includes(status)) return next(new AppError("Invalid status", 400));
+
         const existing = await prisma.helpRequest.findUnique({ where: { id } });
-
         if (!existing) return next(new AppError("Not found", 404));
-        if (existing.requesterId !== userId) {
-            return next(new AppError("Forbidden", 403));
+        if (existing.requesterId !== userId) return next(new AppError("Forbidden", 403));
+
+        if (!transitions[existing.status].includes(status)) {
+            return next(new AppError("Invalid status transition", 400));
         }
 
-        // Update location (only location fields)
-        if (location && existing.locationId) {
-            await prisma.location.update({
-                where: { id: existing.locationId },
-                data: {
-                    latitude: location.latitude,
-                    longitude: location.longitude,
-                    radius: location.radius || 800,
-                    street: location.street || null,
-                    city: location.city || null,
-                    state: location.state || null,
-                    country: location.country || null,
-                },
-            });
-        }
-
-        // Update helpRequest fields
         const updated = await prisma.helpRequest.update({
+            where: { id },
+            data: { status },
+        });
+
+        sendResponse(res, updated, `Status changed to ${status}`);
+    } catch {
+        next(new AppError("Failed to update status", 500));
+    }
+};
+
+
+// UPDATE
+export const updateHelpRequest = async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    const { id } = req.params;
+    const { title, description, category, budget, status } = req.body;
+
+    try {
+        if (!userId) return next(new AppError("Unauthorized", 401));
+
+        const request = await prisma.helpRequest.findUnique({ where: { id } });
+        if (!request) return next(new AppError("Help request not found", 404));
+        if (request.requesterId !== userId) return next(new AppError("Forbidden", 403));
+
+        // Status transition rules
+        const allowedStatuses: Record<string, string[]> = {
+            OPEN: ["ASSIGNED", "CANCELLED"],
+            ASSIGNED: ["COMPLETED"],
+            COMPLETED: [],
+            CANCELLED: [],
+        };
+
+        if (status && !allowedStatuses[request.status].includes(status)) {
+            return next(new AppError(`Cannot change status from ${request.status} to ${status}`, 400));
+        }
+
+        const updatedRequest = await prisma.helpRequest.update({
             where: { id },
             data: {
                 ...(title && { title }),
                 ...(description && { description }),
                 ...(category && { category }),
                 ...(budget !== undefined && { budget }),
+                ...(status && { status }),
             },
-            include: { location: true },
         });
 
-        res.json({
-            success: true,
-            data: updated,
-            message: "Updated successfully",
-        });
-
+        sendResponse(res, updatedRequest, "Help request updated successfully");
     } catch (error) {
-        console.error("Error updating help request:", error);
-        next(new AppError("Update failed", 500));
+        console.error("Update Help Request Error:", error);
+        next(new AppError("Failed to update help request", 500));
     }
 };
-
-export const updateHelpRequestStatus = async (req: Request, res: Response, next: NextFunction) => {
-    const userId = req.user?.userId;
-    const { id } = req.params;
-    const { status } = req.body;
-
-    try {
-
-        // check if user is authenticated
-        if (!userId) return next(new AppError("Unauthorized", 401));
-
-        // check if request exists
-        const existing = await prisma.helpRequest.findUnique({ where: { id } });
-        if (!existing) return next(new AppError("Not found", 404));
-
-        // only requester can update status
-        if (existing.requesterId !== userId) {
-            return next(new AppError("Forbidden", 403));
-        }
-
-        // validate status
-        const validStatuses = ["OPEN", "ASSIGNED", "COMPLETED", "CANCELLED"];
-        if (!validStatuses.includes(status)) {
-            return next(new AppError("Invalid status", 400));
-        }
-
-        //  transition validation
-        const allowedTransitions: Record<string, string[]> = {
-            OPEN: ["ASSIGNED", "CANCELLED"],
-            ASSIGNED: ["COMPLETED"],
-            COMPLETED: [],
-            CANCELLED: [],
-        }
-
-        if (!allowedTransitions[existing.status].includes(status)) {
-            return next(
-                new AppError(
-                    `Cannot change status from ${existing.status} to ${status}`,
-                    400
-                )
-            );
-        }
-        // update status
-        const updated = await prisma.helpRequest.update({
-            where: { id },
-            data: { status },
-            include: { location: true },
-        });
-
-        res.json({
-            success: true,
-            data: updated,
-            message: "Status updated successfully",
-        });
-
-    } catch (error) {
-        console.error("Error updating help request status:", error);
-        next(new AppError("Failed to update help request status", 500));
-    }
-
-}
-
-
