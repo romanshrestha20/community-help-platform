@@ -4,7 +4,8 @@ import {
   getBidsForHelpRequest,
   updateBid,
   respondToBid,
-  deleteBid
+  deleteBid,
+  getBidById
 } from '../controllers/bid.controller.js';
 import { authenticateUser } from '../middlewares/auth.middleware.js';
 
@@ -16,7 +17,11 @@ router.put('/:bidId', authenticateUser, updateBid);              // update your 
 router.patch('/:bidId/respond', authenticateUser, respondToBid); // requester accepts/rejects bid
 router.delete('/:bidId', authenticateUser, deleteBid);           // delete your pending bid
 
+router.get('/:bidId', authenticateUser, getBidById);
+
 // Public routes (optional)
 router.get('/help-request/:helpRequestId', getBidsForHelpRequest); // get all bids for a help request
 
 export default router;
+
+
