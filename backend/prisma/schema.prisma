@@ -31,9 +31,17 @@ model UserModel {
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
 
-  notifications Notification[]
+  receivedReviews Review[] @relation("UserReviewsReceived")
 
+  notifications Notification[]
   refreshTokens RefreshToken[]
+
+  // NEW
+  reviews       Review[]
+  reviewReplies ReviewReply[]
+  reviewLikes   ReviewLike[]
+  favorites     Favorite[]
+  images        Image[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -158,6 +166,105 @@ model Location {
 
   helpRequest HelpRequest? @relation("HelpRequestLocation")
   profile     Profile?     @relation("ProfileAddress")
+}
+
+model Review {
+  id         String  @id @default(cuid())
+  rating     Int
+  title      String?
+  comment    String
+  isApproved Boolean @default(true)
+
+  likesCount Int @default(0)
+  replyCount Int @default(0)
+
+  user   UserModel @relation(fields: [userId], references: [id])
+  userId String
+
+  replies ReviewReply[]
+  likes   ReviewLike[]
+  images  Image[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  targetUserId String
+  targetUser   UserModel @relation("UserReviewsReceived", fields: [targetUserId], references: [id])
+
+  @@unique([userId, title, comment])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ReviewReply {
+  id      String @id @default(cuid())
+  comment String
+
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reviewId String
+
+  likes      ReviewLike[]
+  likesCount Int          @default(0)
+
+  user   UserModel @relation(fields: [userId], references: [id])
+  userId String
+
+  createdAt DateTime @default(now())
+
+  @@index([reviewId])
+  @@index([userId])
+}
+
+model ReviewLike {
+  id String @id @default(cuid())
+
+  reviewId String?
+  review   Review? @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  reviewReplyId String?
+  reviewReply   ReviewReply? @relation(fields: [reviewReplyId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   UserModel @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, reviewId])
+  @@unique([userId, reviewReplyId])
+  @@index([reviewId])
+  @@index([reviewReplyId])
+  @@index([userId])
+}
+
+model Favorite {
+  id     String @id @default(uuid())
+  userId String
+
+  createdAt DateTime @default(now())
+
+  user UserModel @relation(fields: [userId], references: [id])
+
+  @@unique([userId])
+  @@index([userId])
+  @@map("favorites")
+}
+
+model Image {
+  id       String  @id @default(uuid())
+  url      String
+  publicId String?
+
+  userId   String?
+  reviewId String?
+
+  review Review?    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   UserModel? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([reviewId])
 }
 
 // ======================
