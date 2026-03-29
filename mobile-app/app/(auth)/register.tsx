@@ -57,8 +57,9 @@ export default function RegisterScreen() {
       dateOfBirth,
     });
 
-    if (result.success) {
-      router.replace("/home");
+    if (result?.success) {
+      // do nothing
+      // global guard will redirect if token is set
     }
   };
 
@@ -74,13 +75,17 @@ export default function RegisterScreen() {
           <AppInput label="Full Name" placeholder="Your full name" value={fullName} onChangeText={setFullName} />
           <AppInput label="Address" placeholder="Street address" value={address} onChangeText={setAddress} />
           <AppInput label="Date of Birth" placeholder="YYYY-MM-DD" value={dateOfBirth} onChangeText={setDateOfBirth} />
+          
           <AppInput
             label="Gender"
             placeholder="MALE/FEMALE/OTHER"
             value={gender}
-            onChangeText={(value) => setGender(value.toUpperCase() as "MALE" | "FEMALE" | "OTHER")}
+            onChangeText={(value) =>
+              setGender(value.toUpperCase() as "MALE" | "FEMALE" | "OTHER")
+            }
             autoCapitalize="characters"
           />
+
           <AppInput label="Latitude" placeholder="27.7172" value={latitude} onChangeText={setLatitude} keyboardType="decimal-pad" />
           <AppInput label="Longitude" placeholder="85.3240" value={longitude} onChangeText={setLongitude} keyboardType="decimal-pad" />
 
@@ -94,7 +99,12 @@ export default function RegisterScreen() {
             disabled={loadingRegister}
           />
 
-          <Text style={styles.link} onPress={() => router.push("/login")}>Already have an account? Login</Text>
+          <Text
+            style={styles.link}
+            onPress={() => router.push("/(auth)/login")}
+          >
+            Already have an account? Login
+          </Text>
         </Stack>
       </Card>
     </FormContainer>
