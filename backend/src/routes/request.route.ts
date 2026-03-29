@@ -8,26 +8,21 @@ import {
   updateHelpRequestStatus
 } from '../controllers/request.controller.js';
 
-import {
-  placeBid,
-  getBidsForHelpRequest,
-  updateBid,
-  respondToBid,
-  deleteBid
-} from '../controllers/bid.controller.js';
 
 import { authenticateUser } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
-// Protected
-router.post('/', authenticateUser, createHelpRequest);
-router.put('/:id', authenticateUser, updateHelpRequest);
-router.delete('/:id', authenticateUser, deleteHelpRequest);
-router.patch('/:id/status', authenticateUser, updateHelpRequestStatus);
-
 // Public
 router.get('/', getAllHelpRequests);
 router.get('/:id', authenticateUser, getHelpRequestById);
+
+// Protected
+router.use(authenticateUser);
+router.post('/', createHelpRequest);
+router.put('/:id', updateHelpRequest);
+router.delete('/:id', deleteHelpRequest);
+router.patch('/:id/status', updateHelpRequestStatus);
+
 
 export default router;
