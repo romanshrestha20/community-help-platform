@@ -1,3 +1,4 @@
+// src/features/auth/store/auth.store.ts
 import { create } from 'zustand'
 import { User } from '../types/auth.types'
 
