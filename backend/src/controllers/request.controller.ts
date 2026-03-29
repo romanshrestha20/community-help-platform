@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.js";
+import { getHelpRequests } from "../services/helpRequest.service.js";
 
 const validCategories = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
 const validStatuses = ["OPEN", "ASSIGNED", "COMPLETED", "CANCELLED"];
@@ -57,65 +58,10 @@ export const createHelpRequest = async (req: Request, res: Response, next: NextF
 // GET ALL
 export const getAllHelpRequests = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const page = parseInt(req.query.page as string) || 1;
-        const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
-        const skip = (page - 1) * limit;
-
-        const { category, status } = req.query;
-
-        if (category && !validCategories.includes(category as string)) {
-            return next(new AppError("Invalid category", 400));
-        }
-
-        if (status && !validStatuses.includes(status as string)) {
-            return next(new AppError("Invalid status", 400));
-        }
-
-        const filters: any = {};
-        if (category) filters.category = category;
-        if (status) filters.status = status;
-
-        const [requests, total] = await Promise.all([
-            prisma.helpRequest.findMany({
-                where: filters,
-                skip,
-                take: limit,
-                orderBy: { createdAt: "desc" },
-                include: {
-                    location: true,
-                    requester: {
-                        select: {
-                            id: true,
-                            profile: { select: { fullName: true } },
-                        },
-                    },
-                    _count: { select: { bids: true } },
-                },
-            }),
-            prisma.helpRequest.count({ where: filters }),
-        ]);
-
-        const formatted = requests.map((r: any) => ({
-            id: r.id,
-            title: r.title,
-            description: r.description,
-            category: r.category,
-            budget: r.budget,
-            status: r.status,
-            isPaid: r.isPaid,
-            city: r.location?.city,
-            country: r.location?.country,
-            requesterName: r.requester.profile?.fullName,
-            bidCount: r._count.bids,
-            createdAt: r.createdAt,
-        }));
-
-        sendResponse(res, formatted, "", {
-            total,
-            page,
-            totalPages: Math.ceil(total / limit),
-        });
+        const result = await getHelpRequests(req.query);
+        sendResponse(res, result.requests, "", result.meta);
     } catch (err) {
+        console.error(err);
         next(new AppError("Failed to fetch requests", 500));
     }
 };
@@ -150,6 +96,7 @@ export const getHelpRequestById = async (req: Request, res: Response, next: Next
             status: r.status,
             isPaid: r.isPaid,
             city: r.location?.city,
+            state: r.location?.state,
             country: r.location?.country,
             requesterName: r.requester.profile?.fullName,
             bidCount: r._count.bids,
