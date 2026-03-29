@@ -1,7 +1,7 @@
 // src/features/user/store/user.store.ts
 
 import { create } from "zustand";
-import { User } from "../user.types";
+import { User } from "../types/user.types";
 
 type UserState = {
     user: User | null;
