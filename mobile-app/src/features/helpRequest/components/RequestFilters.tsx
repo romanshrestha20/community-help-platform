@@ -1,55 +1,98 @@
-// components/RequestFilters.tsx
-import React from "react";
-import { Pressable, Text, View, StyleSheet } from "react-native";
-import { Row, Stack, theme } from "@/design-system";
+import React, { useState } from "react";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { Stack, theme } from "@/design-system";
+import { AppDropdown } from "@/components/ui/AppDropDown";
+import { AppButton } from "@/components/ui/AppButton";
+import { GlobalFilters } from "@/features/helpRequest/hooks/useGlobalFilters";
+import { HelpRequest, HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
+import { AppModal } from "@/components/ui/AppModal";
 
 interface Props {
-    statusFilter: string;
-    setStatusFilter: (v: any) => void;
-    categoryFilter: string;
-    setCategoryFilter: (v: any) => void;
-    sortBy: string;
-    setSortBy: (v: any) => void;
+  filters: GlobalFilters;
+  updateFilter: <K extends "status" | "category" | "sortBy">(
+    key: K,
+    value: GlobalFilters[K]
+  ) => void;
+  resetFilters: () => void;
 }
 
-export const RequestFilters = ({ statusFilter, setStatusFilter, categoryFilter, setCategoryFilter, sortBy, setSortBy }: Props) => {
-    const statusOptions = ["ALL", "OPEN", "ASSIGNED", "COMPLETED", "CANCELLED"];
-    const categoryOptions = ["ALL", "FOOD", "MEDICAL", "EDUCATION", "OTHER"];
-    const sortOptions = ["NEWEST", "OLDEST", "MOST_BIDS"];
+export const RequestFilters = ({ filters, updateFilter, resetFilters }: Props) => {
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 600; // Example breakpoint
+  const [modalVisible, setModalVisible] = useState(false);
 
+  const Dropdowns = (
+    <Stack gap="sm" style={styles.dropdownGroup}>
+      <AppDropdown
+        label="Sort"
+        value={filters.sortBy}
+        onSelect={(v) => updateFilter("sortBy", v as GlobalFilters["sortBy"])}
+        options={[
+          { label: "Newest", value: "NEWEST" },
+          { label: "Oldest", value: "OLDEST" },
+          { label: "Most Bids", value: "MOST_BIDS" },
+        ]}
+      />
+      <AppDropdown
+        label="Status"
+        value={filters.status}
+        onSelect={(v) => updateFilter("status", v as "ALL" | HelpRequestStatus)}
+        options={[
+          { label: "All", value: "ALL" },
+          { label: "Open", value: "OPEN" },
+          { label: "Assigned", value: "ASSIGNED" },
+          { label: "Completed", value: "COMPLETED" },
+          { label: "Cancelled", value: "CANCELLED" },
+        ]}
+      />
+      <AppDropdown
+        label="Category"
+        value={filters.category}
+        onSelect={(v) => updateFilter("category", v as "ALL" | HelpRequest["category"])}
+        options={[
+          { label: "All", value: "ALL" },
+          { label: "Food", value: "FOOD" },
+          { label: "Medical", value: "MEDICAL" },
+          { label: "Education", value: "EDUCATION" },
+          { label: "Other", value: "OTHER" },
+        ]}
+      />
+      <AppButton onPress={resetFilters} title="Reset Filters" />
+    </Stack>
+  );
+
+  if (isSmallScreen) {
     return (
-        <Stack gap="sm">
-            <Row gap="sm" style={styles.chipRow}>
-                {sortOptions.map((option) => (
-                    <Pressable key={option} style={[styles.chip, sortBy === option && styles.chipActive]} onPress={() => setSortBy(option)}>
-                        <Text style={[styles.chipText, sortBy === option && styles.chipTextActive]}>{option}</Text>
-                    </Pressable>
-                ))}
-            </Row>
-
-            <Row gap="sm" style={styles.chipRow}>
-                {statusOptions.map((option) => (
-                    <Pressable key={option} style={[styles.chip, statusFilter === option && styles.chipActive]} onPress={() => setStatusFilter(option)}>
-                        <Text style={[styles.chipText, statusFilter === option && styles.chipTextActive]}>{option}</Text>
-                    </Pressable>
-                ))}
-            </Row>
-
-            <Row gap="sm" style={styles.chipRow}>
-                {categoryOptions.map((option) => (
-                    <Pressable key={option} style={[styles.chip, categoryFilter === option && styles.chipActive]} onPress={() => setCategoryFilter(option)}>
-                        <Text style={[styles.chipText, categoryFilter === option && styles.chipTextActive]}>{option}</Text>
-                    </Pressable>
-                ))}
-            </Row>
-        </Stack>
+      <Stack gap="sm">
+        <AppButton title="Filters" onPress={() => setModalVisible(true)} />
+        <AppModal
+          visible={modalVisible}
+          title="Filters"
+          onClose={() => setModalVisible(false)}
+          actions={
+            <AppButton title="Close" onPress={() => setModalVisible(false)} />
+          }
+        >
+          {Dropdowns}
+        </AppModal>
+      </Stack>
     );
+  }
+
+  return <View style={styles.rowContainer}>{Dropdowns}</View>;
 };
 
 const styles = StyleSheet.create({
-    chipRow: { flexWrap: "wrap" },
-    chip: { borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radius.md, paddingHorizontal: theme.spacing.sm, paddingVertical: theme.spacing.xs },
-    chipActive: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary },
-    chipText: { color: theme.colors.textPrimary, fontSize: theme.typography.fontSize.xs, lineHeight: theme.typography.lineHeight.xs, fontWeight: theme.typography.fontWeight.medium },
-    chipTextActive: { color: theme.colors.textInverse },
+  rowContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+    marginVertical: theme.spacing.sm,
+  },
+  dropdownGroup: {
+    flex: 1,
+    minWidth: 50,
+    gap: theme.spacing.sm,
+  },
 });
