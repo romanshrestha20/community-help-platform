@@ -8,7 +8,7 @@ type Props = {
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
-  variant?: "primary" | "danger";
+  variant?: "primary" | "danger" | "ghost";
   fullWidth?: boolean;
 };
 
@@ -24,7 +24,7 @@ export const AppButton = ({
     <TouchableOpacity
       style={[
         styles.button,
-        variant === "danger" ? styles.dangerButton : styles.primaryButton,
+        variant === "danger" ? styles.dangerButton : variant === "ghost" ? styles.ghostButton : styles.primaryButton,
         fullWidth && styles.fullWidth,
         disabled && styles.disabled,
       ]}
@@ -52,6 +52,11 @@ const styles = StyleSheet.create({
   },
   dangerButton: {
     backgroundColor: theme.colors.danger,
+  },
+  ghostButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   fullWidth: {
     width: "100%",
