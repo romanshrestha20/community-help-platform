@@ -1,4 +1,3 @@
-// src/screens/LoginScreen.tsx
 import React, {  useState } from "react";
 import { Text, StyleSheet } from "react-native";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
