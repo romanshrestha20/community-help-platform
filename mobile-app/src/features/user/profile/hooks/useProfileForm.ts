@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { Gender, UpdateUserProfilePayload, User, UserType } from "@/features/user/user.types";
+import { Gender, UpdateUserProfilePayload, User, UserType } from "@/features/user/types/user.types";
 
 const buildFormFromUser = (user: User | null): UpdateUserProfilePayload => {
     if (!user) {
