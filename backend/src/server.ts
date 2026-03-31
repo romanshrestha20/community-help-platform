@@ -5,7 +5,7 @@ import { prisma } from './lib/prisma.js';
 
 
 (async () => {
-  try{
+  try {
     await prisma.$connect();
     console.log('Connected to the database successfully!');
   } catch (error) {
@@ -15,7 +15,10 @@ import { prisma } from './lib/prisma.js';
   }
 })();
 
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-  console.log(`Server is running on port http://localhost:${PORT}`);
-});
+const PORT = Number(process.env.PORT) || 5001;
+const HOST = process.env.HOST || '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+  const publicHost = HOST === '0.0.0.0' ? 'localhost' : HOST;
+  console.log(`Server is running on http://${publicHost}:${PORT}`);
+}); 
