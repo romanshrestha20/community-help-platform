@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, View, Text } from "react-native";
-import Stack from "@/design-system/layout/Stack";
-import Card from "@/design-system/layout/Card";
-import AppInput from "@/components/ui/AppInput";
-import AppButton from "@/components/ui/AppButton";
-import { spacing, colors, typography } from "@/design-system/tokens";
+import { ScrollView, StyleSheet, Text } from "react-native";
+import { Card } from "@/design-system/layout/Card";
+import { AppInput } from "@/components/ui/AppInput";
+import { Stack } from "@/design-system/layout/Stack";
+import { AppButton } from "@/components/ui/AppButton";
+import { spacing, colors } from "@/design-system/tokens";
 import { CreateBidData, UpdateBidData, Bid } from "../types/bid.types";
 
 interface BidFormProps {
@@ -73,19 +73,28 @@ export const BidForm: React.FC<BidFormProps> = ({
 
         const data = isUpdate
             ? {
-                  amount: parseFloat(formData.amount),
-                  message: formData.message,
-              }
+                amount: parseFloat(formData.amount),
+                message: formData.message,
+            }
             : {
-                  helpRequestId: formData.helpRequestId,
-                  amount: parseFloat(formData.amount),
-                  message: formData.message,
-              };
+                helpRequestId: formData.helpRequestId,
+                amount: parseFloat(formData.amount),
+                message: formData.message,
+            };
 
         await onSubmit(data);
+
+        if (!isUpdate) {
+            setFormData((prev) => ({
+                ...prev,
+                amount: "",
+                message: "",
+            }));
+        }
     };
 
     const messageLength = formData.message.length;
+    const parsedAmount = parseFloat(formData.amount);
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
@@ -95,11 +104,11 @@ export const BidForm: React.FC<BidFormProps> = ({
                     {requestTitle && (
                         <Card style={{ backgroundColor: colors.primary + "10" }}>
                             <Stack gap="sm">
-                                <Text style={[typography.caption, { color: colors.subtext }]}>
+                                <Text >
                                     For Request
                                 </Text>
                                 <Text
-                                    style={[typography.body1, { fontWeight: "600" }]}
+
                                     numberOfLines={2}
                                 >
                                     {requestTitle}
@@ -110,7 +119,7 @@ export const BidForm: React.FC<BidFormProps> = ({
 
                     {/* Bid Amount */}
                     <Stack gap="sm">
-                        <Text style={[typography.caption, { fontWeight: "600" }]}>Bid Amount (USD) *</Text>
+                        <Text>Bid Amount (USD) *</Text>
                         <AppInput
                             placeholder="Enter your bid amount"
                             keyboardType="decimal-pad"
@@ -118,16 +127,16 @@ export const BidForm: React.FC<BidFormProps> = ({
                             onChangeText={(value) => handleInputChange("amount", value)}
                             editable={!loading}
                         />
-                        {formData.amount && (
-                            <Text style={[typography.caption, { color: colors.success }]}>
-                                ${parseFloat(formData.amount).toFixed(2)}
+                        {formData.amount && !isNaN(parsedAmount) && (
+                            <Text >
+                                ${parsedAmount.toFixed(2)}
                             </Text>
                         )}
                     </Stack>
 
                     {/* Message */}
                     <Stack gap="sm">
-                        <Text style={[typography.caption, { fontWeight: "600" }]}>Cover Letter *</Text>
+                        <Text >Message *</Text>
                         <AppInput
                             placeholder="Why are you a good fit for this request? (10-500 chars)"
                             multiline
@@ -138,14 +147,14 @@ export const BidForm: React.FC<BidFormProps> = ({
                         />
                         <Text
                             style={[
-                                typography.caption,
+
                                 {
                                     color:
                                         messageLength >= 10 && messageLength <= 500
                                             ? colors.success
                                             : messageLength > 500
-                                              ? colors.error
-                                              : colors.subtext,
+                                                ? colors.danger
+                                                : colors.textSecondary,
                                 },
                             ]}
                         >
@@ -155,17 +164,18 @@ export const BidForm: React.FC<BidFormProps> = ({
 
                     {/* Validation Error */}
                     {validationError && (
-                        <Card style={{ backgroundColor: colors.error + "20" }}>
-                            <Text style={[typography.caption, { color: colors.error }]}>
+                        <Card style={{ backgroundColor: colors.danger + "20" }}>
+                            <Text >
                                 {validationError}
                             </Text>
                         </Card>
                     )}
-
                     {/* Error */}
                     {error && (
-                        <Card style={{ backgroundColor: colors.error + "20" }}>
-                            <Text style={[typography.caption, { color: colors.error }]}>{error}</Text>
+                        <Card style={{ backgroundColor: colors.danger + "20" }}>
+                            <Text >
+                                {error}
+                            </Text>
                         </Card>
                     )}
 

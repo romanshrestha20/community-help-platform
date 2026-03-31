@@ -17,6 +17,7 @@ interface BidCardProps {
     canRespond?: boolean;
     canModify?: boolean;
     loading?: boolean;
+    disableRespondActions?: boolean;
 }
 
 const getStatusColor = (status: BidStatus): string => {
@@ -40,6 +41,7 @@ export const BidCard: React.FC<BidCardProps> = ({
     canRespond = false,
     canModify = false,
     loading = false,
+    disableRespondActions = false,
 }) => {
     return (
         <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
@@ -52,7 +54,7 @@ export const BidCard: React.FC<BidCardProps> = ({
                                 {bid.helperName}
                             </Text>
                             <Text style={[styles.captionText, { color: colors.textSecondary }]}> 
-                                {bid.helperEmail}
+                                {bid.helperEmail || "No email"}
                             </Text>
                         </Stack>
 
@@ -102,26 +104,28 @@ export const BidCard: React.FC<BidCardProps> = ({
                     </Row>
 
                     {/* Actions - Respond to Bid (Requester) */}
-                    {canRespond && bid.status === 'ACCEPTED' && (
+                    {canRespond && bid.status === "PENDING" && (
                         <Row gap="sm">
                             <AppButton
                                 title="Accept"
                                 onPress={onAccept ?? (() => {})}
-                                disabled={loading}
+                                loading={loading}
+                                disabled={loading || disableRespondActions}
                                 fullWidth={false}
                             />
                             <AppButton
                                 title="Reject"
                                 onPress={onReject ?? (() => {})}
                                 variant="danger"
-                                disabled={loading}
+                                loading={loading}
+                                disabled={loading || disableRespondActions}
                                 fullWidth={false}
                             />
                         </Row>
                     )}
 
                     {/* Actions - Modify Bid (Bidder) */}
-                    {canModify && bid.status === 'ACCEPTED' && (
+                    {canModify && bid.status === "PENDING" && (
                         <Row gap="sm">
                             {onUpdate && (
                                 <AppButton
@@ -144,7 +148,7 @@ export const BidCard: React.FC<BidCardProps> = ({
                     )}
 
                     {/* Delete Action for Rejected */}
-                    {canModify && bid.status === 'REJECTED' && onDelete && (
+                    {canModify && bid.status === "REJECTED" && onDelete && (
                         <AppButton
                             title="Delete"
                             onPress={onDelete}

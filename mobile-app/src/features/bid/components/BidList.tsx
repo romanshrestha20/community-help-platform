@@ -20,6 +20,8 @@ interface BidListProps {
     onBidDelete?: (bid: Bid) => void;
     canRespond?: boolean;
     canModify?: boolean;
+    actionLoadingByBidId?: Record<string, boolean>;
+    disableRespondActions?: boolean;
     onRetry?: () => void;
 }
 
@@ -36,6 +38,8 @@ export const BidList: React.FC<BidListProps> = ({
     onBidDelete,
     canRespond = false,
     canModify = false,
+    actionLoadingByBidId = {},
+    disableRespondActions = false,
     onRetry,
 }) => {
     const renderBid = ({ item }: { item: Bid }) => (
@@ -48,7 +52,8 @@ export const BidList: React.FC<BidListProps> = ({
             onDelete={() => onBidDelete?.(item)}
             canRespond={canRespond}
             canModify={canModify}
-            loading={loading}
+            loading={Boolean(actionLoadingByBidId[item.id]) || loading}
+            disableRespondActions={disableRespondActions}
         />
     );
 
