@@ -37,7 +37,7 @@ describe("bid.controller", () => {
 
         await placeBid(req, res, next);
 
-        expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: "All fields are required", statusCode: 400 }));
+        expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: "Invalid amount", statusCode: 400 }));
     });
 
     it("placeBid: creates bid successfully", async () => {
