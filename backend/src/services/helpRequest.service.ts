@@ -55,6 +55,7 @@ export const getHelpRequests = async (query: any) => {
 
   const formatted = requests.map((r: any) => ({
     id: r.id,
+    requesterId: r.requester.id,
     title: r.title,
     description: r.description,
     category: r.category,
