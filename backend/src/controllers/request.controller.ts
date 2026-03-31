@@ -52,7 +52,9 @@ export const createHelpRequest = async (req: Request, res: Response, next: NextF
                 description,
                 category,
                 budget: budget || null,
-                requesterId: userId,
+                requester: {
+                    connect: { id: userId },
+                },
                 location: {
                     create: {
                         latitude: Number(normalizedLocation.latitude) || 0,
