@@ -2,6 +2,7 @@ import express from 'express';
 import {
   placeBid,
   getBidsForHelpRequest,
+  getMyBids,
   updateBid,
   respondToBid,
   deleteBid,
@@ -16,6 +17,7 @@ router.post('/', authenticateUser, placeBid);                     // place a bid
 router.put('/:bidId', authenticateUser, updateBid);              // update your bid (pending)
 router.patch('/:bidId/respond', authenticateUser, respondToBid); // requester accepts/rejects bid
 router.delete('/:bidId', authenticateUser, deleteBid);           // delete your pending bid
+router.get('/my', authenticateUser, getMyBids);                  // helper's own bidding activity
 
 router.get('/:bidId', authenticateUser, getBidById);
 
