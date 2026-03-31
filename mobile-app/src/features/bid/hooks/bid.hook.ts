@@ -1,22 +1,63 @@
 
 import * as bidService from "../services/bid.service";
-import { CreateBidData, UpdateBidData, BidStatus, } from "../types/bid.types";
+import { CreateBidData, UpdateBidData, BidStatus, Bid } from "../types/bid.types";
 import { useAsync } from "@/utils/useAsync";
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
+
+type RespondBidStatus = Exclude<BidStatus, "PENDING">;
 
 export const useBid = () => {
     const { loading, error, run } = useAsync();
+    const [bidsByRequestId, setBidsByRequestId] = useState<Record<string, Bid[]>>({});
+    const [loadingByRequestId, setLoadingByRequestId] = useState<Record<string, boolean>>({});
+    const [actionLoadingByBidId, setActionLoadingByBidId] = useState<Record<string, boolean>>({});
 
+    const getCachedBids = useCallback((helpRequestId: string) => {
+        return bidsByRequestId[helpRequestId] || [];
+    }, [bidsByRequestId]);
 
-    const createBid = useCallback((data: CreateBidData) =>
-        run(() => bidService.createBid(data)), [run]);
+    const createBid = useCallback(async (data: CreateBidData) => {
+        const created = await run(() => bidService.createBid(data));
+
+        if (created) {
+            setBidsByRequestId((prev) => {
+                const existing = prev[data.helpRequestId] || [];
+                return {
+                    ...prev,
+                    [data.helpRequestId]: [created, ...existing],
+                };
+            });
+        }
+
+        return created;
+    }, [run]);
 
     const getBidById = useCallback((id: string) => {
         return run(() => bidService.getBidById(id));
     }, [run]);
 
-    const getBidsByHelpRequestId = useCallback((helpRequestId: string) => {
-        return run(() => bidService.getBidsByHelpRequestId(helpRequestId));
+    const getBidsByHelpRequestId = useCallback(async (helpRequestId: string, options?: { forceRefresh?: boolean }) => {
+        const forceRefresh = options?.forceRefresh ?? false;
+
+        if (!forceRefresh && bidsByRequestId[helpRequestId]) {
+            return bidsByRequestId[helpRequestId];
+        }
+
+        setLoadingByRequestId((prev) => ({ ...prev, [helpRequestId]: true }));
+
+        try {
+            const bids = await run(() => bidService.getBidsByHelpRequestId(helpRequestId));
+            if (bids) {
+                setBidsByRequestId((prev) => ({ ...prev, [helpRequestId]: bids }));
+            }
+            return bids;
+        } finally {
+            setLoadingByRequestId((prev) => ({ ...prev, [helpRequestId]: false }));
+        }
+    }, [bidsByRequestId, run]);
+
+    const getMyBids = useCallback(() => {
+        return run(() => bidService.getMyBids());
     }, [run]);
 
 
@@ -24,22 +65,82 @@ export const useBid = () => {
         return run(() => bidService.updateBid(id, data));
     }, [run]);
 
-    const respondToBid = useCallback((id: string, data: BidStatus) => {
-        return run(() => bidService.respondToBid(id, data));
+    const respondToBid = useCallback(async (id: string, data: RespondBidStatus, helpRequestId?: string) => {
+        setActionLoadingByBidId((prev) => ({ ...prev, [id]: true }));
+        try {
+            const updated = await run(() => bidService.respondToBid(id, data));
+            if (updated && helpRequestId) {
+                setBidsByRequestId((prev) => ({
+                    ...prev,
+                    [helpRequestId]: (prev[helpRequestId] || []).map((bid) =>
+                        bid.id === id ? { ...bid, ...updated } : bid,
+                    ),
+                }));
+            }
+            return updated;
+        } finally {
+            setActionLoadingByBidId((prev) => ({ ...prev, [id]: false }));
+        }
     }, [run]);
+
+    const respondToBidOptimistic = useCallback(async (id: string, status: RespondBidStatus, helpRequestId: string) => {
+        const previousBids = bidsByRequestId[helpRequestId] || [];
+
+        if (!previousBids.length) {
+            return respondToBid(id, status, helpRequestId);
+        }
+
+        const optimisticBids = previousBids.map((bid) => {
+            if (bid.id === id) {
+                return { ...bid, status };
+            }
+
+            if (status === "ACCEPTED" && bid.status === "PENDING") {
+                return { ...bid, status: "REJECTED" as BidStatus };
+            }
+
+            return bid;
+        });
+
+        setBidsByRequestId((prev) => ({ ...prev, [helpRequestId]: optimisticBids }));
+
+        const updated = await respondToBid(id, status, helpRequestId);
+        if (!updated) {
+            setBidsByRequestId((prev) => ({ ...prev, [helpRequestId]: previousBids }));
+            return null;
+        }
+
+        return updated;
+    }, [bidsByRequestId, respondToBid]);
 
     const deleteBid = useCallback((id: string) => {
         return run(() => bidService.deleteBid(id));
     }, [run]);
 
+    const hasAcceptedBid = useCallback((helpRequestId: string) => {
+        return (bidsByRequestId[helpRequestId] || []).some((bid) => bid.status === "ACCEPTED");
+    }, [bidsByRequestId]);
+
+    const isAnyBidActionLoading = useMemo(() => {
+        return Object.values(actionLoadingByBidId).some(Boolean);
+    }, [actionLoadingByBidId]);
+
     return {
         loading,
         error,
+        bidsByRequestId,
+        loadingByRequestId,
+        actionLoadingByBidId,
+        isAnyBidActionLoading,
+        getCachedBids,
+        hasAcceptedBid,
         createBid,
         getBidById,
         getBidsByHelpRequestId,
+        getMyBids,
         updateBid,
         respondToBid,
+        respondToBidOptimistic,
         deleteBid,
     };
-}   
+};

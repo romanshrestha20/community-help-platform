@@ -1,6 +1,6 @@
 // src/types/bid.types.ts
 
-export type BidStatus = "ACCEPTED" | "REJECTED";
+export type BidStatus = "PENDING" | "ACCEPTED" | "REJECTED";
 
 export interface Bid {
     id: string;
@@ -12,10 +12,10 @@ export interface Bid {
     status: BidStatus;
 
     helperName: string;
-    helperEmail: string;
+    helperEmail?: string;
 
     createdAt: string;
-    updatedAt: string;
+    updatedAt?: string;
 }
 
 export interface CreateBidData {

@@ -20,6 +20,11 @@ export const getBidsByHelpRequestId = async (helpRequestId: string): Promise<Bid
     return handleResponse<Bid[]>(response.data);
 };
 
+export const getMyBids = async (): Promise<Bid[]> => {
+    const response = await bidApi.getMyBidsApi();
+    return handleResponse<Bid[]>(response.data);
+};
+
 export const updateBid = async (bidId: string, data: UpdateBidData): Promise<Bid> => {
     const response = await bidApi.updateBidApi(bidId, data);
     return handleResponse<Bid>(response.data);

@@ -9,6 +9,9 @@ export const createBidApi = (data: CreateBidData) =>
 export const getBidsByHelpRequestIdApi = (helpRequestId: string) =>
     apiClient.get(`/bids/help-request/${helpRequestId}`);
 
+export const getMyBidsApi = () =>
+    apiClient.get("/bids/my");
+
 export const updateBidApi = (bidId: string, data: Partial<UpdateBidData>) =>
     apiClient.put(`/bids/${bidId}`, data);
 
