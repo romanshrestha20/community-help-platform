@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, View, Text } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { Stack } from "@/design-system/layout/Stack";
 import { Card } from "@/design-system/layout/Card";
+import { AppModal } from "@/components/ui/AppModal";
 import { AppInput } from "@/components/ui/AppInput";
 import { AppButton } from "@/components/ui/AppButton";
-import { spacing, colors, typography } from "@/design-system";
+import { spacing, colors, typography, theme } from "@/design-system";
 import { CreateHelpRequestData, HelpRequest } from "../types/helpRequest.types";
 
 interface RequestFormProps {
@@ -30,16 +31,18 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     });
 
     const [validationError, setValidationError] = useState<string | null>(null);
+    const [modalVisible, setModalVisible] = useState(false);
 
     const categories = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
 
+    const handleInputChange = (field: keyof CreateHelpRequestData, value: any) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+        setValidationError(null);
+    };
+
     const validateForm = (): boolean => {
-        if (!formData.title.trim()) {
-            setValidationError("Title is required");
-            return false;
-        }
-        if (!formData.description.trim()) {
-            setValidationError("Description is required");
+        if (!formData.title.trim() || !formData.description.trim()) {
+            setValidationError("Title and Description are required");
             return false;
         }
         if (formData.budget && formData.budget <= 0) {
@@ -49,146 +52,129 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         return true;
     };
 
-    const handleInputChange = (field: keyof CreateHelpRequestData, value: any) => {
-        setFormData((prev) => ({
-            ...prev,
-            [field]: value,
-        }));
-        setValidationError(null);
-    };
-
     const handleSubmit = async () => {
         if (!validateForm()) return;
         await onSubmit(formData);
+        setModalVisible(false);
     };
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <Card>
-                <Stack gap="md">
-                    {/* Title */}
-                    <Stack gap="sm">
-                        <Text style={[styles.captionText, { fontWeight: typography.fontWeight.semibold }]}>Title *</Text>
+        <>
+            {/* Facebook-style placeholder card */}
+            <Card style={styles.placeholderCard}>
+                <TouchableOpacity onPress={() => setModalVisible(true)}>
+                    <Text style={styles.placeholderText}>
+                        What is your request? (Tap to create)
+                    </Text>
+                </TouchableOpacity>
+            </Card>
+
+            {/* Modal with full form */}
+            <AppModal
+                visible={modalVisible}
+                title={initialData ? "Edit Request" : "Create Request"}
+                onClose={() => setModalVisible(false)}
+               >
+                <ScrollView contentContainerStyle={{ paddingVertical: spacing.md }}>
+                    <Stack gap="md">
+                        {/* Title */}
                         <AppInput
-                            placeholder="What do you need help with?"
+                            placeholder="Title"
                             value={formData.title}
-                            onChangeText={(value) => handleInputChange("title", value)}
+                            onChangeText={(v) => handleInputChange("title", v)}
                             editable={!loading}
                         />
-                    </Stack>
-
-                    {/* Description */}
-                    <Stack gap="sm">
-                        <Text style={[styles.captionText, { fontWeight: typography.fontWeight.semibold }]}>Description *</Text>
+                        {/* Description */}
                         <AppInput
-                            placeholder="Describe your request in detail"
+                            placeholder="Description"
+                            value={formData.description}
+                            onChangeText={(v) => handleInputChange("description", v)}
+                            editable={!loading}
                             multiline
                             numberOfLines={4}
-                            value={formData.description}
-                            onChangeText={(value) => handleInputChange("description", value)}
-                            editable={!loading}
                         />
-                    </Stack>
-
-                    {/* Category */}
-                    <Stack gap="sm">
-                        <Text style={[styles.captionText, { fontWeight: typography.fontWeight.semibold }]}>Category *</Text>
+                        {/* Category */}
+                        <Stack gap="sm">
+                            <Text style={styles.label}>Category</Text>
+                            <View style={styles.categoryButtons}>
+                                {categories.map((cat) => (
+                                    <AppButton
+                                        key={cat}
+                                        title={cat}
+                                        onPress={() => handleInputChange("category", cat)}
+                                        variant={formData.category === cat ? "primary" : "ghost"}
+                                        fullWidth={false}
+                                    />
+                                ))}
+                            </View>
+                        </Stack>
+                        {/* Budget */}
                         <AppInput
-                            placeholder="Select category"
-                            value={formData.category}
-                            editable={!loading}
-                        />
-                        <View style={styles.categoryButtons}>
-                            {categories.map((cat) => (
-                                <AppButton
-                                    key={cat}
-                                    title={cat}
-                                    onPress={() => handleInputChange("category", cat)}
-                                    variant={formData.category === cat ? "primary" : "danger"}
-                                    fullWidth={false}
-                                />
-                            ))}
-                        </View>
-                    </Stack>
-
-                    {/* Budget */}
-                    <Stack gap="sm">
-                        <Text style={[styles.captionText, { fontWeight: typography.fontWeight.semibold }]}>Budget (USD)</Text>
-                        <AppInput
-                            placeholder="Enter budget amount"
+                            placeholder="Budget (USD)"
                             keyboardType="decimal-pad"
                             value={formData.budget?.toString() || ""}
-                            onChangeText={(value) =>
-                                handleInputChange("budget", value ? parseFloat(value) : undefined)
+                            onChangeText={(v) =>
+                                handleInputChange("budget", v ? parseFloat(v) : undefined)
                             }
-                            editable={!loading}
                         />
-                    </Stack>
-
-                    {/* City */}
-                    <Stack gap="sm">
-                        <Text style={[styles.captionText, { fontWeight: typography.fontWeight.semibold }]}>City</Text>
+                        {/* City */}
                         <AppInput
-                            placeholder="Enter city"
+                            placeholder="City"
                             value={formData.city}
-                            onChangeText={(value) => handleInputChange("city", value)}
-                            editable={!loading}
+                            onChangeText={(v) => handleInputChange("city", v)}
                         />
-                    </Stack>
-
-                    {/* Country */}
-                    <Stack gap="sm">
-                        <Text style={[styles.captionText, { fontWeight: typography.fontWeight.semibold }]}>Country</Text>
+                        {/* Country */}
                         <AppInput
-                            placeholder="Enter country"
+                            placeholder="Country"
                             value={formData.country}
-                            onChangeText={(value) => handleInputChange("country", value)}
-                            editable={!loading}
+                            onChangeText={(v) => handleInputChange("country", v)}
                         />
+
+                        {/* Validation/Error */}
+                        {validationError && (
+                            <Text style={[styles.errorText]}>{validationError}</Text>
+                        )}
+                        {error && <Text style={[styles.errorText]}>{error}</Text>}
+
+                        {/* Submit */}
+                        <AppButton
+                            title={loading ? "Saving..." : initialData ? "Update" : "Post Request"}
+                            onPress={handleSubmit}
+                            disabled={loading}
+                        />
+                        
+                        
                     </Stack>
-
-                    {/* Validation Error */}
-                    {validationError && (
-                        <Card style={{ backgroundColor: colors.dangerSoft }}>
-                            <Text style={[styles.captionText, { color: colors.danger }]}>
-                                {validationError}
-                            </Text>
-                        </Card>
-                    )}
-
-                    {/* Error */}
-                    {error && (
-                        <Card style={{ backgroundColor: colors.dangerSoft }}>
-                            <Text style={[styles.captionText, { color: colors.danger }]}>{error}</Text>
-                        </Card>
-                    )}
-
-                    {/* Submit */}
-                    <AppButton
-                        title={loading ? "Saving..." : initialData ? "Update Request" : "Create Request"}
-                        onPress={handleSubmit}
-                        disabled={loading}
-                    />
-                </Stack>
-            </Card>
-        </ScrollView>
+                </ScrollView>
+            </AppModal>
+        </>
     );
 };
 
 const styles = StyleSheet.create({
-    captionText: {
-        fontFamily: typography.fontFamily.regular,
-        fontSize: typography.fontSize.sm,
-        lineHeight: typography.lineHeight.sm,
-        fontWeight: typography.fontWeight.regular,
-        color: colors.textPrimary,
+    placeholderCard: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        marginVertical: spacing.sm,
+        borderRadius: theme.radius.md,
+        backgroundColor: colors.surfaceMuted,
     },
-    container: {
-        padding: spacing.lg,
+    placeholderText: {
+        fontSize: typography.fontSize.md,
+        color: colors.textSecondary,
+    },
+    label: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.textPrimary,
     },
     categoryButtons: {
         flexDirection: "row",
         flexWrap: "wrap",
         gap: spacing.sm,
+    },
+    errorText: {
+        color: colors.danger,
+        fontSize: typography.fontSize.sm,
     },
 });
