@@ -2,6 +2,7 @@
 
 export interface HelpRequest {
     id: string;
+    requesterId?: string;
     title: string;
     description: string;
     category: "FOOD" | "MEDICAL" | "EDUCATION" | "OTHER";
