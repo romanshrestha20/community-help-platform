@@ -6,20 +6,18 @@ const sendResponse = (res: Response, data: any = null, message = "") => {
   res.json({ success: true, data, message });
 };
 
-// Centralized error logging
-const handleError = (next: NextFunction, message: string, statusCode = 500, error?: any) => {
-  if (error) console.error("Bid Controller Error:", error);
-  return next(new AppError(message, statusCode));
-};
-
 // Format bid for consistent responses
 const formatBid = (bid: any) => ({
   id: bid.id,
+  helpRequestId: bid.helpRequestId,
+  helperId: bid.helperId,
   message: bid.message,
   amount: bid.amount,
   status: bid.status,
-  helperName: bid.helper?.profile?.fullName || null,
+  helperName: bid.helper?.profile?.fullName || bid.helper?.email || "Helper",
+  helperEmail: bid.helper?.email || "",
   createdAt: bid.createdAt,
+  updatedAt: bid.updatedAt || bid.createdAt,
 });
 // PLACE BID
 export const placeBid = async (req: Request, res: Response, next: NextFunction) => {
@@ -28,10 +26,13 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
 
   try {
     if (!helperId) return next(new AppError("Unauthorized", 401));
-    if (!helpRequestId || !message || !amount) {
+    if (!helpRequestId || !message || amount === undefined || amount === null) {
       return next(new AppError("All fields are required", 400));
     }
-    if (amount <= 0) return next(new AppError("Invalid amount", 400));
+    const normalizedAmount = Number(amount);
+    if (Number.isNaN(normalizedAmount) || normalizedAmount <= 0) {
+      return next(new AppError("Invalid amount", 400));
+    }
 
     const request = await prisma.helpRequest.findUnique({ where: { id: helpRequestId } });
     if (!request) return next(new AppError("Request not found", 404));
@@ -46,7 +47,16 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
     if (existingBid) return next(new AppError("Already bid", 400));
 
     const bid = await prisma.bid.create({
-      data: { message, amount, helperId, helpRequestId },
+      data: { message, amount: normalizedAmount, helperId, helpRequestId },
+      include: {
+        helper: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { fullName: true } },
+          },
+        },
+      },
     });
 
     sendResponse(res, formatBid(bid), "Bid placed");
@@ -57,8 +67,28 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
 
 // GET BIDS
 export const getBidsForHelpRequest = async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?.userId;
+
   try {
+    if (!userId) return next(new AppError("Unauthorized", 401));
+
     const { helpRequestId } = req.params;
+
+    const request = await prisma.helpRequest.findUnique({
+      where: { id: helpRequestId },
+      select: { id: true, requesterId: true },
+    });
+
+    if (!request) return next(new AppError("Request not found", 404));
+
+    if (request.requesterId !== userId) {
+      const hasBid = await prisma.bid.findFirst({
+        where: { helpRequestId, helperId: userId },
+        select: { id: true },
+      });
+
+      if (!hasBid) return next(new AppError("Forbidden", 403));
+    }
 
     const bids = await prisma.bid.findMany({
       where: { helpRequestId },
@@ -66,6 +96,7 @@ export const getBidsForHelpRequest = async (req: Request, res: Response, next: N
         helper: {
           select: {
             id: true,
+            email: true,
             profile: { select: { fullName: true } },
           },
         },
@@ -105,7 +136,7 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
     const updated = await prisma.$transaction(async (tx: any) => {
       if (status === "ACCEPTED") {
         await tx.bid.updateMany({
-          where: { helpRequestId: bid.helpRequestId, id: { not: bidId } },
+          where: { helpRequestId: bid.helpRequestId, id: { not: bidId }, status: "PENDING" },
           data: { status: "REJECTED" },
         });
 
@@ -118,7 +149,20 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
       return tx.bid.update({ where: { id: bidId }, data: { status } });
     });
 
-    sendResponse(res, formatBid({ ...updated, helper: { profile: { fullName: "" } } }), `Bid ${status.toLowerCase()}`);
+    const updatedWithHelper = await prisma.bid.findUnique({
+      where: { id: updated.id },
+      include: {
+        helper: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { fullName: true } },
+          },
+        },
+      },
+    });
+
+    sendResponse(res, formatBid(updatedWithHelper || updated), `Bid ${status.toLowerCase()}`);
   } catch {
     next(new AppError("Failed to respond", 500));
   }
@@ -168,9 +212,18 @@ export const updateBid = async (req: Request, res: Response, next: NextFunction)
         ...(message && { message }),
         ...(amount !== undefined && { amount }),
       },
+      include: {
+        helper: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { fullName: true } },
+          },
+        },
+      },
     });
 
-    sendResponse(res, updatedBid, "Bid updated successfully");
+    sendResponse(res, formatBid(updatedBid), "Bid updated successfully");
   } catch (error) {
     console.error("Update Bid Error:", error);
     next(new AppError("Failed to update bid", 500));
@@ -189,7 +242,7 @@ export const getBidById = async (req: Request, res: Response, next: NextFunction
       where: { id: bidId },
       include: {
         helpRequest: true,
-        helper: { select: { id: true, profile: { select: { fullName: true } } } },
+        helper: { select: { id: true, email: true, profile: { select: { fullName: true } } } },
       },
     });
 

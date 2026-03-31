@@ -17,9 +17,28 @@ export const createHelpRequest = async (req: Request, res: Response, next: NextF
     try {
         if (!userId) return next(new AppError("Unauthorized", 401));
 
-        const { title, description, category, location, budget } = req.body;
+        const { title, description, category, location, budget, city, state, country, street } = req.body;
 
-        if (!title || !description || !category || !location) {
+        const normalizedLocation = location ?? {
+            latitude: 0,
+            longitude: 0,
+            radius: 800,
+            city: city ?? null,
+            state: state ?? null,
+            country: country ?? null,
+            street: street ?? null,
+        };
+
+        const requester = await prisma.userModel.findUnique({
+            where: { id: userId },
+            select: { id: true },
+        });
+
+        if (!requester) {
+            return next(new AppError("Invalid session. Please log in again.", 401));
+        }
+
+        if (!title || !description || !category) {
             return next(new AppError("All fields are required", 400));
         }
 
@@ -36,13 +55,13 @@ export const createHelpRequest = async (req: Request, res: Response, next: NextF
                 requesterId: userId,
                 location: {
                     create: {
-                        latitude: location.latitude,
-                        longitude: location.longitude,
-                        radius: location.radius || 800,
-                        street: location.street || null,
-                        city: location.city || null,
-                        state: location.state || null,
-                        country: location.country || null,
+                        latitude: Number(normalizedLocation.latitude) || 0,
+                        longitude: Number(normalizedLocation.longitude) || 0,
+                        radius: Number(normalizedLocation.radius) || 800,
+                        street: normalizedLocation.street || null,
+                        city: normalizedLocation.city || null,
+                        state: normalizedLocation.state || null,
+                        country: normalizedLocation.country || null,
                     },
                 },
             },
@@ -51,6 +70,12 @@ export const createHelpRequest = async (req: Request, res: Response, next: NextF
 
         sendResponse(res, newRequest, "Help request created");
     } catch (err) {
+        console.error("Create Help Request Error:", err);
+
+        if ((err as any)?.code === "P2003") {
+            return next(new AppError("Invalid session. Please log in again.", 401));
+        }
+
         next(new AppError("Failed to create help request", 500));
     }
 };
@@ -89,6 +114,7 @@ export const getHelpRequestById = async (req: Request, res: Response, next: Next
 
         const formatted = {
             id: r.id,
+            requesterId: r.requester.id,
             title: r.title,
             description: r.description,
             category: r.category,
