@@ -1,4 +1,5 @@
 import axios, { AxiosRequestConfig } from "axios";
+import { Platform } from "react-native";
 import {
   getAccessToken,
   getRefreshToken,
@@ -10,8 +11,20 @@ import { useAuthStore } from "@/features/auth/store/auth.store";
 
 type RetryRequest = AxiosRequestConfig & { _retry?: boolean };
 
+const resolveApiBaseUrl = () => {
+  const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+  if (envBaseUrl) return envBaseUrl;
+
+  if (Platform.OS === "web") {
+    const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
+    return `http://${host}:5001/api`;
+  }
+
+  return "http://192.168.1.131:5001/api";
+};
+
 const apiClient = axios.create({
-  baseURL: "http://localhost:5001/api",
+  baseURL: resolveApiBaseUrl(),
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
