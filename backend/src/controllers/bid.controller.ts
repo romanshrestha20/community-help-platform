@@ -112,6 +112,33 @@ export const getBidsForHelpRequest = async (req: Request, res: Response, next: N
   }
 };
 
+// GET MY BIDS (helper activity stream)
+export const getMyBids = async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?.userId;
+
+  try {
+    if (!userId) return next(new AppError("Unauthorized", 401));
+
+    const bids = await prisma.bid.findMany({
+      where: { helperId: userId },
+      include: {
+        helper: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { fullName: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    sendResponse(res, bids.map(formatBid));
+  } catch {
+    next(new AppError("Failed to fetch your bids", 500));
+  }
+};
+
 // RESPOND TO BID
 export const respondToBid = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
