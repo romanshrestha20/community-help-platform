@@ -19,8 +19,7 @@ router.delete('/:bidId', authenticateUser, deleteBid);           // delete your 
 
 router.get('/:bidId', authenticateUser, getBidById);
 
-// Public routes (optional)
-router.get('/help-request/:helpRequestId', getBidsForHelpRequest); // get all bids for a help request
+router.get('/help-request/:helpRequestId', authenticateUser, getBidsForHelpRequest); // requester or bidder only
 
 export default router;
 
