@@ -1,35 +1,49 @@
 export const lightColors = {
-  background: "#f7f7f2",
+  background: "#f6f8f4",          // softer, less yellow
   surface: "#ffffff",
-  surfaceMuted: "#f0f2eb",
-  textPrimary: "#1f2a1f",
-  textSecondary: "#526052",
+  surfaceMuted: "#eef3e8",
+
+  textPrimary: "#1e2a1e",
+  textSecondary: "#5f6f5f",
   textInverse: "#ffffff",
-  border: "#d6ddcf",
-  borderStrong: "#a8b59b",
-  primary: "#5c8001",
-  primaryPressed: "#4c6a01",
-  danger: "#c62828",
-  dangerSoft: "#fdecea",
-  success: "#2e7d32",
-  warning: "#ef6c00",
+
+  border: "#d8e0d2",
+  borderStrong: "#a9b8a3",
+
+  primary: "#6aa84f",             // friendlier green (less harsh)
+  primaryPressed: "#5a9442",
+
+  accent: "#2a9d8f",              // NEW → empathy / trust (teal)
+
+  danger: "#d64545",              // softened red
+  dangerSoft: "#fdecec",
+
+  success: "#4caf50",
+  warning: "#f4a261",             // warmer, less aggressive orange
 };
 
 export const darkColors = {
-  background: "#1a1a1a",
-  surface: "#2d2d2d",
-  surfaceMuted: "#3d3d3d",
-  textPrimary: "#ffffff",
-  textSecondary: "#b0b0b0",
+  background: "#181a18",          // slightly warmer than pure gray
+  surface: "#242724",
+  surfaceMuted: "#2f332f",
+
+  textPrimary: "#f1f5f1",
+  textSecondary: "#a6b3a6",
   textInverse: "#1a1a1a",
-  border: "#4a4a4a",
-  borderStrong: "#666666",
-  primary: "#7cb342",
+
+  border: "#3c423c",
+  borderStrong: "#5c665c",
+
+  primary: "#7cb342",             // keep your green identity
   primaryPressed: "#689f38",
+
+  accent: "#4db6ac",              // teal pops nicely in dark mode
+
   danger: "#ef5350",
-  dangerSoft: "#ffebee",
+  dangerSoft: "#3a1f1f",
+
   success: "#66bb6a",
-  warning: "#ffa726",
+  warning: "#ffb74d",
 };
 
 export const colors = lightColors;
