@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react";
 import { HelpRequest, useHelpRequest } from "@/features/helpRequest/components";
-import { Bid, useBid } from "@/features/bid/components";
+import { Bid } from "@/features/bid/components";
+import { useBid } from "@/features/bid/hooks";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 
 export interface HomeFilters {
   status?: string;
@@ -9,6 +11,7 @@ export interface HomeFilters {
 }
 
 export const useHomeData = () => {
+  const user = useAuthStore((state) => state.user);
   const { getMyHelpRequests, createHelpRequest } = useHelpRequest();
   const { getBidsByHelpRequestId, getMyBids } = useBid();
 
@@ -17,13 +20,36 @@ export const useHomeData = () => {
   const [myBids, setMyBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const currentUserId = user?.id || user?.userId || user?.profile?.userId;
+
+  const getRequesterId = (request: HelpRequest) => {
+    const nestedRequesterId = (request as HelpRequest & { requester?: { id?: string; userId?: string } })
+      .requester?.id;
+    const nestedRequesterUserId = (
+      request as HelpRequest & { requester?: { id?: string; userId?: string } }
+    ).requester?.userId;
+
+    return request.requesterId || nestedRequesterId || nestedRequesterUserId || null;
+  };
+
   const loadHomeData = useCallback(
     async (filters?: HomeFilters) => {
       setLoading(true);
       try {
-        const myRequests = (await getMyHelpRequests()) ?? [];
+        const allRequests = (await getMyHelpRequests()) ?? [];
 
-        let filtered = [...myRequests];
+        const normalizedRequests = allRequests.map((request) => ({
+          ...request,
+          requesterId: getRequesterId(request) || undefined,
+        }));
+
+        const visibleRequests = currentUserId
+          ? normalizedRequests.filter(
+              (request) => request.requesterId && request.requesterId !== currentUserId
+            )
+          : normalizedRequests;
+
+        let filtered = [...visibleRequests];
 
         if (filters?.status && filters.status !== "ALL") {
           filtered = filtered.filter((r) => r.status === filters.status);
@@ -50,12 +76,18 @@ export const useHomeData = () => {
         const helperBids = await getMyBids();
         setMyBids((helperBids ?? []).slice(0, 5));
 
-        if (!filtered.length) {
+        const ownedRequests = currentUserId
+          ? normalizedRequests.filter((request) => request.requesterId === currentUserId)
+          : [];
+
+        if (!ownedRequests.length) {
           setRecentBids([]);
           return;
         }
 
-        const bidsByRequest = await Promise.all(filtered.map((r) => getBidsByHelpRequestId(r.id)));
+        const bidsByRequest = await Promise.all(
+          ownedRequests.map((request) => getBidsByHelpRequestId(request.id))
+        );
 
         const flattenedBids = bidsByRequest
           .flatMap((bids) => bids ?? [])
@@ -66,7 +98,7 @@ export const useHomeData = () => {
         setLoading(false);
       }
     },
-    [getMyHelpRequests, getBidsByHelpRequestId, getMyBids]
+    [currentUserId, getMyHelpRequests, getBidsByHelpRequestId, getMyBids]
   );
 
   const addNewRequest = useCallback(
