@@ -8,10 +8,12 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppInput } from "@/components/ui/AppInput";
 import { FormContainer } from "@/components/ui/FormContainer";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 export default function LoginScreen() {
   const router = useRouter();
   const { handleLogin, loadingLogin, error } = useAuth();
+  const { palette } = useThemeContext();
 
 
   const [email, setEmail] = useState("");
@@ -47,11 +49,11 @@ export default function LoginScreen() {
             secureTextEntry
           />
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {error && <Text style={[styles.error, { color: palette.danger }]}>{error}</Text>}
 
           <AppButton title={loadingLogin ? "Logging in..." : "Login"} onPress={onLogin} loading={loadingLogin} />
 
-          <Text style={styles.link} onPress={() => router.push("/register")}>
+          <Text style={[styles.link, { color: palette.primary }]} onPress={() => router.push("/register")}>
             Don&apos;t have an account? Register
           </Text>
         </Stack>
@@ -62,11 +64,9 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   error: {
-    color: theme.colors.danger,
     fontSize: theme.typography.fontSize.sm,
   },
   link: {
-    color: theme.colors.primary,
     marginTop: theme.spacing.xs,
     textAlign: "center",
     fontSize: theme.typography.fontSize.sm,

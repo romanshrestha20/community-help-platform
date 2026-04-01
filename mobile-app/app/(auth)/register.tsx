@@ -8,10 +8,12 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppInput } from "@/components/ui/AppInput";
 import { FormContainer } from "@/components/ui/FormContainer";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { handleRegister, loadingRegister, error } = useAuth();
+  const { palette } = useThemeContext();
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -89,8 +91,8 @@ export default function RegisterScreen() {
           <AppInput label="Latitude" placeholder="27.7172" value={latitude} onChangeText={setLatitude} keyboardType="decimal-pad" />
           <AppInput label="Longitude" placeholder="85.3240" value={longitude} onChangeText={setLongitude} keyboardType="decimal-pad" />
 
-          {validationError && <Text style={styles.error}>{validationError}</Text>}
-          {error && <Text style={styles.error}>{error}</Text>}
+          {validationError && <Text style={[styles.error, { color: palette.danger }]}>{validationError}</Text>}
+          {error && <Text style={[styles.error, { color: palette.danger }]}>{error}</Text>}
 
           <AppButton
             title={loadingRegister ? "Registering..." : "Register"}
@@ -100,7 +102,7 @@ export default function RegisterScreen() {
           />
 
           <Text
-            style={styles.link}
+            style={[styles.link, { color: palette.primary }]}
             onPress={() => router.push("/(auth)/login")}
           >
             Already have an account? Login
@@ -113,11 +115,9 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   error: {
-    color: theme.colors.danger,
     fontSize: theme.typography.fontSize.sm,
   },
   link: {
-    color: theme.colors.primary,
     marginTop: theme.spacing.xs,
     textAlign: "center",
     fontSize: theme.typography.fontSize.sm,
