@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.danger,
   },
   ghostButton: {
-    backgroundColor: "transparent",
+    backgroundColor: theme.colors.textSecondary,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
