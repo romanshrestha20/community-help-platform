@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig } from "axios";
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import {
   getAccessToken,
   getRefreshToken,
@@ -20,16 +21,44 @@ const resolveApiBaseUrl = () => {
     return `http://${host}:5001/api`;
   }
 
-  return "http://192.168.1.131:5001/api";
+  const constants = Constants as unknown as {
+    expoConfig?: { hostUri?: string };
+    expoGoConfig?: { debuggerHost?: string };
+    manifest?: { debuggerHost?: string };
+    manifest2?: { extra?: { expoClient?: { hostUri?: string } } };
+  };
+
+  const hostFromExpo = [
+    constants.expoConfig?.hostUri,
+    constants.expoGoConfig?.debuggerHost,
+    constants.manifest?.debuggerHost,
+    constants.manifest2?.extra?.expoClient?.hostUri,
+  ]
+    .find((value) => typeof value === "string" && value.length > 0)
+    ?.split(":")[0];
+
+  if (hostFromExpo) {
+    return `http://${hostFromExpo}:5001/api`;
+  }
+
+  // Last-resort local fallbacks for simulator/emulator.
+  if (Platform.OS === "ios") return "http://localhost:5001/api";
+  if (Platform.OS === "android") return "http://10.0.2.2:5001/api";
+
+  return "http://localhost:5001/api";
 };
 
+const API_BASE_URL = resolveApiBaseUrl();
+
 const apiClient = axios.create({
-  baseURL: resolveApiBaseUrl(),
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+console.log("[API] Base URL:", API_BASE_URL);
 
 // ======================
 // REQUEST INTERCEPTOR
