@@ -3,6 +3,7 @@ export { RequestForm } from "./RequestForm";
 export { RequestCard } from "./RequestCard";
 export { RequestDetail } from "./RequestDetail";
 export { RequestFilters } from "./RequestFilters";
+export { HelpingOpportunitiesSection } from "./HelpingOpportunitiesSection";
 
 // Types
 export * from "../types/helpRequest.types";
