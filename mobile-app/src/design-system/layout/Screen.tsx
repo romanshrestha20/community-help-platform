@@ -2,6 +2,7 @@ import React from "react";
 import { SafeAreaView, ScrollView, ScrollViewProps, View, ViewProps } from "react-native";
 
 import { theme } from "../theme";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type BaseScreenProps = {
   centered?: boolean;
@@ -25,10 +26,12 @@ export const Screen = ({
   style,
   ...props
 }: ScreenProps) => {
+  const { palette } = useThemeContext();
+
   const scrollView = (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      style={[{ backgroundColor: theme.colors.background }, style]}
+      style={[{ backgroundColor: palette.background }, style]}
       contentContainerStyle={[contentStyle(centered), contentContainerStyle]}
       {...props}
     >
@@ -41,20 +44,22 @@ export const Screen = ({
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }}>
       {scrollView}
     </SafeAreaView>
   );
 };
 
 export const ScreenView = ({ centered = false, useSafeArea = true, children, style, ...props }: ScreenViewProps) => {
+  const { palette } = useThemeContext();
+
   const content = (
     <View
       style={[
         {
           flex: 1,
           padding: theme.spacing.lg,
-          backgroundColor: theme.colors.background,
+          backgroundColor: palette.background,
           justifyContent: centered ? "center" : "flex-start",
         },
         style,
@@ -69,5 +74,5 @@ export const ScreenView = ({ centered = false, useSafeArea = true, children, sty
     return content;
   }
 
-  return <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>{content}</SafeAreaView>;
+  return <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }}>{content}</SafeAreaView>;
 };
