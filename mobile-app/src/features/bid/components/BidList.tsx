@@ -10,10 +10,12 @@ import { Bid } from "../types/bid.types";
 interface BidListProps {
     bids: Bid[];
     title?: string;
+    listPadding?: "default" | "none";
     emptyMessage?: string;
     loading?: boolean;
     error?: string | null;
     onBidPress?: (bid: Bid) => void;
+    onBidViewProfile?: (bid: Bid) => void;
     onBidAccept?: (bid: Bid) => void;
     onBidReject?: (bid: Bid) => void;
     onBidUpdate?: (bid: Bid) => void;
@@ -28,10 +30,12 @@ interface BidListProps {
 export const BidList: React.FC<BidListProps> = ({
     bids,
     title = "Bids",
+    listPadding = "default",
     emptyMessage = "No bids yet",
     loading = false,
     error = null,
     onBidPress,
+    onBidViewProfile,
     onBidAccept,
     onBidReject,
     onBidUpdate,
@@ -42,10 +46,13 @@ export const BidList: React.FC<BidListProps> = ({
     disableRespondActions = false,
     onRetry,
 }) => {
+    const containerStyle = listPadding === "none" ? styles.containerNoPadding : styles.container;
+
     const renderBid = ({ item }: { item: Bid }) => (
         <BidCard
             bid={item}
             onPress={() => onBidPress?.(item)}
+            onViewProfile={() => onBidViewProfile?.(item)}
             onAccept={() => onBidAccept?.(item)}
             onReject={() => onBidReject?.(item)}
             onUpdate={() => onBidUpdate?.(item)}
@@ -59,7 +66,7 @@ export const BidList: React.FC<BidListProps> = ({
 
     if (loading && bids.length === 0) {
         return (
-            <View style={styles.container}>
+            <View style={containerStyle}>
                 <Text style={styles.bodyText}>Loading bids...</Text>
             </View>
         );
@@ -67,7 +74,7 @@ export const BidList: React.FC<BidListProps> = ({
 
     if (error && bids.length === 0) {
         return (
-            <View style={styles.container}>
+            <View style={containerStyle}>
                 <Card style={{ backgroundColor: colors.dangerSoft }}>
                     <Stack gap="sm">
                         <Text style={[styles.bodyText, { color: colors.danger }]}>Error</Text>
@@ -81,14 +88,14 @@ export const BidList: React.FC<BidListProps> = ({
 
     if (bids.length === 0) {
         return (
-            <View style={styles.container}>
+            <View style={containerStyle}>
                 <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{emptyMessage}</Text>
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
+        <View style={containerStyle}>
             <Text style={[styles.bodyText, { fontWeight: typography.fontWeight.semibold, marginBottom: spacing.md }]}> 
                 {title} ({bids.length})
             </Text>
@@ -120,5 +127,9 @@ const styles = StyleSheet.create({
     container: {
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.md,
+    },
+    containerNoPadding: {
+        paddingHorizontal: 0,
+        paddingVertical: 0,
     },
 });
