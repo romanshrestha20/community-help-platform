@@ -10,6 +10,7 @@ import { Bid, BidStatus } from "../types/bid.types";
 interface BidCardProps {
     bid: Bid;
     onPress?: () => void;
+    onViewProfile?: () => void;
     onAccept?: () => void;
     onReject?: () => void;
     onUpdate?: () => void;
@@ -34,6 +35,7 @@ const getStatusColor = (status: BidStatus): string => {
 export const BidCard: React.FC<BidCardProps> = ({
     bid,
     onPress,
+    onViewProfile,
     onAccept,
     onReject,
     onUpdate,
@@ -52,9 +54,6 @@ export const BidCard: React.FC<BidCardProps> = ({
                         <Stack gap="xs" style={{ flex: 1 }}>
                             <Text style={[styles.bodyText, { fontWeight: typography.fontWeight.semibold }]}>
                                 {bid.helperName}
-                            </Text>
-                            <Text style={[styles.captionText, { color: colors.textSecondary }]}> 
-                                {bid.helperEmail || "No email"}
                             </Text>
                         </Stack>
 
@@ -102,6 +101,16 @@ export const BidCard: React.FC<BidCardProps> = ({
                             {new Date(bid.createdAt).toLocaleDateString()}
                         </Text>
                     </Row>
+
+                    {onViewProfile && (
+                        <AppButton
+                            title="View Profile"
+                            onPress={onViewProfile}
+                            variant="ghost"
+                            disabled={loading}
+                            fullWidth={false}
+                        />
+                    )}
 
                     {/* Actions - Respond to Bid (Requester) */}
                     {canRespond && bid.status === "PENDING" && (
