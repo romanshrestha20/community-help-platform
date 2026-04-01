@@ -2,6 +2,7 @@ import React from "react";
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from "react-native";
 
 import { theme } from "@/design-system";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type Props = {
   title: string;
@@ -20,11 +21,21 @@ export const AppButton = ({
   variant = "primary",
   fullWidth = true,
 }: Props) => {
+  const { palette } = useThemeContext();
+
   return (
     <TouchableOpacity
       style={[
         styles.button,
-        variant === "danger" ? styles.dangerButton : variant === "ghost" ? styles.ghostButton : styles.primaryButton,
+        variant === "danger"
+          ? { backgroundColor: palette.danger }
+          : variant === "ghost"
+            ? {
+                backgroundColor: palette.surfaceMuted,
+                borderWidth: 1,
+                borderColor: palette.border,
+              }
+            : { backgroundColor: palette.primary },
         fullWidth && styles.fullWidth,
         disabled && styles.disabled,
       ]}
@@ -33,9 +44,9 @@ export const AppButton = ({
       disabled={disabled || loading}
     >
       {loading ? (
-        <ActivityIndicator color="#fff" />
+        <ActivityIndicator color={palette.textInverse} />
       ) : (
-        <Text style={styles.text}>{title}</Text>
+        <Text style={[styles.text, { color: palette.textInverse }]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
@@ -47,17 +58,6 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     alignItems: "center",
   },
-  primaryButton: {
-    backgroundColor: theme.colors.primary,
-  },
-  dangerButton: {
-    backgroundColor: theme.colors.danger,
-  },
-  ghostButton: {
-    backgroundColor: theme.colors.textSecondary,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
   fullWidth: {
     width: "100%",
   },
@@ -65,7 +65,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   text: {
-    color: theme.colors.textInverse,
     fontWeight: theme.typography.fontWeight.semibold,
     fontSize: theme.typography.fontSize.md,
   },

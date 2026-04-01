@@ -2,6 +2,7 @@ import React from "react";
 import { View, TextInput, Text, StyleSheet } from "react-native";
 
 import { theme } from "@/design-system";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type Props = React.ComponentProps<typeof TextInput> & {
   label?: string;
@@ -9,15 +10,25 @@ type Props = React.ComponentProps<typeof TextInput> & {
 };
 
 export const AppInput = ({ label, error, ...props }: Props) => {
+  const { palette } = useThemeContext();
+
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: palette.textPrimary }]}>{label}</Text>}
       <TextInput
         {...props}
-        style={[styles.input, error && styles.errorInput]}
-        placeholderTextColor={theme.colors.textSecondary}
+        style={[
+          styles.input,
+          {
+            borderColor: palette.border,
+            color: palette.textPrimary,
+            backgroundColor: palette.surface,
+          },
+          error && { borderColor: palette.danger },
+        ]}
+        placeholderTextColor={palette.textSecondary}
       />
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text style={[styles.error, { color: palette.danger }]}>{error}</Text>}
     </View>
   );
 };
@@ -30,22 +41,14 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xxs,
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
-    color: theme.colors.textPrimary,
   },
   input: {
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    color: theme.colors.textPrimary,
-    backgroundColor: theme.colors.surface,
     padding: theme.spacing.sm,
     borderRadius: theme.radius.md,
     fontSize: theme.typography.fontSize.sm,
   },
-  errorInput: {
-    borderColor: theme.colors.danger,
-  },
   error: {
-    color: theme.colors.danger,
     marginTop: theme.spacing.xxs,
     fontSize: theme.typography.fontSize.xs,
   },

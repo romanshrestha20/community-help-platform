@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { theme } from "@/design-system";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type Props = {
   visible: boolean;
@@ -32,6 +33,8 @@ export const AppModal = ({
   showCloseButton = true,
   animationType = "fade",
 }: Props) => {
+  const { palette } = useThemeContext();
+
   return (
     <Modal visible={visible} transparent animationType={animationType} onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.overlay}>
@@ -44,10 +47,10 @@ export const AppModal = ({
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboardWrap}
         >
-          <View style={styles.modal}>
+          <View style={[styles.modal, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             {(title || showCloseButton) && (
               <View style={styles.header}>
-                <Text style={styles.title} numberOfLines={1}>
+                <Text style={[styles.title, { color: palette.textPrimary }]} numberOfLines={1}>
                   {title || ""}
                 </Text>
 
@@ -88,8 +91,6 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     width: "100%",
     alignSelf: "center",
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.border,
     borderWidth: 1,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
@@ -105,17 +106,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: theme.typography.fontSize.lg,
     fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.textPrimary,
   },
   closeButton: {
     paddingVertical: 4,
     paddingHorizontal: theme.spacing.xs,
     borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.surfaceMuted,
   },
   closeButtonText: {
     fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.textSecondary,
     fontWeight: theme.typography.fontWeight.semibold,
   },
   contentScroll: {

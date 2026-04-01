@@ -4,6 +4,7 @@ import { View, Text, Pressable, StyleSheet, FlatList } from "react-native";
 import { AppModal } from "./AppModal";
 import { useModal } from "@/hooks/useModal";
 import { theme } from "@/design-system";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type Option = {
   label: string;
@@ -26,16 +27,17 @@ export const AppDropdown = ({
   placeholder = "Select",
 }: Props) => {
   const { visible, open, close } = useModal();
+  const { palette } = useThemeContext();
 
   const selectedLabel =
     options.find((o) => o.value === value)?.label || placeholder;
 
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: palette.textPrimary }]}>{label}</Text>}
 
-      <Pressable style={styles.trigger} onPress={open}>
-        <Text style={styles.triggerText}>{selectedLabel}</Text>
+      <Pressable style={[styles.trigger, { borderColor: palette.border, backgroundColor: palette.surface }]} onPress={open}>
+        <Text style={[styles.triggerText, { color: palette.textPrimary }]}>{selectedLabel}</Text>
       </Pressable>
 
       <AppModal visible={visible} title={label || "Select"} onClose={close}>
@@ -47,7 +49,11 @@ export const AppDropdown = ({
 
             return (
               <Pressable
-                style={[styles.option, active && styles.optionActive]}
+                style={[
+                  styles.option,
+                  { borderBottomColor: palette.border },
+                  active && { backgroundColor: palette.primary },
+                ]}
                 onPress={() => {
                   onSelect(item.value);
                   close();
@@ -56,7 +62,9 @@ export const AppDropdown = ({
                 <Text
                   style={[
                     styles.optionText,
+                    { color: palette.textPrimary },
                     active && styles.optionTextActive,
+                    active && { color: palette.textInverse },
                   ]}
                 >
                   {item.label}
@@ -79,38 +87,27 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
-    color: theme.colors.textPrimary,
   },
 
   trigger: {
     borderWidth: 1,
-    borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
     padding: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
   },
 
   triggerText: {
-    color: theme.colors.textPrimary,
     fontSize: theme.typography.fontSize.sm,
   },
 
   option: {
     padding: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-
-  optionActive: {
-    backgroundColor: theme.colors.primary,
   },
 
   optionText: {
     fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textPrimary,
   },
 
   optionTextActive: {
-    color: theme.colors.textInverse,
   },
 });
