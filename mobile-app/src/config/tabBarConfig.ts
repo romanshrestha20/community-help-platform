@@ -15,29 +15,11 @@ import type {
 /**
  * Default 4-tab configuration
  */
-export const defaultTabsConfig: TabItem[] = [
-    {
-        name: "home",
-        icon: "home",
-        label: "Home",
-    },
-    {
-        name: "messages",
-        icon: "comments",
-        label: "Messages",
-        badge: 0,
-    },
-    {
-        name: "notifications",
-        icon: "bell",
-        label: "Notifications",
-        badge: 0,
-    },
-    {
-        name: "profile",
-        icon: "user",
-        label: "Profile",
-    },
+export const defaultTabsConfig = [
+  { name: "home", label: "Home", icon: "home" },
+  { name: "messages", label: "Messages", icon: "envelope" },
+  { name: "notifications", label: "Alerts", icon: "bell" },
+  { name: "profile", label: "Profile", icon: "user" },
 ];
 
 /**
