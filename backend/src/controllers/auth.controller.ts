@@ -6,7 +6,7 @@ import { accessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt.
 
 
 export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
-  const { email, password, phone, fullName, gender, dateOfBirth, city, country, street, state, latitude, longitude, radius } = req.body;
+  const { email, password, phone, fullName, gender, dateOfBirth, city, country, street, address, state, latitude, longitude, radius } = req.body;
 
   try {
     // Validate required fields
@@ -14,9 +14,18 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       return next(new AppError("Missing required fields", 400));
     }
 
+    const parsedLatitude = Number(latitude);
+    const parsedLongitude = Number(longitude);
+    const parsedDateOfBirth = new Date(dateOfBirth);
+    const resolvedStreet = street ?? address ?? null;
+
     // latitude & longitude are required for address
-    if (latitude === undefined || longitude === undefined) {
+    if (latitude === undefined || longitude === undefined || Number.isNaN(parsedLatitude) || Number.isNaN(parsedLongitude)) {
       return next(new AppError("Latitude and longitude are required for address", 400));
+    }
+
+    if (Number.isNaN(parsedDateOfBirth.getTime())) {
+      return next(new AppError("Invalid dateOfBirth format. Use YYYY-MM-DD", 400));
     }
 
     // Check if user already exists
@@ -37,15 +46,15 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
           create: {
             fullName,
             gender,
-            dateOfBirth: new Date(dateOfBirth),
+            dateOfBirth: parsedDateOfBirth,
             address: {
               create: {
-                latitude,
-                longitude,
+                latitude: parsedLatitude,
+                longitude: parsedLongitude,
                 radius: radius || 800,
                 city: city || null,
                 country: country || null,
-                street: street || null,
+                street: resolvedStreet,
                 state: state || null,
               },
             },
@@ -81,6 +90,16 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 
   } catch (error) {
     console.error("Error in registerUser:", error);
+    const prismaCode = (error as { code?: string })?.code;
+
+    if (prismaCode === "P2002") {
+      return next(new AppError("Email or phone already registered", 400));
+    }
+
+    if (error instanceof RangeError) {
+      return next(new AppError("Invalid date value provided", 400));
+    }
+
     next(new AppError("Failed to register user", 500));
   }
 };
