@@ -48,7 +48,10 @@ export const useBid = () => {
         try {
             const bids = await run(() => bidService.getBidsByHelpRequestId(helpRequestId));
             if (bids) {
-                setBidsByRequestId((prev) => ({ ...prev, [helpRequestId]: bids }));
+                // Guard against accidental cross-request payloads.
+                const requestScopedBids = bids.filter((bid) => bid.helpRequestId === helpRequestId);
+                setBidsByRequestId((prev) => ({ ...prev, [helpRequestId]: requestScopedBids }));
+                return requestScopedBids;
             }
             return bids;
         } finally {
@@ -113,6 +116,14 @@ export const useBid = () => {
         return updated;
     }, [bidsByRequestId, respondToBid]);
 
+    const acceptBid = useCallback((id: string, helpRequestId?: string) => {
+        return respondToBid(id, "ACCEPTED", helpRequestId);
+    }, [respondToBid]);
+
+    const rejectBid = useCallback((id: string, helpRequestId?: string) => {
+        return respondToBid(id, "REJECTED", helpRequestId);
+    }, [respondToBid]);
+
     const deleteBid = useCallback((id: string) => {
         return run(() => bidService.deleteBid(id));
     }, [run]);
@@ -141,6 +152,8 @@ export const useBid = () => {
         updateBid,
         respondToBid,
         respondToBidOptimistic,
+        acceptBid,
+        rejectBid,
         deleteBid,
     };
 };
