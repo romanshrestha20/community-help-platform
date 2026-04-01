@@ -3,6 +3,8 @@ export { BidForm } from "./BidForm";
 export { BidCard } from "./BidCard";
 export { BidList } from "./BidList";
 export { BidRequestDetail, BidDetail } from "./BidRequestDetail";
+export { BidRequestModal } from "./BidRequestModal";
+export { BiddingActivitySection } from "./BiddingActivitySection";
 
 // Types
 export * from "../types/bid.types";
