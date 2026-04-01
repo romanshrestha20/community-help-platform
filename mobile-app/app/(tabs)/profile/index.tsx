@@ -17,6 +17,9 @@ import { useModal } from "@/hooks/useModal";
 
 import { ProfileView } from "@/features/user/components/ProfileView";
 import { ProfileEditForm } from "@/features/user/components/ProfileEditForm";
+import { useThemeStore } from "@/features/settings/store/theme.store";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import type { ThemeMode } from "@/types/tabBar";
 
 type ProfileOption = {
   id: string;
@@ -28,6 +31,9 @@ type ProfileOption = {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { palette } = useThemeContext();
+  const themeMode = useThemeStore((state) => state.themeMode);
+  const setThemeMode = useThemeStore((state) => state.setThemeMode);
 
   const { user, loading, error, loadUserProfile, handleUpdateProfile, handleDeleteProfile } = useUser();
 
@@ -83,6 +89,20 @@ export default function ProfileScreen() {
     },
   ];
 
+  const themeOptions: { mode: ThemeMode; label: string }[] = [
+    { mode: "system", label: "System" },
+    { mode: "light", label: "Light" },
+    { mode: "dark", label: "Dark" },
+  ];
+
+  const handleThemeModeChange = async (mode: ThemeMode) => {
+    await setThemeMode(mode);
+    Toast.show({
+      type: "success",
+      text1: `Theme set to ${mode.charAt(0).toUpperCase() + mode.slice(1)}`,
+    });
+  };
+
   useEffect(() => {
     loadUserProfile();
   }, [loadUserProfile]);
@@ -136,17 +156,17 @@ export default function ProfileScreen() {
         subtitle={isEditing ? "Edit your details" : "Manage your account and preferences"}
       />
 
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text style={[styles.error, { color: palette.danger }]}>{error}</Text>}
 
       <Card style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Account Overview</Text>
+        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Account Overview</Text>
         <View style={styles.accountRow}>
-          <Text style={styles.accountLabel}>Email</Text>
-          <Text style={styles.accountValue}>{user?.email || "Not available"}</Text>
+          <Text style={[styles.accountLabel, { color: palette.textSecondary }]}>Email</Text>
+          <Text style={[styles.accountValue, { color: palette.textPrimary }]}>{user?.email || "Not available"}</Text>
         </View>
         <View style={styles.accountRow}>
-          <Text style={styles.accountLabel}>Status</Text>
-          <Text style={[styles.accountValue, user?.isVerified ? styles.verified : styles.unverified]}>
+          <Text style={[styles.accountLabel, { color: palette.textSecondary }]}>Status</Text>
+          <Text style={[styles.accountValue, { color: user?.isVerified ? palette.success : palette.warning }]}>
             {user?.isVerified ? "Verified" : "Unverified"}
           </Text>
         </View>
@@ -154,7 +174,7 @@ export default function ProfileScreen() {
 
       <Card style={styles.sectionCard}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Profile Details</Text>
+          <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Profile Details</Text>
           {!isEditing && (
             <AppButton
               title="Edit"
@@ -191,26 +211,65 @@ export default function ProfileScreen() {
 
       {/* my requests */}
       <Card style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>My Requests</Text>
-        <Text style={styles.sectionSubtitle}>View and manage your help requests</Text>
+        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>My Requests</Text>
+        <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>View and manage your help requests</Text>
         <AppButton title="View My Requests" onPress={() => router.push("/(tabs)/profile/requests")} />
       </Card>
 
       <Card style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Security</Text>
+        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Security</Text>
         <ChangePasswordSection />
       </Card>
 
       <Card style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <Text style={styles.sectionSubtitle}>Easily add future options by extending this list</Text>
+        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Preferences</Text>
+        <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Easily add future options by extending this list</Text>
+
+        <View style={[styles.appearanceRow, { borderTopColor: palette.border }] }>
+          <Text style={[styles.appearanceLabel, { color: palette.textPrimary }]}>Appearance</Text>
+          <View style={styles.themeToggleWrap}>
+            {themeOptions.map((option) => {
+              const isActive = themeMode === option.mode;
+              return (
+                <Pressable
+                  key={option.mode}
+                  onPress={() => {
+                    void handleThemeModeChange(option.mode);
+                  }}
+                  style={[
+                    styles.themeToggleButton,
+                    {
+                      borderColor: palette.border,
+                      backgroundColor: palette.surfaceMuted,
+                    },
+                    isActive && {
+                      borderColor: palette.primary,
+                      backgroundColor: palette.primary,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.themeToggleButtonText,
+                      { color: palette.textSecondary },
+                      isActive && { color: palette.textInverse },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         {quickOptions.map((option) => (
           <ProfileOptionRow key={option.id} option={option} />
         ))}
       </Card>
 
       <Card style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Account Actions</Text>
+        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Account Actions</Text>
         {accountActions.map((option) => (
           <ProfileOptionRow key={option.id} option={option} />
         ))}
@@ -230,7 +289,7 @@ export default function ProfileScreen() {
           </>
         }
       >
-        <Text style={styles.modalText}>Enter password to confirm</Text>
+        <Text style={[styles.modalText, { color: palette.textSecondary }]}>Enter password to confirm</Text>
         <AppInput
           label="Password"
           value={deletePassword}
@@ -251,20 +310,22 @@ export default function ProfileScreen() {
           </>
         }
       >
-        <Text style={styles.modalText}>Are you sure you want to logout?</Text>
+        <Text style={[styles.modalText, { color: palette.textSecondary }]}>Are you sure you want to logout?</Text>
       </AppModal>
     </Screen>
   );
 }
 
 const ProfileOptionRow = ({ option }: { option: ProfileOption }) => {
+  const { palette } = useThemeContext();
+
   return (
-    <Pressable style={styles.optionRow} onPress={option.onPress}>
+    <Pressable style={[styles.optionRow, { borderTopColor: palette.border }]} onPress={option.onPress}>
       <View style={styles.optionTextWrap}>
-        <Text style={[styles.optionLabel, option.danger && styles.optionLabelDanger]}>{option.label}</Text>
-        <Text style={styles.optionDescription}>{option.description}</Text>
+        <Text style={[styles.optionLabel, { color: option.danger ? palette.danger : palette.textPrimary }]}>{option.label}</Text>
+        <Text style={[styles.optionDescription, { color: palette.textSecondary }]}>{option.description}</Text>
       </View>
-      <Text style={styles.optionChevron}>›</Text>
+      <Text style={[styles.optionChevron, { color: palette.textSecondary }]}>›</Text>
     </Pressable>
   );
 };
@@ -274,20 +335,17 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xl,
   },
   error: {
-    color: theme.colors.danger,
     marginBottom: theme.spacing.sm,
   },
   sectionCard: {
     marginBottom: theme.spacing.md,
   },
   sectionTitle: {
-    color: theme.colors.textPrimary,
     fontSize: theme.typography.fontSize.md,
     fontWeight: theme.typography.fontWeight.semibold,
     marginBottom: theme.spacing.sm,
   },
   sectionSubtitle: {
-    color: theme.colors.textSecondary,
     fontSize: theme.typography.fontSize.sm,
     marginBottom: theme.spacing.sm,
   },
@@ -303,27 +361,42 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: theme.spacing.xs,
   },
+  appearanceRow: {
+    borderTopWidth: 1,
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  appearanceLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+    marginBottom: theme.spacing.xs,
+  },
+  themeToggleWrap: {
+    flexDirection: "row",
+    gap: theme.spacing.xs,
+  },
+  themeToggleButton: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+  },
+  themeToggleButtonText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
   accountLabel: {
-    color: theme.colors.textSecondary,
     fontSize: theme.typography.fontSize.sm,
   },
   accountValue: {
-    color: theme.colors.textPrimary,
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
-  },
-  verified: {
-    color: theme.colors.success,
-  },
-  unverified: {
-    color: theme.colors.warning,
   },
   optionRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
     paddingVertical: theme.spacing.sm,
   },
   optionTextWrap: {
@@ -331,20 +404,14 @@ const styles = StyleSheet.create({
     paddingRight: theme.spacing.sm,
   },
   optionLabel: {
-    color: theme.colors.textPrimary,
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.semibold,
     marginBottom: 2,
   },
-  optionLabelDanger: {
-    color: theme.colors.danger,
-  },
   optionDescription: {
-    color: theme.colors.textSecondary,
     fontSize: theme.typography.fontSize.xs,
   },
   optionChevron: {
-    color: theme.colors.textSecondary,
     fontSize: theme.typography.fontSize.lg,
     lineHeight: theme.typography.lineHeight.lg,
   },

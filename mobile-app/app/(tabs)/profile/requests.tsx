@@ -8,6 +8,7 @@ import { AppDropdown } from "@/components/ui/AppDropDown";
 import { AppInput } from "@/components/ui/AppInput";
 import { AppModal } from "@/components/ui/AppModal";
 import { Card, Screen, theme } from "@/design-system";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { BidRequestDetail } from "@/features/bid/components/BidRequestDetail";
 import { RequestCard } from "@/features/helpRequest/components/RequestCard";
@@ -22,6 +23,7 @@ type CategoryFilter = "ALL" | HelpRequest["category"];
 const PAGE_SIZE = 50;
 
 export default function ProfileRequestsScreen() {
+    const { palette } = useThemeContext();
     const user = useAuthStore((state) => state.user);
     const { getMyHelpRequests, updateHelpRequest, deleteHelpRequest } = useHelpRequest();
 
@@ -236,7 +238,7 @@ export default function ProfileRequestsScreen() {
             />
 
             <Card style={styles.filtersCard}>
-                <Text style={styles.sectionTitle}>Sort and Filter</Text>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Sort and Filter</Text>
 
                 <AppDropdown
                     label="Sort"
@@ -280,16 +282,16 @@ export default function ProfileRequestsScreen() {
 
             <Card style={styles.listCard}>
                 <View style={styles.listHeader}>
-                    <Text style={styles.sectionTitle}>Requests</Text>
-                    <Text style={styles.countText}>{filteredRequests.length}</Text>
+                    <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Requests</Text>
+                    <Text style={[styles.countText, { color: palette.textSecondary, borderColor: palette.border }]}>{filteredRequests.length}</Text>
                 </View>
 
                 {loading ? (
                     <ActivityIndicator size="large" style={styles.loader} />
                 ) : requests.length === 0 ? (
-                    <Text style={styles.emptyText}>You haven&apos;t made any requests yet.</Text>
+                    <Text style={[styles.emptyText, { color: palette.textSecondary }]}>You haven&apos;t made any requests yet.</Text>
                 ) : filteredRequests.length === 0 ? (
-                    <Text style={styles.emptyText}>No requests match the selected filters.</Text>
+                    <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No requests match the selected filters.</Text>
                 ) : (
                     filteredRequests.map((request) => (
                         <RequestCard
@@ -426,7 +428,6 @@ const styles = StyleSheet.create({
         paddingBottom: theme.spacing.xs,
     },
     sectionTitle: {
-        color: theme.colors.textPrimary,
         fontSize: theme.typography.fontSize.md,
         fontWeight: theme.typography.fontWeight.semibold,
         marginBottom: theme.spacing.sm,
@@ -439,9 +440,7 @@ const styles = StyleSheet.create({
     },
     countText: {
         fontSize: theme.typography.fontSize.xs,
-        color: theme.colors.textSecondary,
         borderWidth: 1,
-        borderColor: theme.colors.border,
         borderRadius: theme.radius.fill,
         paddingHorizontal: theme.spacing.sm,
         paddingVertical: 2,
@@ -450,7 +449,6 @@ const styles = StyleSheet.create({
         marginVertical: theme.spacing.md,
     },
     emptyText: {
-        color: theme.colors.textSecondary,
         fontSize: theme.typography.fontSize.sm,
         paddingVertical: theme.spacing.sm,
     },
