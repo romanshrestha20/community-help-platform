@@ -3,6 +3,7 @@
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { useThemeStore } from "@/features/settings/store/theme.store";
 import { getAccessToken } from "@/utils/token";
 import { ActivityIndicator, View } from "react-native";
 
@@ -17,7 +18,10 @@ export default function Layout() {
     let isMounted = true;
 
     const init = async () => {
-      const storedToken = await getAccessToken();
+      const [storedToken] = await Promise.all([
+        getAccessToken(),
+        useThemeStore.getState().initializeThemeMode(),
+      ]);
 
       if (storedToken && !useAuthStore.getState().token) {
         useAuthStore.setState({
