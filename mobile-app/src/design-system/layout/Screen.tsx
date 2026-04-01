@@ -1,38 +1,63 @@
 import React from "react";
-import { SafeAreaView, ScrollView, ScrollViewProps, View, ViewProps } from "react-native";
+import {
+  ScrollView,
+  ScrollViewProps,
+  View,
+  ViewProps,
+  StyleSheet,
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 import { theme } from "../theme";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { TAB_BAR_CONSTANTS } from "@/config/tabBarConfig";
 
 type BaseScreenProps = {
   centered?: boolean;
   useSafeArea?: boolean;
+  withTabBarSpacing?: boolean;
 };
 
 type ScreenProps = ScrollViewProps & BaseScreenProps;
 type ScreenViewProps = ViewProps & BaseScreenProps;
 
-const contentStyle = (centered: boolean) => ({
+const createContentStyle = (
+  centered: boolean,
+  bottomSpacing: number
+) => ({
   flexGrow: 1,
   padding: theme.spacing.lg,
-  justifyContent: centered ? "center" : "flex-start",
+  paddingBottom: theme.spacing.lg + bottomSpacing,
+  justifyContent: centered ? "center" : "flex-start" as const,
 });
 
 export const Screen = ({
   centered = false,
   useSafeArea = true,
+  withTabBarSpacing = true,
   contentContainerStyle,
   children,
   style,
   ...props
 }: ScreenProps) => {
   const { palette } = useThemeContext();
+  const insets = useSafeAreaInsets();
+
+  const bottomSpacing = withTabBarSpacing
+    ? TAB_BAR_CONSTANTS.HEIGHT + insets.bottom + theme.spacing.sm
+    : 0;
 
   const scrollView = (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      style={[{ backgroundColor: palette.background }, style]}
-      contentContainerStyle={[contentStyle(centered), contentContainerStyle]}
+      style={[styles.flex, { backgroundColor: palette.background }, style]}
+      contentContainerStyle={[
+        createContentStyle(centered, bottomSpacing),
+        contentContainerStyle,
+      ]}
       {...props}
     >
       {children}
@@ -44,21 +69,37 @@ export const Screen = ({
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }}>
+    <SafeAreaView
+      edges={["top", "left", "right"]}
+      style={[styles.flex, { backgroundColor: palette.background }]}
+    >
       {scrollView}
     </SafeAreaView>
   );
 };
 
-export const ScreenView = ({ centered = false, useSafeArea = true, children, style, ...props }: ScreenViewProps) => {
+export const ScreenView = ({
+  centered = false,
+  useSafeArea = true,
+  withTabBarSpacing = true,
+  children,
+  style,
+  ...props
+}: ScreenViewProps) => {
   const { palette } = useThemeContext();
+  const insets = useSafeAreaInsets();
+
+  const bottomSpacing = withTabBarSpacing
+    ? TAB_BAR_CONSTANTS.HEIGHT + insets.bottom + theme.spacing.sm
+    : 0;
 
   const content = (
     <View
       style={[
+        styles.flex,
         {
-          flex: 1,
           padding: theme.spacing.lg,
+          paddingBottom: theme.spacing.lg + bottomSpacing,
           backgroundColor: palette.background,
           justifyContent: centered ? "center" : "flex-start",
         },
@@ -74,5 +115,18 @@ export const ScreenView = ({ centered = false, useSafeArea = true, children, sty
     return content;
   }
 
-  return <SafeAreaView style={{ flex: 1, backgroundColor: palette.background }}>{content}</SafeAreaView>;
+  return (
+    <SafeAreaView
+      edges={["top", "left", "right"]}
+      style={[styles.flex, { backgroundColor: palette.background }]}
+    >
+      {content}
+    </SafeAreaView>
+  );
 };
+
+const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+});
