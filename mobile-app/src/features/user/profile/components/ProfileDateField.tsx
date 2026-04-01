@@ -4,6 +4,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { theme } from "@/design-system";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type ProfileDateFieldProps = {
   value?: string;
@@ -13,9 +14,11 @@ type ProfileDateFieldProps = {
 };
 
 export const ProfileDateField = ({ value, showDatePicker, onPress, onChange }: ProfileDateFieldProps) => {
+  const { palette } = useThemeContext();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Date of Birth:</Text>
+      <Text style={[styles.label, { color: palette.textPrimary }]}>Date of Birth:</Text>
       <AppButton title={value || "Select Date"} onPress={onPress} />
       {showDatePicker && (
         <DateTimePicker
@@ -36,7 +39,6 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: theme.spacing.xxs,
-    color: theme.colors.textPrimary,
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
   },

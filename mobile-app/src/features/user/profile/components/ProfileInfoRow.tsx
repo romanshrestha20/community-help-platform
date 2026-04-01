@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/design-system";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type ProfileInfoRowProps = {
   label: string;
@@ -9,10 +10,12 @@ type ProfileInfoRowProps = {
 };
 
 export const ProfileInfoRow = ({ label, value }: ProfileInfoRowProps) => {
+  const { palette } = useThemeContext();
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>{label}:</Text>
-      <Text style={styles.value}>{value?.trim() ? value : "Not provided"}</Text>
+    <View style={[styles.container, { borderBottomColor: palette.border }]}>
+      <Text style={[styles.label, { color: palette.textPrimary }]}>{label}:</Text>
+      <Text style={[styles.value, { color: palette.textSecondary }]}>{value?.trim() ? value : "Not provided"}</Text>
     </View>
   );
 };
@@ -22,16 +25,13 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     paddingBottom: theme.spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
   },
   label: {
-    color: theme.colors.textPrimary,
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.semibold,
     marginBottom: theme.spacing.xxs,
   },
   value: {
-    color: theme.colors.textSecondary,
     fontSize: theme.typography.fontSize.sm,
   },
 });

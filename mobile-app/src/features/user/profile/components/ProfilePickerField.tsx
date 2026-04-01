@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 
 import { theme } from "@/design-system";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type ProfilePickerFieldProps<T extends string> = {
   label: string;
@@ -21,6 +22,8 @@ export const ProfilePickerField = <T extends string>({
   marginTop,
   marginBottom = 10,
 }: ProfilePickerFieldProps<T>) => {
+  const { palette } = useThemeContext();
+
   const containerStyle = [
     styles.container,
     marginTop !== undefined ? { marginTop } : null,
@@ -29,11 +32,11 @@ export const ProfilePickerField = <T extends string>({
 
   return (
     <View style={containerStyle}>
-      <Text style={styles.label}>{label}:</Text>
+      <Text style={[styles.label, { color: palette.textPrimary }]}>{label}:</Text>
       <Picker
         selectedValue={selectedValue}
         onValueChange={(value) => onValueChange(value as T)}
-        style={styles.picker}
+        style={[styles.picker, { backgroundColor: palette.surface, color: palette.textPrimary }]}
       >
         {options.map((option) => (
           <Picker.Item key={option} label={option} value={option} />
@@ -50,12 +53,10 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: theme.spacing.xxs,
-    color: theme.colors.textPrimary,
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
   },
   picker: {
-    backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.md,
   },
 });
