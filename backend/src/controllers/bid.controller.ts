@@ -1,6 +1,24 @@
 import { prisma } from "../lib/prisma.js";
 import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.js";
+
+const calculateAge = (dateOfBirth?: Date | string | null) => {
+  if (!dateOfBirth) return undefined;
+
+  const dob = new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return undefined;
+
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : undefined;
+};
+
 // Centralized response
 const sendResponse = (res: Response, data: any = null, message = "") => {
   res.json({ success: true, data, message });
@@ -16,6 +34,7 @@ const formatBid = (bid: any) => ({
   status: bid.status,
   helperName: bid.helper?.profile?.fullName || bid.helper?.email || "Helper",
   helperEmail: bid.helper?.email || "",
+  helperAge: calculateAge(bid.helper?.profile?.dateOfBirth),
   createdAt: bid.createdAt,
   updatedAt: bid.updatedAt || bid.createdAt,
 });
@@ -53,7 +72,7 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
           select: {
             id: true,
             email: true,
-            profile: { select: { fullName: true } },
+            profile: { select: { fullName: true, dateOfBirth: true } },
           },
         },
       },
@@ -82,12 +101,7 @@ export const getBidsForHelpRequest = async (req: Request, res: Response, next: N
     if (!request) return next(new AppError("Request not found", 404));
 
     if (request.requesterId !== userId) {
-      const hasBid = await prisma.bid.findFirst({
-        where: { helpRequestId, helperId: userId },
-        select: { id: true },
-      });
-
-      if (!hasBid) return next(new AppError("Forbidden", 403));
+      return next(new AppError("Forbidden", 403));
     }
 
     const bids = await prisma.bid.findMany({
@@ -97,7 +111,7 @@ export const getBidsForHelpRequest = async (req: Request, res: Response, next: N
           select: {
             id: true,
             email: true,
-            profile: { select: { fullName: true } },
+            profile: { select: { fullName: true, dateOfBirth: true } },
           },
         },
       },
@@ -126,7 +140,7 @@ export const getMyBids = async (req: Request, res: Response, next: NextFunction)
           select: {
             id: true,
             email: true,
-            profile: { select: { fullName: true } },
+            profile: { select: { fullName: true, dateOfBirth: true } },
           },
         },
       },
@@ -153,11 +167,11 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
 
     const bid = await prisma.bid.findUnique({
       where: { id: bidId },
-      include: { helpRequest: true },
+      include: { request: true },
     });
 
     if (!bid) return next(new AppError("Bid not found", 404));
-    if (bid.helpRequest.requesterId !== userId) return next(new AppError("Forbidden", 403));
+    if (bid.request.requesterId !== userId) return next(new AppError("Forbidden", 403));
     if (bid.status !== "PENDING") return next(new AppError("Already processed", 400));
 
     const updated = await prisma.$transaction(async (tx: any) => {
@@ -183,14 +197,15 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
           select: {
             id: true,
             email: true,
-            profile: { select: { fullName: true } },
+            profile: { select: { fullName: true, dateOfBirth: true } },
           },
         },
       },
     });
 
     sendResponse(res, formatBid(updatedWithHelper || updated), `Bid ${status.toLowerCase()}`);
-  } catch {
+  } catch (error) {
+    console.error("Respond To Bid Error:", error);
     next(new AppError("Failed to respond", 500));
   }
 };
@@ -244,7 +259,7 @@ export const updateBid = async (req: Request, res: Response, next: NextFunction)
           select: {
             id: true,
             email: true,
-            profile: { select: { fullName: true } },
+            profile: { select: { fullName: true, dateOfBirth: true } },
           },
         },
       },
@@ -268,15 +283,15 @@ export const getBidById = async (req: Request, res: Response, next: NextFunction
     const bid = await prisma.bid.findUnique({
       where: { id: bidId },
       include: {
-        helpRequest: true,
-        helper: { select: { id: true, email: true, profile: { select: { fullName: true } } } },
+        request: true,
+        helper: { select: { id: true, email: true, profile: { select: { fullName: true, dateOfBirth: true } } } },
       },
     });
 
     if (!bid) return next(new AppError("Bid not found", 404));
 
     // Only helper or requester can view the bid
-    if (bid.helperId !== userId && bid.helpRequest.requesterId !== userId) {
+    if (bid.helperId !== userId && bid.request.requesterId !== userId) {
       return next(new AppError("Forbidden", 403));
     }
 
