@@ -4,6 +4,7 @@ import { AppModal } from "@/components/ui/AppModal";
 import { AppButton } from "@/components/ui/AppButton";
 import { theme } from "@/design-system";
 import { HelpRequest } from "@/features/helpRequest/components";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { BidForm } from "./BidForm";
 
 interface BidRequestModalProps {
@@ -23,6 +24,8 @@ export const BidRequestModal: React.FC<BidRequestModalProps> = ({
     loading,
     error,
 }) => {
+    const { palette } = useThemeContext();
+
     return (
         <AppModal
             visible={visible}
@@ -39,7 +42,7 @@ export const BidRequestModal: React.FC<BidRequestModalProps> = ({
                     error={error}
                 />
             ) : (
-                <Text style={styles.emptyText}>Select a request to bid on.</Text>
+                <Text style={[styles.emptyText, { color: palette.textSecondary }]}>Select a request to bid on.</Text>
             )}
         </AppModal>
     );
@@ -47,7 +50,6 @@ export const BidRequestModal: React.FC<BidRequestModalProps> = ({
 
 const styles = StyleSheet.create({
     emptyText: {
-        color: theme.colors.textSecondary,
         fontSize: theme.typography.fontSize.sm,
         paddingVertical: theme.spacing.sm,
     },
