@@ -13,6 +13,7 @@ export interface Bid {
 
     helperName: string;
     helperEmail?: string;
+    helperAge?: number;
 
     createdAt: string;
     updatedAt?: string;

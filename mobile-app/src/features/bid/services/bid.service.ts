@@ -35,6 +35,14 @@ export const respondToBid = async (bidId: string, status: "ACCEPTED" | "REJECTED
     return handleResponse<Bid>(response.data);
 };
 
+export const acceptBid = async (bidId: string): Promise<Bid> => {
+    return respondToBid(bidId, "ACCEPTED");
+};
+
+export const rejectBid = async (bidId: string): Promise<Bid> => {
+    return respondToBid(bidId, "REJECTED");
+};
+
 export const deleteBid = async (bidId: string): Promise<void> => {
     const response = await bidApi.deleteBidApi(bidId);
     if (!response.data.success) {
