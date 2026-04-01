@@ -21,7 +21,7 @@ router.get('/my', authenticateUser, getMyBids);                  // helper's own
 
 router.get('/:bidId', authenticateUser, getBidById);
 
-router.get('/help-request/:helpRequestId', authenticateUser, getBidsForHelpRequest); // requester or bidder only
+router.get('/help-request/:helpRequestId', authenticateUser, getBidsForHelpRequest); // requester only
 
 export default router;
 
