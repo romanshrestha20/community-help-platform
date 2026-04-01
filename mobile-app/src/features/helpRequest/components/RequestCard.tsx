@@ -12,8 +12,12 @@ interface RequestCardProps {
     onPress?: () => void;
     onEdit?: () => void;
     onDelete?: () => void;
+    onViewBids?: () => void;
     onStatusChange?: (status: HelpRequestStatus) => void;
     isOwner?: boolean;
+    primaryActionLabel?: string;
+    onPrimaryAction?: () => void;
+    primaryActionDisabled?: boolean;
 }
 
 const getStatusColor = (status: HelpRequestStatus): string => {
@@ -36,8 +40,12 @@ export const RequestCard: React.FC<RequestCardProps> = ({
     onPress,
     onEdit,
     onDelete,
+    onViewBids,
     onStatusChange,
     isOwner = false,
+    primaryActionLabel,
+    onPrimaryAction,
+    primaryActionDisabled = false,
 }) => {
     return (
         <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
@@ -49,7 +57,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                             <Text style={[styles.bodyText, { fontWeight: typography.fontWeight.semibold }]} numberOfLines={2}>
                                 {request.title}
                             </Text>
-                            <Text style={[styles.captionText, { color: colors.textSecondary }]}> 
+                            <Text style={[styles.captionText, { color: colors.textSecondary }]}>
                                 {request.requesterName}
                             </Text>
                         </View>
@@ -85,11 +93,11 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                         <Text style={[styles.captionText, { color: colors.textSecondary, fontWeight: typography.fontWeight.semibold }]}>
                             ${request.budget || "N/A"}
                         </Text>
-                        <Text style={[styles.captionText, { color: colors.textSecondary }]}> 
+                        <Text style={[styles.captionText, { color: colors.textSecondary }]}>
                             {request.bidCount} bids
                         </Text>
                         {request.city && request.country && (
-                            <Text style={[styles.captionText, { color: colors.textSecondary }]}> 
+                            <Text style={[styles.captionText, { color: colors.textSecondary }]}>
                                 {request.city}, {request.country}
                             </Text>
                         )}
@@ -97,30 +105,54 @@ export const RequestCard: React.FC<RequestCardProps> = ({
 
                     {/* Category Badge */}
                     <View style={styles.categoryBadge}>
-                        <Text style={[styles.captionText, { color: colors.primary }]}> 
+                        <Text style={[styles.captionText, { color: colors.primary }]}>
                             {request.category}
                         </Text>
                     </View>
 
                     {/* Actions */}
                     {isOwner && (
+                        <>
+                            {onViewBids && (
+                                <Row gap="sm">
+                                    <AppButton
+                                        title="View Bidders"
+                                        onPress={onViewBids}
+                                        variant="primary"
+                                        fullWidth={false}
+                                    />
+                                </Row>
+                            )}
+                            <Row gap="sm">
+                                {onEdit && (
+                                    <AppButton
+                                        title="Edit"
+                                        onPress={onEdit}
+                                        variant="primary"
+                                        fullWidth={false}
+                                    />
+                                )}
+                                {onDelete && (
+                                    <AppButton
+                                        title="Delete"
+                                        onPress={onDelete}
+                                        variant="danger"
+                                        fullWidth={false}
+                                    />
+                                )}
+                            </Row>
+                        </>
+                    )}
+
+                    {!isOwner && onPrimaryAction && primaryActionLabel && (
                         <Row gap="sm">
-                            {onEdit && (
-                                <AppButton
-                                    title="Edit"
-                                    onPress={onEdit}
-                                    variant="primary"
-                                    fullWidth={false}
-                                />
-                            )}
-                            {onDelete && (
-                                <AppButton
-                                    title="Delete"
-                                    onPress={onDelete}
-                                    variant="danger"
-                                    fullWidth={false}
-                                />
-                            )}
+                            <AppButton
+                                title={primaryActionLabel}
+                                onPress={onPrimaryAction}
+                                variant="primary"
+                                fullWidth={false}
+                                disabled={primaryActionDisabled}
+                            />
                         </Row>
                     )}
                 </Stack>
