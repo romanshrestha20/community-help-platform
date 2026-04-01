@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Card, theme } from "@/design-system";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 import { OverviewMetric } from "./OverviewMetric";
 import { AppButton } from "@/components/ui/AppButton";
@@ -20,15 +21,17 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
     location = "N/A",
     onUpdateLocation,
 }) => {
+    const { palette } = useThemeContext();
+
     return (
-        <Card style={styles.overviewCard}>
+        <Card style={[styles.overviewCard, { backgroundColor: palette.surface, borderColor: palette.borderStrong }]}>
             <View style={styles.headerBlock}>
-                <Text style={styles.overviewEyebrow}>Dashboard</Text>
-                <Text style={styles.overviewTitle}>Welcome back, {name}</Text>
+                <Text style={[styles.overviewEyebrow, { color: palette.textSecondary }]}>Dashboard</Text>
+                <Text style={[styles.overviewTitle, { color: palette.textPrimary }]}>Welcome back, {name}</Text>
                 <View style={styles.locationRow}>
                     <View style={styles.locationTextWrap}>
-                        <Text style={styles.locationLabel}>Your location</Text>
-                        <Text style={styles.locationValue}>{location}</Text>
+                        <Text style={[styles.locationLabel, { color: palette.textSecondary }]}>Your location</Text>
+                        <Text style={[styles.locationValue, { color: palette.textPrimary }]}>{location}</Text>
                     </View>
                     <View style={styles.locationButtonWrap}>
                         <AppButton
@@ -52,8 +55,6 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
 const styles = StyleSheet.create({
     overviewCard: {
         marginTop: theme.spacing.sm,
-        backgroundColor: theme.colors.surface,
-        borderColor: theme.colors.borderStrong,
         borderRadius: theme.radius.lg,
     },
     headerBlock: {
@@ -61,7 +62,6 @@ const styles = StyleSheet.create({
     },
     overviewEyebrow: {
         fontSize: theme.typography.fontSize.xs,
-        color: theme.colors.textSecondary,
         textTransform: "uppercase",
         letterSpacing: 0.8,
         marginBottom: 2,
@@ -69,7 +69,6 @@ const styles = StyleSheet.create({
     overviewTitle: {
         fontSize: theme.typography.fontSize.lg,
         fontWeight: theme.typography.fontWeight.bold,
-        color: theme.colors.textPrimary,
         marginBottom: theme.spacing.sm,
     },
     locationRow: {
@@ -82,12 +81,10 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     locationLabel: {
-        color: theme.colors.textSecondary,
         fontSize: theme.typography.fontSize.xs,
         marginBottom: 2,
     },
     locationValue: {
-        color: theme.colors.textPrimary,
         fontSize: theme.typography.fontSize.md,
         fontWeight: theme.typography.fontWeight.semibold,
     },

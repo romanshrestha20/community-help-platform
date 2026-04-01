@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { theme } from "@/design-system";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 interface OverviewMetricProps {
     label: string;
@@ -8,10 +9,12 @@ interface OverviewMetricProps {
 }
 
 export const OverviewMetric: React.FC<OverviewMetricProps> = ({ label, value }) => {
+    const { palette } = useThemeContext();
+
     return (
-        <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>{label}</Text>
-            <Text style={styles.metricValue}>{value}</Text>
+        <View style={[styles.metricItem, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+            <Text style={[styles.metricLabel, { color: palette.textSecondary }]}>{label}</Text>
+            <Text style={[styles.metricValue, { color: palette.textPrimary }]}>{value}</Text>
         </View>
     );
 };
@@ -19,20 +22,16 @@ export const OverviewMetric: React.FC<OverviewMetricProps> = ({ label, value }) 
 const styles = StyleSheet.create({
     metricItem: {
         flex: 1,
-        backgroundColor: theme.colors.surfaceMuted,
         borderWidth: 1,
-        borderColor: theme.colors.border,
         borderRadius: theme.radius.md,
         paddingVertical: theme.spacing.sm,
         paddingHorizontal: theme.spacing.sm,
     },
     metricLabel: {
-        color: theme.colors.textSecondary,
         fontSize: theme.typography.fontSize.xs,
         marginBottom: 2,
     },
     metricValue: {
-        color: theme.colors.textPrimary,
         fontSize: theme.typography.fontSize.lg,
         fontWeight: theme.typography.fontWeight.bold,
     },
