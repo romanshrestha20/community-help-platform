@@ -4,14 +4,16 @@ import { useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { Card, Screen, Stack, theme } from "@/design-system";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 export default function Home() {
   const router = useRouter();
+  const { palette } = useThemeContext();
 
   return (
     <Screen centered>
       <Card style={styles.card}>
-        <Text style={styles.title}>Welcome to the Home Page</Text>
+        <Text style={[styles.title, { color: palette.textPrimary }]}>Welcome to the Home Page</Text>
 
         <Stack gap="sm">
           <AppButton title="Go to Login" onPress={() => router.push("/login")} />
@@ -28,7 +30,6 @@ const styles = StyleSheet.create({
     maxWidth: 560,
   },
   title: {
-    color: theme.colors.textPrimary,
     fontSize: theme.typography.fontSize.lg,
     lineHeight: theme.typography.lineHeight.lg,
     fontWeight: theme.typography.fontWeight.semibold,
