@@ -48,7 +48,7 @@ export default function Layout() {
     if (token && inAuthGroup) {
       router.replace("/(tabs)/home");
     }
-  }, [token, segments, isInitializing]);
+  }, [token, segments, isInitializing, router]);
 
   if (isInitializing) {
     return (
