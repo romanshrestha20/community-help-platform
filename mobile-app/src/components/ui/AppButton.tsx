@@ -1,16 +1,17 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from "react-native";
 
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type Props = {
-  title: string;
+  title?: string;
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
   variant?: "primary" | "danger" | "ghost";
   fullWidth?: boolean;
+  icon?: React.ReactNode;
 };
 
 export const AppButton = ({
@@ -20,6 +21,7 @@ export const AppButton = ({
   disabled,
   variant = "primary",
   fullWidth = true,
+  icon,
 }: Props) => {
   const { palette } = useThemeContext();
   const isGhost = variant === "ghost";
@@ -33,10 +35,10 @@ export const AppButton = ({
           ? { backgroundColor: palette.danger }
           : variant === "ghost"
             ? {
-                backgroundColor: palette.surfaceMuted,
-                borderWidth: 1,
-                borderColor: palette.border,
-              }
+              backgroundColor: palette.surfaceMuted,
+              borderWidth: 1,
+              borderColor: palette.border,
+            }
             : { backgroundColor: palette.primary },
         fullWidth && styles.fullWidth,
         disabled && styles.disabled,
@@ -48,7 +50,10 @@ export const AppButton = ({
       {loading ? (
         <ActivityIndicator color={foregroundColor} />
       ) : (
-        <Text style={[styles.text, { color: foregroundColor }]}>{title}</Text>
+        <View style={styles.content}>
+          {icon ? <View style={styles.icon}>{icon}</View> : null}
+          {title ? <Text style={[styles.text, { color: foregroundColor }]}>{title}</Text> : null}
+        </View>
       )}
     </TouchableOpacity>
   );
@@ -69,5 +74,13 @@ const styles = StyleSheet.create({
   text: {
     fontWeight: theme.typography.fontWeight.semibold,
     fontSize: theme.typography.fontSize.md,
+  },
+  content: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  icon: {
+    marginRight: theme.spacing.xxs,
   },
 });
