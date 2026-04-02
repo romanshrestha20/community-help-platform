@@ -1,23 +1,24 @@
 import React from "react";
 import { StyleSheet } from "react-native";
 import { Screen, Card, theme } from "@/design-system";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 import {
   HelpingOpportunitiesSection,
   RequestFilters,
   RequestForm,
 } from "@/features/helpRequest/components";
 import { BidRequestModal } from "@/features/bid/components";
-import {
-  HomeHeader,
-} from "@/features/home/components";
+import { GreetingOverview } from "@/features/home/components";
 import { useHomeScreen } from "@/features/home/hooks";
 
 export default function Home() {
+  const user = useAuthStore((state) => state.user);
   const {
     filters,
     updateFilter,
     resetFilters,
     helperRequests,
+    recentBids,
     creatingRequest,
     createRequestError,
     handleCreateRequest,
@@ -32,7 +33,17 @@ export default function Home() {
 
   return (
     <Screen contentContainerStyle={styles.container}>
-      <HomeHeader subtitle="Browse requests posted by others and place bids" />
+      <GreetingOverview
+        name={user?.fullName || user?.profile?.fullName || "User"}
+        location={
+          user?.profile?.address?.city ||
+          user?.profile?.address?.state ||
+          user?.profile?.address?.country ||
+          "Set your location"
+        }
+        activeRequests={helperRequests.length}
+        recentBids={recentBids.length}
+      />
 
       <RequestForm
         onSubmit={handleCreateRequest}
