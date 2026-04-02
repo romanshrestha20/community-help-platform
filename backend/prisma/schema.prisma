@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -36,7 +31,6 @@ model UserModel {
   notifications Notification[]
   refreshTokens RefreshToken[]
 
-  // NEW
   reviews       Review[]
   reviewReplies ReviewReply[]
   reviewLikes   ReviewLike[]
@@ -55,17 +49,40 @@ model Profile {
   fullName    String
   bio         String?
   dateOfBirth DateTime?
-  gender      String?
+  gender      Gender?
   userType    UserType  @default(GENERAL)
   rating      Float     @default(0)
   helpCount   Int       @default(0)
 
+  // Optional: user-preferred nearby search radius
+  searchRadiusMeters Int? @default(800)
+
   user      UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
   addressId String?   @unique
-  address   Location? @relation("ProfileAddress", fields: [addressId], references: [id])
+  address   Location? @relation("ProfileAddress", fields: [addressId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt DateTime @updatedAt
+}
+
+model Location {
+  id               String   @id @default(uuid())
+  latitude         Float
+  longitude        Float
+
+  addressLine1     String?
+  addressLine2     String?
+  city             String?
+  state            String?
+  postalCode       String?
+  country          String?
+  formattedAddress String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  helpRequest HelpRequest? @relation("HelpRequestLocation")
+  profile     Profile?     @relation("ProfileAddress")
 }
 
 model RefreshToken {
@@ -83,14 +100,17 @@ model RefreshToken {
 model HelpRequest {
   id          String    @id @default(uuid())
   requesterId String
-  requester   UserModel @relation("UserRequests", fields: [requesterId], references: [id])
+  requester   UserModel @relation("UserRequests", fields: [requesterId], references: [id], onDelete: Cascade)
 
   title       String
   description String
   category    String
 
   locationId String?   @unique
-  location   Location? @relation("HelpRequestLocation", fields: [locationId], references: [id])
+  location   Location? @relation("HelpRequestLocation", fields: [locationId], references: [id], onDelete: SetNull)
+
+  // Optional: request-specific radius
+  serviceRadiusMeters Int? @default(800)
 
   budget Float?
   isPaid Boolean       @default(false)
@@ -100,17 +120,17 @@ model HelpRequest {
   messages Message[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt DateTime @updatedAt
 }
 
 model Bid {
   id String @id @default(uuid())
 
   helperId String
-  helper   UserModel @relation("UserBids", fields: [helperId], references: [id])
+  helper   UserModel @relation("UserBids", fields: [helperId], references: [id], onDelete: Cascade)
 
   helpRequestId String
-  request       HelpRequest @relation(fields: [helpRequestId], references: [id])
+  request       HelpRequest @relation(fields: [helpRequestId], references: [id], onDelete: Cascade)
 
   message String
   amount  Float?
@@ -124,13 +144,13 @@ model Message {
   id String @id @default(uuid())
 
   senderId String
-  sender   UserModel @relation("SentMessages", fields: [senderId], references: [id])
+  sender   UserModel @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 
   receiverId String
-  receiver   UserModel @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiver   UserModel @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
 
   requestId String
-  request   HelpRequest @relation(fields: [requestId], references: [id])
+  request   HelpRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   content String
   isRead  Boolean @default(false)
@@ -142,7 +162,7 @@ model Notification {
   id String @id @default(uuid())
 
   userId String
-  user   UserModel @relation(fields: [userId], references: [id])
+  user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   type    String
   content String
@@ -150,22 +170,6 @@ model Notification {
   isRead Boolean @default(false)
 
   createdAt DateTime @default(now())
-}
-
-model Location {
-  id        String   @id @default(uuid())
-  latitude  Float
-  longitude Float
-  radius    Int      @default(800)
-  street    String?
-  city      String?
-  state     String?
-  country   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-
-  helpRequest HelpRequest? @relation("HelpRequestLocation")
-  profile     Profile?     @relation("ProfileAddress")
 }
 
 model Review {
@@ -178,7 +182,7 @@ model Review {
   likesCount Int @default(0)
   replyCount Int @default(0)
 
-  user   UserModel @relation(fields: [userId], references: [id])
+  user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
 
   replies ReviewReply[]
@@ -189,7 +193,7 @@ model Review {
   updatedAt DateTime @updatedAt
 
   targetUserId String
-  targetUser   UserModel @relation("UserReviewsReceived", fields: [targetUserId], references: [id])
+  targetUser   UserModel @relation("UserReviewsReceived", fields: [targetUserId], references: [id], onDelete: Cascade)
 
   @@unique([userId, title, comment])
   @@index([userId])
@@ -206,7 +210,7 @@ model ReviewReply {
   likes      ReviewLike[]
   likesCount Int          @default(0)
 
-  user   UserModel @relation(fields: [userId], references: [id])
+  user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
 
   createdAt DateTime @default(now())
@@ -225,7 +229,7 @@ model ReviewLike {
   reviewReply   ReviewReply? @relation(fields: [reviewReplyId], references: [id], onDelete: Cascade)
 
   userId String
-  user   UserModel @relation(fields: [userId], references: [id])
+  user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -242,7 +246,7 @@ model Favorite {
 
   createdAt DateTime @default(now())
 
-  user UserModel @relation(fields: [userId], references: [id])
+  user UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId])
   @@index([userId])
