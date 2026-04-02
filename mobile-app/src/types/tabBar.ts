@@ -18,7 +18,7 @@ export interface TabBarConfig {
 }
 
 export type ThemeMode = "light" | "dark" | "system";
-export type ResolvedColorScheme = "light" | "dark";
+export type ColorScheme = "light" | "dark";
 
 export interface TabThemeColors {
     primaryColor: string;

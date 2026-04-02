@@ -9,7 +9,7 @@ import {
     TouchableOpacity,
     StyleSheet,
     Platform,
-    useColorScheme,
+useColorScheme,
     Text,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -21,11 +21,11 @@ import {
     resolveColorScheme,
 } from "@/config/tabBarConfig";
 import { darkColors, lightColors } from "@/design-system/tokens/colors";
-import type { ResolvedColorScheme, TabItem } from "@/types/tabBar";
+import type { ColorScheme, TabItem } from "@/types/tabBar";
 
 interface CustomTabBarProps {
     tabs?: TabItem[];
-    colorScheme?: ResolvedColorScheme;
+    colorScheme?: ColorScheme;
     state: any;
     descriptors: any;
     navigation: any;
@@ -104,10 +104,10 @@ export const CustomTabBar: React.FC<CustomTabBarProps> = ({
     navigation,
 }) => {
     const systemColorScheme = useColorScheme();
-    const resolvedColorScheme =
+    const ColorScheme =
         colorScheme ?? resolveColorScheme("system", systemColorScheme);
-    const colors = getTheme(resolvedColorScheme);
-    const palette = resolvedColorScheme === "dark" ? darkColors : lightColors;
+    const colors = getTheme(ColorScheme);
+    const palette = ColorScheme === "dark" ? darkColors : lightColors;
     const styles = createStyles(colors, palette);
 
     const handleTabPress = (tabName: string, index: number) => {

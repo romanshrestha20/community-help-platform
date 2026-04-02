@@ -6,10 +6,9 @@
 import { darkColors, lightColors } from "@/design-system/tokens/colors";
 import type { ColorSchemeName } from "react-native";
 import type {
-    TabItem,
     TabBarTheme,
     ThemeMode,
-    ResolvedColorScheme,
+    ColorScheme,
 } from "@/types/tabBar";
 
 /**
@@ -54,10 +53,10 @@ export const TAB_BAR_CONSTANTS = {
 /**
  * Resolve active color scheme from an app-level theme mode.
  */
-export const resolveColorScheme = (
+export const ColorScheme = (
     themeMode: ThemeMode,
     systemColorScheme: ColorSchemeName
-): ResolvedColorScheme => {
+): ColorScheme => {
     if (themeMode === "system") {
         return systemColorScheme === "dark" ? "dark" : "light";
     }
@@ -68,6 +67,6 @@ export const resolveColorScheme = (
 /**
  * Get palette for a resolved color scheme.
  */
-export const getTheme = (colorScheme: ResolvedColorScheme) => {
+export const getTheme = (colorScheme: ColorScheme) => {
     return tabBarTheme[colorScheme];
 };
