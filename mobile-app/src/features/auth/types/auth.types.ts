@@ -1,5 +1,6 @@
 // auth.types.ts
 // src/features/auth/auth.types.ts
+import { AppLocation } from "@/features/location/types/location.types";
 
 export interface LoginDto {
   email: string;
@@ -13,9 +14,7 @@ export interface RegisterDto {
   password: string;
   phone: string;
   gender: string;
-  latitude: number;
-  longitude: number;
-  address: string;
+  location: AppLocation;
   dateOfBirth: string;
 
 }
@@ -37,8 +36,10 @@ export interface UserProfile {
   userType: string;
   rating: number;
   helpCount: number;
+
   addressId?: string | null;
-  address?: Address | null;
+  address: AppLocation | null;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -52,15 +53,3 @@ export interface User {
   profile?: UserProfile | null;
 }
 
-export interface Address {
-  id: string;
-  latitude: number;
-  longitude: number;
-  radius: number;
-  street?: string | null;
-  city?: string | null;
-  state?: string | null;
-  country?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
