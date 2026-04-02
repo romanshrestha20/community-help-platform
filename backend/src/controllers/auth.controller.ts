@@ -3,40 +3,43 @@ import { NextFunction, Request, Response } from "express";
 import AppError from "../utils/appError.js";
 import bcrypt from "bcrypt";
 import { accessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
+import {
+  normalizeIncomingLocation,
+  toLocationCreateInput,
+} from "../utils/location.js";
 
 
 export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
-  const { email, password, phone, fullName, gender, dateOfBirth, city, country, street, address, state, latitude, longitude, radius } = req.body;
+  const { email, password, phone, fullName, gender, dateOfBirth } = req.body;
+  const location = normalizeIncomingLocation(req.body as Record<string, unknown>);
 
   try {
-    // Validate required fields
     if (!email || !password || !phone || !fullName || !gender || !dateOfBirth) {
       return next(new AppError("Missing required fields", 400));
     }
 
-    const parsedLatitude = Number(latitude);
-    const parsedLongitude = Number(longitude);
-    const parsedDateOfBirth = new Date(dateOfBirth);
-    const resolvedStreet = street ?? address ?? null;
-
-    // latitude & longitude are required for address
-    if (latitude === undefined || longitude === undefined || Number.isNaN(parsedLatitude) || Number.isNaN(parsedLongitude)) {
-      return next(new AppError("Latitude and longitude are required for address", 400));
+    if (!location) {
+      return next(new AppError("A valid location is required", 400));
     }
+
+    const parsedDateOfBirth = new Date(dateOfBirth);
 
     if (Number.isNaN(parsedDateOfBirth.getTime())) {
       return next(new AppError("Invalid dateOfBirth format. Use YYYY-MM-DD", 400));
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.userModel.findUnique({ where: { email } });
-    if (existingUser) return next(new AppError("Email already registered", 400));
+    const existingUser = await prisma.userModel.findFirst({
+      where: {
+        OR: [{ email }, { phone }],
+      },
+    });
 
-    // Hash password
+    if (existingUser) {
+      return next(new AppError("Email or phone already registered", 400));
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
-
-    // Create user with profile and nested address
     const newUser = await prisma.userModel.create({
       data: {
         email,
@@ -48,15 +51,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
             gender,
             dateOfBirth: parsedDateOfBirth,
             address: {
-              create: {
-                latitude: parsedLatitude,
-                longitude: parsedLongitude,
-                radius: radius || 800,
-                city: city || null,
-                country: country || null,
-                street: resolvedStreet,
-                state: state || null,
-              },
+              create: toLocationCreateInput(location),
             },
           },
         },
@@ -73,9 +68,9 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     const token = accessToken({ userId: newUser.id });
     const refreshToken = signRefreshToken({ userId: newUser.id });
 
-    // Save refresh token in DB
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
     await prisma.refreshToken.create({
       data: { userId: newUser.id, token: refreshToken, expiresAt },
     });
@@ -87,7 +82,6 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       data: newUser,
       message: "User registered successfully",
     });
-
   } catch (error) {
     console.error("Error in registerUser:", error);
     const prismaCode = (error as { code?: string })?.code;
