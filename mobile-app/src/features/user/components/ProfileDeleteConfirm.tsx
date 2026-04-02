@@ -42,10 +42,9 @@ export const ProfileDeleteConfirm = ({
         onClose={close}
         actions={
           <>
-            <AppButton title="Cancel" onPress={close} />
+            <AppButton title="Cancel" variant="ghost" onPress={close} />
             <AppButton title="Delete" variant="danger" onPress={() => {
               handleDelete();
-              close();
             }} />
           </>
         }

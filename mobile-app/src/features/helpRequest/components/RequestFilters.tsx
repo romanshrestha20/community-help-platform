@@ -70,7 +70,7 @@ export const RequestFilters = ({ filters, updateFilter, resetFilters }: Props) =
           title="Filters"
           onClose={() => setModalVisible(false)}
           actions={
-            <AppButton title="Close" onPress={() => setModalVisible(false)} />
+            <AppButton title="Close" variant="ghost" onPress={() => setModalVisible(false)} />
           }
         >
           {Dropdowns}
