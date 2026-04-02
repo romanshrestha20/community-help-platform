@@ -12,7 +12,7 @@ export const useHomeScreen = () => {
     const user = useAuthStore((state) => state.user);
     const currentUserId = user?.id || user?.userId || user?.profile?.userId;
     const { filters, updateFilter, resetFilters } = useGlobalFilters();
-    const { requests, loadHomeData, addNewRequest } = useHomeData();
+    const { requests, recentBids, myBids, loadHomeData, addNewRequest } = useHomeData();
     const [creatingRequest, setCreatingRequest] = useState(false);
     const [createRequestError, setCreateRequestError] = useState<string | null>(null);
 
@@ -101,6 +101,8 @@ export const useHomeScreen = () => {
         updateFilter,
         resetFilters,
         helperRequests,
+        recentBids,
+        myBids,
         creatingRequest,
         createRequestError,
         handleCreateRequest,
