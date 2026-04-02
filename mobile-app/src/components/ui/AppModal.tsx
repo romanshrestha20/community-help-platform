@@ -36,7 +36,13 @@ export const AppModal = ({
   const { palette } = useThemeContext();
 
   return (
-    <Modal visible={visible} transparent animationType={animationType} onRequestClose={onClose} statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType={animationType}
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
       <View style={styles.overlay}>
         <Pressable
           style={StyleSheet.absoluteFill}
@@ -54,7 +60,16 @@ export const AppModal = ({
                   {title || ""}
                 </Text>
 
-                
+                {showCloseButton && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Close modal"
+                    onPress={onClose}
+                    style={[styles.closeButton, { borderColor: palette.border, backgroundColor: palette.surfaceMuted }]}
+                  >
+                    <Text style={[styles.closeButtonText, { color: palette.textPrimary }]}>Close</Text>
+                  </Pressable>
+                )}
               </View>
             )}
 
@@ -67,7 +82,12 @@ export const AppModal = ({
               {children}
             </ScrollView>
 
-            {actions && <View style={styles.actions}>{actions}</View>}
+            {actions ? (
+              <View style={[styles.actions, { borderTopColor: palette.border }]}>
+                {actions}
+              </View>
+            ) : null}
+
           </View>
         </KeyboardAvoidingView>
 
@@ -93,13 +113,15 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     borderWidth: 1,
     borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
     gap: theme.spacing.sm,
   },
   title: {
@@ -108,22 +130,25 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold,
   },
   closeButton: {
-    paddingVertical: 4,
-    paddingHorizontal: theme.spacing.xs,
+    paddingVertical: 6,
+    paddingHorizontal: theme.spacing.sm,
+    borderWidth: 1,
     borderRadius: theme.radius.sm,
   },
   closeButtonText: {
-    fontSize: theme.typography.fontSize.xs,
+    fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.semibold,
   },
   contentScroll: {
     maxHeight: 420,
   },
   content: {
-    paddingVertical: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
   },
   actions: {
-    marginTop: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
     flexDirection: "row",
     justifyContent: "flex-end",
     alignItems: "center",

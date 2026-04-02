@@ -22,6 +22,8 @@ export const AppButton = ({
   fullWidth = true,
 }: Props) => {
   const { palette } = useThemeContext();
+  const isGhost = variant === "ghost";
+  const foregroundColor = isGhost ? palette.textPrimary : palette.textInverse;
 
   return (
     <TouchableOpacity
@@ -44,9 +46,9 @@ export const AppButton = ({
       disabled={disabled || loading}
     >
       {loading ? (
-        <ActivityIndicator color={palette.textInverse} />
+        <ActivityIndicator color={foregroundColor} />
       ) : (
-        <Text style={[styles.text, { color: palette.textInverse }]}>{title}</Text>
+        <Text style={[styles.text, { color: foregroundColor }]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
