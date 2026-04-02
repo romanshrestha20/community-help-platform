@@ -22,26 +22,33 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
     onUpdateLocation,
 }) => {
     const { palette } = useThemeContext();
+    const requestMomentum = activeRequests > 0 ? `${activeRequests} live requests nearby` : "No active requests yet";
 
     return (
         <Card style={[styles.overviewCard, { backgroundColor: palette.surface, borderColor: palette.borderStrong }]}>
+            <View style={[styles.topBadge, { backgroundColor: palette.primary + "14" }]}>
+                <Text style={[styles.topBadgeText, { color: palette.primary }]}>Live dashboard</Text>
+            </View>
+
             <View style={styles.headerBlock}>
-                <Text style={[styles.overviewEyebrow, { color: palette.textSecondary }]}>Dashboard</Text>
+                <Text style={[styles.overviewEyebrow, { color: palette.textSecondary }]}>Good to see you</Text>
                 <Text style={[styles.overviewTitle, { color: palette.textPrimary }]}>Welcome back, {name}</Text>
-                <View style={styles.locationRow}>
-                    <View style={styles.locationTextWrap}>
-                        <Text style={[styles.locationLabel, { color: palette.textSecondary }]}>Your location</Text>
-                        <Text style={[styles.locationValue, { color: palette.textPrimary }]}>{location}</Text>
-                    </View>
-                    <View style={styles.locationButtonWrap}>
-                        <AppButton
-                            title="Update Location"
-                            onPress={onUpdateLocation ?? (() => { })}
-                            variant="ghost"
-                            fullWidth={false}
-                        />
-                    </View>
+                <Text style={[styles.overviewSubtitle, { color: palette.textSecondary }]}>{requestMomentum}</Text>
+            </View>
+
+            <View style={[styles.locationBanner, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+                <View style={styles.locationTextWrap}>
+                    <Text style={[styles.locationLabel, { color: palette.textSecondary }]}>Current location</Text>
+                    <Text style={[styles.locationValue, { color: palette.textPrimary }]} numberOfLines={1}>
+                        {location}
+                    </Text>
                 </View>
+                <AppButton
+                    title="Update"
+                    onPress={onUpdateLocation ?? (() => { })}
+                    variant="ghost"
+                    fullWidth={false}
+                />
             </View>
 
             <View style={styles.metricsRow}>
@@ -55,27 +62,49 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
 const styles = StyleSheet.create({
     overviewCard: {
         marginTop: theme.spacing.sm,
-        borderRadius: theme.radius.lg,
+        borderRadius: 28,
+        padding: theme.spacing.md,
+        gap: theme.spacing.md,
+        overflow: "hidden",
+    },
+    topBadge: {
+        alignSelf: "flex-start",
+        borderRadius: 999,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: 6,
+    },
+    topBadgeText: {
+        fontSize: theme.typography.fontSize.xs,
+        fontWeight: theme.typography.fontWeight.semibold,
+        textTransform: "uppercase",
+        letterSpacing: 0.8,
     },
     headerBlock: {
-        marginBottom: theme.spacing.md,
+        gap: 4,
     },
     overviewEyebrow: {
         fontSize: theme.typography.fontSize.xs,
         textTransform: "uppercase",
         letterSpacing: 0.8,
-        marginBottom: 2,
     },
     overviewTitle: {
-        fontSize: theme.typography.fontSize.lg,
+        fontSize: 26,
+        lineHeight: 30,
         fontWeight: theme.typography.fontWeight.bold,
-        marginBottom: theme.spacing.sm,
     },
-    locationRow: {
+    overviewSubtitle: {
+        fontSize: theme.typography.fontSize.sm,
+        lineHeight: theme.typography.lineHeight.sm,
+        marginTop: 2,
+    },
+    locationBanner: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: theme.spacing.sm,
+        gap: theme.spacing.md,
+        borderWidth: 1,
+        borderRadius: 22,
+        padding: theme.spacing.md,
     },
     locationTextWrap: {
         flex: 1,
@@ -87,9 +116,6 @@ const styles = StyleSheet.create({
     locationValue: {
         fontSize: theme.typography.fontSize.md,
         fontWeight: theme.typography.fontWeight.semibold,
-    },
-    locationButtonWrap: {
-        alignSelf: "flex-end",
     },
     metricsRow: {
         flexDirection: "row",
