@@ -53,3 +53,20 @@ export interface User {
   profile?: UserProfile | null;
 }
 
+
+
+/**
+ * Google Sign-In
+ */
+export interface GoogleLoginDto {
+  idToken: string;
+}
+
+
+
+export interface GoogleAuthResult {
+  idToken: string;
+  email?: string;
+  fullName?: string;
+  photo?: string;
+}
