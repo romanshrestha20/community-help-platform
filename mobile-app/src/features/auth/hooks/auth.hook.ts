@@ -1,93 +1,134 @@
-// src/features/auth/hooks/auth.hook.ts
 import { useState } from "react";
-import { changePassword, loginUser, logoutUser, registerUser } from "../service/auth.service";
+import {
+  changePassword,
+  loginUser,
+  logoutUser,
+  registerUser,
+} from "../service/auth.service";
+import {
+  googleLoginUser,
+  googleLoginWithIdToken,
+} from "../service/google-auth.service";
 import { LoginDto, RegisterDto } from "../types/auth.types";
-import { useAuthStore } from "../store/auth.store";
 
 export const useAuth = () => {
-    const setAuth = useAuthStore(state => state.setAuth);
-    const logoutStore = useAuthStore(state => state.logout);
+  const [loadingLogin, setLoadingLogin] = useState(false);
+  const [loadingGoogleLogin, setLoadingGoogleLogin] = useState(false);
+  const [loadingLogout, setLoadingLogout] = useState(false);
+  const [loadingRegister, setLoadingRegister] = useState(false);
+  const [loadingChangePassword, setLoadingChangePassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    const [loadingLogin, setLoadingLogin] = useState(false);
-    const [loadingLogout, setLoadingLogout] = useState(false);
-    const [loadingRegister, setLoadingRegister] = useState(false);
-    const [loadingChangePassword, setLoadingChangePassword] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const handleLogin = async (credentials: LoginDto) => {
+    setLoadingLogin(true);
+    setError(null);
 
-    const handleLogin = async (credentials: LoginDto) => {
-        setLoadingLogin(true);
-        setError(null);
-        try {
-            const result = await loginUser(credentials);
-            if (result.success && result.user && result.token) {
-                setAuth({ user: result.user, token: result.token });
-            } else {
-                setError(result.message || "Login failed");
-            }
-            return result;
-        } catch (err: any) {
-            setError(err?.message || "Login failed");
-            return { success: false, message: err?.message };
-        } finally {
-            setLoadingLogin(false);
-        }
-    };
+    try {
+      const result = await loginUser(credentials);
 
-    const handleRegister = async (credentials: RegisterDto) => {
-        setLoadingRegister(true);
-        setError(null);
-        try {
-            const result = await registerUser(credentials);
-            if (result.success && result.user && result.token) {
-                setAuth({ user: result.user, token: result.token });
-            } else {
-                setError(result.message || "Registration failed");
-            }
-            return result;
-        } catch (err: any) {
-            setError(err?.message || "Registration failed");
-            return { success: false, message: err?.message };
-        } finally {
-            setLoadingRegister(false);
-        }
-    };
+      if (!result.success) {
+        setError(result.message || "Login failed");
+      }
 
-    const handleLogout = async () => {
-        setLoadingLogout(true);
-        try {
-            await logoutUser();
-            logoutStore(); // clear global auth
-        } catch (err: any) {
-            console.error("Logout failed", err);
-        } finally {
-            setLoadingLogout(false);
-        }
-    };
+      return result;
+    } finally {
+      setLoadingLogin(false);
+    }
+  };
 
-    const handleChangePassword = async (currentPassword: string, newPassword: string) => {
-        setLoadingChangePassword(true);
-        setError(null);
-        try {
-            const result = await changePassword(currentPassword, newPassword);
-            if (!result.success) setError(result.message || "Password change failed");
-            return result;
-        } catch (err: any) {
-            setError(err?.message || "Password change failed");
-            return { success: false, message: err?.message };
-        } finally {
-            setLoadingChangePassword(false);
-        }
-    };
+  const handleGoogleLogin = async () => {
+    setLoadingGoogleLogin(true);
+    setError(null);
 
-    return {
-        loadingLogin,
-        loadingLogout,
-        loadingRegister,
-        loadingChangePassword,
-        error,
-        handleLogin,
-        handleLogout,
-        handleRegister,
-        handleChangePassword,
-    };
+    try {
+      const result = await googleLoginUser();
+
+      if (!result.success) {
+        setError(result.message || "Google sign-in failed");
+      }
+
+      return result;
+    } finally {
+      setLoadingGoogleLogin(false);
+    }
+  };
+
+  const handleGoogleWebLogin = async (idToken: string) => {
+    setLoadingGoogleLogin(true);
+    setError(null);
+
+    try {
+      const result = await googleLoginWithIdToken(idToken);
+
+      if (!result.success) {
+        setError(result.message || "Google sign-in failed");
+      }
+
+      return result;
+    } finally {
+      setLoadingGoogleLogin(false);
+    }
+  };
+
+  const handleRegister = async (credentials: RegisterDto) => {
+    setLoadingRegister(true);
+    setError(null);
+
+    try {
+      const result = await registerUser(credentials);
+
+      if (!result.success) {
+        setError(result.message || "Registration failed");
+      }
+
+      return result;
+    } finally {
+      setLoadingRegister(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setLoadingLogout(true);
+
+    try {
+      return await logoutUser();
+    } finally {
+      setLoadingLogout(false);
+    }
+  };
+
+  const handleChangePassword = async (
+    currentPassword: string,
+    newPassword: string
+  ) => {
+    setLoadingChangePassword(true);
+    setError(null);
+
+    try {
+      const result = await changePassword(currentPassword, newPassword);
+
+      if (!result.success) {
+        setError(result.message || "Password change failed");
+      }
+
+      return result;
+    } finally {
+      setLoadingChangePassword(false);
+    }
+  };
+
+  return {
+    loadingLogin,
+    loadingGoogleLogin,
+    loadingLogout,
+    loadingRegister,
+    loadingChangePassword,
+    error,
+    handleLogin,
+    handleGoogleLogin,
+    handleGoogleWebLogin,
+    handleLogout,
+    handleRegister,
+    handleChangePassword,
+  };
 };
