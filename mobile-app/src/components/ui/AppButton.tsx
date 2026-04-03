@@ -9,7 +9,7 @@ type Props = {
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
-  variant?: "primary" | "danger" | "ghost";
+  variant?: "primary" | "danger" | "ghost" | "secondary";
   fullWidth?: boolean;
   icon?: React.ReactNode;
 };
@@ -25,7 +25,8 @@ export const AppButton = ({
 }: Props) => {
   const { palette } = useThemeContext();
   const isGhost = variant === "ghost";
-  const foregroundColor = isGhost ? palette.textPrimary : palette.textInverse;
+  const isSecondary = variant === "secondary";
+  const foregroundColor = isGhost || isSecondary ? palette.textPrimary : palette.textInverse;
 
   return (
     <TouchableOpacity
@@ -33,6 +34,12 @@ export const AppButton = ({
         styles.button,
         variant === "danger"
           ? { backgroundColor: palette.danger }
+          : variant === "secondary"
+            ? {
+              backgroundColor: palette.surface,
+              borderWidth: 1,
+              borderColor: palette.borderStrong,
+            }
           : variant === "ghost"
             ? {
               backgroundColor: palette.surfaceMuted,
