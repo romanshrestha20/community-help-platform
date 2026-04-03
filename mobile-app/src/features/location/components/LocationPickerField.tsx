@@ -29,7 +29,7 @@ type Props = {
   onSelectSuggestion?: (suggestion: LocationSuggestion) => Promise<void> | void;
 };
 
-export function formatShortAddress(location: AppLocation | null): string {
+export function formatShortAddress({ location }: { location: AppLocation | null; }): string {
   if (!location) return "No location selected";
 
   const primaryParts = [
@@ -37,19 +37,24 @@ export function formatShortAddress(location: AppLocation | null): string {
     [location.postalCode, location.city].filter(Boolean).join(" "),
   ].filter((part) => typeof part === "string" && part.trim().length > 0);
 
+  // Prefer showing street address if available, 
+  // otherwise fallback to state/country or formatted address
   if (primaryParts.length > 0) {
     return primaryParts.join(", ");
   }
 
+  // If no street address, try state and country
   const secondaryParts = [location.state, location.country].filter(
     (part) => typeof part === "string" && part.trim().length > 0
   );
 
+  // If we have state or country info, show that
   if (secondaryParts.length > 0) {
     return secondaryParts.join(", ");
   }
 
   if (location.formattedAddress && location.formattedAddress.trim().length > 0) {
+    // Example:
     return location.formattedAddress;
   }
 
@@ -75,7 +80,7 @@ export default function LocationPickerField({
     typeof onStreetQueryChange === "function" &&
     typeof onSelectSuggestion === "function";
 
-  const formattedAddress = useMemo(() => formatShortAddress(value), [value]);
+  const formattedAddress = useMemo(() => formatShortAddress({ location: value }), [value]);
 
   const showSuggestions = showStreetSearch && streetQuery.trim().length >= 2;
 
@@ -203,7 +208,7 @@ export default function LocationPickerField({
                   </Pressable>
                 )}
               />
-            ) : (
+            ) : !value ? (
               <View style={styles.stateRow}>
                 <Ionicons
                   name="search-outline"
@@ -214,7 +219,7 @@ export default function LocationPickerField({
                   No matching addresses found
                 </Text>
               </View>
-            )}
+            ) : null}
           </View>
         ) : null}
       </View>

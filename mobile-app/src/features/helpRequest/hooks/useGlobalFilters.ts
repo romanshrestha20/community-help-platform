@@ -3,11 +3,13 @@ import { useState } from "react";
 import { HelpRequest, HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
 
 export type RequestSortBy = "NEWEST" | "OLDEST" | "MOST_BIDS";
+export type RequestRadiusFilter = "ANY" | "5" | "10" | "25" | "50" | "100";
 
 export type GlobalFilters = {
     status: "ALL" | HelpRequestStatus;
     category: "ALL" | HelpRequest["category"];
     sortBy: RequestSortBy;
+    radiusKm: RequestRadiusFilter;
     page: number;
 };
 
@@ -15,6 +17,7 @@ const DEFAULT_FILTERS: GlobalFilters = {
     status: "ALL",
     category: "ALL",
     sortBy: "NEWEST",
+    radiusKm: "ANY",
     page: 1,
 };
 
