@@ -68,12 +68,26 @@ describe("bid.controller", () => {
     });
 
     it("respondToBid: accepts bid and updates request state", async () => {
-        prismaMock.bid.findUnique.mockResolvedValue({
-            id: "bid-1",
-            helpRequestId: "req-1",
-            status: "PENDING",
-            helpRequest: { requesterId: "requester-1" },
-        });
+        prismaMock.bid.findUnique
+            .mockResolvedValueOnce({
+                id: "bid-1",
+                helpRequestId: "req-1",
+                status: "PENDING",
+                request: { requesterId: "requester-1" },
+            })
+            .mockResolvedValueOnce({
+                id: "bid-1",
+                helpRequestId: "req-1",
+                status: "ACCEPTED",
+                message: "ok",
+                amount: 30,
+                createdAt: new Date("2026-03-29T00:00:00.000Z"),
+                helper: {
+                    id: "helper-1",
+                    email: "helper@example.com",
+                    profile: { fullName: "Helper One", dateOfBirth: null },
+                },
+            });
         prismaMock.$transaction.mockImplementation(async (fn: any) => {
             const tx = {
                 bid: {
@@ -103,7 +117,9 @@ describe("bid.controller", () => {
 
         await respondToBid(req, res, next);
 
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: "Bid accepted" }));
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ success: true, message: "Bid accepted", data: expect.objectContaining({ id: "bid-1" }) }),
+        );
         expect(next).not.toHaveBeenCalled();
     });
 

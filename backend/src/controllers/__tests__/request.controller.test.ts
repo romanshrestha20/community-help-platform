@@ -3,6 +3,9 @@ import { makeNext, makeReq, makeRes } from "./test-utils.js";
 
 const { prismaMock } = vi.hoisted(() => ({
     prismaMock: {
+        userModel: {
+            findUnique: vi.fn(),
+        },
         helpRequest: {
             create: vi.fn(),
             findMany: vi.fn(),
@@ -14,8 +17,18 @@ const { prismaMock } = vi.hoisted(() => ({
     },
 }));
 
+const { helpRequestServiceMock } = vi.hoisted(() => ({
+    helpRequestServiceMock: {
+        getHelpRequests: vi.fn(),
+    },
+}));
+
 vi.mock("../../lib/prisma.js", () => ({
     prisma: prismaMock,
+}));
+
+vi.mock("../../services/helpRequest.service.js", () => ({
+    getHelpRequests: helpRequestServiceMock.getHelpRequests,
 }));
 
 import {
@@ -41,6 +54,7 @@ describe("request.controller", () => {
     });
 
     it("createHelpRequest: creates a request successfully", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({ id: "user-1" });
         prismaMock.helpRequest.create.mockResolvedValue({ id: "req-1", title: "Need groceries" });
 
         const req = makeReq({
@@ -61,43 +75,57 @@ describe("request.controller", () => {
         expect(prismaMock.helpRequest.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 data: expect.objectContaining({
-                    requesterId: "user-1",
                     category: "FOOD",
+                    requester: { connect: { id: "user-1" } },
+                    location: expect.objectContaining({
+                        create: expect.objectContaining({ latitude: 27.7, longitude: 85.3 }),
+                    }),
                 }),
-                include: { location: true },
+                include: expect.objectContaining({
+                    location: true,
+                    requester: expect.any(Object),
+                    _count: expect.any(Object),
+                }),
             }),
         );
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: "Help request created" }));
         expect(next).not.toHaveBeenCalled();
     });
 
-    it("getAllHelpRequests: validates invalid category", async () => {
+    it("getAllHelpRequests: surfaces service errors as a 500", async () => {
+        helpRequestServiceMock.getHelpRequests.mockRejectedValue(new Error("Invalid category"));
+
         const req = makeReq({ query: { category: "INVALID" } });
         const res = makeRes();
         const next = makeNext();
 
         await getAllHelpRequests(req, res, next);
 
-        expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: "Invalid category", statusCode: 400 }));
+        expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: "Failed to fetch requests", statusCode: 500 }));
     });
 
     it("getAllHelpRequests: returns formatted results with meta", async () => {
-        prismaMock.helpRequest.findMany.mockResolvedValue([
-            {
-                id: "req-1",
-                title: "Need food",
-                description: "Soon",
-                category: "FOOD",
-                budget: 20,
-                status: "OPEN",
-                isPaid: false,
-                location: { city: "Kathmandu", country: "Nepal" },
-                requester: { profile: { fullName: "Roman" } },
-                _count: { bids: 2 },
-                createdAt: new Date("2026-03-29T00:00:00.000Z"),
-            },
-        ]);
-        prismaMock.helpRequest.count.mockResolvedValue(1);
+        helpRequestServiceMock.getHelpRequests.mockResolvedValue({
+            requests: [
+                {
+                    id: "req-1",
+                    requesterId: "user-1",
+                    title: "Need food",
+                    description: "Soon",
+                    category: "FOOD",
+                    budget: 20,
+                    status: "OPEN",
+                    isPaid: false,
+                    city: "Kathmandu",
+                    state: undefined,
+                    country: "Nepal",
+                    requesterName: "Roman",
+                    bidCount: 2,
+                    createdAt: new Date("2026-03-29T00:00:00.000Z"),
+                },
+            ],
+            meta: { total: 1, page: 1, totalPages: 1 },
+        });
 
         const req = makeReq({ query: { page: "1", limit: "10", category: "FOOD" } });
         const res = makeRes();

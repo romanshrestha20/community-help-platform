@@ -8,7 +8,8 @@ const { prismaMock } = vi.hoisted(() => ({
             delete: vi.fn(),
         },
         profile: {
-            upsert: vi.fn(),
+            findUnique: vi.fn(),
+            update: vi.fn(),
         },
     },
 }));
@@ -62,7 +63,14 @@ describe("user.controller", () => {
     });
 
     it("updateUserProfile: upserts profile fields", async () => {
-        prismaMock.profile.upsert.mockResolvedValue({ id: "profile-1", fullName: "Roman" });
+        prismaMock.profile.findUnique.mockResolvedValue({
+            userId: "user-1",
+            addressId: null,
+        });
+        prismaMock.profile.update.mockResolvedValue({
+            id: "profile-1",
+            fullName: "Roman",
+        });
 
         const req = makeReq({
             user: { userId: "user-1" },
@@ -78,7 +86,10 @@ describe("user.controller", () => {
 
         await updateUserProfile(req, res, next);
 
-        expect(prismaMock.profile.upsert).toHaveBeenCalledWith(
+        expect(prismaMock.profile.findUnique).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { userId: "user-1" } }),
+        );
+        expect(prismaMock.profile.update).toHaveBeenCalledWith(
             expect.objectContaining({ where: { userId: "user-1" } }),
         );
         expect(res.status).toHaveBeenCalledWith(200);

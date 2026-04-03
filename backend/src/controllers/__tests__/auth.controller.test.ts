@@ -4,6 +4,7 @@ import { makeNext, makeReq, makeRes } from "./test-utils.js";
 const { prismaMock, bcryptMock, jwtMock } = vi.hoisted(() => ({
     prismaMock: {
         userModel: {
+            findFirst: vi.fn(),
             findUnique: vi.fn(),
             create: vi.fn(),
             update: vi.fn(),
@@ -67,6 +68,7 @@ describe("auth.controller", () => {
     });
 
     it("registerUser: creates user and returns tokens", async () => {
+        prismaMock.userModel.findFirst.mockResolvedValue(null);
         prismaMock.userModel.findUnique.mockResolvedValue(null);
         bcryptMock.hash.mockResolvedValue("hashed");
         prismaMock.userModel.create.mockResolvedValue({ id: "user-1", email: "user@example.com" });
@@ -81,8 +83,7 @@ describe("auth.controller", () => {
                 fullName: "Roman",
                 gender: "MALE",
                 dateOfBirth: "1999-01-01",
-                latitude: 27.7,
-                longitude: 85.3,
+                location: { latitude: 27.7, longitude: 85.3 },
             },
         });
         const res = makeRes();
