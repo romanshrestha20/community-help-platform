@@ -7,16 +7,12 @@ datasource db {
   provider = "postgresql"
 }
 
-// ======================
-// MODELS
-// ======================
-
 model UserModel {
-  id           String  @id @default(uuid())
-  email        String  @unique
-  phone        String  @unique
-  passwordHash String
-  isVerified   Boolean @default(false)
+  id           String   @id @default(uuid())
+  email        String   @unique
+  phone        String?  @unique
+  passwordHash String?
+  isVerified   Boolean  @default(false)
 
   profile Profile?
 
@@ -30,6 +26,7 @@ model UserModel {
 
   notifications Notification[]
   refreshTokens RefreshToken[]
+  oauthAccounts OAuthAccount[]
 
   reviews       Review[]
   reviewReplies ReviewReply[]
@@ -43,6 +40,21 @@ model UserModel {
   @@map("users")
 }
 
+model OAuthAccount {
+  id         String       @id @default(uuid())
+  provider   AuthProvider
+  providerId String
+
+  userId String
+  user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([provider, providerId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
 model Profile {
   id          String    @id @default(uuid())
   userId      String    @unique
@@ -54,7 +66,6 @@ model Profile {
   rating      Float     @default(0)
   helpCount   Int       @default(0)
 
-  // Optional: user-preferred nearby search radius
   searchRadiusMeters Int? @default(800)
 
   user      UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -69,7 +80,6 @@ model Location {
   id               String   @id @default(uuid())
   latitude         Float
   longitude        Float
-
   addressLine1     String?
   addressLine2     String?
   city             String?
@@ -77,7 +87,6 @@ model Location {
   postalCode       String?
   country          String?
   formattedAddress String?
-
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -109,7 +118,6 @@ model HelpRequest {
   locationId String?   @unique
   location   Location? @relation("HelpRequestLocation", fields: [locationId], references: [id], onDelete: SetNull)
 
-  // Optional: request-specific radius
   serviceRadiusMeters Int? @default(800)
 
   budget Float?
@@ -208,7 +216,7 @@ model ReviewReply {
   reviewId String
 
   likes      ReviewLike[]
-  likesCount Int          @default(0)
+  likesCount Int @default(0)
 
   user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
@@ -271,9 +279,9 @@ model Image {
   @@index([reviewId])
 }
 
-// ======================
-// ENUMS
-// ======================
+enum AuthProvider {
+  GOOGLE
+}
 
 enum UserType {
   GENERAL
