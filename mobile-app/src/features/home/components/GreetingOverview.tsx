@@ -1,21 +1,25 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Card, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 import { OverviewMetric } from "./OverviewMetric";
 import { AppButton } from "@/components/ui/AppButton";
+import { formatShortAddress } from "@/features/location/components/LocationPickerField";
+import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
+import { AppLocation } from "@/features/location/types/location.types";
 
 interface GreetingOverviewProps {
     name?: string;
     activeRequests: number;
     recentBids: number;
     location?: string;
-    onUpdateLocation?: () => void;
+    onUpdateLocation?: (location: AppLocation) => void;
 }
 
 export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
     name = "User",
+
     activeRequests,
     recentBids,
     location = "N/A",
@@ -23,6 +27,25 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
 }) => {
     const { palette } = useThemeContext();
     const requestMomentum = activeRequests > 0 ? `${activeRequests} live requests nearby` : "No active requests yet";
+    const locationPicker = useLocationPicker();
+    const [localLocation, setLocalLocation] = useState(location);
+
+    const currentLocationText = useMemo(() => {
+        if (locationPicker.value) {
+            return formatShortAddress({ location: locationPicker.value });
+        }
+
+        return localLocation || location || "N/A";
+    }, [locationPicker.value, localLocation, location]);
+
+    useEffect(() => {
+        if (!locationPicker.value) {
+            return;
+        }
+
+        setLocalLocation(formatShortAddress({ location: locationPicker.value }));
+        onUpdateLocation?.(locationPicker.value);
+    }, [locationPicker.value, onUpdateLocation]);
 
     return (
         <Card style={[styles.overviewCard, { backgroundColor: palette.surface, borderColor: palette.borderStrong }]}>
@@ -40,16 +63,24 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
                 <View style={styles.locationTextWrap}>
                     <Text style={[styles.locationLabel, { color: palette.textSecondary }]}>Current location</Text>
                     <Text style={[styles.locationValue, { color: palette.textPrimary }]} numberOfLines={1}>
-                        {location}
+                        {currentLocationText}
                     </Text>
                 </View>
                 <AppButton
-                    title="Update"
-                    onPress={onUpdateLocation ?? (() => { })}
-                    variant="ghost"
+                    title={locationPicker.loading ? "Detecting..." : "Use current location"}
+                    onPress={locationPicker.useCurrentLocation}
+                    variant="primary"
+                    loading={locationPicker.loading}
+                    disabled={locationPicker.loading}
                     fullWidth={false}
                 />
             </View>
+
+            {locationPicker.error ? (
+                <Text style={[styles.locationError, { color: palette.danger }]}>
+                    {locationPicker.error}
+                </Text>
+            ) : null}
 
             <View style={styles.metricsRow}>
                 <OverviewMetric label="Active Requests" value={activeRequests} />
@@ -120,5 +151,8 @@ const styles = StyleSheet.create({
     metricsRow: {
         flexDirection: "row",
         gap: theme.spacing.sm,
+    },
+    locationError: {
+        fontSize: theme.typography.fontSize.xs,
     },
 });
