@@ -6,6 +6,7 @@ export const useRequestFilters = (requests: HelpRequest[]) => {
     const [statusFilter, setStatusFilter] = useState<"ALL" | HelpRequestStatus>("ALL");
     const [categoryFilter, setCategoryFilter] = useState<"ALL" | HelpRequest["category"]>("ALL");
     const [sortBy, setSortBy] = useState<"NEWEST" | "OLDEST" | "MOST_BIDS">("NEWEST");
+    const [radiusFilter, setRadiusFilter] = useState<"ANY" | "5" | "10" | "25" | "50" | "100">("ANY");
 
     const filteredRequests = useMemo(() => {
         let next = [...requests];
@@ -20,5 +21,15 @@ export const useRequestFilters = (requests: HelpRequest[]) => {
         return next;
     }, [requests, statusFilter, categoryFilter, sortBy]);
 
-    return { statusFilter, setStatusFilter, categoryFilter, setCategoryFilter, sortBy, setSortBy, filteredRequests };
+    return {
+        statusFilter,
+        setStatusFilter,
+        categoryFilter,
+        setCategoryFilter,
+        sortBy,
+        setSortBy,
+        radiusFilter,
+        setRadiusFilter,
+        filteredRequests,
+    };
 };

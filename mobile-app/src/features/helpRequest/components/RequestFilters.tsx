@@ -9,7 +9,7 @@ import { AppModal } from "@/components/ui/AppModal";
 
 interface Props {
   filters: GlobalFilters;
-  updateFilter: <K extends "status" | "category" | "sortBy">(
+  updateFilter: <K extends "status" | "category" | "sortBy" | "radiusKm">(
     key: K,
     value: GlobalFilters[K]
   ) => void;
@@ -55,6 +55,19 @@ export const RequestFilters = ({ filters, updateFilter, resetFilters }: Props) =
           { label: "Medical", value: "MEDICAL" },
           { label: "Education", value: "EDUCATION" },
           { label: "Other", value: "OTHER" },
+        ]}
+      />
+      <AppDropdown
+        label="Radius"
+        value={filters.radiusKm}
+        onSelect={(v) => updateFilter("radiusKm", v as GlobalFilters["radiusKm"])}
+        options={[
+          { label: "Any distance", value: "ANY" },
+          { label: "Within 5 km", value: "5" },
+          { label: "Within 10 km", value: "10" },
+          { label: "Within 25 km", value: "25" },
+          { label: "Within 50 km", value: "50" },
+          { label: "Within 100 km", value: "100" },
         ]}
       />
       <AppButton onPress={resetFilters} title="Reset Filters" />

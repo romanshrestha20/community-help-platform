@@ -1,4 +1,5 @@
 // src/types/helpRequest.types.ts
+import { AppLocation } from "@/features/location/types/location.types";
 
 export interface HelpRequest {
     id: string;
@@ -13,6 +14,7 @@ export interface HelpRequest {
 
     city?: string | null;
     country?: string | null;
+    location?: AppLocation | null;
 
     requesterName: string;
 
@@ -31,6 +33,7 @@ export interface CreateHelpRequestData {
 
     budget?: number;
     isPaid?: boolean;
+    location: AppLocation | null;
 
     city?: string;
     country?: string;
@@ -43,6 +46,7 @@ export interface UpdateHelpRequestData {
 
     budget?: number;
     isPaid?: boolean;
+    location?: AppLocation;
 
     city?: string;
     country?: string;

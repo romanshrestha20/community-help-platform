@@ -7,6 +7,10 @@ import { AppInput } from "@/components/ui/AppInput";
 import { AppButton } from "@/components/ui/AppButton";
 import { spacing, colors, typography, theme } from "@/design-system";
 import { CreateHelpRequestData, HelpRequest } from "../types/helpRequest.types";
+import LocationPickerField from "@/features/location/components/LocationPickerField";
+import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
+
+type RequestFormData = Omit<CreateHelpRequestData, "location">;
 
 interface RequestFormProps {
     initialData?: HelpRequest;
@@ -21,13 +25,15 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     loading = false,
     error = null,
 }) => {
-    const [formData, setFormData] = useState<CreateHelpRequestData>({
+    const locationPicker = useLocationPicker(initialData?.location ?? null);
+
+    const [formData, setFormData] = useState<RequestFormData>({
         title: initialData?.title || "",
         description: initialData?.description || "",
         category: initialData?.category || "FOOD",
         budget: initialData?.budget,
-        city: initialData?.city || "",
-        country: initialData?.country || "",
+        city: initialData?.city || initialData?.location?.city || "",
+        country: initialData?.country || initialData?.location?.country || "",
     });
 
     const [validationError, setValidationError] = useState<string | null>(null);
@@ -35,7 +41,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 
     const categories = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
 
-    const handleInputChange = (field: keyof CreateHelpRequestData, value: any) => {
+    const handleInputChange = (field: keyof RequestFormData, value: any) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
         setValidationError(null);
     };
@@ -49,12 +55,22 @@ export const RequestForm: React.FC<RequestFormProps> = ({
             setValidationError("Budget must be greater than 0");
             return false;
         }
+        if (!locationPicker.value) {
+            setValidationError("Please select a location");
+            return false;
+        }
         return true;
     };
 
     const handleSubmit = async () => {
         if (!validateForm()) return;
-        await onSubmit(formData);
+        const location = locationPicker.value;
+        await onSubmit({
+            ...formData,
+            location,
+            city: location.city ?? "",
+            country: location.country ?? "",
+        });
         setModalVisible(false);
     };
 
@@ -74,7 +90,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                 visible={modalVisible}
                 title={initialData ? "Edit Request" : "Create Request"}
                 onClose={() => setModalVisible(false)}
-               >
+            >
                 <ScrollView contentContainerStyle={{ paddingVertical: spacing.md }}>
                     <Stack gap="md">
                         {/* Title */}
@@ -117,17 +133,16 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                                 handleInputChange("budget", v ? parseFloat(v) : undefined)
                             }
                         />
-                        {/* City */}
-                        <AppInput
-                            placeholder="City"
-                            value={formData.city}
-                            onChangeText={(v) => handleInputChange("city", v)}
-                        />
-                        {/* Country */}
-                        <AppInput
-                            placeholder="Country"
-                            value={formData.country}
-                            onChangeText={(v) => handleInputChange("country", v)}
+                        <LocationPickerField
+                            value={locationPicker.value}
+                            loading={locationPicker.loading}
+                            error={locationPicker.error}
+                            onUseCurrentLocation={locationPicker.useCurrentLocation}
+                            streetQuery={locationPicker.streetQuery}
+                            onStreetQueryChange={locationPicker.setStreetQuery}
+                            suggestions={locationPicker.suggestions}
+                            suggestionsLoading={locationPicker.suggestionsLoading}
+                            onSelectSuggestion={locationPicker.selectSuggestion}
                         />
 
                         {/* Validation/Error */}
@@ -142,8 +157,8 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                             onPress={handleSubmit}
                             disabled={loading}
                         />
-                        
-                        
+
+
                     </Stack>
                 </ScrollView>
             </AppModal>
