@@ -1,6 +1,5 @@
-import React, {  useState } from "react";
-import { Text, StyleSheet } from "react-native";
-import { useAuth } from "@/features/auth/hooks/auth.hook";
+import React, { useState } from "react";
+import { Text, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { Card, Stack, theme } from "@/design-system";
@@ -8,23 +7,26 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppInput } from "@/components/ui/AppInput";
 import { FormContainer } from "@/components/ui/FormContainer";
+import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { handleLogin, loadingLogin, error } = useAuth();
   const { palette } = useThemeContext();
 
+  const {
+    loadingLogin,
+    error,
+    handleLogin,
+  } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const onLogin = async () => {
-    const result = await handleLogin({ email, password });
 
-    if (result?.success) {
-      // do nothing
-      // global auth guard will redirect automatically
-    }
+  const isFormDisabled = loadingLogin;
+
+  const handleEmailLogin = async () => {
+    await handleLogin({ email, password });
   };
 
   return (
@@ -40,20 +42,35 @@ export default function LoginScreen() {
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
+            editable={!isFormDisabled}
           />
+
           <AppInput
             label="Password"
             placeholder="Enter password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            editable={!isFormDisabled}
           />
 
-          {error && <Text style={[styles.error, { color: palette.danger }]}>{error}</Text>}
+          {error ? (
+            <Text style={[styles.error, { color: palette.danger }]}>
+              {error}
+            </Text>
+          ) : null}
 
-          <AppButton title={loadingLogin ? "Logging in..." : "Login"} onPress={onLogin} loading={loadingLogin} />
+          <AppButton
+            title={loadingLogin ? "Logging in..." : "Login"}
+            onPress={handleEmailLogin}
+            loading={loadingLogin}
+            disabled={isFormDisabled}
+          />
 
-          <Text style={[styles.link, { color: palette.primary }]} onPress={() => router.push("/register")}>
+          <Text
+            style={[styles.link, { color: palette.primary }]}
+            onPress={() => router.push("/register")}
+          >
             Don&apos;t have an account? Register
           </Text>
         </Stack>
