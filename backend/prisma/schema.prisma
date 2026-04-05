@@ -8,19 +8,20 @@ datasource db {
 }
 
 model UserModel {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  phone        String?  @unique
+  id           String  @id @default(uuid())
+  email        String  @unique
+  phone        String? @unique
   passwordHash String?
-  isVerified   Boolean  @default(false)
+  isVerified   Boolean @default(false)
 
   profile Profile?
 
-  requests HelpRequest[] @relation("UserRequests")
-  bids     Bid[]         @relation("UserBids")
+  requests         HelpRequest[] @relation("UserRequests")
+  bids             Bid[]         @relation("UserBids")
+  assignedRequests HelpRequest[] @relation("AssignedRequests")
 
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
+  sentMessages  Message[]            @relation("SentMessages")
+  conversations ConversationMember[]
 
   receivedReviews Review[] @relation("UserReviewsReceived")
 
@@ -65,6 +66,9 @@ model Profile {
   userType    UserType  @default(GENERAL)
   rating      Float     @default(0)
   helpCount   Int       @default(0)
+
+  avatarUrl      String?
+  avatarPublicId String?
 
   searchRadiusMeters Int? @default(800)
 
@@ -124,11 +128,45 @@ model HelpRequest {
   isPaid Boolean       @default(false)
   status RequestStatus @default(OPEN)
 
-  bids     Bid[]
+  bids             Bid[]
+  assignedHelperId String?
+  assignedHelper   UserModel? @relation("AssignedRequests", fields: [assignedHelperId], references: [id], onDelete: SetNull)
+
+  conversation Conversation?
+  images       Image[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Conversation {
+  id        String      @id @default(uuid())
+  requestId String      @unique
+  request   HelpRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  members  ConversationMember[]
   messages Message[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id             String @id @default(uuid())
+  conversationId String
+  userId         String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         UserModel    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@map("conversation_members")
 }
 
 model Bid {
@@ -149,21 +187,28 @@ model Bid {
 }
 
 model Message {
-  id String @id @default(uuid())
+  id             String @id @default(uuid())
+  conversationId String
+  senderId       String
 
-  senderId String
-  sender   UserModel @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       UserModel    @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 
-  receiverId String
-  receiver   UserModel @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  content   String?
+  type      MessageType @default(TEXT)
+  isRead    Boolean     @default(false)
+  editedAt  DateTime?
+  deletedAt DateTime?
 
-  requestId String
-  request   HelpRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-
-  content String
-  isRead  Boolean @default(false)
+  images Image[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("messages")
 }
 
 model Notification {
@@ -216,7 +261,7 @@ model ReviewReply {
   reviewId String
 
   likes      ReviewLike[]
-  likesCount Int @default(0)
+  likesCount Int          @default(0)
 
   user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
@@ -262,21 +307,30 @@ model Favorite {
 }
 
 model Image {
-  id       String  @id @default(uuid())
+  id       String    @id @default(uuid())
   url      String
   publicId String?
+  type     ImageType
 
-  userId   String?
-  reviewId String?
+  userId    String?
+  reviewId  String?
+  requestId String?
+  messageId String?
 
-  review Review?    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  user   UserModel? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review  Review?      @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user    UserModel?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  request HelpRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  message Message?     @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([reviewId])
+  @@index([requestId])
+  @@index([messageId])
+  @@index([type])
+  @@map("images")
 }
 
 enum AuthProvider {
@@ -306,4 +360,17 @@ enum Gender {
   MALE
   FEMALE
   OTHER
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  TEXT_IMAGE
+  SYSTEM
+}
+
+enum ImageType {
+  REVIEW
+  REQUEST
+  MESSAGE
 }
