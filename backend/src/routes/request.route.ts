@@ -1,28 +1,33 @@
-import express from 'express';
+import express from "express";
 import {
   getAllHelpRequests,
   createHelpRequest,
   getHelpRequestById,
   deleteHelpRequest,
   updateHelpRequest,
-  updateHelpRequestStatus
-} from '../controllers/request.controller.js';
+  updateHelpRequestStatus,
+  deleteRequestImage,
+  addRequestImages,
+} from "../controllers/request.controller.js";
 
-
-import { authenticateUser } from '../middlewares/auth.middleware.js';
+import { authenticateUser } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/upload.middleware.js";
 
 const router = express.Router();
 
 // Public
-router.get('/', getAllHelpRequests);
-router.get('/:id', authenticateUser, getHelpRequestById);
+router.get("/", getAllHelpRequests);
+router.get("/:id", getHelpRequestById);
 
 // Protected
 router.use(authenticateUser);
-router.post('/', createHelpRequest);
-router.put('/:id', updateHelpRequest);
-router.delete('/:id', deleteHelpRequest);
-router.patch('/:id/status', updateHelpRequestStatus);
 
+router.post("/", upload.array("images", 5), createHelpRequest);
+router.patch("/:id", updateHelpRequest);
+router.delete("/:id", deleteHelpRequest);
+router.patch("/:id/status", updateHelpRequestStatus);
+
+router.post("/:id/images", upload.array("images", 5), addRequestImages);
+router.delete("/:id/images/:imageId", deleteRequestImage);
 
 export default router;

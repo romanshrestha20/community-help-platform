@@ -47,6 +47,7 @@ export const getHelpRequests = async (query: any) => {
       orderBy: { [sortBy as string]: order === "asc" ? "asc" : "desc" },
       include: {
         location: true,
+        images: true,
         requester: { select: { id: true, profile: { select: { fullName: true } } } },
         _count: { select: { bids: true } },
       },
