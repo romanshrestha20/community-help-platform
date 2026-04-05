@@ -116,7 +116,8 @@ apiClient.interceptors.response.use(
 
     // Skip retry logic for auth endpoints (login/register should not trigger refresh)
     const isAuthEndpoint = originalRequest.url?.includes("/auth/login") ||
-      originalRequest.url?.includes("/auth/register");
+      originalRequest.url?.includes("/auth/register") ||
+      originalRequest.url?.includes("/auth/refresh");
 
     // ======================
     // HANDLE 401
@@ -156,8 +157,12 @@ apiClient.interceptors.response.use(
           refreshToken,
         });
 
-        const newAccessToken = res.data.token;
+        const newAccessToken = res.data.accessToken || res.data.token;
         const newRefreshToken = res.data.refreshToken || refreshToken;
+
+        if (!newAccessToken) {
+          throw new Error("Refresh endpoint did not return an access token");
+        }
 
         await saveTokens(newAccessToken, newRefreshToken);
 

@@ -20,8 +20,8 @@ export interface RegisterDto {
 }
 export interface AuthResponse {
   success: boolean;
-  token: string;
-  refreshToken?: string;
+  accessToken: string;
+  refreshToken: string;
   data: User | null;
   message: string;
 }
@@ -36,7 +36,7 @@ export interface UserProfile {
   userType: string;
   rating: number;
   helpCount: number;
-
+  searchRadiusMeters?: number | null;
   addressId?: string | null;
   address: AppLocation | null;
 
@@ -51,22 +51,4 @@ export interface User {
   phone?: string;
   isVerified: boolean;
   profile?: UserProfile | null;
-}
-
-
-
-/**
- * Google Sign-In
- */
-export interface GoogleLoginDto {
-  idToken: string;
-}
-
-
-
-export interface GoogleAuthResult {
-  idToken: string;
-  email?: string;
-  fullName?: string;
-  photo?: string;
 }

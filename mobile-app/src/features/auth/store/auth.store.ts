@@ -1,23 +1,38 @@
-// src/features/auth/store/auth.store.ts
-import { create } from 'zustand'
-import { User } from '../types/auth.types'
+import { create } from "zustand";
+import { User } from "../types/auth.types";
 
-
-interface AuthState {
-    user: User | null;
-    token: string | null;
-    isAuthenticated: boolean;
-
-    setAuth: (data: { user: User; token: string }) => void;
-    logout: () => void;
-}
-
+type AuthState = {
+  user: User | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
+  login: (payload: {
+    user: User;
+    accessToken: string;
+    refreshToken: string;
+  }) => void;
+  logout: () => void;
+};
 
 export const useAuthStore = create<AuthState>((set) => ({
-    user: null,
-    token: null,
-    isAuthenticated: false,
+  user: null,
+  accessToken: null,
+  refreshToken: null,
+  isAuthenticated: false,
 
-    setAuth: ({ user, token }) => set({ user, token, isAuthenticated: true }),
-    logout: () => set({ user: null, token: null, isAuthenticated: false }),
+  login: ({ user, accessToken, refreshToken }) =>
+    set({
+      user,
+      accessToken,
+      refreshToken,
+      isAuthenticated: true,
+    }),
+
+  logout: () =>
+    set({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+    }),
 }));

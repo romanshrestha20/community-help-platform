@@ -1,106 +1,115 @@
-import { AuthResponse, LoginDto, RegisterDto } from "../types/auth.types";
+import type { AuthResponse, LoginDto, RegisterDto } from "../types/auth.types";
 import * as authApi from "../api/auth.api";
 import { saveTokens, clearTokens } from "../../../utils/token";
 import { useAuthStore } from "../store/auth.store";
-import { signOutGoogleNative } from "../providers/google-native.provider";
 
-export const loginUser = async (credentials: LoginDto) => {
+type AuthSuccessResult = {
+  success: true;
+  accessToken?: string;
+  user?: NonNullable<AuthResponse["data"]>;
+  message?: string;
+};
+
+type AuthFailureResult = {
+  success: false;
+  message: string;
+};
+
+type AuthActionResult = AuthSuccessResult | AuthFailureResult | AuthResponse;
+
+const getErrorMessage = (error: any, fallback: string) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.error?.message ||
+  error?.message ||
+  fallback;
+
+const persistAuthSession = async (
+  accessToken: string,
+  refreshToken: string,
+  user: NonNullable<AuthResponse["data"]>
+): Promise<AuthSuccessResult> => {
+  await saveTokens(accessToken, refreshToken);
+
+  useAuthStore.getState().login({
+    user,
+    accessToken,
+    refreshToken,
+  });
+
+  return {
+    success: true,
+    accessToken,
+    user,
+  };
+};
+
+export const loginUser = async (
+  credentials: LoginDto
+): Promise<AuthActionResult> => {
   try {
     const response: AuthResponse = await authApi.login(credentials);
-    const {
-      success,
-      token: accessToken,
-      data: user,
-      message,
-      refreshToken,
-    } = response;
 
-    if (!success || !accessToken || !user) {
-      return { success: false, message: message || "Login failed" };
+    const { success, accessToken, data: user, message, refreshToken } = response;
+
+    if (!success || !accessToken || !refreshToken || !user) {
+      return {
+        success: false,
+        message: message || "Login failed",
+      };
     }
 
-    await saveTokens(accessToken, refreshToken || "");
-    useAuthStore.getState().setAuth({
-      user,
-      token: accessToken,
-    });
-
-    return {
-      success: true,
-      token: accessToken,
-      user,
-    };
+    return await persistAuthSession(accessToken, refreshToken, user);
   } catch (error: any) {
-    const backendMessage =
-      error?.response?.data?.message ||
-      error?.response?.data?.error?.message ||
-      error?.message ||
-      "An error occurred during login";
-
     console.error("Login error:", error);
 
     return {
       success: false,
-      message: backendMessage,
+      message: getErrorMessage(error, "An error occurred during login"),
     };
   }
 };
 
-export const registerUser = async (credentials: RegisterDto) => {
+export const registerUser = async (
+  credentials: RegisterDto
+): Promise<AuthActionResult> => {
   try {
-    const response = (await authApi.register(credentials)) as AuthResponse;
-    const {
-      success,
-      token: accessToken,
-      data: user,
-      message,
-      refreshToken,
-    } = response;
+    const response: AuthResponse = await authApi.register(credentials);
 
-    if (!success || !accessToken || !user) {
-      return { success: false, message: message || "Registration failed" };
+    const { success, accessToken, data: user, message, refreshToken } = response;
+
+    if (!success || !accessToken || !refreshToken || !user) {
+      return {
+        success: false,
+        message: message || "Registration failed",
+      };
     }
 
-    await saveTokens(accessToken, refreshToken || "");
-    useAuthStore.getState().setAuth({
-      user,
-      token: accessToken,
-    });
-
-    return {
-      success: true,
-      token: accessToken,
-      user,
-    };
+    return await persistAuthSession(accessToken, refreshToken, user);
   } catch (error: any) {
-    const backendMessage =
-      error?.response?.data?.message ||
-      error?.response?.data?.error?.message ||
-      error?.message ||
-      "An error occurred during registration";
-
     console.error("Registration error:", error);
 
     return {
       success: false,
-      message: backendMessage,
+      message: getErrorMessage(error, "An error occurred during registration"),
     };
   }
 };
 
-export const logoutUser = async () => {
+export const logoutUser = async (): Promise<AuthActionResult> => {
   try {
-    await signOutGoogleNative().catch(() => null);
     await clearTokens();
     useAuthStore.getState().logout();
 
-    return { success: true };
+    return {
+      success: true,
+      message: "Logged out successfully",
+    };
   } catch (error: any) {
     console.error("Logout error:", error);
 
     return {
       success: false,
-      message: "An error occurred during logout",
+      message: getErrorMessage(error, "An error occurred during logout"),
     };
   }
 };
@@ -108,12 +117,12 @@ export const logoutUser = async () => {
 export const changePassword = async (
   currentPassword: string,
   newPassword: string
-) => {
+): Promise<AuthActionResult> => {
   try {
-    const response = (await authApi.changePassword(
+    const response: AuthResponse = await authApi.changePassword(
       currentPassword,
       newPassword
-    )) as AuthResponse;
+    );
 
     if (response.success) {
       await clearTokens();
@@ -126,7 +135,10 @@ export const changePassword = async (
 
     return {
       success: false,
-      message: "An error occurred while changing password",
+      message: getErrorMessage(
+        error,
+        "An error occurred while changing password"
+      ),
     };
   }
 };

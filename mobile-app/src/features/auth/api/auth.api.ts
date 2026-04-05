@@ -3,22 +3,21 @@ import {
   LoginDto,
   AuthResponse,
   RegisterDto,
-  GoogleLoginDto,
 } from "../types/auth.types";
 
 const normalizeAuthResponse = (payload: any): AuthResponse => {
-  const rawUser = payload?.data || payload?.user || null;
+  const rawUser = payload?.data ?? null;
 
   const user = rawUser
     ? {
-        ...rawUser,
-        fullName: rawUser.fullName || rawUser?.profile?.fullName,
-      }
+      ...rawUser,
+      fullName: rawUser.fullName || rawUser?.profile?.fullName,
+    }
     : null;
 
   return {
-    success: Boolean(payload?.success) || payload?.status === "success",
-    token: payload?.accessToken || payload?.token || "",
+    success: Boolean(payload?.success),
+    accessToken: payload?.accessToken || "",
     refreshToken: payload?.refreshToken || "",
     data: user,
     message: payload?.message || "",
@@ -48,9 +47,7 @@ export const changePassword = async (
   return normalizeAuthResponse(response.data);
 };
 
-export const googleLogin = async (
-  credentials: GoogleLoginDto
-): Promise<AuthResponse> => {
-  const response = await apiClient.post("/auth/google", credentials);
+export const getMe = async (): Promise<AuthResponse> => {
+  const response = await apiClient.get("/auth/profile");
   return normalizeAuthResponse(response.data);
 };
