@@ -1,4 +1,4 @@
-import { JwtPayload } from "jsonwebtoken";
+import type { Multer } from "multer";
 
 declare global {
   namespace Express {
@@ -6,6 +6,9 @@ declare global {
       user?: {
         userId: string;
       };
+      file?: Multer.File;
     }
   }
 }
+
+export {};
