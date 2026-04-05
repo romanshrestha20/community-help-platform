@@ -1,17 +1,49 @@
-import express from 'express';
-import { registerUser, loginUser, changePassword, refreshAccessToken } from '../controllers/auth.controller.js';
-import { getUserProfile, deleteUserAccount, updateUserProfile } from '../controllers/user.controller.js';
-import { authenticateUser } from '../middlewares/auth.middleware.js';
+import express from "express";
+import {
+  registerUser,
+  loginUser,
+  changePassword,
+  refreshAccessToken,
+} from "../controllers/auth.controller.js";
+
+import {
+  getUserProfile,
+  deleteUserAccount,
+  updateUserProfile,
+  uploadUserAvatar,
+  deleteUserAvatar,
+} from "../controllers/user.controller.js";
+
+import { authenticateUser } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/upload.middleware.js";
+
 const router = express.Router();
 
-router.post('/register', registerUser);
-router.post('/login', loginUser);
-router.post("/refresh", refreshAccessToken)
+// Auth
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+router.post("/refresh", refreshAccessToken);
 
-router.get('/profile', authenticateUser, getUserProfile);
-router.patch('/profile', authenticateUser, updateUserProfile);
-router.delete('/profile', authenticateUser, deleteUserAccount);
-router.post('/change-password', authenticateUser, changePassword);
+// Profile
+router.get("/profile", authenticateUser, getUserProfile);
+router.patch("/profile", authenticateUser, updateUserProfile);
+router.delete("/profile", authenticateUser, deleteUserAccount);
 
+// Avatar (NEW)
+router.post(
+  "/profile/avatar",
+  authenticateUser,
+  upload.single("avatar"),
+  uploadUserAvatar
+);
+
+router.delete(
+  "/profile/avatar",
+  authenticateUser,
+  deleteUserAvatar
+);
+
+// Password
+router.post("/change-password", authenticateUser, changePassword);
 
 export default router;

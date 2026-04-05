@@ -1,5 +1,5 @@
 import { prisma } from "../lib/prisma.js";
-import {NextFunction, Request, Response} from "express";
+import { NextFunction, Request, Response } from "express";
 import AppError from "../utils/appError.js";
 import bcrypt from "bcrypt";
 import {
@@ -7,6 +7,10 @@ import {
   toLocationUpdateInput,
   normalizeIncomingLocation,
 } from "../utils/location.js";
+import {
+  uploadImageToCloudinary,
+  deleteImageFromCloudinary,
+} from "../utils/cloudinary.js";
 
 export const getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
@@ -42,7 +46,6 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
   }
 };
 
-
 export const updateUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
   const { fullName, bio, dateOfBirth, gender, userType } = req.body;
@@ -55,7 +58,9 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
     }
 
     if (hasLocationPayload && !location) {
-      return next(new AppError("Invalid location payload. Use location.latitude and location.longitude.", 400));
+      return next(
+        new AppError("Invalid location payload. Use location.latitude and location.longitude.", 400)
+      );
     }
 
     const existingProfile = await prisma.profile.findUnique({
@@ -114,20 +119,128 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
   }
 };
 
-export const deleteUserAccount = async (req: Request, res: Response, next: NextFunction) => {
-    const userId = req.user?.userId;
+export const uploadUserAvatar = async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?.userId;
 
-    try {
-        if (!userId) {
-            return next(new AppError("Unauthorized", 401));
-        }
-
-        await prisma.userModel.delete({ where: { id: userId } });
-
-        res.json({
-            message: "User account deleted successfully"
-        });
-    } catch (error) {
-        next(error);
+  try {
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
     }
+
+    if (!req.file) {
+      return next(new AppError("Avatar image is required", 400));
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { userId },
+    });
+
+    if (!profile) {
+      return next(new AppError("Profile not found", 404));
+    }
+
+    const uploadedAvatar = await uploadImageToCloudinary(
+      req.file.buffer,
+      `thesis-app/users/${userId}/avatar`
+    );
+
+    if (profile.avatarPublicId) {
+      try {
+        await deleteImageFromCloudinary(profile.avatarPublicId);
+      } catch {
+        // ignore Cloudinary cleanup failure so avatar update still succeeds
+      }
+    }
+
+    const updatedProfile = await prisma.profile.update({
+      where: { userId },
+      data: {
+        avatarUrl: uploadedAvatar.url,
+        avatarPublicId: uploadedAvatar.publicId,
+      },
+      include: {
+        address: true,
+      },
+    });
+    const { avatarPublicId, ...safeProfile } = updatedProfile;
+
+    res.json({
+      status: "success",
+      message: "Avatar updated successfully",
+      profile: safeProfile,
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteUserAvatar = async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?.userId;
+
+  try {
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { userId },
+      include: {
+        address: true,
+      },
+    });
+
+    if (!profile) {
+      return next(new AppError("Profile not found", 404));
+    }
+
+    if (!profile.avatarUrl && !profile.avatarPublicId) {
+      return next(new AppError("No avatar to delete", 400));
+    }
+
+    if (profile.avatarPublicId) {
+      try {
+        await deleteImageFromCloudinary(profile.avatarPublicId);
+      } catch {
+        // ignore Cloudinary cleanup failure so DB can still be cleaned
+      }
+    }
+
+    const updatedProfile = await prisma.profile.update({
+      where: { userId },
+      data: {
+        avatarUrl: null,
+        avatarPublicId: null,
+      },
+      include: {
+        address: true,
+      },
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Avatar deleted successfully",
+      profile: updatedProfile,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteUserAccount = async (req: Request, res: Response, next: NextFunction) => {
+  const userId = req.user?.userId;
+
+  try {
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    await prisma.userModel.delete({ where: { id: userId } });
+
+    res.json({
+      message: "User account deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
 };
