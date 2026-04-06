@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { Screen, Stack, Row, theme } from "@/design-system";
+import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useUser } from "@/features/user/hooks/user.hook";
 import { DangerZoneCard } from "@/features/user/components/DangerZoneCard";
 import { DeleteAccountModal } from "@/features/settings/components/DeleteAccountModal";
@@ -19,6 +20,7 @@ import {
   ProfileHeaderCard,
   ProfileInfoSection,
   ProfileStatsRow,
+  SessionCard,
   SettingsSectionCard,
 } from "@/features/user/components/";
 
@@ -28,6 +30,7 @@ import { showToast } from "@/utils/toast";
 
 export default function ProfileTabScreen() {
   const { palette } = useThemeContext();
+  const { handleLogout, loadingLogout } = useAuth();
   const {
     user,
     loading,
@@ -121,6 +124,7 @@ export default function ProfileTabScreen() {
 
             <ProfileInfoSection user={user} />
             <ThemeModeCard />
+            <SessionCard loading={loadingLogout} onLogout={handleLogout} />
             <SettingsSectionCard title="Settings" items={settingsItems} />
 
             <DeleteAccountModal
