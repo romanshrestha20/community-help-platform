@@ -2,7 +2,7 @@
 import * as bidService from "../services/bid.service";
 import { CreateBidData, UpdateBidData, BidStatus, Bid } from "../types/bid.types";
 import { useAsync } from "@/utils/useAsync";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type RespondBidStatus = Exclude<BidStatus, "PENDING">;
 
@@ -11,6 +11,11 @@ export const useBid = () => {
     const [bidsByRequestId, setBidsByRequestId] = useState<Record<string, Bid[]>>({});
     const [loadingByRequestId, setLoadingByRequestId] = useState<Record<string, boolean>>({});
     const [actionLoadingByBidId, setActionLoadingByBidId] = useState<Record<string, boolean>>({});
+    const bidsByRequestIdRef = useRef<Record<string, Bid[]>>({});
+
+    useEffect(() => {
+        bidsByRequestIdRef.current = bidsByRequestId;
+    }, [bidsByRequestId]);
 
     const getCachedBids = useCallback((helpRequestId: string) => {
         return bidsByRequestId[helpRequestId] || [];
@@ -38,9 +43,10 @@ export const useBid = () => {
 
     const getBidsByHelpRequestId = useCallback(async (helpRequestId: string, options?: { forceRefresh?: boolean }) => {
         const forceRefresh = options?.forceRefresh ?? false;
+        const cachedBids = bidsByRequestIdRef.current[helpRequestId];
 
-        if (!forceRefresh && bidsByRequestId[helpRequestId]) {
-            return bidsByRequestId[helpRequestId];
+        if (!forceRefresh && cachedBids) {
+            return cachedBids;
         }
 
         setLoadingByRequestId((prev) => ({ ...prev, [helpRequestId]: true }));
@@ -57,7 +63,7 @@ export const useBid = () => {
         } finally {
             setLoadingByRequestId((prev) => ({ ...prev, [helpRequestId]: false }));
         }
-    }, [bidsByRequestId, run]);
+    }, [run]);
 
     const getMyBids = useCallback(() => {
         return run(() => bidService.getMyBids());

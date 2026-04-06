@@ -46,10 +46,12 @@ export const useBidRequestFlow = ({ onSuccess }: UseBidRequestFlowOptions = {}) 
 
             showToast("Bid submitted successfully");
             closeBidModal();
-            await onSuccess?.();
         } finally {
             setSubmittingBid(false);
         }
+
+        // Keep submit action responsive; refresh follow-up data in background.
+        void Promise.resolve(onSuccess?.());
     };
 
     return {
