@@ -19,10 +19,9 @@ export const HelpingOpportunitiesSection: React.FC<HelpingOpportunitiesSectionPr
     return (
         <Card style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Helping Opportunities</Text>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Opportunities</Text>
                 <Text style={[styles.sectionCount, { color: palette.textSecondary, borderColor: palette.border }]}>{requests.length}</Text>
             </View>
-            <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Requests posted by others that you can bid on</Text>
             {requests.length === 0 ? (
                 <Text style={[styles.emptyText, { color: palette.textSecondary }]}>No requests from other users found</Text>
             ) : (
@@ -42,14 +41,15 @@ export const HelpingOpportunitiesSection: React.FC<HelpingOpportunitiesSectionPr
 
 const styles = StyleSheet.create({
     sectionCard: {
-        marginTop: theme.spacing.xs,
-        paddingVertical: theme.spacing.sm,
+        marginTop: 2,
+        paddingVertical: theme.spacing.xs,
+        paddingHorizontal: theme.spacing.sm,
     },
     sectionHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: theme.spacing.xs,
+        marginBottom: theme.spacing.sm,
     },
     sectionTitle: {
         fontSize: theme.typography.fontSize.lg,
@@ -61,10 +61,6 @@ const styles = StyleSheet.create({
         borderRadius: theme.radius.fill,
         paddingHorizontal: theme.spacing.sm,
         paddingVertical: 2,
-    },
-    sectionSubtitle: {
-        marginBottom: theme.spacing.md,
-        fontSize: theme.typography.fontSize.sm,
     },
     emptyText: {
         fontSize: theme.typography.fontSize.sm,

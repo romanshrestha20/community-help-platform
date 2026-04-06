@@ -3,9 +3,11 @@ import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { Stack, theme } from "@/design-system";
 import { AppDropdown } from "@/components/ui/AppDropDown";
 import { AppButton } from "@/components/ui/AppButton";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { GlobalFilters } from "@/features/helpRequest/hooks/useGlobalFilters";
 import { HelpRequest, HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
 import { AppModal } from "@/components/ui/AppModal";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 interface Props {
   filters: GlobalFilters;
@@ -20,6 +22,7 @@ export const RequestFilters = ({ filters, updateFilter, resetFilters }: Props) =
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 600; // Example breakpoint
   const [modalVisible, setModalVisible] = useState(false);
+  const { palette } = useThemeContext();
 
   const Dropdowns = (
     <Stack gap="sm" style={styles.dropdownGroup}>
@@ -70,14 +73,21 @@ export const RequestFilters = ({ filters, updateFilter, resetFilters }: Props) =
           { label: "Within 100 km", value: "100" },
         ]}
       />
-      <AppButton onPress={resetFilters} title="Reset Filters" />
+      <AppButton onPress={resetFilters} title="Reset" variant="ghost" />
     </Stack>
   );
 
   if (isSmallScreen) {
     return (
-      <Stack gap="sm">
-        <AppButton title="Filters" onPress={() => setModalVisible(true)} />
+      <View style={styles.inlineActions}>
+        <AppButton
+          title="Filter"
+          onPress={() => setModalVisible(true)}
+          variant="ghost"
+          fullWidth={false}
+          icon={<Ionicons name="options-outline" size={16} color={palette.textPrimary} />}
+        />
+        <AppButton title="Reset" onPress={resetFilters} variant="ghost" fullWidth={false} />
         <AppModal
           visible={modalVisible}
           title="Filters"
@@ -88,7 +98,7 @@ export const RequestFilters = ({ filters, updateFilter, resetFilters }: Props) =
         >
           {Dropdowns}
         </AppModal>
-      </Stack>
+      </View>
     );
   }
 
@@ -101,7 +111,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     flexWrap: "wrap",
     gap: theme.spacing.sm,
-    marginVertical: theme.spacing.sm,
+    marginVertical: theme.spacing.xs,
+  },
+  inlineActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: theme.spacing.xs,
+    marginVertical: theme.spacing.xs,
   },
   dropdownGroup: {
     flex: 1,

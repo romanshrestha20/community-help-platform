@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Stack } from "@/design-system/layout/Stack";
 import { Card } from "@/design-system/layout/Card";
 import { AppModal } from "@/components/ui/AppModal";
@@ -17,6 +18,7 @@ interface RequestFormProps {
     onSubmit: (data: CreateHelpRequestData) => Promise<void>;
     loading?: boolean;
     error?: string | null;
+    compactTrigger?: boolean;
 }
 
 export const RequestForm: React.FC<RequestFormProps> = ({
@@ -24,6 +26,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     onSubmit,
     loading = false,
     error = null,
+    compactTrigger = false,
 }) => {
     const locationPicker = useLocationPicker({
         initialValue: initialData?.location ?? null,
@@ -83,14 +86,33 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 
     return (
         <>
-            {/* Facebook-style placeholder card */}
-            <Card style={styles.placeholderCard}>
-                <TouchableOpacity onPress={() => setModalVisible(true)}>
-                    <Text style={styles.placeholderText}>
-                        What is your request? (Tap to create)
-                    </Text>
+            {compactTrigger ? (
+                <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="Create request"
+                    onPress={() => setModalVisible(true)}
+                    style={styles.compactTileButton}
+                    activeOpacity={0.82}
+                >
+                    <Ionicons name="add-circle-outline" size={18} color={colors.textPrimary} />
+                    <Text style={styles.compactTileText}>Create</Text>
                 </TouchableOpacity>
-            </Card>
+            ) : (
+                <Card style={styles.placeholderCard}>
+                    <View style={styles.placeholderHeader}>
+                        <Text style={styles.placeholderTitle}>Create Request</Text>
+                        <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel="Create request"
+                            onPress={() => setModalVisible(true)}
+                            style={styles.quickActionIconButton}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons name="add" size={22} color={colors.textPrimary} />
+                        </TouchableOpacity>
+                    </View>
+                </Card>
+            )}
 
             {/* Modal with full form */}
             <AppModal
@@ -160,8 +182,10 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 
                         {/* Submit */}
                         <AppButton
+
                             title={loading ? "Saving..." : initialData ? "Update" : "Post Request"}
                             onPress={handleSubmit}
+                            variant="primary"
                             disabled={loading}
                         />
 
@@ -175,15 +199,46 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 
 const styles = StyleSheet.create({
     placeholderCard: {
-        paddingVertical: spacing.sm,
+        paddingVertical: spacing.md,
         paddingHorizontal: spacing.md,
-        marginVertical: spacing.sm,
+        marginVertical: spacing.xs,
         borderRadius: theme.radius.md,
         backgroundColor: colors.surfaceMuted,
     },
-    placeholderText: {
+    placeholderTitle: {
         fontSize: typography.fontSize.md,
-        color: colors.textSecondary,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.textPrimary,
+    },
+    placeholderHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+    },
+    quickActionIconButton: {
+        width: 44,
+        height: 44,
+        borderRadius: theme.radius.fill,
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+    },
+    compactTileButton: {
+        height: 48,
+        borderRadius: theme.radius.md,
+        backgroundColor: colors.surface,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+        paddingHorizontal: spacing.sm,
+    },
+    compactTileText: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.textPrimary,
     },
     label: {
         fontSize: typography.fontSize.sm,
