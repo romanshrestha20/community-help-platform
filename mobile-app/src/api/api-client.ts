@@ -41,7 +41,6 @@ const resolveApiBaseUrl = () => {
     return `http://${hostFromExpo}:5001/api`;
   }
 
-  // Last-resort local fallbacks for simulator/emulator.
   if (Platform.OS === "ios") return "http://localhost:5001/api";
   if (Platform.OS === "android") return "http://10.0.2.2:5001/api";
 
@@ -53,9 +52,6 @@ const API_BASE_URL = resolveApiBaseUrl();
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
 
 console.log("[API] Base URL:", API_BASE_URL);
@@ -68,9 +64,21 @@ apiClient.interceptors.request.use(
     try {
       const token = await getAccessToken();
 
+      config.headers = config.headers || {};
+
       if (token) {
-        config.headers = config.headers || {};
         config.headers.Authorization = `Bearer ${token}`;
+      }
+
+      const isFormData =
+        typeof FormData !== "undefined" && config.data instanceof FormData;
+
+      if (!isFormData && !config.headers["Content-Type"]) {
+        config.headers["Content-Type"] = "application/json";
+      }
+
+      if (isFormData) {
+        delete config.headers["Content-Type"];
       }
     } catch (error) {
       console.warn("Token read failed:", error);
@@ -103,25 +111,20 @@ const processQueue = (error: any, token: string | null = null) => {
 // ======================
 apiClient.interceptors.response.use(
   (response) => response,
-
   async (error) => {
     const originalRequest = error.config as RetryRequest;
 
-    // prevent infinite loop on refresh endpoint
     if (originalRequest.url?.includes("/auth/refresh")) {
       await clearTokens();
       useAuthStore.getState().logout();
       return Promise.reject(error);
     }
 
-    // Skip retry logic for auth endpoints (login/register should not trigger refresh)
-    const isAuthEndpoint = originalRequest.url?.includes("/auth/login") ||
+    const isAuthEndpoint =
+      originalRequest.url?.includes("/auth/login") ||
       originalRequest.url?.includes("/auth/register") ||
       originalRequest.url?.includes("/auth/refresh");
 
-    // ======================
-    // HANDLE 401
-    // ======================
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -141,7 +144,10 @@ apiClient.interceptors.response.use(
 
       try {
         const refreshToken = await getRefreshToken();
-        console.log("[API] Got 401, checking refresh token...", refreshToken ? "Found" : "NOT FOUND");
+        console.log(
+          "[API] Got 401, checking refresh token...",
+          refreshToken ? "Found" : "NOT FOUND"
+        );
 
         if (!refreshToken) {
           console.error("[API] Cannot refresh: no refresh token stored.");
@@ -151,8 +157,11 @@ apiClient.interceptors.response.use(
           return Promise.reject(new Error("No refresh token"));
         }
 
-        console.log("[API] Calling refresh endpoint with token:", refreshToken.slice(0, 20));
-        // use same base URL client
+        console.log(
+          "[API] Calling refresh endpoint with token:",
+          refreshToken.slice(0, 20)
+        );
+
         const res = await apiClient.post("/auth/refresh", {
           refreshToken,
         });
@@ -186,9 +195,6 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // ======================
-    // OTHER ERRORS
-    // ======================
     if (error.response) {
       const data = error.response.data;
 
