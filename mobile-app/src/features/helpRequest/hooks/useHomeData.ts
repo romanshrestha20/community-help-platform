@@ -158,8 +158,8 @@ export const useHomeData = () => {
   const addNewRequest = useCallback(
     async (data: CreateHelpRequestData) => {
       await createHelpRequestService(data as CreateHelpRequestData);
-      // Refresh after creating new request
-      await loadHomeData();
+      // Keep the create action responsive and refresh dashboard data in background.
+      void loadHomeData();
     },
     [loadHomeData]
   );
