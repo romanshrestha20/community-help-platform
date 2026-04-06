@@ -25,7 +25,9 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     loading = false,
     error = null,
 }) => {
-    const locationPicker = useLocationPicker(initialData?.location ?? null);
+    const locationPicker = useLocationPicker({
+        initialValue: initialData?.location ?? null,
+    });
 
     const [formData, setFormData] = useState<RequestFormData>({
         title: initialData?.title || "",
@@ -65,6 +67,11 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     const handleSubmit = async () => {
         if (!validateForm()) return;
         const location = locationPicker.value;
+        if (!location) {
+            setValidationError("Please select a location");
+            return;
+        }
+
         await onSubmit({
             ...formData,
             location,
