@@ -41,22 +41,7 @@ export const ProfileAvatarActions = ({
         )}
       </Pressable>
 
-      {hasAvatar ? (
-        <Pressable
-          style={[
-            styles.button,
-            styles.secondaryButton,
-            {
-              backgroundColor: palette.dangerSoft,
-              borderColor: palette.border,
-            },
-          ]}
-          onPress={onDelete}
-          disabled={loading}
-        >
-          <Text style={[styles.secondaryText, { color: palette.danger }]}>Remove</Text>
-        </Pressable>
-      ) : null}
+      
     </View>
   );
 };

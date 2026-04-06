@@ -24,7 +24,7 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.85,
@@ -38,12 +38,15 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
       uri: asset.uri,
       name: asset.fileName ?? `avatar-${Date.now()}.jpg`,
       type: asset.mimeType ?? "image/jpeg",
-    });
+      webFile: (asset as any).file ?? undefined,
+    } as any);
 
-    if (success) onClose();
+    if (success) {
+      onClose();
+    }
   };
 
-  const handleRemoveAvatar = async () => {
+  const confirmRemoveAvatar = () => {
     Alert.alert("Remove profile photo", "Do you want to remove your current photo?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -51,7 +54,9 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
         style: "destructive",
         onPress: async () => {
           const success = await handleDeleteAvatar();
-          if (success) onClose();
+          if (success) {
+            onClose();
+          }
         },
       },
     ]);
@@ -65,7 +70,6 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
             styles.sheet,
             {
               backgroundColor: palette.surface,
-              borderColor: palette.border,
             },
           ]}
         >
@@ -79,7 +83,6 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
               styles.actionButton,
               {
                 backgroundColor: palette.surfaceMuted,
-                borderColor: palette.border,
               },
             ]}
             onPress={handlePickFromGallery}
@@ -96,10 +99,9 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
                 styles.actionButton,
                 {
                   backgroundColor: palette.dangerSoft,
-                  borderColor: palette.border,
                 },
               ]}
-              onPress={handleRemoveAvatar}
+              onPress={confirmRemoveAvatar}
               disabled={loading}
             >
               <Text style={[styles.actionText, { color: palette.danger }]}>
@@ -128,8 +130,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: spacing.lg,
     gap: spacing.sm,
-    borderWidth: 1,
-    borderBottomWidth: 0,
   },
   title: {
     fontSize: typography.fontSize.lg,
@@ -137,7 +137,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: typography.fontSize.sm,
-    lineHeight: typography.lineHeight.sm,
     marginBottom: spacing.xs,
   },
   actionButton: {
@@ -145,20 +144,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    borderWidth: 1,
   },
   actionText: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 15,
     fontWeight: typography.fontWeight.semibold,
   },
   cancelButton: {
-    marginTop: spacing.xs,
+    marginTop: spacing.xxs,
     minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
   },
   cancelText: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 15,
     fontWeight: typography.fontWeight.semibold,
   },
 });

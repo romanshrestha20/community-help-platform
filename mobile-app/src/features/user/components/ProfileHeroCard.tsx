@@ -17,6 +17,18 @@ type Props = {
   onOpenSettings: () => void;
 };
 
+const getInitials = (fullName?: string | null) => {
+  if (!fullName?.trim()) return "U";
+
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+
+  return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
+};
+
 export const ProfileHeroCard = ({
   avatarUrl,
   fullName,
@@ -28,38 +40,68 @@ export const ProfileHeroCard = ({
   onOpenSettings,
 }: Props) => {
   const { palette } = useThemeContext();
-  const initials = fullName?.trim()?.charAt(0)?.toUpperCase() || "U";
+  const initials = getInitials(fullName);
+
+  const hasAvatar = !!avatarUrl?.trim();
 
   return (
     <Card style={styles.card}>
-      <View style={[styles.accentBar, { backgroundColor: palette.primary + "14" }]} />
+      <View style={[styles.accentBar, { backgroundColor: `${palette.primary}14` }]} />
 
       <View style={styles.headerRow}>
         <View style={styles.identityRow}>
-          <View style={[styles.avatarShell, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+          <View
+            style={[
+              styles.avatarShell,
+              {
+                backgroundColor: palette.surfaceMuted,
+                borderColor: palette.border,
+              },
+            ]}
+          >
+            {hasAvatar ? (
+              <Image source={{ uri: avatarUrl! }} style={styles.avatarImage} />
             ) : (
-              <Text style={[styles.avatarInitial, { color: palette.textPrimary }]}>{initials}</Text>
+              <Text style={[styles.avatarInitial, { color: palette.textPrimary }]}>
+                {initials}
+              </Text>
             )}
           </View>
 
           <View style={styles.identityTextWrap}>
             <View style={styles.nameRow}>
-              <Text style={[styles.name, { color: palette.textPrimary }]} numberOfLines={1}>
+              <Text
+                style={[styles.name, { color: palette.textPrimary }]}
+                numberOfLines={1}
+              >
                 {fullName || "Your profile"}
               </Text>
+
               {verified ? (
-                <View style={[styles.verifiedPill, { backgroundColor: palette.success + "18" }]}>
-                  <Text style={[styles.verifiedText, { color: palette.success }]}>Verified</Text>
+                <View
+                  style={[
+                    styles.verifiedPill,
+                    { backgroundColor: `${palette.success}18` },
+                  ]}
+                >
+                  <Text style={[styles.verifiedText, { color: palette.success }]}>
+                    Verified
+                  </Text>
                 </View>
               ) : null}
             </View>
 
-            <Text style={[styles.metaLine, { color: palette.textSecondary }]} numberOfLines={1}>
+            <Text
+              style={[styles.metaLine, { color: palette.textSecondary }]}
+              numberOfLines={1}
+            >
               {(userType || "General").toUpperCase()} • {verified ? "Verified" : "Unverified"}
             </Text>
-            <Text style={[styles.email, { color: palette.textSecondary }]} numberOfLines={1}>
+
+            <Text
+              style={[styles.email, { color: palette.textSecondary }]}
+              numberOfLines={1}
+            >
               {email || "Not available"}
             </Text>
           </View>
@@ -67,7 +109,13 @@ export const ProfileHeroCard = ({
 
         <Pressable
           onPress={onOpenSettings}
-          style={[styles.settingsButton, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}
+          style={[
+            styles.settingsButton,
+            {
+              backgroundColor: palette.surfaceMuted,
+              borderColor: palette.border,
+            },
+          ]}
         >
           <Ionicons name="settings-outline" size={18} color={palette.textPrimary} />
         </Pressable>
@@ -75,7 +123,12 @@ export const ProfileHeroCard = ({
 
       <View style={styles.buttonRow}>
         <AppButton title="Edit Profile" onPress={onEditProfile} fullWidth={false} />
-        <AppButton title="Change Photo" variant="secondary" onPress={onChangePhoto} fullWidth={false} />
+        <AppButton
+          title={hasAvatar ? "Change Photo" : "Upload Photo"}
+          variant="secondary"
+          onPress={onChangePhoto}
+          fullWidth={false}
+        />
       </View>
     </Card>
   );
@@ -133,6 +186,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 28,
     fontWeight: theme.typography.fontWeight.bold,
+    flexShrink: 1,
   },
   verifiedPill: {
     borderRadius: theme.radius.fill,
