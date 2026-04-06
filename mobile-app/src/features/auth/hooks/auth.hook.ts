@@ -31,7 +31,12 @@ export const useAuth = () => {
     try {
       const result = await loginApi(credentials);
 
-      if (!result.success || !result.accessToken || !result.data) {
+      if (
+        !result.success ||
+        !result.accessToken ||
+        !result.refreshToken ||
+        !result.data
+      ) {
         setError(result.message || "Login failed");
         return result;
       }
@@ -63,7 +68,12 @@ export const useAuth = () => {
     try {
       const result = await registerApi(credentials);
 
-      if (!result.success || !result.accessToken || !result.data) {
+      if (
+        !result.success ||
+        !result.accessToken ||
+        !result.refreshToken ||
+        !result.data
+      ) {
         setError(result.message || "Registration failed");
         return result;
       }
