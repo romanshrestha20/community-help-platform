@@ -10,7 +10,6 @@ import {
 } from "react-native";
 
 import { Screen, Stack, Row, theme } from "@/design-system";
-import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useUser } from "@/features/user/hooks/user.hook";
 import { DangerZoneCard } from "@/features/user/components/DangerZoneCard";
 import { ProfileAvatarPickerModal } from "@/features/user/components/ProfileAvatarPickerModal";
@@ -19,6 +18,9 @@ import { ProfileHeaderCard } from "@/features/user/components/ProfileHeaderCard"
 import { ProfileInfoSection } from "@/features/user/components/ProfileInfoSection";
 import { ProfileStatsRow } from "@/features/user/components/ProfileStatsRow";
 import { SettingsSectionCard } from "@/features/user/components/SettingsSectionCard";
+
+import { ThemeModeCard } from "@/features/settings/components/ThemeModeCard";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 export default function ProfileTabScreen() {
   const { palette } = useThemeContext();
@@ -124,7 +126,7 @@ export default function ProfileTabScreen() {
             <ProfileStatsRow rating={user?.rating ?? 0} helpCount={user?.helpCount ?? 0} />
 
             <ProfileInfoSection user={user} />
-
+            <ThemeModeCard />
             <SettingsSectionCard title="Settings" items={settingsItems} />
 
             <DangerZoneCard loading={loading} onDeleteAccount={handleDeleteAccountPress} />
