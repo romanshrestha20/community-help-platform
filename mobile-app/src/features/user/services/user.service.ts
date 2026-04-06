@@ -167,12 +167,19 @@ export const deleteUserAvatarService = async (
   }
 };
 
-export const deleteUserProfileService = async (): Promise<{
+export const deleteUserProfileService = async (password?: string): Promise<{
   success: boolean;
   message: string;
 }> => {
   try {
-    await userApi.deleteUserProfile();
+    if (!password?.trim()) {
+      return {
+        success: false,
+        message: "Password is required",
+      };
+    }
+
+    await userApi.deleteUserProfile(password);
 
     return {
       success: true,

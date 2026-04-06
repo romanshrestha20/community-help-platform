@@ -94,11 +94,11 @@ export const useUser = () => {
     return result.success;
   }, [user, setUser, setLoading, setError]);
 
-  const handleDeleteProfile = useCallback(async (_password?: string) => {
+  const handleDeleteProfile = useCallback(async (password?: string) => {
     setLoading(true);
     setError(null);
 
-    const result = await deleteUserProfileService();
+    const result = await deleteUserProfileService(password);
 
     if (result.success) {
       await clearTokens();

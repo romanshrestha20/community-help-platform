@@ -11,6 +11,15 @@ import { useAuthStore } from "../store/auth.store";
 
 import { saveTokens, clearTokens } from "@/utils/token";
 
+const getErrorMessage = (error: any, fallback: string) => {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error?.message ||
+    error?.message ||
+    fallback
+  );
+};
+
 export const useAuth = () => {
   const login = useAuthStore((state) => state.login);
   const logout = useAuthStore((state) => state.logout);
@@ -51,8 +60,8 @@ export const useAuth = () => {
 
       return result;
     } catch (err) {
-      setError("Login failed");
-      throw err;
+      const message = getErrorMessage(err, "Login failed");
+      setError(message);
     } finally {
       setLoadingLogin(false);
     }

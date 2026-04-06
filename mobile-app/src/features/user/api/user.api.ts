@@ -22,8 +22,12 @@ export const updateUserProfile = async (
   return response.data;
 };
 
-export const deleteUserProfile = async (): Promise<void> => {
-  await apiClient.delete("/auth/profile");
+export const deleteUserProfile = async (password: string): Promise<void> => {
+  await apiClient.delete("/auth/profile", {
+    data: {
+      password,
+    },
+  });
 };
 
 export const uploadUserAvatar = async (
