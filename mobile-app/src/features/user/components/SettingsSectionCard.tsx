@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { spacing, typography } from "@/design-system";
+import { Card, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 export type SettingsItem = {
@@ -21,97 +21,85 @@ export const SettingsSectionCard = ({ title, items }: Props) => {
   const { palette } = useThemeContext();
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-        },
-      ]}
-    >
-      <Text style={[styles.title, { color: palette.textPrimary }]}>{title}</Text>
+    <Card>
+      <Stack gap="sm">
+        <Text style={[styles.title, { color: palette.textPrimary }]}>{title}</Text>
 
-      <View style={styles.list}>
-        {items.map((item, index) => (
-          <Pressable
-            key={item.id}
-            style={[
-              styles.item,
-              index !== items.length - 1 && {
-                borderBottomWidth: 1,
-                borderBottomColor: palette.border,
-              },
-            ]}
-            onPress={item.onPress}
-          >
-            <View style={styles.textWrap}>
+        <Stack gap="xxs">
+          {items.map((item, index) => (
+            <Pressable
+              key={item.id}
+              style={[
+                styles.item,
+                index !== items.length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: palette.border,
+                },
+              ]}
+              onPress={item.onPress}
+            >
+              <View style={styles.textWrap}>
+                <Text
+                  style={[
+                    styles.itemTitle,
+                    { color: item.danger ? palette.danger : palette.textPrimary },
+                  ]}
+                >
+                  {item.title}
+                </Text>
+
+                {item.subtitle ? (
+                  <Text style={[styles.itemSubtitle, { color: palette.textSecondary }]}>
+                    {item.subtitle}
+                  </Text>
+                ) : null}
+              </View>
+
               <Text
                 style={[
-                  styles.itemTitle,
-                  { color: item.danger ? palette.danger : palette.textPrimary },
+                  styles.chevron,
+                  { color: item.danger ? palette.danger : palette.textSecondary },
                 ]}
               >
-                {item.title}
+                ›
               </Text>
-              {item.subtitle ? (
-                <Text style={[styles.itemSubtitle, { color: palette.textSecondary }]}>
-                  {item.subtitle}
-                </Text>
-              ) : null}
-            </View>
-
-            <Text
-              style={[
-                styles.chevron,
-                { color: item.danger ? palette.danger : palette.textSecondary },
-              ]}
-            >
-              ›
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
+            </Pressable>
+          ))}
+        </Stack>
+      </Stack>
+    </Card>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 20,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    borderWidth: 1,
-  },
   title: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
-  },
-  list: {
-    gap: 2,
+    fontSize: theme.typography.fontSize.lg,
+    lineHeight: theme.typography.lineHeight.lg,
+    fontWeight: theme.typography.fontWeight.bold,
   },
   item: {
     minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
   },
   textWrap: {
     flex: 1,
-    gap: spacing.xxs,
+    gap: theme.spacing.xxs,
   },
   itemTitle: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.semibold,
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   itemSubtitle: {
-    fontSize: typography.fontSize.xs + 1,
-    lineHeight: typography.lineHeight.xs + 2,
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 2,
   },
   chevron: {
     fontSize: 22,
-    fontWeight: typography.fontWeight.medium,
+    fontWeight: theme.typography.fontWeight.medium,
   },
 });
