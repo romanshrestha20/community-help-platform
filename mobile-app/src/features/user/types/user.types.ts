@@ -103,4 +103,5 @@ export interface AvatarUploadInput {
   uri: string;
   name?: string;
   type?: string;
+  webFile?: File | Blob;
 }

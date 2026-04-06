@@ -15,9 +15,13 @@ const buildAvatarFormData = async (file: AvatarUploadInput): Promise<FormData> =
   const formData = new FormData();
 
   if (Platform.OS === "web") {
+    if (file.webFile) {
+      formData.append("avatar", file.webFile, file.name ?? `avatar-${Date.now()}.jpg`);
+      return formData;
+    }
+
     const response = await fetch(file.uri);
     const blob = await response.blob();
-
     formData.append("avatar", blob, file.name ?? `avatar-${Date.now()}.jpg`);
     return formData;
   }

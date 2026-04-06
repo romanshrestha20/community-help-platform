@@ -33,7 +33,6 @@ export const uploadUserAvatar = async (
     "/auth/profile/avatar",
     formData
   );
-
   return response.data;
 };
 
