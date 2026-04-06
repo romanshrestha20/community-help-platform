@@ -1,7 +1,7 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { radius, spacing, typography } from "@/design-system";
+import { Card, Row, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { User } from "../types/user.types";
 import { ProfileAvatar } from "./ProfileAvatar";
@@ -25,58 +25,49 @@ export const ProfileHeaderCard = ({
   const { palette } = useThemeContext();
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-        },
-      ]}
-    >
-      <ProfileAvatar
-        uri={user?.avatarUrl}
-        fullName={user?.fullName}
-        size={104}
-        onPress={onAvatarPress}
-      />
+    <Card>
+      <Stack gap="md" style={styles.centered}>
+        <Pressable onPress={onAvatarPress}>
+          <ProfileAvatar
+            uri={user?.avatarUrl}
+            fullName={user?.fullName}
+            size={104}
+          />
+        </Pressable>
 
-      <View style={styles.info}>
-        <Text style={[styles.name, { color: palette.textPrimary }]}>
-          {user?.fullName || "Your profile"}
-        </Text>
-        <Text style={[styles.meta, { color: palette.textSecondary }]}>
-          {user?.email || "No email available"}
-        </Text>
-      </View>
+        <Stack gap="xs" style={styles.centered}>
+          <Text style={[styles.name, { color: palette.textPrimary }]}>
+            {user?.fullName || "Your profile"}
+          </Text>
+          <Text style={[styles.meta, { color: palette.textSecondary }]}>
+            {user?.email || "No email available"}
+          </Text>
+        </Stack>
 
-      <ProfileAvatarActions
-        hasAvatar={!!user?.avatarUrl}
-        loading={loading}
-        onUpload={onUploadPress}
-        onDelete={onDeletePress}
-      />
-    </View>
+        <ProfileAvatarActions
+          hasAvatar={!!user?.avatarUrl}
+          loading={loading}
+          onUpload={onUploadPress}
+          onDelete={onDeletePress}
+        />
+      </Stack>
+    </Card>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 20,
-    padding: spacing.lg,
-    gap: spacing.md,
-    borderWidth: 1,
-  },
-  info: {
+  centered: {
     alignItems: "center",
-    gap: spacing.xxs,
   },
   name: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
+    fontSize: theme.typography.fontSize.lg,
+    lineHeight: theme.typography.lineHeight.lg,
+    fontWeight: theme.typography.fontWeight.bold,
+    textAlign: "center",
   },
   meta: {
-    fontSize: typography.fontSize.sm,
-    lineHeight: typography.lineHeight.sm,
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+    textAlign: "center",
   },
 });
