@@ -106,7 +106,22 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 
     // Find user by email for password check
     const user = await prisma.userModel.findUnique({ where: { email } });
-    if (!user) return next(new AppError("Invalid email or password", 401));
+    if (!user) {
+      const deletedAccount = await prisma.deletedAccount.findUnique({
+        where: { email },
+      });
+
+      if (deletedAccount) {
+        return next(
+          new AppError(
+            "This account was deleted. Please register again if you want to continue.",
+            410
+          )
+        );
+      }
+
+      return next(new AppError("Invalid email or password", 401));
+    }
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) return next(new AppError("Invalid email or password", 401));

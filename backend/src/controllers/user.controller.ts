@@ -229,15 +229,50 @@ export const deleteUserAvatar = async (req: Request, res: Response, next: NextFu
 
 export const deleteUserAccount = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
+  const { password } = req.body;
 
   try {
     if (!userId) {
       return next(new AppError("Unauthorized", 401));
     }
 
-    await prisma.userModel.delete({ where: { id: userId } });
+    if (!password) {
+      return next(new AppError("Password is required", 400));
+    }
+
+    const user = await prisma.userModel.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (!user.passwordHash) {
+      return next(new AppError("This account does not support password deletion", 400));
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isPasswordValid) {
+      return next(new AppError("Incorrect password", 401));
+    }
+
+    await prisma.$transaction([
+      prisma.deletedAccount.upsert({
+        where: { email: user.email },
+        update: { deletedAt: new Date() },
+        create: {
+          email: user.email,
+        },
+      }),
+      prisma.userModel.delete({
+        where: { id: userId },
+      }),
+    ]);
 
     res.json({
+      status: "success",
       message: "User account deleted successfully",
     });
   } catch (error) {
