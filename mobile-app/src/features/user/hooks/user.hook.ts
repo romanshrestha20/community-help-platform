@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 import { useUserStore } from "../store/user.store";
+import { useAuthStore } from "@/features/auth/store/auth.store";
+import { clearTokens } from "@/utils/token";
 import {
   deleteUserAvatarService,
   deleteUserProfileService,
@@ -10,6 +12,7 @@ import {
 import { AvatarUploadInput, UpdateUserProfilePayload } from "../types/user.types";
 
 export const useUser = () => {
+  const logout = useAuthStore((state) => state.logout);
   const {
     user,
     loading,
@@ -91,13 +94,15 @@ export const useUser = () => {
     return result.success;
   }, [user, setUser, setLoading, setError]);
 
-  const handleDeleteProfile = useCallback(async () => {
+  const handleDeleteProfile = useCallback(async (_password?: string) => {
     setLoading(true);
     setError(null);
 
     const result = await deleteUserProfileService();
 
     if (result.success) {
+      await clearTokens();
+      logout();
       clearUser();
     } else {
       setError(result.message || "Failed to delete profile");
@@ -105,7 +110,7 @@ export const useUser = () => {
 
     setLoading(false);
     return result.success;
-  }, [clearUser, setLoading, setError]);
+  }, [clearUser, logout, setLoading, setError]);
 
   return {
     user,
