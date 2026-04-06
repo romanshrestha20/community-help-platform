@@ -1,6 +1,8 @@
 import React from "react";
 import { StyleSheet } from "react-native";
+import { useRouter } from "expo-router";
 import { Screen, Card, theme } from "@/design-system";
+import { AppButton } from "@/components/ui/AppButton";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import {
   HelpingOpportunitiesSection,
@@ -12,6 +14,7 @@ import { GreetingOverview } from "@/features/home/components";
 import { useHomeScreen } from "@/features/home/hooks";
 
 export default function Home() {
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const {
     filters,
@@ -45,6 +48,23 @@ export default function Home() {
         recentBids={recentBids.length}
       />
 
+      <Card style={styles.quickActionsCard}>
+        <AppButton
+          title="Browse Requests"
+          onPress={() => router.push("/home/requests")}
+        />
+        <AppButton
+          title="My Requests"
+          onPress={() => router.push("/profile/requests")}
+          variant="secondary"
+        />
+        <AppButton
+          title="My Bids"
+          onPress={() => router.push("/profile/bids")}
+          variant="secondary"
+        />
+      </Card>
+
       <RequestForm
         onSubmit={handleCreateRequest}
         loading={creatingRequest}
@@ -77,5 +97,8 @@ const styles = StyleSheet.create({
   filterCard: {
     marginTop: theme.spacing.xs,
     paddingVertical: theme.spacing.xs,
+  },
+  quickActionsCard: {
+    gap: theme.spacing.sm,
   },
 });
