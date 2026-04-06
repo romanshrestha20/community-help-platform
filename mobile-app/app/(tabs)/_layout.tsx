@@ -23,7 +23,7 @@ export default function TabsLayout() {
         return { ...tab, badge: notificationBadgeCount };
       }
 
-      return tab;
+      return { ...tab, badge: undefined };
     });
   }, [messageBadgeCount, notificationBadgeCount]);
 
@@ -40,30 +40,10 @@ export default function TabsLayout() {
         />
       )}
     >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: "Home",
-        }}
-      />
-      <Tabs.Screen
-        name="messages"
-        options={{
-          title: "Messages",
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: "Notifications",
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-        }}
-      />
+      <Tabs.Screen name="home" options={{ title: "Home" }} />
+      <Tabs.Screen name="messages" options={{ title: "Messages" }} />
+      <Tabs.Screen name="notifications" options={{ title: "Notifications" }} />
+      <Tabs.Screen name="profile" options={{ title: "Profile" }} />
     </Tabs>
   );
 }

@@ -43,7 +43,7 @@ export default function Layout() {
           accessToken: storedAccessToken,
           refreshToken: storedRefreshToken,
         });
-      } catch (error) {
+      } catch {
         await clearTokens();
         logout();
       } finally {
@@ -64,6 +64,12 @@ export default function Layout() {
     if (isInitializing) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const isRootRoute = segments[0] === "index";
+
+    if (isAuthenticated && isRootRoute) {
+      router.replace("/(tabs)/home");
+      return;
+    }
 
     if (!isAuthenticated && !inAuthGroup) {
       router.replace("/(auth)/login");
