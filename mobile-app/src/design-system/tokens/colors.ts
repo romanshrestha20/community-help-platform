@@ -1,3 +1,4 @@
+// src/design-system/tokens/colors.ts
 export const lightColors = {
   background: "#f6f8f4",          // softer, less yellow
   surface: "#ffffff",
