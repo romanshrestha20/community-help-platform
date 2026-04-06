@@ -10,6 +10,7 @@ import { spacing, colors, typography, theme } from "@/design-system";
 import { CreateHelpRequestData, HelpRequest } from "../types/helpRequest.types";
 import LocationPickerField from "@/features/location/components/LocationPickerField";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type RequestFormData = Omit<CreateHelpRequestData, "location">;
 
@@ -28,6 +29,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     error = null,
     compactTrigger = false,
 }) => {
+    const { palette } = useThemeContext();
     const locationPicker = useLocationPicker({
         initialValue: initialData?.location ?? null,
     });
@@ -91,11 +93,11 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                     accessibilityRole="button"
                     accessibilityLabel="Create request"
                     onPress={() => setModalVisible(true)}
-                    style={styles.compactTileButton}
+                    style={[styles.compactTileButton, { backgroundColor: `${palette.primary}14` }]}
                     activeOpacity={0.82}
                 >
-                    <Ionicons name="add-circle-outline" size={18} color={colors.textPrimary} />
-                    <Text style={styles.compactTileText}>Create</Text>
+                    <Ionicons name="add-circle-outline" size={18} color={palette.primary} />
+                    <Text style={[styles.compactTileText, { color: palette.primary }]}>+ Request</Text>
                 </TouchableOpacity>
             ) : (
                 <Card style={styles.placeholderCard}>
@@ -228,7 +230,6 @@ const styles = StyleSheet.create({
     compactTileButton: {
         height: 48,
         borderRadius: theme.radius.md,
-        backgroundColor: colors.surface,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
@@ -238,7 +239,6 @@ const styles = StyleSheet.create({
     compactTileText: {
         fontSize: typography.fontSize.sm,
         fontWeight: typography.fontWeight.semibold,
-        color: colors.textPrimary,
     },
     label: {
         fontSize: typography.fontSize.sm,
