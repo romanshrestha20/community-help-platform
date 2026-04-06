@@ -112,8 +112,10 @@ export const useAuth = () => {
 
     try {
       await clearTokens();
-      logout();
+    } catch {
+      // If token cleanup fails, still end the local session.
     } finally {
+      logout();
       setLoadingLogout(false);
     }
   };
