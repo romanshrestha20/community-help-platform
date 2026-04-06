@@ -12,15 +12,19 @@ import {
 import { Screen, Stack, Row, theme } from "@/design-system";
 import { useUser } from "@/features/user/hooks/user.hook";
 import { DangerZoneCard } from "@/features/user/components/DangerZoneCard";
-import { ProfileAvatarPickerModal } from "@/features/user/components/ProfileAvatarPickerModal";
-import { ProfileEditForm } from "@/features/user/components/ProfileEditForm";
-import { ProfileHeaderCard } from "@/features/user/components/ProfileHeaderCard";
-import { ProfileInfoSection } from "@/features/user/components/ProfileInfoSection";
-import { ProfileStatsRow } from "@/features/user/components/ProfileStatsRow";
-import { SettingsSectionCard } from "@/features/user/components/SettingsSectionCard";
+import { DeleteAccountModal } from "@/features/settings/components/DeleteAccountModal";
+import {
+  ProfileAvatarPickerModal,
+  ProfileEditForm,
+  ProfileHeaderCard,
+  ProfileInfoSection,
+  ProfileStatsRow,
+  SettingsSectionCard,
+} from "@/features/user/components/";
 
 import { ThemeModeCard } from "@/features/settings/components/ThemeModeCard";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { showToast } from "@/utils/toast";
 
 export default function ProfileTabScreen() {
   const { palette } = useThemeContext();
@@ -33,8 +37,11 @@ export default function ProfileTabScreen() {
     handleDeleteProfile,
   } = useUser();
 
+
+
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [deleteAccountModalVisible, setDeleteAccountModalVisible] = useState(false);
 
   useEffect(() => {
     loadUserProfile();
@@ -68,20 +75,7 @@ export default function ProfileTabScreen() {
   );
 
   const handleDeleteAccountPress = () => {
-    Alert.alert(
-      "Delete account",
-      "Are you sure you want to permanently delete your account?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            await handleDeleteProfile();
-          },
-        },
-      ]
-    );
+    setDeleteAccountModalVisible(true);
   };
 
   return (
@@ -129,7 +123,22 @@ export default function ProfileTabScreen() {
             <ThemeModeCard />
             <SettingsSectionCard title="Settings" items={settingsItems} />
 
+            <DeleteAccountModal
+              visible={deleteAccountModalVisible}
+              loading={loading}
+              error={error}
+              onClose={() => setDeleteAccountModalVisible(false)}
+              onConfirm={async (password) => {
+                const success = await handleDeleteProfile(password);
+                if (success) {
+                  showToast("Account deleted");
+                }
+                return success;
+              }}
+            />
+
             <DangerZoneCard loading={loading} onDeleteAccount={handleDeleteAccountPress} />
+
 
             {error ? (
               <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
@@ -172,6 +181,7 @@ export default function ProfileTabScreen() {
                 }}
                 onCancel={() => setEditModalVisible(false)}
               />
+
             </Stack>
           </Screen>
         </Modal>
