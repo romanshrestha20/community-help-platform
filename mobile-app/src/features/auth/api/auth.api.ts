@@ -6,7 +6,18 @@ import {
 } from "../types/auth.types";
 
 const normalizeAuthResponse = (payload: any): AuthResponse => {
-  const rawUser = payload?.data ?? null;
+  const profileUser =
+    payload?.userId && payload?.email
+      ? {
+          id: payload.userId,
+          email: payload.email,
+          phone: payload.phone,
+          isVerified: Boolean(payload?.isVerified ?? true),
+          profile: payload.profile ?? null,
+        }
+      : null;
+
+  const rawUser = payload?.data ?? profileUser;
 
   const user = rawUser
     ? {
@@ -16,8 +27,11 @@ const normalizeAuthResponse = (payload: any): AuthResponse => {
     : null;
 
   return {
-    success: Boolean(payload?.success),
-    accessToken: payload?.accessToken || "",
+    success:
+      typeof payload?.success === "boolean"
+        ? payload.success
+        : Boolean(rawUser || payload?.status === "success"),
+    accessToken: payload?.accessToken || payload?.token || "",
     refreshToken: payload?.refreshToken || "",
     data: user,
     message: payload?.message || "",
