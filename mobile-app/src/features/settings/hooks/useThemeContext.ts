@@ -1,5 +1,5 @@
 import { useColorScheme } from "react-native";
-import { getTheme, ColorScheme } from "@/config/tabBarConfig";
+import { getTheme, resolveColorScheme as ColorScheme } from "@/config/tabBarConfig";
 import { useThemeStore } from "@/features/settings/store/theme.store";
 import { darkColors, lightColors } from "@/design-system/tokens/colors";
 
