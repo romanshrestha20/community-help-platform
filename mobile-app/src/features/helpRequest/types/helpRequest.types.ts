@@ -19,7 +19,7 @@ export interface HelpRequest {
     requesterName: string;
 
     createdAt: string;
-    updatedAt: string;
+    updatedAt?: string;
 
     bidCount: number;
 }
@@ -54,8 +54,13 @@ export interface UpdateHelpRequestData {
     status?: HelpRequestStatus;
 }
 
-export interface HelpRequestResponse {
+export interface ApiResponse<T> {
     success: boolean;
-    data: HelpRequest;
+    data: T;
     message?: string;
+    meta?: {
+        total?: number;
+        page?: number;
+        totalPages?: number;
+    };
 }
