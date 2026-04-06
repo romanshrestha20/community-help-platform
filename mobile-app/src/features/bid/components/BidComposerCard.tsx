@@ -6,6 +6,11 @@ import { AppInput } from "@/components/ui/AppInput";
 import { Card, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { Bid, CreateBidData, UpdateBidData } from "../types/bid.types";
+import {
+    BID_MESSAGE_MIN_LENGTH,
+    parseBidAmountInput,
+    validateBidDraft,
+} from "../utils/bidValidation";
 
 type Props = {
     helpRequestId?: string;
@@ -40,38 +45,42 @@ export const BidComposerCard = ({
     }, [initialData]);
 
     const canSubmit = useMemo(() => {
-        return !disabled && !loading && amount.trim().length > 0 && message.trim().length >= 10;
+        return !disabled && !loading && amount.trim().length > 0 && message.trim().length >= BID_MESSAGE_MIN_LENGTH;
     }, [amount, disabled, loading, message]);
 
     const handleSubmit = async () => {
-        const parsedAmount = Number(amount);
-
-        if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-            setError("Bid amount must be greater than 0.");
+        const validation = validateBidDraft({
+            amountInput: amount,
+            message,
+            helpRequestId: helpRequestId ?? initialData?.helpRequestId,
+            mode,
+        });
+        if (validation) {
+            setError(validation);
             return;
         }
 
-        if (message.trim().length < 10) {
-            setError("Message must be at least 10 characters.");
-            return;
-        }
+        const parsedAmount = parseBidAmountInput(amount);
+        if (!parsedAmount.amount) return;
 
         setError(null);
         if (mode === "edit") {
             await onSubmit({
-                amount: parsedAmount,
+                amount: parsedAmount.amount,
                 message: message.trim(),
             });
         } else {
             await onSubmit({
                 helpRequestId: helpRequestId ?? initialData?.helpRequestId ?? "",
-                amount: parsedAmount,
+                amount: parsedAmount.amount,
                 message: message.trim(),
             });
         }
 
-        setAmount("");
-        setMessage("");
+        if (mode === "create") {
+            setAmount("");
+            setMessage("");
+        }
     };
 
     const resolvedTitle = title ?? (mode === "edit" ? "Edit bid" : "Place a bid");

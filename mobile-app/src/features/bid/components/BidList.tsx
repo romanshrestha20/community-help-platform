@@ -58,7 +58,7 @@ export const BidList: React.FC<BidListProps> = ({
             isRequestOwner={canRespond}
             canRespond={canRespond}
             canModify={canModify}
-            loading={Boolean(actionLoadingByBidId[item.id]) || loading}
+            loading={Boolean(actionLoadingByBidId[item.id])}
             disableRespondActions={disableRespondActions}
         />
     );
