@@ -1,13 +1,28 @@
 export enum Gender {
   MALE = "MALE",
   FEMALE = "FEMALE",
-  OTHER = "OTHER"
+  OTHER = "OTHER",
 }
 
 export enum UserType {
   GENERAL = "GENERAL",
   ELDERLY = "ELDERLY",
-  DISABLED = "DISABLED"
+  DISABLED = "DISABLED",
+}
+
+export interface Address {
+  id?: string;
+  latitude: number;
+  longitude: number;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
+  formattedAddress?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface User {
@@ -16,15 +31,16 @@ export interface User {
   phone: string;
   isVerified: boolean;
 
-  // Flattened profile fields
   fullName: string;
   bio?: string;
   dateOfBirth?: string;
   gender?: Gender;
   userType: UserType;
+
   rating: number;
   helpCount: number;
-  address?: any;
+  avatarUrl?: string | null;
+  address?: Address | null;
 }
 
 export interface UserResponse {
@@ -33,19 +49,15 @@ export interface UserResponse {
   message?: string;
 }
 
-// Payload to update user profile
 export interface UpdateUserProfilePayload {
   fullName?: string;
   bio?: string;
   dateOfBirth?: string;
   gender?: Gender;
   userType?: UserType;
-  rating?: number;
-  helpCount?: number;
-  address?: any;
+  address?: Address | null;
 }
 
-// API nested profile shape (optional, if needed)
 export interface UserProfile {
   id: string;
   userId: string;
@@ -56,7 +68,39 @@ export interface UserProfile {
   userType: UserType;
   rating: number;
   helpCount: number;
-  address?: any | null;
+  avatarUrl?: string | null;
+  address?: Address | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface GetUserProfileApiResponse {
+  userId: string;
+  email: string;
+  phone: string | null;
+  profile: UserProfile | null;
+}
+
+export interface UpdateUserProfileApiResponse {
+  status: "success";
+  message: string;
+  profile: UserProfile;
+}
+
+export interface UploadAvatarApiResponse {
+  status: "success";
+  message: string;
+  profile: UserProfile;
+}
+
+export interface DeleteAvatarApiResponse {
+  status: "success";
+  message: string;
+  profile: UserProfile;
+}
+
+export interface AvatarUploadInput {
+  uri: string;
+  name?: string;
+  type?: string;
 }
