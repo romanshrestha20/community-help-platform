@@ -1,194 +1,134 @@
 import React from "react";
-import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
-import { Card } from "@/design-system/layout/Card";
-import { Stack } from "@/design-system/layout/Stack";
-import { Row } from "@/design-system/layout/Row";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { Card, Row, Stack } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
-import { spacing, colors, typography } from "@/design-system";
-import { HelpRequest, HelpRequestStatus } from "../types/helpRequest.types";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { HelpRequest } from "../types/helpRequest.types";
+import {
+  formatRequestBudget,
+  formatRequestCreatedAt,
+  formatRequestLocation,
+  REQUEST_CATEGORY_LABELS,
+} from "../utils/requestDisplay";
+import { RequestStatusBadge } from "./RequestStatusBadge";
 
-interface RequestCardProps {
-    request: HelpRequest;
-    onPress?: () => void;
-    onEdit?: () => void;
-    onDelete?: () => void;
-    onViewBids?: () => void;
-    onStatusChange?: (status: HelpRequestStatus) => void;
-    isOwner?: boolean;
-    primaryActionLabel?: string;
-    onPrimaryAction?: () => void;
-    primaryActionDisabled?: boolean;
-}
-
-const getStatusColor = (status: HelpRequestStatus): string => {
-    switch (status) {
-        case "OPEN":
-            return colors.success;
-        case "ASSIGNED":
-            return colors.warning;
-        case "COMPLETED":
-            return colors.primary;
-        case "CANCELLED":
-            return colors.danger;
-        default:
-            return colors.textSecondary;
-    }
+type Props = {
+  request: HelpRequest;
+  onPress?: () => void;
+  primaryActionLabel?: string;
+  secondaryActionLabel?: string;
+  primaryActionDisabled?: boolean;
+  secondaryActionDisabled?: boolean;
+  onPrimaryAction?: () => void;
+  onSecondaryAction?: () => void;
+  footer?: React.ReactNode;
 };
 
-export const RequestCard: React.FC<RequestCardProps> = ({
-    request,
-    onPress,
-    onEdit,
-    onDelete,
-    onViewBids,
-    onStatusChange,
-    isOwner = false,
-    primaryActionLabel,
-    onPrimaryAction,
-    primaryActionDisabled = false,
-}) => {
-    return (
-        <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-            <Card style={styles.card}>
-                <Stack gap="md">
-                    {/* Header */}
-                    <Row style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.bodyText, { fontWeight: typography.fontWeight.semibold }]} numberOfLines={2}>
-                                {request.title}
-                            </Text>
-                            <Text style={[styles.captionText, { color: colors.textSecondary }]}>
-                                {request.requesterName}
-                            </Text>
-                        </View>
+export const RequestCard = ({
+  request,
+  onPress,
+  primaryActionLabel,
+  secondaryActionLabel,
+  primaryActionDisabled,
+  secondaryActionDisabled,
+  onPrimaryAction,
+  onSecondaryAction,
+  footer,
+}: Props) => {
+  const { palette } = useThemeContext();
 
-                        {/* Status Badge */}
-                        <View
-                            style={[
-                                styles.statusBadge,
-                                { backgroundColor: getStatusColor(request.status) + "20" },
-                            ]}
-                        >
-                            <Text
-                                style={[
-                                    styles.captionText,
-                                    {
-                                        color: getStatusColor(request.status),
-                                        fontWeight: typography.fontWeight.semibold,
-                                    },
-                                ]}
-                            >
-                                {request.status}
-                            </Text>
-                        </View>
-                    </Row>
+  return (
+    <Pressable onPress={onPress}>
+      <Card>
+        <Stack gap="sm">
+          <Row justify="space-between" align="flex-start">
+            <View style={styles.flex}>
+              <Text style={[styles.title, { color: palette.textPrimary }]}>
+                {request.title}
+              </Text>
+              <Text style={[styles.category, { color: palette.textSecondary }]}>
+                {REQUEST_CATEGORY_LABELS[request.category] ?? request.category}
+              </Text>
+            </View>
+            <RequestStatusBadge status={request.status} />
+          </Row>
 
-                    {/* Description */}
-                    <Text style={[styles.captionText, { color: colors.textSecondary }]} numberOfLines={2}>
-                        {request.description}
-                    </Text>
+          <Text
+            numberOfLines={2}
+            style={[styles.description, { color: palette.textSecondary }]}
+          >
+            {request.description}
+          </Text>
 
-                    {/* Details Row */}
-                    <Row style={{ justifyContent: "space-between" }}>
-                        <Text style={[styles.captionText, { color: colors.textSecondary, fontWeight: typography.fontWeight.semibold }]}>
-                            ${request.budget || "N/A"}
-                        </Text>
-                        <Text style={[styles.captionText, { color: colors.textSecondary }]}>
-                            {request.bidCount} bids
-                        </Text>
-                        {request.city && request.country && (
-                            <Text style={[styles.captionText, { color: colors.textSecondary }]}>
-                                {request.city}, {request.country}
-                            </Text>
-                        )}
-                    </Row>
+          <Row justify="space-between">
+            <Text style={[styles.meta, { color: palette.textSecondary }]}>
+              {formatRequestBudget(request)}
+            </Text>
+            <Text style={[styles.meta, { color: palette.textSecondary }]}>
+              {request.bidCount} bid{request.bidCount === 1 ? "" : "s"}
+            </Text>
+          </Row>
 
-                    {/* Category Badge */}
-                    <View style={styles.categoryBadge}>
-                        <Text style={[styles.captionText, { color: colors.primary }]}>
-                            {request.category}
-                        </Text>
-                    </View>
+          <Row justify="space-between">
+            <Text style={[styles.meta, { color: palette.textSecondary }]}>
+              {formatRequestLocation(request)}
+            </Text>
+            <Text style={[styles.meta, { color: palette.textSecondary }]}>
+              {formatRequestCreatedAt(request.createdAt)}
+            </Text>
+          </Row>
 
-                    {/* Actions */}
-                    {isOwner && (
-                        <>
-                            {onViewBids && (
-                                <Row gap="sm">
-                                    <AppButton
-                                        title="View Bidders"
-                                        onPress={onViewBids}
-                                        variant="primary"
-                                        fullWidth={false}
-                                    />
-                                </Row>
-                            )}
-                            <Row gap="sm">
-                                {onEdit && (
-                                    <AppButton
-                                        title="Edit"
-                                        onPress={onEdit}
-                                        variant="primary"
-                                        fullWidth={false}
-                                    />
-                                )}
-                                {onDelete && (
-                                    <AppButton
-                                        title="Delete"
-                                        onPress={onDelete}
-                                        variant="danger"
-                                        fullWidth={false}
-                                    />
-                                )}
-                            </Row>
-                        </>
-                    )}
+          {primaryActionLabel || secondaryActionLabel ? (
+            <Row gap="sm">
+              {secondaryActionLabel ? (
+                <AppButton
+                  title={secondaryActionLabel}
+                  onPress={onSecondaryAction ?? (() => { })}
+                  variant="secondary"
+                  fullWidth={false}
+                  disabled={secondaryActionDisabled}
+                />
+              ) : null}
 
-                    {!isOwner && onPrimaryAction && primaryActionLabel && (
-                        <Row gap="sm">
-                            <AppButton
-                                title={primaryActionLabel}
-                                onPress={onPrimaryAction}
-                                variant="primary"
-                                fullWidth={false}
-                                disabled={primaryActionDisabled}
-                            />
-                        </Row>
-                    )}
-                </Stack>
-            </Card>
-        </TouchableOpacity>
-    );
+              {primaryActionLabel ? (
+                <AppButton
+                  title={primaryActionLabel}
+                  onPress={onPrimaryAction ?? (() => { })}
+                  fullWidth={false}
+                  disabled={primaryActionDisabled}
+                />
+              ) : null}
+            </Row>
+          ) : null}
+
+          {footer ? <View style={styles.footer}>{footer}</View> : null}
+        </Stack>
+      </Card>
+    </Pressable>
+  );
 };
 
 const styles = StyleSheet.create({
-    bodyText: {
-        fontFamily: typography.fontFamily.regular,
-        fontSize: typography.fontSize.md,
-        lineHeight: typography.lineHeight.md,
-        fontWeight: typography.fontWeight.regular,
-        color: colors.textPrimary,
-    },
-    captionText: {
-        fontFamily: typography.fontFamily.regular,
-        fontSize: typography.fontSize.sm,
-        lineHeight: typography.lineHeight.sm,
-        fontWeight: typography.fontWeight.regular,
-        color: colors.textPrimary,
-    },
-    card: {
-        marginBottom: spacing.md,
-    },
-    statusBadge: {
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderRadius: 4,
-    },
-    categoryBadge: {
-        alignSelf: "flex-start",
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderRadius: 4,
-        backgroundColor: colors.primary + "10",
-    },
+  flex: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  category: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  description: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  meta: {
+    fontSize: 13,
+  },
+  footer: {
+    marginTop: 4,
+  },
 });
