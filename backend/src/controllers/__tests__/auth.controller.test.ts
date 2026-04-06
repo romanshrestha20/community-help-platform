@@ -9,6 +9,9 @@ const { prismaMock, bcryptMock, jwtMock } = vi.hoisted(() => ({
             create: vi.fn(),
             update: vi.fn(),
         },
+        deletedAccount: {
+            findUnique: vi.fn(),
+        },
         refreshToken: {
             create: vi.fn(),
             findUnique: vi.fn(),
@@ -116,6 +119,27 @@ describe("auth.controller", () => {
 
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({ message: "Invalid email or password", statusCode: 401 }),
+        );
+    });
+
+    it("loginUser: returns gone for deleted account", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValueOnce(null);
+        prismaMock.deletedAccount.findUnique.mockResolvedValueOnce({
+            id: "deleted-1",
+            email: "user@example.com",
+        });
+
+        const req = makeReq({ body: { email: "user@example.com", password: "secret" } });
+        const res = makeRes();
+        const next = makeNext();
+
+        await loginUser(req, res, next);
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: "This account was deleted. Please register again if you want to continue.",
+                statusCode: 410,
+            }),
         );
     });
 

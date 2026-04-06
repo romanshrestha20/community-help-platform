@@ -7,10 +7,14 @@ const { prismaMock } = vi.hoisted(() => ({
             findUnique: vi.fn(),
             delete: vi.fn(),
         },
+        deletedAccount: {
+            upsert: vi.fn(),
+        },
         profile: {
             findUnique: vi.fn(),
             update: vi.fn(),
         },
+        $transaction: vi.fn(),
     },
 }));
 
@@ -99,16 +103,36 @@ describe("user.controller", () => {
     });
 
     it("deleteUserAccount: deletes authenticated user", async () => {
+        const bcrypt = await import("bcrypt");
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-1",
+            email: "user@example.com",
+            passwordHash: "hashed",
+        });
+        (bcrypt.default.compare as any).mockResolvedValue(true);
+        prismaMock.deletedAccount.upsert.mockResolvedValue({ id: "deleted-1" });
         prismaMock.userModel.delete.mockResolvedValue({ id: "user-1" });
+        prismaMock.$transaction.mockResolvedValue([]);
 
-        const req = makeReq({ user: { userId: "user-1" } });
+        const req = makeReq({
+            user: { userId: "user-1" },
+            body: { password: "secret123" },
+        });
         const res = makeRes();
         const next = makeNext();
 
         await deleteUserAccount(req, res, next);
 
+        expect(prismaMock.userModel.findUnique).toHaveBeenCalledWith({ where: { id: "user-1" } });
+        expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+        expect(prismaMock.deletedAccount.upsert).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { email: "user@example.com" } }),
+        );
         expect(prismaMock.userModel.delete).toHaveBeenCalledWith({ where: { id: "user-1" } });
-        expect(res.json).toHaveBeenCalledWith({ message: "User account deleted successfully" });
+        expect(res.json).toHaveBeenCalledWith({
+            status: "success",
+            message: "User account deleted successfully",
+        });
         expect(next).not.toHaveBeenCalled();
     });
 });
