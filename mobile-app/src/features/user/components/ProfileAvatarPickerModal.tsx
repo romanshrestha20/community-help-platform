@@ -1,10 +1,11 @@
 import React from "react";
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 
 import { radius, spacing, typography } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useUser } from "../hooks/user.hook";
+import { showToast } from "@/utils/toast";
 
 type Props = {
   visible: boolean;
@@ -16,50 +17,51 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
   const { user, loading, handleUploadAvatar, handleDeleteAvatar } = useUser();
 
   const handlePickFromGallery = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!permission.granted) {
-      Alert.alert("Permission needed", "Please allow access to your photo library.");
-      return;
-    }
+      if (!permission.granted) {
+        showToast("Please allow access to your photo library.");
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
 
-    if (result.canceled || !result.assets?.length) return;
+      if (result.canceled || !result.assets?.length) return;
 
-    const asset = result.assets[0];
+      const asset = result.assets[0];
 
-    const success = await handleUploadAvatar({
-      uri: asset.uri,
-      name: asset.fileName ?? `avatar-${Date.now()}.jpg`,
-      type: asset.mimeType ?? "image/jpeg",
-      webFile: (asset as any).file ?? undefined,
-    } as any);
+      const success = await handleUploadAvatar({
+        uri: asset.uri,
+        name: asset.fileName ?? `avatar-${Date.now()}.jpg`,
+        type: asset.mimeType ?? "image/jpeg",
+        webFile: (asset as any).file ?? undefined,
+      });
 
-    if (success) {
-      onClose();
+      if (success) {
+        onClose();
+      }
+    } catch (error) {
+      console.error("Pick avatar error:", error);
     }
   };
 
-  const confirmRemoveAvatar = () => {
-    Alert.alert("Remove profile photo", "Do you want to remove your current photo?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: async () => {
-          const success = await handleDeleteAvatar();
-          if (success) {
-            onClose();
-          }
-        },
-      },
-    ]);
+  const handleRemoveAvatar = async () => {
+    try {
+      const success = await handleDeleteAvatar();
+
+      if (success) {
+        showToast("Profile photo removed");
+        onClose();
+      }
+    } catch (error) {
+      console.error("Remove avatar error:", error);
+    }
   };
 
   return (
@@ -74,6 +76,7 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
           ]}
         >
           <Text style={[styles.title, { color: palette.textPrimary }]}>Profile photo</Text>
+
           <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
             Choose how you want to update your profile picture.
           </Text>
@@ -88,9 +91,13 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
             onPress={handlePickFromGallery}
             disabled={loading}
           >
-            <Text style={[styles.actionText, { color: palette.textPrimary }]}>
-              {user?.avatarUrl ? "Change from gallery" : "Upload from gallery"}
-            </Text>
+            {loading ? (
+              <ActivityIndicator color={palette.textPrimary} />
+            ) : (
+              <Text style={[styles.actionText, { color: palette.textPrimary }]}>
+                {user?.avatarUrl ? "Change from gallery" : "Upload from gallery"}
+              </Text>
+            )}
           </Pressable>
 
           {user?.avatarUrl ? (
@@ -101,16 +108,20 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
                   backgroundColor: palette.dangerSoft,
                 },
               ]}
-              onPress={confirmRemoveAvatar}
+              onPress={handleRemoveAvatar}
               disabled={loading}
             >
-              <Text style={[styles.actionText, { color: palette.danger }]}>
-                Remove current photo
-              </Text>
+              {loading ? (
+                <ActivityIndicator color={palette.danger} />
+              ) : (
+                <Text style={[styles.actionText, { color: palette.danger }]}>
+                  Remove current photo
+                </Text>
+              )}
             </Pressable>
           ) : null}
 
-          <Pressable style={styles.cancelButton} onPress={onClose}>
+          <Pressable style={styles.cancelButton} onPress={onClose} disabled={loading}>
             <Text style={[styles.cancelText, { color: palette.textSecondary }]}>Cancel</Text>
           </Pressable>
         </View>
@@ -143,6 +154,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderRadius: radius.lg,
     justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: spacing.md,
   },
   actionText: {
