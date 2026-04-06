@@ -34,7 +34,7 @@ export const getRequestByIdApi = (id: string) =>
     apiClient.get(`/requests/${id}`);
 
 export const updateRequestApi = (id: string, data: Partial<UpdateHelpRequestData>) =>
-    apiClient.put(`/requests/${id}`, data);
+    apiClient.patch(`/requests/${id}`, data);
 
 
 export const updateRequestStatusApi = (id: string, status: HelpRequestStatus) =>
