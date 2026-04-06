@@ -18,7 +18,9 @@ export default function RegisterScreen() {
   const { handleRegister, loadingRegister, error } = useAuth();
   const { palette } = useThemeContext();
 
-  const locationPicker = useLocationPicker();
+const locationPicker = useLocationPicker({
+  autoUseCurrentLocationOnMount: true,
+});
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
