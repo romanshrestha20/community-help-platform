@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Text, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -12,7 +12,6 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import LocationPickerField from "@/features/location/components/LocationPickerField";
 import { LocationSuggestion } from "@/features/location/types/location.types";
-import { useDebounce } from "@/hooks/useDebounce";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -29,72 +28,8 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const [streetQuery, setStreetQuery] = useState("");
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
-
-  const debouncedStreetQuery = useDebounce(streetQuery, 350);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchSuggestions = async () => {
-      const query = debouncedStreetQuery.trim();
-
-      if (query.length < 2) {
-        setSuggestions([]);
-        setSuggestionsLoading(false);
-        return;
-      }
-
-      try {
-        setSuggestionsLoading(true);
-
-        const response = await fetch(
-          `http://localhost:5001/api/locations/search?q=${encodeURIComponent(query)}`
-        );
-        const json = await response.json();
-
-        if (!cancelled) {
-          setSuggestions(Array.isArray(json.data) ? json.data : []);
-        }
-      } catch {
-        if (!cancelled) {
-          setSuggestions([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setSuggestionsLoading(false);
-        }
-      }
-    };
-
-    fetchSuggestions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedStreetQuery]);
-
-  const handleSelectSuggestion = async (suggestion: LocationSuggestion) => {
-    const shortAddress = [suggestion.addressLine1, suggestion.postalCode, suggestion.city]
-      .filter(Boolean)
-      .join(", ");
-
-    setStreetQuery(shortAddress);
-    setSuggestions([]);
-
-    locationPicker.setValue({
-      latitude: suggestion.latitude,
-      longitude: suggestion.longitude,
-      addressLine1: suggestion.addressLine1,
-      addressLine2: null,
-      city: suggestion.city,
-      state: suggestion.state,
-      postalCode: suggestion.postalCode,
-      country: suggestion.country,
-      formattedAddress: suggestion.formattedAddress,
-    });
+  const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
+    locationPicker.selectSuggestion(suggestion);
   };
 
   const onRegister = async () => {
@@ -185,10 +120,10 @@ export default function RegisterScreen() {
             loading={locationPicker.loading}
             error={locationPicker.error}
             onUseCurrentLocation={locationPicker.useCurrentLocation}
-            streetQuery={streetQuery}
-            onStreetQueryChange={setStreetQuery}
-            suggestions={suggestions}
-            suggestionsLoading={suggestionsLoading}
+            streetQuery={locationPicker.streetQuery}
+            onStreetQueryChange={locationPicker.setStreetQuery}
+            suggestions={locationPicker.suggestions}
+            suggestionsLoading={locationPicker.suggestionsLoading}
             onSelectSuggestion={handleSelectSuggestion}
           />
 
