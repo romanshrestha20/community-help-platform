@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { Screen, Row, Stack, theme } from "@/design-system";
-import { AppButton } from "@/components/ui/AppButton";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import {
   HelpingOpportunitiesSection,
@@ -32,7 +31,7 @@ function ActionTile({ title, icon, onPress, prominent = false }: ActionTileProps
       style={({ pressed }) => [
         styles.tile,
         {
-          backgroundColor: prominent ? `${palette.primary}12` : palette.surface,
+          backgroundColor: prominent ? palette.primary : palette.surface,
           opacity: pressed ? 0.82 : 1,
         },
       ]}
@@ -40,12 +39,12 @@ function ActionTile({ title, icon, onPress, prominent = false }: ActionTileProps
       <Ionicons
         name={icon}
         size={18}
-        color={prominent ? palette.primary : palette.textPrimary}
+        color={prominent ? palette.textInverse : palette.textPrimary}
       />
       <Text
         style={[
           styles.tileText,
-          { color: prominent ? palette.primary : palette.textPrimary },
+          { color: prominent ? palette.textInverse : palette.textPrimary },
         ]}
       >
         {title}
@@ -92,19 +91,16 @@ export default function Home() {
           <Text style={[styles.location, { color: palette.textSecondary }]} numberOfLines={1}>
             {locationText}
           </Text>
-          <AppButton
-            title={locationPicker.loading ? "Locating..." : hasLocation ? "Update" : "Set"}
+          <Pressable
             onPress={locationPicker.useCurrentLocation}
-            loading={locationPicker.loading}
             disabled={locationPicker.loading}
-            variant="ghost"
-            fullWidth={false}
-            icon={
-              !locationPicker.loading ? (
-                <Ionicons name="locate-outline" size={16} color={palette.textPrimary} />
-              ) : undefined
-            }
-          />
+            style={({ pressed }) => [styles.locationAction, { opacity: pressed ? 0.72 : 1 }]}
+          >
+            <Ionicons name="locate-outline" size={15} color={palette.textSecondary} />
+            <Text style={[styles.locationActionText, { color: palette.textSecondary }]}>
+              {locationPicker.loading ? "Locating" : hasLocation ? "Update" : "Set"}
+            </Text>
+          </Pressable>
         </Row>
         {locationPicker.error ? (
           <Text style={[styles.locationError, { color: palette.danger }]} numberOfLines={2}>
@@ -182,6 +178,15 @@ const styles = StyleSheet.create({
   },
   locationRow: {
     columnGap: theme.spacing.sm,
+  },
+  locationAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 4,
+  },
+  locationActionText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.medium,
   },
   locationError: {
     fontSize: theme.typography.fontSize.xs,
