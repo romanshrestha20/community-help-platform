@@ -3,15 +3,16 @@ import { Alert, StyleSheet, Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { AppHeader } from "@/components/ui/AppHeader";
-import { AppButton } from "@/components/ui/AppButton";
-import { Card, Row, Screen, Stack, theme } from "@/design-system";
+import { Card, Screen, Stack, theme } from "@/design-system";
 import { BidComposerCard } from "@/features/bid/components/BidComposerCard";
 import { BidList } from "@/features/bid/components/BidList";
+import { RequestActionBar } from "@/features/helpRequest/components/RequestActionBar";
 import { RequestDetailsHeader } from "@/features/helpRequest/components/RequestDetailHeader";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
 import { useRequestDetails } from "@/features/helpRequest/hooks/useRequestDetails";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { showToast } from "@/utils/toast";
+import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
 
 type Props = {
     requestId?: string;
@@ -38,7 +39,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         submitBid,
         deleteMyBid,
         setRequestStatus,
-        deleteHelpRequest,
+        removeRequest,
+        actionError,
         actionLoadingByBidId,
     } = useRequestDetails(activeRequestId || "");
 
@@ -58,7 +60,9 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 onPress: async () => {
                     setDeleting(true);
                     try {
-                        await deleteHelpRequest(request.id);
+                        const deleted = await removeRequest();
+                        if (!deleted) return;
+
                         showToast("Request deleted");
                         router.back();
                     } finally {
@@ -111,43 +115,19 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
             <RequestDetailsHeader request={request} />
 
             {isOwner ? (
+                <RequestActionBar
+                    request={request}
+                    loading={loading}
+                    deleting={deleting}
+                    onEdit={() => router.push(`/home/requests/${request.id}/edit`)}
+                    onUpdateStatus={setRequestStatus}
+                    onDelete={handleDeleteRequest}
+                />
+            ) : null}
+
+            {actionError ? (
                 <Card>
-                    <Stack gap="sm">
-                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Owner actions</Text>
-                        <Row gap="sm">
-                            <AppButton
-                                title="Edit Request"
-                                onPress={() => router.push(`/home/requests/${request.id}/edit`)}
-                                variant="secondary"
-                                fullWidth={false}
-                            />
-                            <AppButton
-                                title="Mark Assigned"
-                                onPress={() => setRequestStatus("ASSIGNED")}
-                                disabled={request.status !== "OPEN" || loading}
-                                fullWidth={false}
-                            />
-                            <AppButton
-                                title="Mark Completed"
-                                onPress={() => setRequestStatus("COMPLETED")}
-                                disabled={request.status !== "ASSIGNED" || loading}
-                                variant="secondary"
-                                fullWidth={false}
-                            />
-                        </Row>
-                        <AppButton
-                            title="Cancel Request"
-                            onPress={() => setRequestStatus("CANCELLED")}
-                            variant="secondary"
-                            disabled={request.status === "COMPLETED" || request.status === "CANCELLED" || loading}
-                        />
-                        <AppButton
-                            title="Delete Request"
-                            onPress={handleDeleteRequest}
-                            variant="danger"
-                            loading={deleting}
-                        />
-                    </Stack>
+                    <Text style={[styles.errorText, { color: palette.danger }]}>{actionError}</Text>
                 </Card>
             ) : null}
 
@@ -170,7 +150,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 </Stack>
             </Card>
 
-            {!isOwner && request.status === "OPEN" && !myBid ? (
+            {!isOwner && isRequestOpenForBidding(request.status) && !myBid ? (
                 <BidComposerCard
                     helpRequestId={request.id}
                     onSubmit={async (payload) => {
@@ -192,6 +172,9 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: theme.typography.fontSize.md,
         fontWeight: theme.typography.fontWeight.semibold,
+    },
+    errorText: {
+        fontSize: theme.typography.fontSize.sm,
     },
 });
 
