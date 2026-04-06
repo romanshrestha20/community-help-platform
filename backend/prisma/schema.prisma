@@ -41,6 +41,14 @@ model UserModel {
   @@map("users")
 }
 
+model DeletedAccount {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  deletedAt DateTime @default(now())
+
+  @@map("deleted_accounts")
+}
+
 model OAuthAccount {
   id         String       @id @default(uuid())
   provider   AuthProvider
