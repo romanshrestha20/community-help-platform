@@ -1,1 +1,4 @@
 backend/node_modules/
+mobile-app/node_modules/
+mobile-app/readme/
+mobile-app/.env
