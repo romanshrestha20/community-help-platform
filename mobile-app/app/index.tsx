@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { AppButton } from "@/components/ui/AppButton";
 import { Card, Screen, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import React from "react";
 
 export default function Home() {
   const router = useRouter();
