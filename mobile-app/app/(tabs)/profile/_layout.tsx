@@ -8,6 +8,7 @@ export default function ProfileLayout() {
         <Stack screenOptions={getAppStackHeaderOptions()}>
             <Stack.Screen name="index" options={{ title: "Profile" }} />
             <Stack.Screen name="requests" options={{ title: "My Requests" }} />
+            <Stack.Screen name="bids" options={{ title: "My Bids" }} />
         </Stack>
     );
 }

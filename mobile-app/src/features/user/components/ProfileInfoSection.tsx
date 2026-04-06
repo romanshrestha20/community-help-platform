@@ -2,11 +2,13 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Card, Stack, theme } from "@/design-system";
+import { AppButton } from "@/components/ui/AppButton";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { User } from "../types/user.types";
 
 type Props = {
   user: User | null;
+  onEditProfile?: () => void;
 };
 
 const formatLabel = (value?: string | null) => {
@@ -14,7 +16,7 @@ const formatLabel = (value?: string | null) => {
   return value;
 };
 
-export const ProfileInfoSection = ({ user }: Props) => {
+export const ProfileInfoSection = ({ user, onEditProfile }: Props) => {
   const { palette } = useThemeContext();
 
   return (
@@ -48,6 +50,17 @@ export const ProfileInfoSection = ({ user }: Props) => {
               : "No address added yet."}
           </Text>
         </Stack>
+
+        {onEditProfile ? (
+          <View style={styles.actionsRow}>
+            <AppButton
+              title="Edit profile"
+              onPress={onEditProfile}
+              variant="secondary"
+              fullWidth={false}
+            />
+          </View>
+        ) : null}
       </Stack>
     </Card>
   );
@@ -88,5 +101,8 @@ const styles = StyleSheet.create({
   bodyText: {
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.md,
+  },
+  actionsRow: {
+    alignItems: "flex-end",
   },
 });
