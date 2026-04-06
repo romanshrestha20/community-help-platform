@@ -1,197 +1,138 @@
 import React from "react";
-import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
-import { Card } from "@/design-system/layout/Card";
-import { Stack } from "@/design-system/layout/Stack";
-import { Row } from "@/design-system/layout/Row";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { Card, Row, Stack } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
-import { spacing, colors, typography } from "@/design-system";
-import { Bid, BidStatus } from "../types/bid.types";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { Bid } from "../types/bid.types";
+import { BidStatusBadge } from "./BidStatusBadge";
+import { formatBidAmount, formatBidCreatedAt } from "../utils/bidDisplay";
 
-interface BidCardProps {
-    bid: Bid;
-    onPress?: () => void;
-    onViewProfile?: () => void;
-    onAccept?: () => void;
-    onReject?: () => void;
-    onUpdate?: () => void;
-    onDelete?: () => void;
-    canRespond?: boolean;
-    canModify?: boolean;
-    loading?: boolean;
-    disableRespondActions?: boolean;
-}
-
-const getStatusColor = (status: BidStatus): string => {
-    switch (status) {
-        case "ACCEPTED":
-            return colors.success;
-        case "REJECTED":
-            return colors.danger;
-        default:
-            return colors.warning;
-    }
+type Props = {
+  bid: Bid;
+  onPress?: () => void;
+  onViewProfile?: () => void;
+  isRequestOwner?: boolean;
+  canRespond?: boolean;
+  canModify?: boolean;
+  disableRespondActions?: boolean;
+  loading?: boolean;
+  onAccept?: () => void;
+  onReject?: () => void;
+  onUpdate?: () => void;
+  onDelete?: () => void;
 };
 
-export const BidCard: React.FC<BidCardProps> = ({
-    bid,
-    onPress,
-    onViewProfile,
-    onAccept,
-    onReject,
-    onUpdate,
-    onDelete,
-    canRespond = false,
-    canModify = false,
-    loading = false,
-    disableRespondActions = false,
-}) => {
-    return (
-        <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-            <Card style={styles.card}>
-                <Stack gap="md">
-                    {/* Header */}
-                    <Row style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <Stack gap="xs" style={{ flex: 1 }}>
-                            <Text style={[styles.bodyText, { fontWeight: typography.fontWeight.semibold }]}>
-                                {bid.helperName}
-                            </Text>
-                        </Stack>
+export const BidCard = ({
+  bid,
+  onPress,
+  onViewProfile,
+  isRequestOwner = false,
+  canRespond = false,
+  canModify = false,
+  disableRespondActions = false,
+  loading = false,
+  onAccept,
+  onReject,
+  onUpdate,
+  onDelete,
+}: Props) => {
+  const { palette } = useThemeContext();
+  const requesterActions = isRequestOwner || canRespond;
+  const helperActions = !requesterActions && canModify;
 
-                        {/* Bid Amount */}
-                        <Text
-                            style={[
-                                styles.bodyText,
-                                { fontWeight: typography.fontWeight.semibold, color: colors.primary },
-                            ]}
-                        >
-                            ${bid.amount.toFixed(2)}
-                        </Text>
-                    </Row>
+  return (
+    <Pressable onPress={onPress}>
+      <Card>
+        <Stack gap="sm">
+          <Row justify="space-between" align="flex-start">
+            <View style={styles.flex}>
+              <Text style={[styles.name, { color: palette.textPrimary }]}>
+                {bid.helperName}
+              </Text>
+              <Text style={[styles.amount, { color: palette.primary }]}>
+                {formatBidAmount(bid.amount)}
+              </Text>
+            </View>
 
-                    {/* Message */}
-                    <Text
-                        style={[styles.captionText, { color: colors.textSecondary }]}
-                        numberOfLines={3}
-                    >
-                        {bid.message}
-                    </Text>
+            <BidStatusBadge status={bid.status} />
+          </Row>
 
-                    {/* Status and Date */}
-                    <Row style={{ justifyContent: "space-between", alignItems: "center" }}>
-                        <View
-                            style={[
-                                styles.statusBadge,
-                                { backgroundColor: getStatusColor(bid.status) + "20" },
-                            ]}
-                        >
-                            <Text
-                                style={[
-                                    styles.captionText,
-                                    {
-                                        color: getStatusColor(bid.status),
-                                        fontWeight: typography.fontWeight.semibold,
-                                    },
-                                ]}
-                            >
-                                {bid.status}
-                            </Text>
-                        </View>
+          {onViewProfile ? (
+            <AppButton
+              title="View profile"
+              onPress={onViewProfile}
+              variant="ghost"
+              fullWidth={false}
+            />
+          ) : null}
 
-                        <Text style={[styles.captionText, { color: colors.textSecondary }]}> 
-                            {new Date(bid.createdAt).toLocaleDateString()}
-                        </Text>
-                    </Row>
+          <Text style={[styles.message, { color: palette.textSecondary }]}>
+            {bid.message}
+          </Text>
 
-                    {onViewProfile && (
-                        <AppButton
-                            title="View Profile"
-                            onPress={onViewProfile}
-                            variant="ghost"
-                            disabled={loading}
-                            fullWidth={false}
-                        />
-                    )}
+          <Text style={[styles.date, { color: palette.textSecondary }]}>
+            Submitted {formatBidCreatedAt(bid.createdAt)}
+          </Text>
 
-                    {/* Actions - Respond to Bid (Requester) */}
-                    {canRespond && bid.status === "PENDING" && (
-                        <Row gap="sm">
-                            <AppButton
-                                title="Accept"
-                                onPress={onAccept ?? (() => {})}
-                                loading={loading}
-                                disabled={loading || disableRespondActions}
-                                fullWidth={false}
-                            />
-                            <AppButton
-                                title="Reject"
-                                onPress={onReject ?? (() => {})}
-                                variant="danger"
-                                loading={loading}
-                                disabled={loading || disableRespondActions}
-                                fullWidth={false}
-                            />
-                        </Row>
-                    )}
+          {requesterActions && bid.status === "PENDING" && (onAccept || onReject) ? (
+            <Row gap="sm">
+              {onAccept ? (
+                <AppButton
+                  title="Accept"
+                  onPress={onAccept}
+                  loading={loading}
+                  disabled={disableRespondActions}
+                />
+              ) : null}
+              {onReject ? (
+                <AppButton
+                  title="Reject"
+                  onPress={onReject}
+                  loading={loading}
+                  variant="secondary"
+                  disabled={disableRespondActions}
+                />
+              ) : null}
+            </Row>
+          ) : null}
 
-                    {/* Actions - Modify Bid (Bidder) */}
-                    {canModify && bid.status === "PENDING" && (
-                        <Row gap="sm">
-                            {onUpdate && (
-                                <AppButton
-                                    title="Update"
-                                    onPress={onUpdate}
-                                    disabled={loading}
-                                    fullWidth={false}
-                                />
-                            )}
-                            {onDelete && (
-                                <AppButton
-                                    title="Withdraw"
-                                    onPress={onDelete}
-                                    variant="danger"
-                                    disabled={loading}
-                                    fullWidth={false}
-                                />
-                            )}
-                        </Row>
-                    )}
-
-                    {/* Delete Action for Rejected */}
-                    {canModify && bid.status === "REJECTED" && onDelete && (
-                        <AppButton
-                            title="Delete"
-                            onPress={onDelete}
-                            variant="danger"
-                            disabled={loading}
-                        />
-                    )}
-                </Stack>
-            </Card>
-        </TouchableOpacity>
-    );
+          {helperActions && bid.status === "PENDING" && (onUpdate || onDelete) ? (
+            <Row gap="sm">
+              {onUpdate ? <AppButton title="Edit" onPress={onUpdate} /> : null}
+              {onDelete ? (
+                <AppButton
+                  title="Delete"
+                  onPress={onDelete}
+                  variant="secondary"
+                />
+              ) : null}
+            </Row>
+          ) : null}
+        </Stack>
+      </Card>
+    </Pressable>
+  );
 };
 
 const styles = StyleSheet.create({
-    bodyText: {
-        fontFamily: typography.fontFamily.regular,
-        fontSize: typography.fontSize.md,
-        lineHeight: typography.lineHeight.md,
-        fontWeight: typography.fontWeight.regular,
-        color: colors.textPrimary,
-    },
-    captionText: {
-        fontFamily: typography.fontFamily.regular,
-        fontSize: typography.fontSize.sm,
-        lineHeight: typography.lineHeight.sm,
-        fontWeight: typography.fontWeight.regular,
-        color: colors.textPrimary,
-    },
-    card: {
-        marginBottom: spacing.md,
-    },
-    statusBadge: {
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderRadius: 4,
-    },
+  flex: {
+    flex: 1,
+  },
+  name: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  amount: {
+    marginTop: 2,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  message: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  date: {
+    fontSize: 12,
+  },
 });

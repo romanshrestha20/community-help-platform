@@ -1,10 +1,8 @@
 import React from "react";
 import { FlatList, StyleSheet, View, Text } from "react-native";
-import { Stack } from "@/design-system/layout/Stack";
-import { Card } from "@/design-system/layout/Card";
+import { Stack, Card, spacing, colors, typography } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { BidCard } from "./BidCard";
-import { spacing, colors, typography } from "@/design-system";
 import { Bid } from "../types/bid.types";
 
 interface BidListProps {
@@ -57,6 +55,7 @@ export const BidList: React.FC<BidListProps> = ({
             onReject={() => onBidReject?.(item)}
             onUpdate={() => onBidUpdate?.(item)}
             onDelete={() => onBidDelete?.(item)}
+            isRequestOwner={canRespond}
             canRespond={canRespond}
             canModify={canModify}
             loading={Boolean(actionLoadingByBidId[item.id]) || loading}
@@ -96,7 +95,7 @@ export const BidList: React.FC<BidListProps> = ({
 
     return (
         <View style={containerStyle}>
-            <Text style={[styles.bodyText, { fontWeight: typography.fontWeight.semibold, marginBottom: spacing.md }]}> 
+            <Text style={[styles.bodyText, { fontWeight: typography.fontWeight.semibold, marginBottom: spacing.md }]}>
                 {title} ({bids.length})
             </Text>
             <FlatList
@@ -104,6 +103,7 @@ export const BidList: React.FC<BidListProps> = ({
                 renderItem={renderBid}
                 keyExtractor={(item) => item.id}
                 scrollEnabled={false}
+                contentContainerStyle={styles.listContent}
             />
         </View>
     );
@@ -131,5 +131,8 @@ const styles = StyleSheet.create({
     containerNoPadding: {
         paddingHorizontal: 0,
         paddingVertical: 0,
+    },
+    listContent: {
+        gap: spacing.sm,
     },
 });
