@@ -5,6 +5,7 @@ import {
   View,
   ViewProps,
   StyleSheet,
+  ViewStyle,
 } from "react-native";
 import {
   SafeAreaView,
@@ -27,11 +28,11 @@ type ScreenViewProps = ViewProps & BaseScreenProps;
 const createContentStyle = (
   centered: boolean,
   bottomSpacing: number
-) => ({
+): ViewStyle => ({
   flexGrow: 1,
   padding: theme.spacing.lg,
   paddingBottom: theme.spacing.lg + bottomSpacing,
-  justifyContent: centered ? "center" : "flex-start" as const,
+  justifyContent: centered ? "center" : "flex-start",
 });
 
 export const Screen = ({
