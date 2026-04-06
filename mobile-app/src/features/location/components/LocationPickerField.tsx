@@ -29,36 +29,44 @@ type Props = {
   onSelectSuggestion?: (suggestion: LocationSuggestion) => Promise<void> | void;
 };
 
-export function formatShortAddress({ location }: { location: AppLocation | null; }): string {
-  if (!location) return "No location selected";
+export function formatShortAddress(location: AppLocation | null): string {
+  if (!location) return "Select your current location";
 
   const primaryParts = [
     location.addressLine1,
     [location.postalCode, location.city].filter(Boolean).join(" "),
   ].filter((part) => typeof part === "string" && part.trim().length > 0);
 
-  // Prefer showing street address if available, 
-  // otherwise fallback to state/country or formatted address
   if (primaryParts.length > 0) {
     return primaryParts.join(", ");
   }
 
-  // If no street address, try state and country
   const secondaryParts = [location.state, location.country].filter(
     (part) => typeof part === "string" && part.trim().length > 0
   );
 
-  // If we have state or country info, show that
   if (secondaryParts.length > 0) {
     return secondaryParts.join(", ");
   }
 
-  if (location.formattedAddress && location.formattedAddress.trim().length > 0) {
-    // Example:
-    return location.formattedAddress;
+  if (location.formattedAddress?.trim()) {
+    return location.formattedAddress.trim();
   }
 
-  return "Current location selected";
+  return "Select your current location";
+}
+
+export function hasUsableLocation(location: AppLocation | null): boolean {
+  if (!location) return false;
+
+  return Boolean(
+    location.addressLine1?.trim() ||
+      location.city?.trim() ||
+      location.state?.trim() ||
+      location.country?.trim() ||
+      location.postalCode?.trim() ||
+      location.formattedAddress?.trim()
+  );
 }
 
 export default function LocationPickerField({
@@ -80,19 +88,12 @@ export default function LocationPickerField({
     typeof onStreetQueryChange === "function" &&
     typeof onSelectSuggestion === "function";
 
-  const formattedAddress = useMemo(() => formatShortAddress({ location: value }), [value]);
-
+  const formattedAddress = useMemo(() => formatShortAddress(value), [value]);
+  const hasSelectedLocation = useMemo(() => hasUsableLocation(value), [value]);
   const showSuggestions = showStreetSearch && streetQuery.trim().length >= 2;
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerBlock}>
-        <Text style={[styles.label, { color: palette.textPrimary }]}>Location</Text>
-        <Text style={[styles.caption, { color: palette.textSecondary }]}>
-          Search your street address or use your current location.
-        </Text>
-      </View>
-
       <View
         style={[
           styles.searchCard,
@@ -117,7 +118,11 @@ export default function LocationPickerField({
             />
           </View>
 
-          <View style={isWideLayout ? styles.buttonWrapperWide : styles.buttonWrapperStacked}>
+          <View
+            style={
+              isWideLayout ? styles.buttonWrapperWide : styles.buttonWrapperStacked
+            }
+          >
             <AppButton
               title={loading ? "Detecting..." : "Use current location"}
               onPress={onUseCurrentLocation}
@@ -150,7 +155,9 @@ export default function LocationPickerField({
             {suggestionsLoading ? (
               <View style={styles.stateRow}>
                 <ActivityIndicator size="small" />
-                <Text style={[styles.helperTextInline, { color: palette.textSecondary }]}>
+                <Text
+                  style={[styles.helperTextInline, { color: palette.textSecondary }]}
+                >
                   Searching addresses...
                 </Text>
               </View>
@@ -167,12 +174,20 @@ export default function LocationPickerField({
                       styles.suggestionItem,
                       {
                         borderBottomColor: palette.border,
-                        backgroundColor: pressed ? palette.surfaceMuted : "transparent",
+                        backgroundColor: pressed
+                          ? palette.surfaceMuted
+                          : "transparent",
                       },
-                      index === suggestions.length - 1 && styles.lastSuggestionItem,
+                      index === suggestions.length - 1 &&
+                        styles.lastSuggestionItem,
                     ]}
                   >
-                    <View style={[styles.iconBadge, { backgroundColor: palette.surfaceMuted }]}>
+                    <View
+                      style={[
+                        styles.iconBadge,
+                        { backgroundColor: palette.surfaceMuted },
+                      ]}
+                    >
                       <Ionicons
                         name="location-outline"
                         size={16}
@@ -182,7 +197,10 @@ export default function LocationPickerField({
 
                     <View style={styles.suggestionTextBlock}>
                       <Text
-                        style={[styles.suggestionTitle, { color: palette.textPrimary }]}
+                        style={[
+                          styles.suggestionTitle,
+                          { color: palette.textPrimary },
+                        ]}
                         numberOfLines={1}
                       >
                         {[item.addressLine1, item.postalCode, item.city]
@@ -192,7 +210,10 @@ export default function LocationPickerField({
 
                       {!!(item.state || item.country) && (
                         <Text
-                          style={[styles.suggestionSubtitle, { color: palette.textSecondary }]}
+                          style={[
+                            styles.suggestionSubtitle,
+                            { color: palette.textSecondary },
+                          ]}
                           numberOfLines={1}
                         >
                           {[item.state, item.country].filter(Boolean).join(", ")}
@@ -208,59 +229,70 @@ export default function LocationPickerField({
                   </Pressable>
                 )}
               />
-            ) : !value ? (
+            ) : (
               <View style={styles.stateRow}>
                 <Ionicons
                   name="search-outline"
                   size={16}
                   color={palette.textSecondary}
                 />
-                <Text style={[styles.helperTextInline, { color: palette.textSecondary }]}>
+                <Text
+                  style={[styles.helperTextInline, { color: palette.textSecondary }]}
+                >
                   No matching addresses found
                 </Text>
               </View>
-            ) : null}
+            )}
           </View>
         ) : null}
       </View>
 
-      {value ? (
-        <View
-          style={[
-            styles.selectedAddressCard,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <View style={styles.selectedAddressHeader}>
-            <View
+      <View
+        style={[
+          styles.selectedAddressCard,
+          {
+            backgroundColor: palette.surface,
+            borderColor: hasSelectedLocation ? palette.border : palette.border,
+          },
+        ]}
+      >
+        <View style={styles.selectedAddressHeader}>
+          <View
+            style={[
+              styles.selectedIconBadge,
+              {
+                backgroundColor: palette.surfaceMuted,
+              },
+            ]}
+          >
+            <Ionicons
+              name={hasSelectedLocation ? "checkmark-circle" : "location-outline"}
+              size={18}
+              color={hasSelectedLocation ? palette.success : palette.textSecondary}
+            />
+          </View>
+
+          <View style={styles.selectedAddressTextBlock}>
+            <Text
+              style={[styles.selectedAddressLabel, { color: palette.textSecondary }]}
+            >
+              {hasSelectedLocation ? "Selected address" : "Location"}
+            </Text>
+            <Text
               style={[
-                styles.selectedIconBadge,
-                { backgroundColor: palette.surfaceMuted },
+                styles.valueText,
+                {
+                  color: hasSelectedLocation
+                    ? palette.textPrimary
+                    : palette.textSecondary,
+                },
               ]}
             >
-              <Ionicons
-                name="checkmark-circle"
-                size={18}
-                color={palette.success}
-              />
-            </View>
-
-            <View style={styles.selectedAddressTextBlock}>
-              <Text
-                style={[styles.selectedAddressLabel, { color: palette.textSecondary }]}
-              >
-                Selected address
-              </Text>
-              <Text style={[styles.valueText, { color: palette.textPrimary }]}>
-                {formattedAddress}
-              </Text>
-            </View>
+              {formattedAddress}
+            </Text>
           </View>
         </View>
-      ) : null}
+      </View>
 
       {error ? (
         <View
@@ -272,8 +304,14 @@ export default function LocationPickerField({
             },
           ]}
         >
-          <Ionicons name="alert-circle-outline" size={16} color={palette.danger} />
-          <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
+          <Ionicons
+            name="alert-circle-outline"
+            size={16}
+            color={palette.danger}
+          />
+          <Text style={[styles.errorText, { color: palette.danger }]}>
+            {error}
+          </Text>
         </View>
       ) : null}
     </View>
@@ -284,17 +322,6 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: theme.spacing.sm,
     gap: theme.spacing.sm,
-  },
-  headerBlock: {
-    gap: 4,
-  },
-  label: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold ?? theme.typography.fontWeight.medium,
-  },
-  caption: {
-    fontSize: theme.typography.fontSize.xs,
-    lineHeight: 18,
   },
   searchCard: {
     borderWidth: 1,
@@ -394,7 +421,9 @@ const styles = StyleSheet.create({
   },
   valueText: {
     fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold ?? theme.typography.fontWeight.medium,
+    fontWeight:
+      theme.typography.fontWeight.semibold ??
+      theme.typography.fontWeight.medium,
     lineHeight: 20,
   },
   errorBox: {

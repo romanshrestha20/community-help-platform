@@ -27,12 +27,13 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
 }) => {
     const { palette } = useThemeContext();
     const requestMomentum = activeRequests > 0 ? `${activeRequests} live requests nearby` : "No active requests yet";
-    const locationPicker = useLocationPicker();
     const [localLocation, setLocalLocation] = useState(location);
-
+    const locationPicker = useLocationPicker({
+        autoUseCurrentLocationOnMount: true,
+    });
     const currentLocationText = useMemo(() => {
         if (locationPicker.value) {
-            return formatShortAddress({ location: locationPicker.value });
+            return formatShortAddress(locationPicker.value);
         }
 
         return localLocation || location || "N/A";
@@ -43,7 +44,7 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
             return;
         }
 
-        setLocalLocation(formatShortAddress({ location: locationPicker.value }));
+        setLocalLocation(formatShortAddress(locationPicker.value));
         onUpdateLocation?.(locationPicker.value);
     }, [locationPicker.value, onUpdateLocation]);
 
