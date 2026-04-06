@@ -5,3 +5,4 @@ export { ProfileInfoSection } from "./ProfileInfoSection";
 export { ProfileEditForm } from "./ProfileEditForm";
 export { SettingsSectionCard } from "./SettingsSectionCard";
 export { DangerZoneCard } from "./DangerZoneCard";
+export { SessionCard } from "./SessionCard";
