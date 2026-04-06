@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { Card, theme } from "@/design-system";
+import { theme } from "@/design-system";
 import { HelpRequest } from "../types/helpRequest.types";
 import { RequestCard } from "./RequestCard";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
@@ -17,7 +17,7 @@ export const HelpingOpportunitiesSection: React.FC<HelpingOpportunitiesSectionPr
     const { palette } = useThemeContext();
 
     return (
-        <Card style={styles.sectionCard}>
+        <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Opportunities</Text>
                 <Text style={[styles.sectionCount, { color: palette.textSecondary, borderColor: palette.border }]}>{requests.length}</Text>
@@ -35,15 +35,14 @@ export const HelpingOpportunitiesSection: React.FC<HelpingOpportunitiesSectionPr
                     />
                 ))
             )}
-        </Card>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    sectionCard: {
+    sectionContainer: {
         marginTop: 2,
-        paddingVertical: theme.spacing.xs,
-        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: theme.spacing.xxs,
     },
     sectionHeader: {
         flexDirection: "row",
