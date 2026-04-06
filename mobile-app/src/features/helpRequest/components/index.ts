@@ -1,7 +1,12 @@
 // Export all request-related components
 export { RequestForm } from "./RequestForm";
 export { RequestCard } from "./RequestCard";
+export { RequestList } from "./RequestList";
 export { RequestDetail } from "./RequestDetail";
+export { RequestDetailsHeader } from "./RequestDetailHeader";
+export { RequestStatusBadge } from "./RequestStatusBadge";
+export { RequestEmptyState } from "./RequestEmptyState";
+export { RequestActionBar } from "./RequestActionBar";
 export { RequestFilters } from "./RequestFilters";
 export { HelpingOpportunitiesSection } from "./HelpingOpportunitiesSection";
 
