@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Card, Row, Stack } from "@/design-system";
+import { Card, Row, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { HelpRequest } from "../types/helpRequest.types";
@@ -39,52 +39,84 @@ export const RequestCard = ({
   const { palette } = useThemeContext();
 
   return (
-    <Pressable onPress={onPress}>
-      <Card>
-        <Stack gap="sm">
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [
+        styles.pressable,
+        pressed && onPress ? styles.pressed : null,
+      ]}
+    >
+      <Card
+        style={[
+          styles.card,
+          {
+            backgroundColor: palette.surface,
+            borderColor: palette.border,
+          },
+        ]}
+      >
+        <Stack gap="md">
           <Row justify="space-between" align="flex-start">
-            <View style={styles.flex}>
+            <View style={styles.headerContent}>
               <Text style={[styles.title, { color: palette.textPrimary }]}>
                 {request.title}
               </Text>
+
               <Text style={[styles.category, { color: palette.textSecondary }]}>
                 {REQUEST_CATEGORY_LABELS[request.category] ?? request.category}
               </Text>
             </View>
+
             <RequestStatusBadge status={request.status} />
           </Row>
 
           <Text
-            numberOfLines={2}
+            numberOfLines={3}
             style={[styles.description, { color: palette.textSecondary }]}
           >
             {request.description}
           </Text>
 
-          <Row justify="space-between">
-            <Text style={[styles.meta, { color: palette.textSecondary }]}>
-              {formatRequestBudget(request)}
-            </Text>
-            <Text style={[styles.meta, { color: palette.textSecondary }]}>
-              {request.bidCount} bid{request.bidCount === 1 ? "" : "s"}
-            </Text>
-          </Row>
+          <View
+            style={[
+              styles.metaSection,
+              {
+                backgroundColor: palette.surfaceMuted,
+                borderColor: palette.border,
+              },
+            ]}
+          >
+            <Row justify="space-between">
+              <Text style={[styles.price, { color: palette.primary }]}>
+                {formatRequestBudget(request)}
+              </Text>
 
-          <Row justify="space-between">
-            <Text style={[styles.meta, { color: palette.textSecondary }]}>
-              {formatRequestLocation(request)}
-            </Text>
-            <Text style={[styles.meta, { color: palette.textSecondary }]}>
-              {formatRequestCreatedAt(request.createdAt)}
-            </Text>
-          </Row>
+              <Text style={[styles.meta, { color: palette.textSecondary }]}>
+                {request.bidCount} bid{request.bidCount === 1 ? "" : "s"}
+              </Text>
+            </Row>
+
+            <Row justify="space-between">
+              <Text
+                numberOfLines={1}
+                style={[styles.meta, styles.location, { color: palette.textSecondary }]}
+              >
+                {formatRequestLocation(request)}
+              </Text>
+
+              <Text style={[styles.meta, { color: palette.textSecondary }]}>
+                {formatRequestCreatedAt(request.createdAt)}
+              </Text>
+            </Row>
+          </View>
 
           {primaryActionLabel || secondaryActionLabel ? (
             <Row gap="sm">
               {secondaryActionLabel ? (
                 <AppButton
                   title={secondaryActionLabel}
-                  onPress={onSecondaryAction ?? (() => { })}
+                  onPress={onSecondaryAction ?? (() => {})}
                   variant="secondary"
                   fullWidth={false}
                   disabled={secondaryActionDisabled}
@@ -94,7 +126,8 @@ export const RequestCard = ({
               {primaryActionLabel ? (
                 <AppButton
                   title={primaryActionLabel}
-                  onPress={onPrimaryAction ?? (() => { })}
+                  onPress={onPrimaryAction ?? (() => {})}
+                  variant="ghost"
                   fullWidth={false}
                   disabled={primaryActionDisabled}
                 />
@@ -110,25 +143,56 @@ export const RequestCard = ({
 };
 
 const styles = StyleSheet.create({
-  flex: {
+  pressable: {
+    width: "100%",
+  },
+  pressed: {
+    opacity: 0.96,
+  },
+  card: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+  },
+  headerContent: {
     flex: 1,
+    paddingRight: theme.spacing.sm,
   },
   title: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: theme.typography.fontSize.md,
+    lineHeight: theme.typography.lineHeight.md,
+    fontWeight: theme.typography.fontWeight.bold,
   },
   category: {
-    fontSize: 13,
-    marginTop: 2,
+    marginTop: theme.spacing.xxs,
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: theme.typography.lineHeight.xs,
+    fontWeight: theme.typography.fontWeight.medium,
   },
   description: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+  },
+  metaSection: {
+    borderWidth: 1,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  price: {
+    fontSize: theme.typography.fontSize.md,
+    lineHeight: theme.typography.lineHeight.md,
+    fontWeight: theme.typography.fontWeight.bold,
   },
   meta: {
-    fontSize: 13,
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+  },
+  location: {
+    flex: 1,
+    paddingRight: theme.spacing.sm,
   },
   footer: {
-    marginTop: 4,
+    marginTop: theme.spacing.xxs,
   },
 });
