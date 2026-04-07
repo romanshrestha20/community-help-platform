@@ -48,7 +48,7 @@ const createStyles = (
       borderRadius: theme.radius.lg,
     },
     tabButtonActive: {
-      backgroundColor: colors.backgroundColor,
+      backgroundColor: palette.surfaceMuted,
     },
     iconWrapper: {
       position: "relative",
@@ -76,7 +76,7 @@ const createStyles = (
       justifyContent: "center",
       alignItems: "center",
       borderWidth: 1,
-      borderColor: colors.backgroundColor,
+      borderColor: palette.surface,
       paddingHorizontal: 4,
     },
     badgeText: {
@@ -120,8 +120,8 @@ export const CustomTabBar: React.FC<CustomTabBarProps> = ({
           typeof options?.tabBarLabel === "string"
             ? options.tabBarLabel
             : typeof options?.title === "string"
-            ? options.title
-            : tab.label;
+              ? options.title
+              : tab.label;
 
         const handlePress = () => {
           const event = navigation.emit({
