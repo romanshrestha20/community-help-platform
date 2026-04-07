@@ -1,36 +1,56 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { Card, theme } from "@/design-system";
-import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { OverviewMetric } from "./OverviewMetric";
+import { Card, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { formatShortAddress } from "@/features/location/components/LocationPickerField";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { AppLocation } from "@/features/location/types/location.types";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 
 interface GreetingOverviewProps {
     name?: string;
+    avatarUrl?: string | null;
     activeRequests: number;
     recentBids: number;
     location?: string;
     onUpdateLocation?: (location: AppLocation) => void;
+    onOfferHelp?: () => void;
+    onRequestHelp?: () => void;
+    showActions?: boolean;
 }
 
 export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
     name = "User",
-
+    avatarUrl,
     activeRequests,
     recentBids,
     location = "N/A",
     onUpdateLocation,
+    onOfferHelp,
+    onRequestHelp,
+    showActions = true,
 }) => {
     const { palette } = useThemeContext();
-    const requestMomentum = activeRequests > 0 ? `${activeRequests} live requests nearby` : "No active requests yet";
     const [localLocation, setLocalLocation] = useState(location);
+
     const locationPicker = useLocationPicker({
         autoUseCurrentLocationOnMount: true,
     });
+
+    const greeting = useMemo(() => {
+        const hour = new Date().getHours();
+        if (hour < 12) return "Good morning";
+        if (hour < 18) return "Good afternoon";
+        return "Good evening";
+    }, []);
+
+    const weekdayLabel = useMemo(() => {
+        return new Date().toLocaleDateString(undefined, { weekday: "long" });
+    }, []);
+
     const currentLocationText = useMemo(() => {
         if (locationPicker.value) {
             return formatShortAddress(locationPicker.value);
@@ -39,121 +59,238 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
         return localLocation || location || "N/A";
     }, [locationPicker.value, localLocation, location]);
 
-    useEffect(() => {
-        if (!locationPicker.value) {
-            return;
+    const statusText = useMemo(() => {
+        if (activeRequests <= 0) {
+            return "No requests nearby right now";
         }
 
-        setLocalLocation(formatShortAddress(locationPicker.value));
+        if (activeRequests === 1) {
+            return "1 request nearby";
+        }
+
+        return `${activeRequests} requests nearby`;
+    }, [activeRequests]);
+
+    useEffect(() => {
+        if (!locationPicker.value) return;
+
+        const nextLocation = formatShortAddress(locationPicker.value);
+        setLocalLocation(nextLocation);
         onUpdateLocation?.(locationPicker.value);
     }, [locationPicker.value, onUpdateLocation]);
 
     return (
-        <Card style={[styles.overviewCard, { backgroundColor: palette.surface, borderColor: palette.borderStrong }]}>
-            <View style={[styles.topBadge, { backgroundColor: palette.primary + "14" }]}>
-                <Text style={[styles.topBadgeText, { color: palette.primary }]}>Live dashboard</Text>
-            </View>
+        <Card
+            style={[
+                styles.container,
+                {
+                    backgroundColor: palette.surface,
+                    borderColor: palette.border,
+                    shadowColor: palette.textPrimary,
+                },
+            ]}
+        >
+            <View
+                pointerEvents="none"
+                style={[
+                    styles.accentOrb,
+                    { backgroundColor: `${palette.primary}14` },
+                ]}
+            />
 
-            <View style={styles.headerBlock}>
-                <Text style={[styles.overviewEyebrow, { color: palette.textSecondary }]}>Good to see you</Text>
-                <Text style={[styles.overviewTitle, { color: palette.textPrimary }]}>Welcome back, {name}</Text>
-                <Text style={[styles.overviewSubtitle, { color: palette.textSecondary }]}>{requestMomentum}</Text>
-            </View>
-
-            <View style={[styles.locationBanner, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-                <View style={styles.locationTextWrap}>
-                    <Text style={[styles.locationLabel, { color: palette.textSecondary }]}>Current location</Text>
-                    <Text style={[styles.locationValue, { color: palette.textPrimary }]} numberOfLines={1}>
-                        {currentLocationText}
+            <View style={styles.headerRow}>
+                <View style={styles.identityBlock}>
+                    <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>
+                        {weekdayLabel}
+                    </Text>
+                    <Text style={[styles.title, { color: palette.textPrimary }]} numberOfLines={1}>
+                        {greeting}, {name}
                     </Text>
                 </View>
-                <AppButton
-                    title={locationPicker.loading ? "Detecting..." : "Use current location"}
-                    onPress={locationPicker.useCurrentLocation}
-                    variant="primary"
-                    loading={locationPicker.loading}
-                    disabled={locationPicker.loading}
-                    fullWidth={false}
-                />
+
+                <ProfileAvatar
+                    uri={avatarUrl}
+                    fullName={name} size={42} />
             </View>
 
+            <View style={styles.metaRow}>
+                <Pressable
+                    onPress={locationPicker.useCurrentLocation}
+                    disabled={locationPicker.loading}
+                    style={({ pressed }) => [
+                        styles.locationChip,
+                        {
+                            backgroundColor: palette.surfaceMuted,
+                            borderColor: palette.border,
+                            opacity: pressed ? 0.78 : 1,
+                        },
+                    ]}
+                >
+                    <Ionicons
+                        name={locationPicker.loading ? "sync-outline" : "location-outline"}
+                        size={16}
+                        color={palette.textSecondary}
+                    />
+                    <Text
+                        style={[styles.locationText, { color: palette.textSecondary }]}
+                        numberOfLines={1}
+                    >
+                        {locationPicker.loading ? "Updating location..." : currentLocationText}
+                    </Text>
+                </Pressable>
+
+                <View
+                    style={[
+                        styles.statPill,
+                        {
+                            backgroundColor: palette.surfaceMuted,
+                            borderColor: palette.border,
+                        },
+                    ]}
+                >
+                    <Text style={[styles.statValue, { color: palette.textPrimary }]}>
+                        {recentBids}
+                    </Text>
+                    <Text style={[styles.statLabel, { color: palette.textSecondary }]}>
+                        bids
+                    </Text>
+                </View>
+            </View>
+
+            <Text style={[styles.statusText, { color: palette.textSecondary }]}>
+                {statusText}
+            </Text>
+
             {locationPicker.error ? (
-                <Text style={[styles.locationError, { color: palette.danger }]}>
+                <Text style={[styles.errorText, { color: palette.danger }]}>
                     {locationPicker.error}
                 </Text>
             ) : null}
 
-            <View style={styles.metricsRow}>
-                <OverviewMetric label="Active Requests" value={activeRequests} />
-                <OverviewMetric label="Recent Bids" value={recentBids} />
-            </View>
+            {showActions ? (
+                <View style={styles.actionsRow}>
+                    <View style={styles.primaryAction}>
+                        <AppButton
+                            title="Offer Help"
+                            onPress={onOfferHelp ?? (() => { })}
+                        />
+                    </View>
+
+                    <View style={styles.secondaryAction}>
+                        <AppButton
+                            title="Request Help"
+                            onPress={onRequestHelp ?? (() => { })}
+                            variant="secondary"
+                        />
+                    </View>
+                </View>
+            ) : null}
         </Card>
     );
 };
 
 const styles = StyleSheet.create({
-    overviewCard: {
-        marginTop: theme.spacing.sm,
-        borderRadius: 28,
-        padding: theme.spacing.md,
+    container: {
+        marginTop: theme.spacing.xs,
+        borderRadius: 24,
+        padding: theme.spacing.lg,
         gap: theme.spacing.md,
         overflow: "hidden",
+        borderWidth: 1,
+        shadowOpacity: 0.06,
+        shadowRadius: 18,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 2,
     },
-    topBadge: {
-        alignSelf: "flex-start",
+    accentOrb: {
+        position: "absolute",
+        width: 180,
+        height: 180,
         borderRadius: 999,
-        paddingHorizontal: theme.spacing.sm,
-        paddingVertical: 6,
+        top: -56,
+        right: -48,
     },
-    topBadgeText: {
-        fontSize: theme.typography.fontSize.xs,
-        fontWeight: theme.typography.fontWeight.semibold,
-        textTransform: "uppercase",
-        letterSpacing: 0.8,
-    },
-    headerBlock: {
-        gap: 4,
-    },
-    overviewEyebrow: {
-        fontSize: theme.typography.fontSize.xs,
-        textTransform: "uppercase",
-        letterSpacing: 0.8,
-    },
-    overviewTitle: {
-        fontSize: 26,
-        lineHeight: 30,
-        fontWeight: theme.typography.fontWeight.bold,
-    },
-    overviewSubtitle: {
-        fontSize: theme.typography.fontSize.sm,
-        lineHeight: theme.typography.lineHeight.sm,
-        marginTop: 2,
-    },
-    locationBanner: {
+    headerRow: {
         flexDirection: "row",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "space-between",
         gap: theme.spacing.md,
-        borderWidth: 1,
-        borderRadius: 22,
-        padding: theme.spacing.md,
     },
-    locationTextWrap: {
+    identityBlock: {
         flex: 1,
+        gap: 4,
+        paddingTop: 2,
     },
-    locationLabel: {
+    eyebrow: {
         fontSize: theme.typography.fontSize.xs,
-        marginBottom: 2,
-    },
-    locationValue: {
-        fontSize: theme.typography.fontSize.md,
+        lineHeight: theme.typography.lineHeight.xs,
+        textTransform: "uppercase",
+        letterSpacing: 0.7,
         fontWeight: theme.typography.fontWeight.semibold,
     },
-    metricsRow: {
+    title: {
+        fontSize: 28,
+        lineHeight: 32,
+        fontWeight: theme.typography.fontWeight.bold,
+    },
+    metaRow: {
         flexDirection: "row",
+        alignItems: "center",
         gap: theme.spacing.sm,
     },
-    locationError: {
+    locationChip: {
+        flex: 1,
+        minHeight: 44,
+        borderWidth: 1,
+        borderRadius: 16,
+        paddingHorizontal: theme.spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    locationText: {
+        flex: 1,
+        fontSize: theme.typography.fontSize.sm,
+        lineHeight: theme.typography.lineHeight.sm,
+        fontWeight: theme.typography.fontWeight.medium,
+    },
+    statPill: {
+        minHeight: 44,
+        minWidth: 74,
+        borderWidth: 1,
+        borderRadius: 16,
+        paddingHorizontal: theme.spacing.md,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    statValue: {
+        fontSize: theme.typography.fontSize.md,
+        lineHeight: theme.typography.lineHeight.md,
+        fontWeight: theme.typography.fontWeight.bold,
+    },
+    statLabel: {
         fontSize: theme.typography.fontSize.xs,
+        lineHeight: theme.typography.lineHeight.xs,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    statusText: {
+        fontSize: theme.typography.fontSize.sm,
+        lineHeight: theme.typography.lineHeight.sm,
+    },
+    errorText: {
+        fontSize: theme.typography.fontSize.xs,
+        lineHeight: theme.typography.lineHeight.xs,
+    },
+    actionsRow: {
+        flexDirection: "row",
+        gap: theme.spacing.sm,
+        paddingTop: theme.spacing.xxs,
+    },
+    primaryAction: {
+        flex: 1.1,
+    },
+    secondaryAction: {
+        flex: 1,
     },
 });
