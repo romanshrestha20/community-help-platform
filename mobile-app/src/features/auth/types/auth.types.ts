@@ -51,4 +51,8 @@ export interface User {
   phone?: string;
   isVerified: boolean;
   profile?: UserProfile | null;
+  avatarUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+
 }
