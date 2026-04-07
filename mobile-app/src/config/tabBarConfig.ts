@@ -1,4 +1,5 @@
 import type { ColorScheme, TabBarTheme, TabItem, ThemeMode } from "@/types/tabBar";
+import { darkColors, lightColors } from "@/design-system/tokens/colors";
 
 export const TAB_BAR_CONSTANTS = {
   HEIGHT: 72,
@@ -10,16 +11,16 @@ export const TAB_BAR_CONSTANTS = {
 
 export const TAB_BAR_THEME: TabBarTheme = {
   light: {
-    primaryColor: "#5c8001",
-    secondaryColor: "#7a7a7a",
-    backgroundColor: "#ffffff",
-    borderColor: "#e5e7eb",
+    primaryColor: lightColors.primary,
+    secondaryColor: lightColors.textSecondary,
+    backgroundColor: lightColors.surface,
+    borderColor: lightColors.border,
   },
   dark: {
-    primaryColor: "#7cb342",
-    secondaryColor: "#a1a1aa",
-    backgroundColor: "#18181b",
-    borderColor: "#27272a",
+    primaryColor: darkColors.primary,
+    secondaryColor: darkColors.textSecondary,
+    backgroundColor: darkColors.surface,
+    borderColor: darkColors.border,
   },
 };
 
