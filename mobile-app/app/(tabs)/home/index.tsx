@@ -4,6 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { Screen, Row, Stack, theme } from "@/design-system";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { GreetingOverview } from "@/features/home/components";
 import {
   HelpingOpportunitiesSection,
   RequestFilters,
@@ -12,8 +13,6 @@ import {
 import { BidRequestModal } from "@/features/bid/components";
 import { useHomeScreen } from "@/features/home/hooks";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
-import { formatShortAddress } from "@/features/location/components/LocationPickerField";
-import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 
 type ActionTileProps = {
   title: string;
@@ -56,12 +55,12 @@ function ActionTile({ title, icon, onPress, prominent = false }: ActionTileProps
 export default function Home() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const { palette } = useThemeContext();
   const {
     filters,
     updateFilter,
     resetFilters,
     helperRequests,
+    recentBids,
     creatingRequest,
     createRequestError,
     handleCreateRequest,
@@ -74,40 +73,21 @@ export default function Home() {
     handleSubmitBid,
   } = useHomeScreen();
 
-  const displayName = user?.fullName || user?.profile?.fullName || "User";
-  const firstName = displayName.split(" ")[0] || displayName;
-  const locationPicker = useLocationPicker({
-    initialValue: user?.profile?.address ?? null,
-    autoUseCurrentLocationOnMount: false,
-  });
-  const locationText = formatShortAddress(locationPicker.value ?? user?.profile?.address ?? null);
-  const hasLocation = Boolean(locationPicker.value ?? user?.profile?.address);
-
   return (
     <Screen contentContainerStyle={styles.container}>
-      <View style={styles.headerBlock}>
-        <Text style={[styles.greeting, { color: palette.textPrimary }]}>Hi, {firstName}</Text>
-        <Row justify="space-between" align="center" style={styles.locationRow}>
-          <Text style={[styles.location, { color: palette.textSecondary }]} numberOfLines={1}>
-            {locationText}
-          </Text>
-          <Pressable
-            onPress={locationPicker.useCurrentLocation}
-            disabled={locationPicker.loading}
-            style={({ pressed }) => [styles.locationAction, { opacity: pressed ? 0.72 : 1 }]}
-          >
-            <Ionicons name="locate-outline" size={15} color={palette.textSecondary} />
-            <Text style={[styles.locationActionText, { color: palette.textSecondary }]}>
-              {locationPicker.loading ? "Locating" : hasLocation ? "Update" : "Set"}
-            </Text>
-          </Pressable>
-        </Row>
-        {locationPicker.error ? (
-          <Text style={[styles.locationError, { color: palette.danger }]} numberOfLines={2}>
-            {locationPicker.error}
-          </Text>
-        ) : null}
-      </View>
+      <GreetingOverview
+        name={user?.fullName || user?.profile?.fullName || "User"}
+        location={
+          user?.profile?.address?.city ||
+          user?.profile?.address?.state ||
+          user?.profile?.address?.country ||
+          "Set your location"
+        }
+        avatarUrl={user?.avatarUrl}
+        activeRequests={helperRequests.length}
+        recentBids={recentBids.length}
+        showActions={false}
+      />
 
       <Stack gap="sm">
         <ActionTile
@@ -163,33 +143,6 @@ const styles = StyleSheet.create({
   container: {
     gap: theme.spacing.sm,
     paddingBottom: theme.spacing.xl,
-  },
-  headerBlock: {
-    marginTop: 2,
-    gap: theme.spacing.xxs,
-  },
-  greeting: {
-    fontSize: theme.typography.fontSize.xl,
-    fontWeight: theme.typography.fontWeight.semibold,
-  },
-  location: {
-    fontSize: theme.typography.fontSize.sm,
-    flex: 1,
-  },
-  locationRow: {
-    columnGap: theme.spacing.sm,
-  },
-  locationAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    columnGap: 4,
-  },
-  locationActionText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  locationError: {
-    fontSize: theme.typography.fontSize.xs,
   },
   tile: {
     height: 48,
