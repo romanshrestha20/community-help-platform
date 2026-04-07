@@ -8,7 +8,7 @@ export { RequestStatusBadge } from "./RequestStatusBadge";
 export { RequestEmptyState } from "./RequestEmptyState";
 export { RequestActionBar } from "./RequestActionBar";
 export { RequestFilters } from "./RequestFilters";
-export { HelpingOpportunitiesSection } from "./HelpingOpportunitiesSection";
+export { AvailableOpportunitiesSection as HelpingOpportunitiesSection } from "./HelpingOpportunitiesSection";
 
 // Types
 export * from "../types/helpRequest.types";
