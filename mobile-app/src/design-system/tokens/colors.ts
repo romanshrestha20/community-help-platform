@@ -1,52 +1,95 @@
 // src/design-system/tokens/colors.ts
+
 export const lightColors = {
-  background: "#f6f8f4",          // softer, less yellow
-  surface: "#ffffff",
-  surfaceMuted: "#eef3e8",
+  // Backgrounds
+  background: "#F6F8F4",
+  surface: "#FFFFFF",
+  surfaceSecondary: "#F7FAF5",
+  surfaceMuted: "#EEF3E8",
 
-  textPrimary: "#1e2a1e",
-  textSecondary: "#5f6f5f",
-  textInverse: "#ffffff",
+  // Text
+  textPrimary: "#1E2A1E",
+  textSecondary: "#5F6F5F",
+  textMuted: "#8A978A",
+  textInverse: "#FFFFFF",
 
-  border: "#d8e0d2",
-  borderStrong: "#a9b8a3",
+  // Borders
+  border: "#D8E0D2",
+  borderStrong: "#A9B8A3",
 
-  primary: "#6aa84f",             // friendlier green (less harsh)
-  primaryPressed: "#5a9442",
+  // Brand
+  primary: "#6AA84F",
+  primaryPressed: "#5A9442",
+  secondary: "#2A9D8F",
+  secondaryPressed: "#21867A",
+  accent: "#F4A261",
 
-  accent: "#2a9d8f",              // NEW → empathy / trust (teal)
+  // Semantic
+  success: "#4CAF50",
+  warning: "#F4A261",
+  danger: "#D64545",
+  dangerSoft: "#FDECEC",
+  error: "#D64545",
 
-  danger: "#d64545",              // softened red
-  dangerSoft: "#fdecec",
+  // Soft UI states
+  primarySoft: "rgba(106, 168, 79, 0.12)",
+  secondarySoft: "rgba(42, 157, 143, 0.12)",
+  accentSoft: "rgba(244, 162, 97, 0.14)",
+  successSoft: "rgba(76, 175, 80, 0.12)",
+  warningSoft: "rgba(244, 162, 97, 0.14)",
+  dangerSoftFill: "rgba(214, 69, 69, 0.10)",
 
-  success: "#4caf50",
-  warning: "#f4a261",             // warmer, less aggressive orange
+  // Utility
+  overlay: "rgba(30, 42, 30, 0.08)",
+  shadow: "rgba(30, 42, 30, 0.08)",
 };
 
 export const darkColors = {
-  background: "#181a18",          // slightly warmer than pure gray
+  // Backgrounds
+  background: "#181A18",
   surface: "#242724",
-  surfaceMuted: "#2f332f",
+  surfaceSecondary: "#2A2E2A",
+  surfaceMuted: "#2F332F",
 
-  textPrimary: "#f1f5f1",
-  textSecondary: "#a6b3a6",
-  textInverse: "#1a1a1a",
+  // Text
+  textPrimary: "#F1F5F1",
+  textSecondary: "#A6B3A6",
+  textMuted: "#7F8B7F",
+  textInverse: "#1A1A1A",
 
-  border: "#3c423c",
-  borderStrong: "#5c665c",
+  // Borders
+  border: "#3C423C",
+  borderStrong: "#5C665C",
 
-  primary: "#7cb342",             // keep your green identity
-  primaryPressed: "#689f38",
+  // Brand
+  primary: "#7CB342",
+  primaryPressed: "#689F38",
+  secondary: "#4DB6AC",
+  secondaryPressed: "#3AA397",
+  accent: "#FFB74D",
 
-  accent: "#4db6ac",              // teal pops nicely in dark mode
+  // Semantic
+  success: "#66BB6A",
+  warning: "#FFB74D",
+  danger: "#EF5350",
+  dangerSoft: "#3A1F1F",
+  error: "#EF5350",
 
-  danger: "#ef5350",
-  dangerSoft: "#3a1f1f",
+  // Soft UI states
+  primarySoft: "rgba(124, 179, 66, 0.18)",
+  secondarySoft: "rgba(77, 182, 172, 0.18)",
+  accentSoft: "rgba(255, 183, 77, 0.18)",
+  successSoft: "rgba(102, 187, 106, 0.18)",
+  warningSoft: "rgba(255, 183, 77, 0.18)",
+  dangerSoftFill: "rgba(239, 83, 80, 0.16)",
 
-  success: "#66bb6a",
-  warning: "#ffb74d",
+  // Utility
+  overlay: "rgba(0, 0, 0, 0.28)",
+  shadow: "rgba(0, 0, 0, 0.24)",
 };
 
+// Backward-compatible export for modules importing { colors } directly.
 export const colors = lightColors;
 
+export type ColorPalette = typeof lightColors;
 export type ColorToken = keyof typeof colors;
