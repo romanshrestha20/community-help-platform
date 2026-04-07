@@ -10,6 +10,7 @@ export const typography = {
     md: 16,
     lg: 20,
     xl: 28,
+    xxl: 32,
   },
   lineHeight: {
     xs: 16,
