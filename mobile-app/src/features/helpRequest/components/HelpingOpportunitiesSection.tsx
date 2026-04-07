@@ -88,7 +88,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: theme.typography.fontSize.lg,
     lineHeight: theme.typography.lineHeight.lg,
-    fontWeight: theme.typography.fontWeight.bold,
   },
   sectionCountBadge: {
     minWidth: 32,
@@ -102,7 +101,6 @@ const styles = StyleSheet.create({
   sectionCountText: {
     fontSize: theme.typography.fontSize.xs,
     lineHeight: theme.typography.lineHeight.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
   },
   cardsContainer: {
     gap: theme.spacing.md,
@@ -116,7 +114,6 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: theme.typography.fontSize.md,
     lineHeight: theme.typography.lineHeight.md,
-    fontWeight: theme.typography.fontWeight.semibold,
     marginBottom: theme.spacing.xs,
   },
   emptyText: {
