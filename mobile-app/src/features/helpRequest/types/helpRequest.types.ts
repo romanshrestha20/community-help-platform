@@ -18,10 +18,26 @@ export interface HelpRequest {
 
     requesterName: string;
 
+    images?: HelpRequestImage[];
+
     createdAt: string;
     updatedAt?: string;
 
     bidCount: number;
+}
+
+export interface HelpRequestImage {
+    id: string;
+    url: string;
+    type?: string;
+    requestId?: string;
+}
+
+export interface RequestImageUploadInput {
+    uri: string;
+    name?: string;
+    type?: string;
+    webFile?: File | Blob;
 }
 
 export type HelpRequestStatus = "OPEN" | "ASSIGNED" | "COMPLETED" | "CANCELLED";
