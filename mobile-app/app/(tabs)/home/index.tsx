@@ -60,6 +60,7 @@ export default function Home() {
     updateFilter,
     resetFilters,
     helperRequests,
+    myBids,
     recentBids,
     creatingRequest,
     createRequestError,
@@ -71,6 +72,7 @@ export default function Home() {
     openBidModal,
     closeBidModal,
     handleSubmitBid,
+    handleRemoveBid,
   } = useHomeScreen();
 
   return (
@@ -125,7 +127,12 @@ export default function Home() {
 
       <RequestFilters filters={filters} updateFilter={updateFilter} resetFilters={resetFilters} />
 
-      <HelpingOpportunitiesSection requests={helperRequests} onPressBid={openBidModal} />
+      <HelpingOpportunitiesSection
+        requests={helperRequests}
+        myBids={myBids}
+        onPressBid={openBidModal}
+        onRemoveBid={(request) => void handleRemoveBid(request.id)}
+      />
 
       <BidRequestModal
         visible={bidModalVisible}
