@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Card, Row, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
@@ -37,6 +37,8 @@ export const RequestCard = ({
   footer,
 }: Props) => {
   const { palette } = useThemeContext();
+  const imagePreviews = request.images?.slice(0, 3) ?? [];
+  const extraImageCount = Math.max((request.images?.length ?? 0) - imagePreviews.length, 0);
 
   return (
     <Pressable
@@ -77,6 +79,35 @@ export const RequestCard = ({
           >
             {request.description}
           </Text>
+
+          {imagePreviews.length ? (
+            <View style={styles.imageRow}>
+              {imagePreviews.map((image, index) => {
+                const isLastPreview = index === imagePreviews.length - 1;
+                const showOverflowBadge = isLastPreview && extraImageCount > 0;
+
+                return (
+                  <View key={image.id} style={styles.imageWrapper}>
+                    <Image
+                      source={{ uri: image.url }}
+                      style={[styles.thumbnail, { backgroundColor: palette.surfaceMuted }]}
+                    />
+
+                    {showOverflowBadge ? (
+                      <View
+                        style={[
+                          styles.imageOverflowBadge,
+                          { backgroundColor: palette.surfaceMuted },
+                        ]}
+                      >
+                        <Text style={[styles.imageOverflowText, { color: palette.textPrimary }]}>+{extraImageCount}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
 
           <View
             style={[
@@ -172,6 +203,31 @@ const styles = StyleSheet.create({
   description: {
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
+  },
+  imageRow: {
+    flexDirection: "row",
+    gap: theme.spacing.xs,
+    flexWrap: "wrap",
+  },
+  imageWrapper: {
+    position: "relative",
+  },
+  thumbnail: {
+    width: 74,
+    height: 74,
+    borderRadius: theme.radius.md,
+  },
+  imageOverflowBadge: {
+    position: "absolute",
+    inset: 0,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    opacity: 0.92,
+  },
+  imageOverflowText: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.bold,
   },
   metaSection: {
     borderWidth: 1,
