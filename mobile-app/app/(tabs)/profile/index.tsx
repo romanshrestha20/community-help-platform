@@ -27,7 +27,7 @@ import {
 
 import { ThemeModeCard } from "@/features/settings/components/ThemeModeCard";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
-import { showToast } from "@/utils/toast";
+import { showSuccessToast, showErrorToast } from "@/utils/toast";
 
 export default function ProfileTabScreen() {
   const { palette } = useThemeContext();
@@ -205,7 +205,7 @@ export default function ProfileTabScreen() {
               onConfirm={async (password) => {
                 const success = await handleDeleteProfile(password);
                 if (success) {
-                  showToast("Account deleted");
+                  showSuccessToast("Account deleted successfully");
                 }
                 return success;
               }}
@@ -249,10 +249,10 @@ export default function ProfileTabScreen() {
                   try {
                     await handleLogout();
                     setSessionModalVisible(false);
-                    showToast("Logged out successfully");
+                    showSuccessToast("Logged out successfully");
                     router.replace("/(auth)/login");
                   } catch {
-                    showToast("Could not log out. Please try again.");
+                    showErrorToast("Logout failed", "Please try again.");
                   }
                 }}
               />
