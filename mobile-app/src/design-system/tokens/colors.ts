@@ -31,6 +31,11 @@ export const lightColors = {
   dangerSoft: "#FDECEC",
   error: "#D64545",
 
+  // Variant surfaces
+  successSurface: "#EEF8EE",
+  dangerSurface: "#FCEEEE",
+  infoSurface: "#EDF7F6",
+
   // Soft UI states
   primarySoft: "rgba(106, 168, 79, 0.12)",
   secondarySoft: "rgba(42, 157, 143, 0.12)",
@@ -74,6 +79,11 @@ export const darkColors = {
   danger: "#EF5350",
   dangerSoft: "#3A1F1F",
   error: "#EF5350",
+
+  // Variant surfaces
+  successSurface: "#203822",
+  dangerSurface: "#3A1F1F",
+  infoSurface: "#1E3231",
 
   // Soft UI states
   primarySoft: "rgba(124, 179, 66, 0.18)",
