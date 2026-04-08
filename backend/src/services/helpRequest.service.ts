@@ -67,6 +67,16 @@ export const getHelpRequests = async (query: any) => {
     state: r.location?.state,
     country: r.location?.country,
     requesterName: r.requester.profile?.fullName,
+    images: Array.isArray(r.images)
+      ? r.images.map((image: any) => ({
+        id: image.id,
+        url: image.url,
+        type: image.type,
+        requestId: image.requestId,
+        createdAt: image.createdAt,
+        updatedAt: image.updatedAt,
+      }))
+      : [],
     bidCount: r._count.bids,
     createdAt: r.createdAt,
   }));
