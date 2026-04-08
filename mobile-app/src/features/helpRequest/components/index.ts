@@ -1,5 +1,7 @@
 // Export all request-related components
 export { RequestForm } from "./RequestForm";
+export { RequestFormContent } from "./RequestFormContent";
+export { RequestPhotoUploadSection } from "./RequestPhotoUploadSection";
 export { RequestCard } from "./RequestCard";
 export { RequestList } from "./RequestList";
 export { RequestDetail } from "./RequestDetail";
