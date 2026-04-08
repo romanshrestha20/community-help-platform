@@ -46,6 +46,15 @@ export const normalizeIncomingLocation = (
 ): LocationInput | null => {
   const raw = body.location;
 
+  if (typeof raw === "string" && raw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      return normalizeIncomingLocation({ ...body, location: parsed });
+    } catch {
+      return null;
+    }
+  }
+
   if (!raw || typeof raw !== "object") {
     return null;
   }
