@@ -153,7 +153,7 @@ apiClient.interceptors.response.use(
           console.error("[API] Cannot refresh: no refresh token stored.");
           await clearTokens();
           useAuthStore.getState().logout();
-          showToast("Session expired. Please log in again.");
+          showToast("error", "Session expired", "Please log in again");
           return Promise.reject(new Error("No refresh token"));
         }
 
@@ -187,7 +187,7 @@ apiClient.interceptors.response.use(
         await clearTokens();
         useAuthStore.getState().logout();
 
-        showToast("Session expired. Please login again.");
+        showToast("error", "Session expired", "Please login again");
 
         return Promise.reject(err);
       } finally {
@@ -204,10 +204,10 @@ apiClient.interceptors.response.use(
         error.message ||
         "Something went wrong";
 
-      showToast(message);
+      showToast("error", "Error", message);
       console.error("API Error:", message);
     } else if (error.request) {
-      showToast("Network error");
+      showToast("error", "Network Error");
       console.error("Network error");
     } else {
       console.error("Request error:", error.message);
