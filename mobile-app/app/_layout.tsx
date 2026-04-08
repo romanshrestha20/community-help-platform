@@ -1,17 +1,75 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Text, TextInput, View } from "react-native";
 import { Slot, useRouter, useSegments } from "expo-router";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  useFonts,
+} from "@expo-google-fonts/inter";
 
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useThemeStore } from "@/features/settings/store/theme.store";
 import { getAccessToken, getRefreshToken, clearTokens } from "@/utils/token";
 import { getMe } from "@/features/auth/api/auth.api";
+import { typography } from "@/design-system";
+import Toast from "react-native-toast-message";
+import { toastConfig } from "@/utils/toastConfig";
+import { configureToast } from "@/utils/toast";
+
+type DefaultPropsTarget = {
+  defaultProps?: {
+    style?: unknown;
+  };
+};
+
+let hasAppliedGlobalTypography = false;
+
+const applyGlobalTypographyDefaults = () => {
+  if (hasAppliedGlobalTypography) return;
+
+  const globalText = Text as typeof Text & DefaultPropsTarget;
+  const globalTextInput = TextInput as typeof TextInput & DefaultPropsTarget;
+
+  globalText.defaultProps = globalText.defaultProps || {};
+  globalText.defaultProps.style = [
+    { fontFamily: typography.fontFamily.regular },
+    globalText.defaultProps.style,
+  ];
+
+  globalTextInput.defaultProps = globalTextInput.defaultProps || {};
+  globalTextInput.defaultProps.style = [
+    { fontFamily: typography.fontFamily.regular },
+    globalTextInput.defaultProps.style,
+  ];
+
+  hasAppliedGlobalTypography = true;
+};
+
 export default function Layout() {
   const router = useRouter();
   const segments = useSegments();
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
 
   const { login, logout, isAuthenticated } = useAuthStore();
   const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    if (!fontsLoaded) return;
+    applyGlobalTypographyDefaults();
+
+    configureToast({
+      position: "top",
+      duration: 3000,
+      errorDuration: 4200,
+    });
+  }, [fontsLoaded]);
 
   useEffect(() => {
     let isMounted = true;
@@ -81,7 +139,7 @@ export default function Layout() {
     }
   }, [isAuthenticated, segments, isInitializing, router]);
 
-  if (isInitializing) {
+  if (isInitializing || !fontsLoaded) {
     return (
       <View style={styles.loaderContainer}>
         <ActivityIndicator />
@@ -89,7 +147,12 @@ export default function Layout() {
     );
   }
 
-  return <Slot />;
+  return (
+    <>
+      <Slot />
+      <Toast config={toastConfig} />
+    </>
+  );
 }
 
 const styles = {
