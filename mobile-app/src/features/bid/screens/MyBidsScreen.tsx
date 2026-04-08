@@ -9,7 +9,8 @@ import { BidComposerCard } from "@/features/bid/components/BidComposerCard";
 import { BidEmptyState } from "@/features/bid/components/BidEmptyState";
 import { BidList } from "@/features/bid/components/BidList";
 import { useMyBidsScreen } from "@/features/bid/hooks/useMyBidsScreen";
-import { showToast } from "@/utils/toast";
+import { showSuccessToast } from "@/utils/toast";
+import { APP_ROUTES } from "@/config/routes";
 
 export const MyBidsScreen = () => {
     const router = useRouter();
@@ -38,7 +39,7 @@ export const MyBidsScreen = () => {
                 onPress: async () => {
                     const deleted = await removeBid(bidId);
                     if (deleted) {
-                        showToast("Bid deleted");
+                        showSuccessToast("Bid deleted successfully");
                     }
                 },
             },
@@ -50,6 +51,11 @@ export const MyBidsScreen = () => {
             <AppHeader
                 title="My Bids"
                 subtitle="Review, edit, and remove bids you submitted."
+                showBackButton
+                backButtonProps={{
+                    fallback: APP_ROUTES.PROFILE,
+                    variant: "secondary",
+                }}
             />
 
             <Card>

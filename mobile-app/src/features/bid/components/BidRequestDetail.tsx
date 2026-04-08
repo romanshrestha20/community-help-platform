@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Card } from "@/design-system/layout/Card";
-import { Stack } from "@/design-system/layout/Stack";
 import { AppButton } from "@/components/ui/AppButton";
 import { colors, spacing, typography } from "@/design-system";
-import { showToast } from "@/utils/toast";
+import { showErrorToast, showSuccessToast } from "@/utils/toast";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useHelpRequest } from "@/features/helpRequest/hooks/helpRequest.hook";
 import { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
-import { Bid, BidStatus, CreateBidData } from "../types/bid.types";
+import { BidStatus, CreateBidData } from "../types/bid.types";
 import { BidForm } from "./BidForm";
 import { BidList } from "./BidList";
 import { useBid } from "../hooks/bid.hook";
@@ -44,7 +43,6 @@ export const BidRequestDetail: React.FC<BidRequestDetailProps> = ({
 
     const [request, setRequest] = useState<HelpRequest | null>(initialRequest || null);
     const [submittingBid, setSubmittingBid] = useState(false);
-    const [selectedBidProfile, setSelectedBidProfile] = useState<Bid | null>(null);
 
     const bids = useMemo(() => {
         const cached = bidsByRequestId[requestId] || [];
@@ -126,11 +124,11 @@ export const BidRequestDetail: React.FC<BidRequestDetailProps> = ({
         try {
             const created = await createBid(payload);
             if (!created) {
-                showToast("Failed to place bid");
+                showErrorToast("Failed to place bid");
                 return;
             }
 
-            showToast("Bid submitted");
+            showSuccessToast("Bid submitted successfully");
             await loadBids(true);
         } finally {
             setSubmittingBid(false);
@@ -141,11 +139,11 @@ export const BidRequestDetail: React.FC<BidRequestDetailProps> = ({
         const updated = await respondToBidOptimistic(bid.id, status, requestId);
 
         if (!updated) {
-            showToast("Could not update bid. Changes were reverted.");
+            showErrorToast("Failed to update", "Changes were reverted");
             return;
         }
 
-        showToast(status === "ACCEPTED" ? "Bid accepted" : "Bid rejected");
+        showSuccessToast(status === "ACCEPTED" ? "Bid accepted" : "Bid rejected");
         await loadRequest();
     }, [loadRequest, requestId, respondToBidOptimistic]);
 
@@ -198,29 +196,6 @@ export const BidRequestDetail: React.FC<BidRequestDetailProps> = ({
                     </View>
                 )}
 
-                {selectedBidProfile && (
-                    <Card style={styles.profileCard}>
-                        <Stack gap="xs">
-                            <Text style={styles.sectionTitle}>Bidder Profile</Text>
-                            <Text style={styles.captionText}>Name: {selectedBidProfile.helperName}</Text>
-                            <Text style={styles.captionText}>
-                                Email: {selectedBidProfile.helperEmail || "Not available"}
-                            </Text>
-                            <Text style={styles.captionText}>
-                                Age: {typeof selectedBidProfile.helperAge === "number" ? selectedBidProfile.helperAge : "Not available"}
-                            </Text>
-                            <Text style={styles.captionText}>Bid Amount: ${selectedBidProfile.amount.toFixed(2)}</Text>
-                            <Text style={styles.captionText}>Message: {selectedBidProfile.message}</Text>
-                            <AppButton
-                                title="Close Profile"
-                                onPress={() => setSelectedBidProfile(null)}
-                                variant="ghost"
-                                fullWidth={false}
-                            />
-                        </Stack>
-                    </Card>
-                )}
-
                 <BidList
                     title={isRequester ? "All Bids" : "My Bid"}
                     bids={visibleBids}
@@ -232,7 +207,6 @@ export const BidRequestDetail: React.FC<BidRequestDetailProps> = ({
                     canModify={isHelper}
                     disableRespondActions={disableRespondActions}
                     actionLoadingByBidId={actionLoadingByBidId}
-                    onBidViewProfile={isRequester ? (bid) => setSelectedBidProfile(bid) : undefined}
                     onBidAccept={(bid) => handleRespond(bid, "ACCEPTED")}
                     onBidReject={(bid) => handleRespond(bid, "REJECTED")}
                     onRetry={() => loadBids(true)}
@@ -281,12 +255,6 @@ const styles = StyleSheet.create({
     requestOverviewCard: {
         borderWidth: 1,
         borderColor: colors.border,
-    },
-    profileCard: {
-        marginBottom: spacing.md,
-        borderColor: colors.border,
-        borderWidth: 1,
-        backgroundColor: colors.surfaceMuted,
     },
     sectionHeader: {
         flexDirection: "row",
