@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { HelpRequest } from "@/features/helpRequest/components";
-import { showToast } from "@/utils/toast";
+import { showErrorToast, showSuccessToast, showToast } from "@/utils/toast";
 import { useBid } from "./bid.hook";
 
 interface UseBidRequestFlowOptions {
@@ -40,11 +40,11 @@ export const useBidRequestFlow = ({ onSuccess }: UseBidRequestFlowOptions = {}) 
             });
 
             if (!created) {
-                showToast("Could not submit bid");
+                showErrorToast("Could not submit bid");
                 return;
             }
 
-            showToast("Bid submitted successfully");
+            showSuccessToast("Bid submitted successfully");
             closeBidModal();
         } finally {
             setSubmittingBid(false);
