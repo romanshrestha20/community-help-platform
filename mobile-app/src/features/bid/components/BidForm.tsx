@@ -6,6 +6,7 @@ import { Stack } from "@/design-system/layout/Stack";
 import { AppButton } from "@/components/ui/AppButton";
 import { spacing, colors } from "@/design-system/tokens";
 import { CreateBidData, UpdateBidData, Bid } from "../types/bid.types";
+import { Toast } from "react-native-toast-message/lib/src/Toast";
 
 interface BidFormProps {
     helpRequestId?: string;
@@ -57,6 +58,7 @@ export const BidForm: React.FC<BidFormProps> = ({
             return false;
         }
 
+        
         return true;
     };
 
@@ -170,15 +172,6 @@ export const BidForm: React.FC<BidFormProps> = ({
                             </Text>
                         </Card>
                     )}
-                    {/* Error */}
-                    {error && (
-                        <Card style={{ backgroundColor: colors.danger + "20" }}>
-                            <Text >
-                                {error}
-                            </Text>
-                        </Card>
-                    )}
-
                     {/* Submit */}
                     <AppButton
                         title={loading ? "Submitting..." : isUpdate ? "Update Bid" : "Place Bid"}
