@@ -1,14 +1,23 @@
 import { useAsync } from "@/utils/useAsync";
 import { useCallback } from "react";
 import * as helpRequestService from "../services/helpRequest.service";
-import { CreateHelpRequestData, HelpRequestStatus, UpdateHelpRequestData } from "../types/helpRequest.types";
+import {
+    CreateHelpRequestData,
+    HelpRequestStatus,
+    RequestImageUploadInput,
+    UpdateHelpRequestData,
+} from "../types/helpRequest.types";
 
 
 export const useHelpRequest = () => {
     const { loading, error, run } = useAsync();
 
-    const createHelpRequest = useCallback((data: CreateHelpRequestData) => {
-        return run(() => helpRequestService.createHelpRequest(data));
+    const createHelpRequest = useCallback((data: CreateHelpRequestData, images: RequestImageUploadInput[] = []) => {
+        return run(() => helpRequestService.createHelpRequest(data, images));
+    }, [run]);
+
+    const addHelpRequestImages = useCallback((requestId: string, images: RequestImageUploadInput[]) => {
+        return run(() => helpRequestService.addHelpRequestImages(requestId, images));
     }, [run]);
 
     const getHelpRequestById = useCallback((id: string) => {
@@ -35,6 +44,7 @@ export const useHelpRequest = () => {
         loading,
         error,
         createHelpRequest,
+        addHelpRequestImages,
         getHelpRequestById,
         getMyHelpRequests,
         updateHelpRequest,
