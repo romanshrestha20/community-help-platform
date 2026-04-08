@@ -7,6 +7,7 @@ export { BidRequestModal } from "./BidRequestModal";
 export { BiddingActivitySection } from "./BiddingActivitySection";
 export { BidComposerCard } from "./BidComposerCard";
 export { BidEmptyState } from "./BidEmptyState";
+export { BidderProfileModal } from "./BidderProfileModal";
 
 // Types
 export * from "../types/bid.types";
