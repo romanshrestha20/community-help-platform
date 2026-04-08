@@ -14,6 +14,9 @@ export interface Bid {
     helperName: string;
     helperEmail?: string;
     helperAge?: number;
+    helperGender?: string;
+    helperAvatarUrl?: string | null;
+    helperLocation?: string;
 
     createdAt: string;
     updatedAt?: string;
