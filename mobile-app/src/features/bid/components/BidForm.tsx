@@ -58,7 +58,7 @@ export const BidForm: React.FC<BidFormProps> = ({
             return false;
         }
 
-        
+
         return true;
     };
 

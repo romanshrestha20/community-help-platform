@@ -62,63 +62,104 @@ const iconByKind: Record<ToastKind, keyof typeof Ionicons.glyphMap> = {
   info: "information-circle",
 };
 
+const labelByKind: Record<ToastKind, string> = {
+  success: "Success",
+  error: "Error",
+  info: "Info",
+};
+
 const toneByKind = {
   success: (palette: typeof lightColors | typeof darkColors) => ({
     border: palette.success,
-    bg: palette.successSoft,
+    bg: palette.successSurface,
     iconBg: palette.success,
     iconColor: palette.textInverse,
   }),
   error: (palette: typeof lightColors | typeof darkColors) => ({
     border: palette.danger,
-    bg: palette.dangerSoft,
+    bg: palette.dangerSurface,
     iconBg: palette.danger,
     iconColor: palette.textInverse,
   }),
   info: (palette: typeof lightColors | typeof darkColors) => ({
-    border: palette.primary,
-    bg: palette.primarySoft,
-    iconBg: palette.primary,
+    border: palette.secondary,
+    bg: palette.infoSurface,
+    iconBg: palette.secondary,
     iconColor: palette.textInverse,
   }),
 };
 
 const baseContainerStyle: ViewStyle = {
-  minHeight: 64,
-  borderRadius: radius.lg,
-  paddingVertical: spacing.sm,
-  paddingHorizontal: spacing.sm,
+  minHeight: 72,
+  borderRadius: radius.xl,
+  paddingVertical: spacing.md,
+  paddingHorizontal: spacing.md,
   marginHorizontal: spacing.md,
   marginVertical: spacing.xxs,
   borderWidth: 1,
   borderLeftWidth: 4,
   flexDirection: "row",
   alignItems: "center",
+  gap: spacing.md,
+  shadowOpacity: 0.14,
+  shadowRadius: 18,
+  shadowOffset: { width: 0, height: 10 },
+  elevation: 5,
+};
+
+const accentRailStyle: ViewStyle = {
+  position: "absolute",
+  left: 0,
+  top: 0,
+  bottom: 0,
+  width: 5,
+};
+
+const textGroupStyle: ViewStyle = {
+  flex: 1,
+  gap: spacing.xxs,
+};
+
+const headerRowStyle: ViewStyle = {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
   gap: spacing.sm,
-  shadowOpacity: 0.12,
-  shadowRadius: 14,
-  shadowOffset: { width: 0, height: 6 },
-  elevation: 3,
+};
+
+const kindChipStyle: ViewStyle = {
+  paddingHorizontal: spacing.xs,
+  paddingVertical: 2,
+  borderRadius: radius.fill,
+  alignSelf: "flex-start",
+};
+
+const kindChipTextStyle: TextStyle = {
+  fontFamily: typography.fontFamily.medium,
+  fontSize: typography.fontSize.xxs,
+  lineHeight: typography.lineHeight.xxs,
+  fontWeight: typography.fontWeight.medium,
+  letterSpacing: 0.4,
+  textTransform: "uppercase",
 };
 
 const titleStyle: TextStyle = {
   fontFamily: typography.fontFamily.semibold,
-  fontSize: typography.fontSize.sm,
-  lineHeight: typography.lineHeight.sm,
+  fontSize: typography.fontSize.md,
+  lineHeight: typography.lineHeight.md,
   fontWeight: typography.fontWeight.semibold,
 };
 
 const messageStyle: TextStyle = {
   fontFamily: typography.fontFamily.regular,
-  fontSize: typography.fontSize.xs,
-  lineHeight: typography.lineHeight.xs,
-  opacity: 0.9,
-  marginTop: 2,
+  fontSize: typography.fontSize.sm,
+  lineHeight: typography.lineHeight.sm,
+  opacity: 0.92,
 };
 
 const iconContainerStyle: ViewStyle = {
-  width: 30,
-  height: 30,
+  width: 34,
+  height: 34,
   borderRadius: radius.fill,
   alignItems: "center",
   justifyContent: "center",
@@ -135,6 +176,7 @@ const AnimatedToast = ({ kind, props }: AnimatedToastProps) => {
   const tone = toneByKind[kind](palette);
   const showIcon = props.props?.showIcon ?? true;
   const iconName = props.props?.iconName || iconByKind[kind];
+  const label = labelByKind[kind];
 
   const enter = useSharedValue(0);
   const iconPop = useSharedValue(0);
@@ -194,6 +236,13 @@ const AnimatedToast = ({ kind, props }: AnimatedToastProps) => {
         accessibilityRole="button"
         accessibilityLabel={props.text1 || "Toast message"}
       >
+        <View
+          style={[
+            accentRailStyle,
+            { backgroundColor: tone.border },
+          ]}
+        />
+
         {showIcon ? (
           <Animated.View
             style={[
@@ -211,17 +260,35 @@ const AnimatedToast = ({ kind, props }: AnimatedToastProps) => {
           </Animated.View>
         ) : null}
 
-        <View style={styles.textContainer}>
-          <Text
-            numberOfLines={2}
-            style={[
-              titleStyle,
-              { color: palette.textPrimary },
-              styleOverrides.titleStyle,
-            ]}
-          >
-            {props.text1}
-          </Text>
+        <View style={textGroupStyle}>
+          <View style={headerRowStyle}>
+            <Text
+              numberOfLines={2}
+              style={[
+                titleStyle,
+                { color: palette.textPrimary, flex: 1 },
+                styleOverrides.titleStyle,
+              ]}
+            >
+              {props.text1}
+            </Text>
+
+            <View
+              style={[
+                kindChipStyle,
+                { backgroundColor: tone.iconBg },
+              ]}
+            >
+              <Text
+                style={[
+                  kindChipTextStyle,
+                  { color: tone.iconColor },
+                ]}
+              >
+                {label}
+              </Text>
+            </View>
+          </View>
 
           {props.text2 ? (
             <Text
@@ -248,7 +315,5 @@ export const toastConfig: ToastConfig = {
 };
 
 const styles = StyleSheet.create({
-  textContainer: {
-    flex: 1,
-  },
+  textContainer: {},
 });
