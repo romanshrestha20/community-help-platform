@@ -1,10 +1,9 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppInput } from "@/components/ui/AppInput";
-import { Card, Stack, spacing, colors, typography, theme } from "@/design-system";
+import { Card, Stack, colors, spacing, typography, theme } from "@/design-system";
 import LocationPickerField from "@/features/location/components/LocationPickerField";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import {
@@ -13,6 +12,8 @@ import {
     RequestImageUploadInput,
 } from "../types/helpRequest.types";
 import { RequestPhotoUploadSection } from "./RequestPhotoUploadSection";
+import { RequestFormHero } from "./RequestFormHero";
+import { RequestFormSection } from "./RequestFormSection";
 
 export type RequestFormValues = Omit<CreateHelpRequestData, "location">;
 export type RequestFormCategory = RequestFormValues["category"];
@@ -38,27 +39,7 @@ export type RequestFormContentProps = {
     locationPickerProps: RequestFormLocationPickerProps;
 };
 
-type FormSectionProps = {
-    title: string;
-    description?: string;
-    children: React.ReactNode;
-};
-
 const DEFAULT_CATEGORIES: RequestFormCategory[] = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
-
-const FormSection = ({ title, description, children }: FormSectionProps) => (
-    <Card style={styles.sectionCard}>
-        <Stack gap="sm">
-            <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleWrap}>
-                    <Text style={styles.sectionTitle}>{title}</Text>
-                    {description ? <Text style={styles.sectionDescription}>{description}</Text> : null}
-                </View>
-            </View>
-            {children}
-        </Stack>
-    </Card>
-);
 
 export const RequestFormContent = ({
     title,
@@ -80,20 +61,7 @@ export const RequestFormContent = ({
 
     return (
         <Stack gap="md">
-            <View
-                style={[
-                    styles.heroCard,
-                    { backgroundColor: palette.surfaceMuted, borderColor: palette.border },
-                ]}
-            >
-                <View style={[styles.heroIcon, { backgroundColor: palette.primary }]}>
-                    <Ionicons name="document-text-outline" size={18} color={palette.textInverse} />
-                </View>
-                <View style={styles.heroCopy}>
-                    <Text style={[styles.heroTitle, { color: palette.textPrimary }]}>{title}</Text>
-                    <Text style={[styles.heroSubtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
-                </View>
-            </View>
+            <RequestFormHero title={title} subtitle={subtitle} />
 
             <RequestPhotoUploadSection
                 loading={loading}
@@ -104,7 +72,7 @@ export const RequestFormContent = ({
                 onRemoveImage={onRemoveImage}
             />
 
-            <FormSection
+            <RequestFormSection
                 title="Details"
                 description="Write a clear title and description, then choose the closest category."
             >
@@ -154,87 +122,35 @@ export const RequestFormContent = ({
                         }
                     />
                 </Stack>
-            </FormSection>
 
+            </RequestFormSection>
 
-
-            <FormSection
+            <RequestFormSection
                 title="Location"
                 description="Pick where the help is needed so nearby helpers can find it."
             >
                 <LocationPickerField {...locationPickerProps} />
-            </FormSection>
+            </RequestFormSection>
 
             {validationError || error ? (
-                <Card
-                    style={[
-                        styles.errorCard,
-                        {
-                            borderColor: palette.dangerSoft,
-                            backgroundColor: palette.dangerSoft,
-                        },
-                    ]}
+                <RequestFormSection
+                    title="Form issue"
+                    description="Fix the highlighted problem before you post the request."
+                    style={{
+                        borderColor: palette.dangerSoft,
+                        backgroundColor: palette.dangerSoft,
+                    }}
                 >
                     <Text style={[styles.errorText, { color: palette.danger }]}>
                         {validationError || error}
                     </Text>
-                </Card>
+                </RequestFormSection>
             ) : null}
         </Stack>
     );
 };
 
 const styles = StyleSheet.create({
-    heroCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.md,
-        padding: spacing.md,
-        borderRadius: theme.radius.lg,
-        borderWidth: 1,
-    },
-    heroIcon: {
-        width: 42,
-        height: 42,
-        borderRadius: theme.radius.fill,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    heroCopy: {
-        flex: 1,
-    },
-    heroTitle: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.bold,
-    },
-    heroSubtitle: {
-        marginTop: 4,
-        fontSize: typography.fontSize.sm,
-        lineHeight: 20,
-    },
-    sectionCard: {
-        padding: spacing.md,
-        borderRadius: theme.radius.lg,
-    },
-    sectionHeader: {
-        gap: 2,
-    },
-    sectionTitleWrap: {
-        gap: 2,
-    },
-    sectionTitle: {
-        fontSize: typography.fontSize.md,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.textPrimary,
-    },
-    sectionDescription: {
-        fontSize: typography.fontSize.xs,
-        lineHeight: 18,
-        color: colors.textSecondary,
-    },
-    sectionGroup: {
-        gap: spacing.sm,
-    },
     groupHeader: {
         flexDirection: "row",
         alignItems: "center",
@@ -254,11 +170,6 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         flexWrap: "wrap",
         gap: spacing.sm,
-    },
-    errorCard: {
-        borderWidth: 1,
-        borderRadius: theme.radius.lg,
-        padding: spacing.md,
     },
     errorText: {
         fontSize: typography.fontSize.sm,

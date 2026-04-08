@@ -1,13 +1,9 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppModal } from "@/components/ui/AppModal";
-import { Card, colors, spacing, theme, typography } from "@/design-system";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
-import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { showInfoToast } from "@/utils/toast";
 import { useHelpRequest } from "../hooks/helpRequest.hook";
 import {
@@ -16,6 +12,7 @@ import {
     RequestImageUploadInput,
 } from "../types/helpRequest.types";
 import { RequestFormContent, RequestFormValues } from "./RequestFormContent";
+import { RequestFormTrigger } from "./RequestFormTrigger";
 
 const MAX_REQUEST_IMAGES = 5;
 
@@ -34,7 +31,6 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     error = null,
     compactTrigger = false,
 }) => {
-    const { palette } = useThemeContext();
     const { addHelpRequestImages } = useHelpRequest();
     const existingImages = initialData?.images ?? [];
     const locationPicker = useLocationPicker({
@@ -150,53 +146,11 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 
     return (
         <>
-            {compactTrigger ? (
-                <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel="Create request"
-                    onPress={() => setModalVisible(true)}
-                    style={[
-                        styles.compactTileButton,
-                        {
-                            backgroundColor: palette.surfaceMuted,
-                            borderColor: palette.border,
-                        },
-                    ]}
-                    activeOpacity={0.82}
-                >
-                    <View style={[styles.compactTileIcon, { backgroundColor: palette.primary }]}>
-                        <Ionicons name="add" size={18} color={palette.textInverse} />
-                    </View>
-                    <View style={styles.compactTileContent}>
-                        <Text style={[styles.compactTileTitle, { color: palette.textPrimary }]}>Request help</Text>
-                        <Text style={[styles.compactTileText, { color: palette.textSecondary }]}>Post a new request</Text>
-                    </View>
-                </TouchableOpacity>
-            ) : (
-                <Card style={styles.placeholderCard}>
-                    <View style={styles.placeholderHeader}>
-                        <View style={styles.placeholderIconWrap}>
-                            <Ionicons name="sparkles-outline" size={20} color={palette.primary} />
-                        </View>
-                        <View style={styles.placeholderCopy}>
-                            <Text style={[styles.placeholderTitle, { color: palette.textPrimary }]}>Create request</Text>
-                            <Text style={[styles.placeholderSubtitle, { color: palette.textSecondary }]}>Share what you need and attach a few photos for context.</Text>
-                        </View>
-                        <TouchableOpacity
-                            accessibilityRole="button"
-                            accessibilityLabel="Create request"
-                            onPress={() => setModalVisible(true)}
-                            style={[
-                                styles.quickActionIconButton,
-                                { borderColor: palette.border, backgroundColor: palette.surface },
-                            ]}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons name="arrow-up-right-box" size={18} color={palette.textPrimary} />
-                        </TouchableOpacity>
-                    </View>
-                </Card>
-            )}
+            <RequestFormTrigger
+                title={initialData ? "Edit request" : "Create request"}
+                compact={compactTrigger}
+                onPress={() => setModalVisible(true)}
+            />
 
             <AppModal
                 visible={modalVisible}
@@ -244,77 +198,3 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         </>
     );
 };
-
-const styles = StyleSheet.create({
-    placeholderCard: {
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.md,
-        marginVertical: spacing.xs,
-        borderRadius: theme.radius.lg,
-        backgroundColor: colors.surfaceMuted,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    placeholderHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.sm,
-    },
-    placeholderIconWrap: {
-        width: 40,
-        height: 40,
-        borderRadius: theme.radius.fill,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    placeholderCopy: {
-        flex: 1,
-    },
-    placeholderTitle: {
-        fontSize: typography.fontSize.md,
-        fontWeight: typography.fontWeight.bold,
-    },
-    placeholderSubtitle: {
-        marginTop: 2,
-        fontSize: typography.fontSize.xs,
-        lineHeight: 18,
-    },
-    quickActionIconButton: {
-        width: 40,
-        height: 40,
-        borderRadius: theme.radius.fill,
-        alignItems: "center",
-        justifyContent: "center",
-        borderWidth: 1,
-    },
-    compactTileButton: {
-        minHeight: 56,
-        borderRadius: theme.radius.lg,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.sm,
-        paddingHorizontal: spacing.md,
-        borderWidth: 1,
-    },
-    compactTileIcon: {
-        width: 34,
-        height: 34,
-        borderRadius: theme.radius.fill,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    compactTileContent: {
-        flex: 1,
-    },
-    compactTileTitle: {
-        fontSize: typography.fontSize.sm,
-        fontWeight: typography.fontWeight.bold,
-    },
-    compactTileText: {
-        marginTop: 2,
-        fontSize: typography.fontSize.xs,
-    },
-});
