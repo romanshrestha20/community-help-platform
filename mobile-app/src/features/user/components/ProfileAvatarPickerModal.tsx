@@ -5,7 +5,7 @@ import * as ImagePicker from "expo-image-picker";
 import { radius, spacing, typography } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useUser } from "../hooks/user.hook";
-import { showToast } from "@/utils/toast";
+import { showInfoToast, showSuccessToast, showToast } from "@/utils/toast";
 
 type Props = {
   visible: boolean;
@@ -21,7 +21,7 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (!permission.granted) {
-        showToast("Please allow access to your photo library.");
+        showInfoToast("Permission required", "Please allow access to your photo library.");
         return;
       }
 
@@ -56,7 +56,7 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
       const success = await handleDeleteAvatar();
 
       if (success) {
-        showToast("Profile photo removed");
+        showSuccessToast("Photo removed");
         onClose();
       }
     } catch (error) {

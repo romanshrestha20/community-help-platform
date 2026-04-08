@@ -9,6 +9,7 @@ import { RequestCard } from "@/features/helpRequest/components/RequestCard";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
 import { useRequestList } from "@/features/helpRequest/hooks/useRequestList";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { APP_ROUTES } from "@/config/routes";
 
 export const MyRequestsScreen = () => {
     const router = useRouter();
@@ -22,7 +23,13 @@ export const MyRequestsScreen = () => {
             <AppHeader
                 title="My Requests"
                 subtitle="Track requests you posted and manage incoming bids."
+                showBackButton
+                backButtonProps={{
+                    fallback: APP_ROUTES.PROFILE,
+                    variant: "secondary",
+                }}
             />
+
 
             <AppButton
                 title="Create Request"

@@ -6,7 +6,7 @@ import {
 import { CreateHelpRequestData } from "@/features/helpRequest/types/helpRequest.types";
 import { useGlobalFilters } from "@/features/helpRequest/hooks/useGlobalFilters";
 import { useBidRequestFlow } from "@/features/bid/hooks";
-import { showToast } from "@/utils/toast";
+import { showErrorToast, showSuccessToast, showToast } from "@/utils/toast";
 
 export const useHomeScreen = () => {
     const user = useAuthStore((state) => state.user);
@@ -85,11 +85,11 @@ export const useHomeScreen = () => {
 
         try {
             await addNewRequest(data);
-            showToast("Request posted successfully");
+            showSuccessToast("Request posted successfully");
         } catch (error) {
             const message = error instanceof Error ? error.message : "Could not create request";
             setCreateRequestError(message);
-            showToast(message);
+            showErrorToast("Error", message);
             throw error;
         } finally {
             setCreatingRequest(false);

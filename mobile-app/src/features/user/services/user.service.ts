@@ -11,6 +11,8 @@ import {
   mapProfileMutationResponseToUser,
 } from "../mappers/user.mapper";
 
+import { showToast } from "@/utils/toast";
+
 const buildAvatarFormData = async (file: AvatarUploadInput): Promise<FormData> => {
   const formData = new FormData();
 
@@ -54,6 +56,7 @@ export const fetchUserProfile = async (
       "Failed to fetch user profile";
 
     console.error("Fetch user profile error:", error);
+    showToast("error", "Failed to fetch user profile");
 
     return {
       success: false,
@@ -92,7 +95,7 @@ export const updateUserProfileService = async (
       "Failed to update user profile";
 
     console.error("Update user profile error:", error);
-
+    showToast("error", "Failed to update user profile");
     return {
       success: false,
       data: null,
@@ -117,6 +120,8 @@ export const uploadUserAvatarService = async (
     const formData = await buildAvatarFormData(file);
     const data = await userApi.uploadUserAvatar(formData);
 
+    showToast("success", "Avatar updated successfully");
+
     return {
       success: true,
       data: mapProfileMutationResponseToUser(data, currentUser),
@@ -130,7 +135,7 @@ export const uploadUserAvatarService = async (
       "Failed to upload avatar";
 
     console.error("Upload avatar error:", error);
-
+    showToast("error", "Failed to upload avatar");
     return {
       success: false,
       data: null,
@@ -158,7 +163,7 @@ export const deleteUserAvatarService = async (
       "Failed to delete avatar";
 
     console.error("Delete avatar error:", error);
-
+    showToast("error", "Failed to delete avatar");
     return {
       success: false,
       data: null,
@@ -193,6 +198,7 @@ export const deleteUserProfileService = async (password?: string): Promise<{
       "Failed to delete user profile";
 
     console.error("Delete user profile error:", error);
+    showToast("error", "Failed to delete user profile");
 
     return {
       success: false,

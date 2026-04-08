@@ -3,6 +3,7 @@ import { StyleSheet, Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
+import { AppBackButton } from "@/components/ui/AppBackButton";
 import { AppInput } from "@/components/ui/AppInput";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { ScreenView, Card, Row, Stack, theme } from "@/design-system";
@@ -10,7 +11,8 @@ import LocationPickerField from "@/features/location/components/LocationPickerFi
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useCreateEditRequestScreen } from "@/features/helpRequest/hooks/useCreateEditRequestScreen";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
-import { showToast } from "@/utils/toast";
+import { showSuccessToast } from "@/utils/toast";
+import { goBackOrFallback } from "@/utils/navigation";
 
 const CATEGORY_OPTIONS = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"] as const;
 
@@ -37,11 +39,18 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
         submitRequest,
     } = useCreateEditRequestScreen({ requestId: activeRequestId });
 
+    const handleBack = () => {
+        goBackOrFallback({
+            fallback: "/home/my-requests",
+            replace: true,
+        });
+    };
+
     const handleSave = async () => {
         const saved = await submitRequest();
         if (!saved) return;
 
-        showToast(isEditing ? "Request updated" : "Request created");
+        showSuccessToast(isEditing ? "Request updated successfully" : "Request created successfully");
         router.replace(`/home/requests/${saved.id}`);
     };
 
@@ -63,7 +72,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                     title="Request unavailable"
                     description={requestError}
                     actionLabel="Go back"
-                    onAction={() => router.back()}
+                    onAction={handleBack}
                 />
             </ScreenView>
         );
@@ -71,6 +80,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
 
     return (
         <ScreenView>
+
             <AppHeader
                 title={isEditing ? "Edit Request" : "Create Request"}
                 subtitle={
@@ -78,6 +88,11 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                         ? "Update the request details and location."
                         : "Post a new help request for the community."
                 }
+                showBackButton
+                backButtonProps={{
+                    fallback: "/home/my-requests",
+                    variant: "secondary",
+                }}
             />
 
             <Card>
@@ -144,7 +159,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                     <Row gap="sm">
                         <AppButton
                             title="Cancel"
-                            onPress={() => router.back()}
+                            onPress={handleBack}
                             variant="secondary"
                             fullWidth={false}
                             disabled={saving}

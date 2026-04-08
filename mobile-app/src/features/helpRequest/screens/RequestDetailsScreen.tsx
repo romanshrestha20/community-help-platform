@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { Alert, StyleSheet, Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
+import { AppBackButton } from "@/components/ui/AppBackButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Card, Screen, Stack, theme } from "@/design-system";
 import { BidComposerCard } from "@/features/bid/components/BidComposerCard";
@@ -11,8 +12,9 @@ import { RequestDetailsHeader } from "@/features/helpRequest/components/RequestD
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
 import { useRequestDetails } from "@/features/helpRequest/hooks/useRequestDetails";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
-import { showToast } from "@/utils/toast";
+import { showSuccessToast } from "@/utils/toast";
 import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
+import { goBackOrFallback } from "@/utils/navigation";
 
 type Props = {
     requestId?: string;
@@ -49,6 +51,13 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         return myBid ? [myBid] : [];
     }, [bids, isOwner, myBid]);
 
+    const handleBack = useCallback(() => {
+        goBackOrFallback({
+            fallback: "/home/requests",
+            replace: true,
+        });
+    }, []);
+
     const handleDeleteRequest = () => {
         if (!request) return;
 
@@ -63,8 +72,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                         const deleted = await removeRequest();
                         if (!deleted) return;
 
-                        showToast("Request deleted");
-                        router.back();
+                        showSuccessToast("Request deleted successfully");
+                        handleBack();
                     } finally {
                         setDeleting(false);
                     }
@@ -110,7 +119,17 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
     return (
         <Screen>
-            <AppHeader title="Request Details" subtitle="Review status, bids, and next actions." />
+            <AppBackButton
+                fallback="/home/requests"
+                variant="secondary"
+                fullWidth={false}
+                onBackPress={handleBack}
+            />
+
+            <AppHeader
+                title="Request Details"
+                subtitle="Review status, bids, and next actions."
+            />
 
             <RequestDetailsHeader request={request} />
 
@@ -127,13 +146,18 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
             {actionError ? (
                 <Card>
-                    <Text style={[styles.errorText, { color: palette.danger }]}>{actionError}</Text>
+                    <Text style={[styles.errorText, { color: palette.danger }]}>
+                        {actionError}
+                    </Text>
                 </Card>
             ) : null}
 
             <Card>
                 <Stack gap="sm">
-                    <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Bids</Text>
+                    <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                        Bids
+                    </Text>
+
                     <BidList
                         bids={helperVisibleBids}
                         title={isOwner ? "All bids" : "My bid"}
@@ -154,12 +178,15 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 <BidComposerCard
                     helpRequestId={request.id}
                     onSubmit={async (payload) => {
-                        if (typeof payload.amount !== "number" || typeof payload.message !== "string") {
+                        if (
+                            typeof payload.amount !== "number" ||
+                            typeof payload.message !== "string"
+                        ) {
                             return;
                         }
 
                         await submitBid(payload.amount, payload.message);
-                        showToast("Bid submitted");
+                        showSuccessToast("Bid submitted successfully");
                     }}
                     disabled={loading}
                 />

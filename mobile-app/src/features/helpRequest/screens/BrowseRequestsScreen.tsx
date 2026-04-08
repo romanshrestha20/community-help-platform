@@ -47,6 +47,11 @@ export const BrowseRequestsScreen = () => {
             <AppHeader
                 title="Browse Requests"
                 subtitle="Find nearby requests from other community members."
+                showBackButton
+                backButtonProps={{
+                    fallback: "/home/my-requests",
+                    variant: "secondary",
+                }}
             />
 
             <Card>
