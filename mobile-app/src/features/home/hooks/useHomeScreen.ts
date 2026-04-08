@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import {
     useHomeData,
@@ -6,13 +6,14 @@ import {
 import { CreateHelpRequestData } from "@/features/helpRequest/types/helpRequest.types";
 import { useGlobalFilters } from "@/features/helpRequest/hooks/useGlobalFilters";
 import { useBidRequestFlow } from "@/features/bid/hooks";
+import { Bid } from "@/features/bid/types/bid.types";
 import { showErrorToast, showSuccessToast, showToast } from "@/utils/toast";
 
 export const useHomeScreen = () => {
     const user = useAuthStore((state) => state.user);
     const currentUserId = user?.id || user?.profile?.userId;
     const { filters, updateFilter, resetFilters } = useGlobalFilters();
-    const { requests, recentBids, myBids, loadHomeData, addNewRequest } = useHomeData();
+    const { requests, recentBids, myBids, loadHomeData, addNewRequest, deleteBid } = useHomeData();
     const [creatingRequest, setCreatingRequest] = useState(false);
     const [createRequestError, setCreateRequestError] = useState<string | null>(null);
 
@@ -75,6 +76,28 @@ export const useHomeScreen = () => {
         );
     }, [currentUserId, filteredRequests]);
 
+    const handleRemoveBid = useCallback(
+        async (requestId: string) => {
+            const matchingBid = myBids.find((bid: Bid) => bid.helpRequestId === requestId);
+
+            if (!matchingBid) {
+                showToast("info", "No bid found", "You do not have a bid on this request.");
+                return;
+            }
+
+            const deleted = await deleteBid(matchingBid.id);
+
+            if (deleted === null) {
+                showErrorToast("Error", "Could not remove bid");
+                return;
+            }
+
+            showSuccessToast("Bid removed successfully");
+            await loadHomeData(filters);
+        },
+        [deleteBid, filters, loadHomeData, myBids]
+    );
+
     useEffect(() => {
         loadHomeData();
     }, [loadHomeData]);
@@ -84,8 +107,9 @@ export const useHomeScreen = () => {
         setCreatingRequest(true);
 
         try {
-            await addNewRequest(data);
+            const created = await addNewRequest(data);
             showSuccessToast("Request posted successfully");
+            return created;
         } catch (error) {
             const message = error instanceof Error ? error.message : "Could not create request";
             setCreateRequestError(message);
@@ -113,5 +137,6 @@ export const useHomeScreen = () => {
         openBidModal,
         closeBidModal,
         handleSubmitBid,
+        handleRemoveBid,
     };
 };

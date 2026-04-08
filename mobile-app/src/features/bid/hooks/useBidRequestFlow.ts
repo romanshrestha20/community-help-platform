@@ -39,10 +39,16 @@ export const useBidRequestFlow = ({ onSuccess }: UseBidRequestFlowOptions = {}) 
                 message,
             });
 
-            if (!created) {
-                showErrorToast("Could not submit bid");
+            if (bidError?.includes("Already bid")) {
+                showToast("info", "Bid Already Submitted", "You have already submitted a bid for this request.");
                 return;
             }
+
+            if (!created) {
+                showErrorToast("Failed to submit bid. Please try again.");
+                return;
+            }
+            // if bid already exists, show info toast instead of success
 
             showSuccessToast("Bid submitted successfully");
             closeBidModal();

@@ -2,18 +2,24 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/design-system";
+import { Bid } from "@/features/bid/types/bid.types";
+import { canMutateBid } from "@/features/bid/utils/bidValidation";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { HelpRequest } from "../types/helpRequest.types";
 import { RequestCard } from "./RequestCard";
 
 interface HelpingOpportunitiesSectionProps {
   requests: HelpRequest[];
+  myBids?: Bid[];
   onPressBid: (request: HelpRequest) => void;
+  onRemoveBid?: (request: HelpRequest, bid: Bid) => void;
 }
 
 export const AvailableOpportunitiesSection: React.FC<HelpingOpportunitiesSectionProps> = ({
   requests,
+  myBids = [],
   onPressBid,
+  onRemoveBid,
 }) => {
   const { palette } = useThemeContext();
   const hasRequests = requests.length > 0;
@@ -60,13 +66,40 @@ export const AvailableOpportunitiesSection: React.FC<HelpingOpportunitiesSection
       ) : (
         <View style={styles.cardsContainer}>
           {requests.map((request) => (
-            <RequestCard
-              key={request.id}
-              request={request}
-              primaryActionLabel={request.status === "OPEN" ? "Place Bid" : "Unavailable"}
-              primaryActionDisabled={request.status !== "OPEN"}
-              onPrimaryAction={() => onPressBid(request)}
-            />
+            (() => {
+              const existingBid = myBids.find((bid) => bid.helpRequestId === request.id) ?? null;
+              const canRemoveBid = Boolean(existingBid && canMutateBid(existingBid.status));
+              const isAlreadyBid = Boolean(existingBid);
+
+              return (
+                <RequestCard
+                  key={request.id}
+                  request={request}
+                  primaryActionLabel={
+                    canRemoveBid
+                      ? "Remove Bid"
+                      : isAlreadyBid
+                        ? "Bid Sent"
+                        : request.status === "OPEN"
+                          ? "Place Bid"
+                          : "Unavailable"
+                  }
+                  primaryActionDisabled={canRemoveBid ? false : isAlreadyBid || request.status !== "OPEN"}
+                  onPrimaryAction={() => {
+                    if (canRemoveBid && existingBid && onRemoveBid) {
+                      onRemoveBid(request, existingBid);
+                      return;
+                    }
+
+                    if (isAlreadyBid) {
+                      return;
+                    }
+
+                    onPressBid(request);
+                  }}
+                />
+              );
+            })()
           ))}
         </View>
       )}

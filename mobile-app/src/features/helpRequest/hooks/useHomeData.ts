@@ -21,7 +21,7 @@ export const useHomeData = () => {
     profile?: { address?: AppLocation | null } | null;
   } | null;
   const { getMyHelpRequests } = useHelpRequest();
-  const { getBidsByHelpRequestId, getMyBids } = useBid();
+  const { getBidsByHelpRequestId, getMyBids, deleteBid } = useBid();
 
   const [requests, setRequests] = useState<HelpRequest[]>([]);
   const [recentBids, setRecentBids] = useState<Bid[]>([]);
@@ -157,12 +157,13 @@ export const useHomeData = () => {
 
   const addNewRequest = useCallback(
     async (data: CreateHelpRequestData) => {
-      await createHelpRequestService(data as CreateHelpRequestData);
       // Keep the create action responsive and refresh dashboard data in background.
+      const created = await createHelpRequestService(data as CreateHelpRequestData);
       void loadHomeData();
+      return created;
     },
     [loadHomeData]
   );
 
-  return { requests, recentBids, myBids, loading, loadHomeData, addNewRequest };
+  return { requests, recentBids, myBids, loading, loadHomeData, addNewRequest, deleteBid };
 };
