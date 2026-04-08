@@ -2,11 +2,11 @@ import React, { useMemo, useState, useCallback } from "react";
 import { Alert, StyleSheet, Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { AppBackButton } from "@/components/ui/AppBackButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Card, Screen, Stack, theme } from "@/design-system";
 import { BidComposerCard } from "@/features/bid/components/BidComposerCard";
 import { BidList } from "@/features/bid/components/BidList";
+import { RequestPhotoUploadSection } from "@/features/helpRequest/components/RequestPhotoUploadSection";
 import { RequestActionBar } from "@/features/helpRequest/components/RequestActionBar";
 import { RequestDetailsHeader } from "@/features/helpRequest/components/RequestDetailHeader";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
@@ -119,19 +119,29 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
     return (
         <Screen>
-            <AppBackButton
-                fallback="/home/requests"
-                variant="secondary"
-                fullWidth={false}
-                onBackPress={handleBack}
-            />
+
 
             <AppHeader
                 title="Request Details"
                 subtitle="Review status, bids, and next actions."
+                showBackButton
+                backButtonProps={{
+                    fallback: "/home/requests",
+                    variant: "secondary",
+                }}
             />
 
             <RequestDetailsHeader request={request} />
+
+            {request.images?.length ? (
+                <RequestPhotoUploadSection
+                    title="Uploaded photos"
+                    description="Photos attached to this request."
+                    existingImages={request.images}
+                    selectedImages={[]}
+                    readOnly
+                />
+            ) : null}
 
             {isOwner ? (
                 <RequestActionBar

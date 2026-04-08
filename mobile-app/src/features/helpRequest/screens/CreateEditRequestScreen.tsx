@@ -1,20 +1,24 @@
-import React from "react";
+import React, { useState } from "react";
+import * as ImagePicker from "expo-image-picker";
 import { StyleSheet, Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
-import { AppBackButton } from "@/components/ui/AppBackButton";
 import { AppInput } from "@/components/ui/AppInput";
 import { AppHeader } from "@/components/ui/AppHeader";
-import { ScreenView, Card, Row, Stack, theme } from "@/design-system";
+import { Card, Row, ScreenView, Stack, theme } from "@/design-system";
 import LocationPickerField from "@/features/location/components/LocationPickerField";
+import { RequestPhotoUploadSection } from "@/features/helpRequest/components/RequestPhotoUploadSection";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useCreateEditRequestScreen } from "@/features/helpRequest/hooks/useCreateEditRequestScreen";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
-import { showSuccessToast } from "@/utils/toast";
+import { RequestImageUploadInput } from "@/features/helpRequest/types/helpRequest.types";
+import { showInfoToast, showSuccessToast } from "@/utils/toast";
+import { APP_ROUTES } from "@/config/routes";
 import { goBackOrFallback } from "@/utils/navigation";
 
 const CATEGORY_OPTIONS = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"] as const;
+const MAX_REQUEST_IMAGES = 5;
 
 type Props = {
     requestId?: string;
@@ -24,6 +28,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
     const params = useLocalSearchParams<{ id?: string }>();
     const router = useRouter();
     const { palette } = useThemeContext();
+    const [selectedImages, setSelectedImages] = useState<RequestImageUploadInput[]>([]);
 
     const activeRequestId = requestId || params.id;
     const {
@@ -41,17 +46,56 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
 
     const handleBack = () => {
         goBackOrFallback({
-            fallback: "/home/my-requests",
+            fallback: APP_ROUTES.HOME_REQUESTS,
             replace: true,
         });
     };
 
     const handleSave = async () => {
-        const saved = await submitRequest();
+        const saved = await submitRequest(selectedImages);
         if (!saved) return;
 
         showSuccessToast(isEditing ? "Request updated successfully" : "Request created successfully");
         router.replace(`/home/requests/${saved.id}`);
+    };
+
+    const handlePickImages = async () => {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+        if (!permission.granted) {
+            showInfoToast("Permission required", "Please allow access to your photo library.");
+            return;
+        }
+
+        const existingCount = request?.images?.length ?? 0;
+        const remainingSlots = MAX_REQUEST_IMAGES - existingCount - selectedImages.length;
+
+        if (remainingSlots <= 0) {
+            showInfoToast("Image limit reached", `You can upload up to ${MAX_REQUEST_IMAGES} images.`);
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsMultipleSelection: true,
+            selectionLimit: remainingSlots,
+            quality: 0.85,
+        });
+
+        if (result.canceled || !result.assets.length) return;
+
+        const nextImages = result.assets.slice(0, remainingSlots).map((asset, index) => ({
+            uri: asset.uri,
+            name: asset.fileName ?? `request-image-${Date.now()}-${index}.jpg`,
+            type: asset.mimeType ?? "image/jpeg",
+            webFile: (asset as any).file ?? undefined,
+        }));
+
+        setSelectedImages((prev) => [...prev, ...nextImages]);
+    };
+
+    const handleRemoveImage = (indexToRemove: number) => {
+        setSelectedImages((prev) => prev.filter((_, index) => index !== indexToRemove));
     };
 
     if (loadingRequest) {
@@ -80,7 +124,6 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
 
     return (
         <ScreenView>
-
             <AppHeader
                 title={isEditing ? "Edit Request" : "Create Request"}
                 subtitle={
@@ -90,13 +133,24 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                 }
                 showBackButton
                 backButtonProps={{
-                    fallback: "/home/my-requests",
+                    fallback: APP_ROUTES.HOME_REQUESTS,
                     variant: "secondary",
                 }}
             />
 
             <Card>
                 <Stack gap="md">
+                    <RequestPhotoUploadSection
+                        loading={saving}
+                        existingImages={request?.images}
+                        selectedImages={selectedImages}
+                        imageLimit={MAX_REQUEST_IMAGES}
+                        onPickImages={handlePickImages}
+                        onRemoveImage={handleRemoveImage}
+                        title="Request photos"
+                        description="Add or review images before you save the request."
+                    />
+
                     <AppInput
                         label="Title"
                         value={form.title}
@@ -181,6 +235,9 @@ const styles = StyleSheet.create({
     label: {
         fontSize: theme.typography.fontSize.sm,
         fontWeight: theme.typography.fontWeight.semibold,
+    },
+    helperText: {
+        fontSize: theme.typography.fontSize.xs,
     },
     wrapRow: {
         flexWrap: "wrap",

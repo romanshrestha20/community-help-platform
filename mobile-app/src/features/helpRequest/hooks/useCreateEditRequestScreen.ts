@@ -6,6 +6,7 @@ import { useHelpRequest } from "./helpRequest.hook";
 import {
     CreateHelpRequestData,
     HelpRequest,
+    RequestImageUploadInput,
     UpdateHelpRequestData,
 } from "../types/helpRequest.types";
 import {
@@ -60,6 +61,7 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
         getHelpRequestById,
         createHelpRequest,
         updateHelpRequest,
+        addHelpRequestImages,
     } = useHelpRequest();
 
     const locationPicker = useLocationPicker({
@@ -124,7 +126,7 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
         setValidationError(null);
     };
 
-    const submitRequest = async () => {
+    const submitRequest = async (selectedImages: RequestImageUploadInput[] = []) => {
         const validation = validateRequestDraft({
             title: form.title,
             description: form.description,
@@ -163,7 +165,14 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
                     ...payloadBase,
                     location,
                 };
-                return await updateHelpRequest(requestId, payload);
+
+                const updated = await updateHelpRequest(requestId, payload);
+
+                if (updated && selectedImages.length > 0) {
+                    await addHelpRequestImages(requestId, selectedImages);
+                }
+
+                return updated;
             }
 
             const createPayload: CreateHelpRequestData = {
@@ -171,7 +180,22 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
                 location,
             };
 
-            return await createHelpRequest(createPayload);
+            const created = await createHelpRequest(createPayload, selectedImages);
+
+            if (created && selectedImages.length > 0) {
+                const refreshed = await getHelpRequestById(created.id);
+                if (refreshed?.images?.length) {
+                    return refreshed;
+                }
+
+                if (refreshed) {
+                    await addHelpRequestImages(created.id, selectedImages);
+                    const withImages = await getHelpRequestById(created.id);
+                    return withImages ?? created;
+                }
+            }
+
+            return created;
         } finally {
             setSaving(false);
         }
