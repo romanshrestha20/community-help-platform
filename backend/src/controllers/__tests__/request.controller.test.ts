@@ -382,4 +382,298 @@ describe("request.controller", () => {
         );
         expect(next).not.toHaveBeenCalled();
     });
+
+    // Multiple Image Upload Tests
+    it("createHelpRequest: uploads 3 images successfully", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({ id: "user-1" });
+        prismaMock.helpRequest.create.mockResolvedValue({ id: "req-1", title: "Help needed" });
+        cloudinaryUtilsMock.uploadImageToCloudinary
+            .mockResolvedValueOnce({ url: "https://img/1", publicId: "public-1" })
+            .mockResolvedValueOnce({ url: "https://img/2", publicId: "public-2" })
+            .mockResolvedValueOnce({ url: "https://img/3", publicId: "public-3" });
+        prismaMock.$transaction.mockResolvedValueOnce([
+            { id: "img-1", url: "https://img/1", publicId: "public-1" },
+            { id: "img-2", url: "https://img/2", publicId: "public-2" },
+            { id: "img-3", url: "https://img/3", publicId: "public-3" },
+        ]);
+        prismaMock.helpRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            title: "Help needed",
+            description: "Need help",
+            category: "FOOD",
+            budget: 100,
+            isPaid: false,
+            status: "OPEN",
+            location: { latitude: 27.7, longitude: 85.3 },
+            images: [
+                { id: "img-1", url: "https://img/1", publicId: "public-1" },
+                { id: "img-2", url: "https://img/2", publicId: "public-2" },
+                { id: "img-3", url: "https://img/3", publicId: "public-3" },
+            ],
+            requester: { id: "user-1", profile: { fullName: "Roman" } },
+            _count: { bids: 0 },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            body: {
+                title: "Help needed",
+                description: "Need help",
+                category: "FOOD",
+                budget: 100,
+                location: { latitude: 27.7, longitude: 85.3 },
+            },
+        });
+        (req as any).files = [
+            { buffer: Buffer.from("image1") },
+            { buffer: Buffer.from("image2") },
+            { buffer: Buffer.from("image3") },
+        ];
+        const res = makeRes();
+        const next = makeNext();
+
+        await createHelpRequest(req, res, next);
+
+        expect(cloudinaryUtilsMock.uploadImageToCloudinary).toHaveBeenCalledTimes(3);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                message: "Help request created",
+                data: expect.objectContaining({
+                    id: "req-1",
+                    images: [
+                        expect.objectContaining({ id: "img-1", url: "https://img/1" }),
+                        expect.objectContaining({ id: "img-2", url: "https://img/2" }),
+                        expect.objectContaining({ id: "img-3", url: "https://img/3" }),
+                    ],
+                }),
+            }),
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("createHelpRequest: uploads 5 images successfully (max limit)", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({ id: "user-1" });
+        prismaMock.helpRequest.create.mockResolvedValue({ id: "req-1", title: "Help needed" });
+
+        const imageData = Array.from({ length: 5 }, (_, i) => ({
+            url: `https://img/${i + 1}`,
+            publicId: `public-${i + 1}`,
+        }));
+
+        imageData.forEach((img) => {
+            cloudinaryUtilsMock.uploadImageToCloudinary.mockResolvedValueOnce(img);
+        });
+
+        const dbImages = imageData.map((img, i) => ({
+            id: `img-${i + 1}`,
+            ...img,
+        }));
+
+        prismaMock.$transaction.mockResolvedValueOnce(dbImages);
+        prismaMock.helpRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            title: "Help needed",
+            description: "Need help with images",
+            category: "MEDICAL",
+            budget: 500,
+            isPaid: true,
+            status: "OPEN",
+            location: { latitude: 27.7, longitude: 85.3 },
+            images: dbImages,
+            requester: { id: "user-1", profile: { fullName: "Roman" } },
+            _count: { bids: 0 },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            body: {
+                title: "Help needed",
+                description: "Need help with images",
+                category: "MEDICAL",
+                budget: 500,
+                isPaid: true,
+                location: { latitude: 27.7, longitude: 85.3 },
+            },
+        });
+        (req as any).files = Array.from({ length: 5 }, (_, i) => ({
+            buffer: Buffer.from(`image${i + 1}`),
+        }));
+        const res = makeRes();
+        const next = makeNext();
+
+        await createHelpRequest(req, res, next);
+
+        expect(cloudinaryUtilsMock.uploadImageToCloudinary).toHaveBeenCalledTimes(5);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                message: "Help request created",
+                data: expect.objectContaining({
+                    id: "req-1",
+                    images: expect.any(Array),
+                }),
+            }),
+        );
+        const responseData = (res.json as any).mock.calls[0][0].data;
+        expect(responseData.images).toHaveLength(5);
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("addRequestImages: adds 3 images to existing request", async () => {
+        prismaMock.helpRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            requesterId: "user-1",
+            images: [{ id: "img-0", url: "https://img/0", publicId: "public-0" }],
+        });
+        cloudinaryUtilsMock.uploadImageToCloudinary
+            .mockResolvedValueOnce({ url: "https://img/1", publicId: "public-1" })
+            .mockResolvedValueOnce({ url: "https://img/2", publicId: "public-2" })
+            .mockResolvedValueOnce({ url: "https://img/3", publicId: "public-3" });
+        prismaMock.$transaction.mockResolvedValueOnce([
+            { id: "img-1", url: "https://img/1", publicId: "public-1" },
+            { id: "img-2", url: "https://img/2", publicId: "public-2" },
+            { id: "img-3", url: "https://img/3", publicId: "public-3" },
+        ]);
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            params: { id: "req-1" },
+        });
+        (req as any).files = [
+            { buffer: Buffer.from("image1") },
+            { buffer: Buffer.from("image2") },
+            { buffer: Buffer.from("image3") },
+        ];
+        const res = makeRes();
+        const next = makeNext();
+
+        await addRequestImages(req, res, next);
+
+        expect(cloudinaryUtilsMock.uploadImageToCloudinary).toHaveBeenCalledTimes(3);
+        expect(prismaMock.$transaction).toHaveBeenCalled();
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                message: "Request images uploaded successfully",
+                data: expect.arrayContaining([
+                    expect.objectContaining({ id: "img-1" }),
+                    expect.objectContaining({ id: "img-2" }),
+                    expect.objectContaining({ id: "img-3" }),
+                ]),
+            }),
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("createHelpRequest: rolls back uploaded images on DB transaction failure", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({ id: "user-1" });
+        prismaMock.helpRequest.create.mockResolvedValue({ id: "req-1" });
+        cloudinaryUtilsMock.uploadImageToCloudinary
+            .mockResolvedValueOnce({ url: "https://img/1", publicId: "public-1" })
+            .mockResolvedValueOnce({ url: "https://img/2", publicId: "public-2" });
+        prismaMock.$transaction.mockRejectedValueOnce(new Error("DB transaction failed"));
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            body: {
+                title: "Help needed",
+                description: "Need help",
+                category: "FOOD",
+                location: { latitude: 27.7, longitude: 85.3 },
+            },
+        });
+        (req as any).files = [
+            { buffer: Buffer.from("image1") },
+            { buffer: Buffer.from("image2") },
+        ];
+        const res = makeRes();
+        const next = makeNext();
+
+        await createHelpRequest(req, res, next);
+
+        // Verify Cloudinary images were attempted to be deleted
+        expect(cloudinaryUtilsMock.deleteImageFromCloudinary).toHaveBeenCalledWith("public-1");
+        expect(cloudinaryUtilsMock.deleteImageFromCloudinary).toHaveBeenCalledWith("public-2");
+        expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: "Failed to create help request" }));
+    });
+
+    it("addRequestImages: rejects request with no images", async () => {
+        prismaMock.helpRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            requesterId: "user-1",
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            params: { id: "req-1" },
+        });
+        (req as any).files = [];
+        const res = makeRes();
+        const next = makeNext();
+
+        await addRequestImages(req, res, next);
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({ message: "At least one image is required", statusCode: 400 }),
+        );
+    });
+
+    it("addRequestImages: forbids adding images to another user's request", async () => {
+        prismaMock.helpRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            requesterId: "user-2",
+            images: [],
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            params: { id: "req-1" },
+        });
+        (req as any).files = [{ buffer: Buffer.from("image") }];
+        const res = makeRes();
+        const next = makeNext();
+
+        await addRequestImages(req, res, next);
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: "You are not allowed to add images to this request",
+                statusCode: 403,
+            }),
+        );
+    });
+
+    it("addRequestImages: rolls back images on transaction failure", async () => {
+        prismaMock.helpRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            requesterId: "user-1",
+            images: [],
+        });
+        cloudinaryUtilsMock.uploadImageToCloudinary
+            .mockResolvedValueOnce({ url: "https://img/1", publicId: "public-1" })
+            .mockResolvedValueOnce({ url: "https://img/2", publicId: "public-2" });
+        prismaMock.$transaction.mockRejectedValueOnce(new Error("Transaction failed"));
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            params: { id: "req-1" },
+        });
+        (req as any).files = [
+            { buffer: Buffer.from("image1") },
+            { buffer: Buffer.from("image2") },
+        ];
+        const res = makeRes();
+        const next = makeNext();
+
+        await addRequestImages(req, res, next);
+
+        expect(cloudinaryUtilsMock.deleteImageFromCloudinary).toHaveBeenCalledWith("public-1");
+        expect(cloudinaryUtilsMock.deleteImageFromCloudinary).toHaveBeenCalledWith("public-2");
+        expect(next).toHaveBeenCalled();
+    });
 });
