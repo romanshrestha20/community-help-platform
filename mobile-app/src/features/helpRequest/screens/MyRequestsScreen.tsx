@@ -12,6 +12,7 @@ import { useRequestList } from "@/features/helpRequest/hooks/useRequestList";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { APP_ROUTES } from "@/config/routes";
 import { showSuccessToast } from "@/utils/toast";
+import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 
 export const MyRequestsScreen = () => {
     const router = useRouter();
@@ -20,6 +21,7 @@ export const MyRequestsScreen = () => {
     const { requests, loading, error, refreshing, refreshRequests } = useRequestList({
         scope: "mine",
     });
+    const { value: userLocation } = useLocationPicker({ autoUseCurrentLocationOnMount: true });
 
     const totalRequests = requests.length;
 
@@ -65,6 +67,7 @@ export const MyRequestsScreen = () => {
                     <View style={styles.requestCardWrap}>
                         <RequestCard
                             request={item}
+                            userLocation={userLocation}
                             onPress={() => router.push(APP_ROUTES.PROFILE_REQUEST_DETAILS(item.id))}
                             primaryActionLabel="Manage"
                             onPrimaryAction={() => router.push(APP_ROUTES.PROFILE_REQUEST_DETAILS(item.id))}

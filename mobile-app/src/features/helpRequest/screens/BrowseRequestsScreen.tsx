@@ -11,6 +11,7 @@ import { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
 import { useRouter } from "expo-router";
 import { APP_ROUTES } from "@/config/routes";
 import { StyleSheet } from "react-native";
+import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 
 const applyFilters = (requests: HelpRequest[], filters: ReturnType<typeof useGlobalFilters>["filters"]) => {
     let next = [...requests];
@@ -43,6 +44,7 @@ export const BrowseRequestsScreen = () => {
     const { filters, updateFilter, resetFilters } = useGlobalFilters();
     const { requests, refreshing, refreshRequests } = useRequestList({ scope: "browse" });
     const [searchQuery, setSearchQuery] = useState("");
+    const { value: userLocation } = useLocationPicker({ autoUseCurrentLocationOnMount: true });
 
     const filteredRequests = useMemo(() => {
         const base = applyFilters(requests, filters);
@@ -105,6 +107,7 @@ export const BrowseRequestsScreen = () => {
             <Stack style={styles.listContainer}>
                 <RequestList
                     requests={filteredRequests}
+                    userLocation={userLocation}
                     onPressItem={(item) => router.push(APP_ROUTES.HOME_REQUEST_DETAILS(item.id))}
                     refreshing={refreshing}
                     onRefresh={refreshRequests}
