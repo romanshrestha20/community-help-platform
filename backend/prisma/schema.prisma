@@ -25,7 +25,9 @@ model UserModel {
 
   receivedReviews Review[] @relation("UserReviewsReceived")
 
-  notifications Notification[]
+  notificationsReceived Notification[] @relation("UserNotifications")
+  notificationsActed    Notification[] @relation("ActorNotifications")
+
   refreshTokens RefreshToken[]
   oauthAccounts OAuthAccount[]
 
@@ -86,6 +88,9 @@ model Profile {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([fullName])
+  @@map("profiles")
 }
 
 model Location {
@@ -104,6 +109,10 @@ model Location {
 
   helpRequest HelpRequest? @relation("HelpRequestLocation")
   profile     Profile?     @relation("ProfileAddress")
+
+  @@index([city])
+  @@index([country])
+  @@map("locations")
 }
 
 model RefreshToken {
@@ -116,6 +125,10 @@ model RefreshToken {
 
   createdAt DateTime @default(now())
   expiresAt DateTime
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
 
 model HelpRequest {
@@ -140,11 +153,19 @@ model HelpRequest {
   assignedHelperId String?
   assignedHelper   UserModel? @relation("AssignedRequests", fields: [assignedHelperId], references: [id], onDelete: SetNull)
 
-  conversation Conversation?
-  images       Image[]
+  conversation  Conversation?
+  images        Image[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([requesterId])
+  @@index([assignedHelperId])
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
+  @@map("help_requests")
 }
 
 model Conversation {
@@ -152,12 +173,14 @@ model Conversation {
   requestId String      @unique
   request   HelpRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  members  ConversationMember[]
-  messages Message[]
+  members       ConversationMember[]
+  messages      Message[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([createdAt])
   @@map("conversations")
 }
 
@@ -191,7 +214,16 @@ model Bid {
 
   status BidStatus @default(PENDING)
 
+  notifications Notification[]
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([helperId])
+  @@index([helpRequestId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("bids")
 }
 
 model Message {
@@ -208,7 +240,8 @@ model Message {
   editedAt  DateTime?
   deletedAt DateTime?
 
-  images Image[]
+  images        Image[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -216,6 +249,7 @@ model Message {
   @@index([conversationId])
   @@index([senderId])
   @@index([createdAt])
+  @@index([isRead])
   @@map("messages")
 }
 
@@ -223,14 +257,48 @@ model Notification {
   id String @id @default(uuid())
 
   userId String
-  user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   UserModel @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
 
-  type    String
-  content String
+  actorId String?
+  actor   UserModel? @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: SetNull)
 
-  isRead Boolean @default(false)
+  type  NotificationType
+  title String
+  body  String
+
+  requestId String?
+  request   HelpRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  bidId String?
+  bid   Bid? @relation(fields: [bidId], references: [id], onDelete: Cascade)
+
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  messageId String?
+  message   Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  reviewId String?
+  review   Review? @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  data Json?
+
+  isRead Boolean  @default(false)
+  readAt DateTime?
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+  @@index([actorId])
+  @@index([type])
+  @@index([requestId])
+  @@index([bidId])
+  @@index([conversationId])
+  @@index([messageId])
+  @@index([reviewId])
+  @@map("notifications")
 }
 
 model Review {
@@ -243,41 +311,48 @@ model Review {
   likesCount Int @default(0)
   replyCount Int @default(0)
 
-  user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
-
-  replies ReviewReply[]
-  likes   ReviewLike[]
-  images  Image[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   targetUserId String
   targetUser   UserModel @relation("UserReviewsReceived", fields: [targetUserId], references: [id], onDelete: Cascade)
 
+  replies       ReviewReply[]
+  likes         ReviewLike[]
+  images        Image[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([userId, title, comment])
   @@index([userId])
+  @@index([targetUserId])
   @@index([createdAt])
+  @@index([isApproved])
+  @@map("reviews")
 }
 
 model ReviewReply {
   id      String @id @default(cuid())
   comment String
 
-  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   reviewId String
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   likes      ReviewLike[]
-  likesCount Int          @default(0)
-
-  user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
+  likesCount Int @default(0)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([reviewId])
   @@index([userId])
+  @@index([createdAt])
+  @@map("review_replies")
 }
 
 model ReviewLike {
@@ -299,6 +374,7 @@ model ReviewLike {
   @@index([reviewId])
   @@index([reviewReplyId])
   @@index([userId])
+  @@map("review_likes")
 }
 
 model Favorite {
@@ -381,4 +457,17 @@ enum ImageType {
   REVIEW
   REQUEST
   MESSAGE
+}
+
+enum NotificationType {
+  BID_RECEIVED
+  BID_ACCEPTED
+  BID_REJECTED
+  REQUEST_ASSIGNED
+  REQUEST_COMPLETED
+  REQUEST_CANCELLED
+  MESSAGE_RECEIVED
+  REVIEW_RECEIVED
+  REVIEW_REPLY_RECEIVED
+  SYSTEM
 }
