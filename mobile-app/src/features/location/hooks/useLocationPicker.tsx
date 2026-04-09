@@ -231,7 +231,7 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
 
       await applyLocation(
         location,
-        suggestion.label || suggestion.formattedAddress || ""
+        suggestion.addressLine1 || suggestion.formattedAddress || ""
       );
     },
     [applyLocation]

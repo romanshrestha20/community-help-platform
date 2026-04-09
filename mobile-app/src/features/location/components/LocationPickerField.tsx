@@ -91,6 +91,10 @@ export default function LocationPickerField({
   const formattedAddress = useMemo(() => formatShortAddress(value), [value]);
   const hasSelectedLocation = useMemo(() => hasUsableLocation(value), [value]);
   const showSuggestions = showStreetSearch && streetQuery.trim().length >= 2;
+  const showNoMatches =
+    showSuggestions && !suggestionsLoading && suggestions.length === 0 && !hasSelectedLocation;
+  const showSuggestionDropdown =
+    showSuggestions && (suggestionsLoading || suggestions.length > 0 || showNoMatches);
 
   return (
     <View style={styles.container}>
@@ -142,7 +146,7 @@ export default function LocationPickerField({
           </View>
         </View>
 
-        {showSuggestions ? (
+        {showSuggestionDropdown ? (
           <View
             style={[
               styles.dropdown,
@@ -229,7 +233,7 @@ export default function LocationPickerField({
                   </Pressable>
                 )}
               />
-            ) : (
+            ) : showNoMatches ? (
               <View style={styles.stateRow}>
                 <Ionicons
                   name="search-outline"
@@ -242,7 +246,8 @@ export default function LocationPickerField({
                   No matching addresses found
                 </Text>
               </View>
-            )}
+            ) : null
+            }
           </View>
         ) : null}
       </View>
