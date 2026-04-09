@@ -1,0 +1,1 @@
+export { validateProfileUpdateForm } from "@/utils/validation/forms";
