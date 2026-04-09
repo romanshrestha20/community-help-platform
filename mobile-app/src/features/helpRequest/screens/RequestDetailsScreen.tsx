@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from "react";
 import { Alert, StyleSheet, Text } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Card, Screen, Stack, theme } from "@/design-system";
@@ -15,6 +15,7 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { showSuccessToast } from "@/utils/toast";
 import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
 import { goBackOrFallback } from "@/utils/navigation";
+import { APP_ROUTES } from "@/config/routes";
 
 type Props = {
     requestId?: string;
@@ -22,11 +23,18 @@ type Props = {
 
 export const RequestDetailsScreen = ({ requestId }: Props) => {
     const params = useLocalSearchParams<{ id?: string }>();
+    const pathname = usePathname();
     const router = useRouter();
     const { palette } = useThemeContext();
     const [deleting, setDeleting] = useState(false);
 
     const activeRequestId = requestId || params.id;
+    const isProfileRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
+    const requestListRoute = isProfileRoute
+        ? APP_ROUTES.PROFILE_REQUESTS
+        : APP_ROUTES.HOME_REQUESTS;
+    const requestEditRoute = (id: string) =>
+        isProfileRoute ? APP_ROUTES.PROFILE_REQUEST_EDIT(id) : APP_ROUTES.HOME_REQUEST_EDIT(id);
 
     const {
         request,
@@ -53,10 +61,10 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
     const handleBack = useCallback(() => {
         goBackOrFallback({
-            fallback: "/home/requests",
+            fallback: requestListRoute,
             replace: true,
         });
-    }, []);
+    }, [requestListRoute]);
 
     const handleDeleteRequest = () => {
         if (!request) return;
@@ -126,7 +134,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 subtitle="Review status, bids, and next actions."
                 showBackButton
                 backButtonProps={{
-                    fallback: "/home/requests",
+                    fallback: requestListRoute,
                     variant: "secondary",
                 }}
             />
@@ -148,7 +156,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                     request={request}
                     loading={loading}
                     deleting={deleting}
-                    onEdit={() => router.push(`/home/requests/${request.id}/edit`)}
+                    onEdit={() => router.push(requestEditRoute(request.id))}
                     onUpdateStatus={setRequestStatus}
                     onDelete={handleDeleteRequest}
                 />
