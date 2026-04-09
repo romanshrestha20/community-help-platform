@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
+import { Platform } from "react-native";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppModal } from "@/components/ui/AppModal";
@@ -99,8 +100,9 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsMultipleSelection: true,
-            selectionLimit: remainingSlots,
+            // iOS multi-select can hang on Done in some dev-client/simulator states.
+            allowsMultipleSelection: Platform.OS !== "ios",
+            selectionLimit: Platform.OS === "ios" ? 1 : remainingSlots,
             quality: 0.85,
         });
 
@@ -129,19 +131,32 @@ export const RequestForm: React.FC<RequestFormProps> = ({
             return;
         }
 
-        const savedRequest = await onSubmit({
-            ...values,
-            location,
-            city: location.city ?? "",
-            country: location.country ?? "",
-        });
+        try {
+            const savedRequest = await onSubmit({
+                ...values,
+                location,
+                city: location.city ?? "",
+                country: location.country ?? "",
+            });
 
-        if (savedRequest?.id && selectedImages.length) {
-            await addHelpRequestImages(savedRequest.id, selectedImages);
+            if (!savedRequest?.id) {
+                setValidationError("Could not save request. Please check the form and try again.");
+                return;
+            }
+
+            if (selectedImages.length) {
+                await addHelpRequestImages(savedRequest.id, selectedImages);
+            }
+
+            setSelectedImages([]);
+            setModalVisible(false);
+        } catch (submitError) {
+            setValidationError(
+                submitError instanceof Error
+                    ? submitError.message
+                    : "Could not save request. Please try again."
+            );
         }
-
-        setSelectedImages([]);
-        setModalVisible(false);
     };
 
     return (
