@@ -146,7 +146,7 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
             const location = locationPicker.value;
 
             if (!location) {
-                setValidationError("Please choose a location.");
+                // Already validated above; this guards against stale state between validation and submit.
                 return null;
             }
 

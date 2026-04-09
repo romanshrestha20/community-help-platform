@@ -6,12 +6,14 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppModal } from "@/components/ui/AppModal";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { showInfoToast } from "@/utils/toast";
+import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { useHelpRequest } from "../hooks/helpRequest.hook";
 import {
     CreateHelpRequestData,
     HelpRequest,
     RequestImageUploadInput,
 } from "../types/helpRequest.types";
+import { validateRequestDraft } from "../utils/requestValidation";
 import { RequestFormContent, RequestFormValues } from "./RequestFormContent";
 import { RequestFormTrigger } from "./RequestFormTrigger";
 
@@ -48,7 +50,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     });
 
     const [selectedImages, setSelectedImages] = useState<RequestImageUploadInput[]>([]);
-    const [validationError, setValidationError] = useState<string | null>(null);
+    const { validationError, setValidationError, clearValidationError } = useFormValidation();
     const [modalVisible, setModalVisible] = useState(false);
 
     const triggerTitle = initialData ? "Edit request" : "Create request";
@@ -61,26 +63,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         value: RequestFormValues[K]
     ) => {
         setValues((prev) => ({ ...prev, [field]: value }));
-        setValidationError(null);
-    };
-
-    const validateForm = () => {
-        if (!values.title.trim() || !values.description.trim()) {
-            setValidationError("Title and Description are required");
-            return false;
-        }
-
-        if (values.budget && values.budget <= 0) {
-            setValidationError("Budget must be greater than 0");
-            return false;
-        }
-
-        if (!locationPicker.value) {
-            setValidationError("Please select a location");
-            return false;
-        }
-
-        return true;
+        clearValidationError();
     };
 
     const handlePickImages = async () => {
@@ -123,15 +106,26 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     };
 
     const handleSubmit = async () => {
-        if (!validateForm()) return;
+        const validation = validateRequestDraft({
+            title: values.title,
+            description: values.description,
+            budgetInput: values.budget ? String(values.budget) : "",
+            location: locationPicker.value,
+        });
+
+        if (validation) {
+            setValidationError(validation);
+            return;
+        }
 
         const location = locationPicker.value;
         if (!location) {
-            setValidationError("Please select a location");
+            // Already validated above; this guards against stale state between validation and submit.
             return;
         }
 
         try {
+            clearValidationError();
             const savedRequest = await onSubmit({
                 ...values,
                 location,

@@ -5,8 +5,9 @@ import { AppInput } from "@/components/ui/AppInput";
 import { Stack } from "@/design-system/layout/Stack";
 import { AppButton } from "@/components/ui/AppButton";
 import { spacing, colors } from "@/design-system/tokens";
+import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { CreateBidData, UpdateBidData, Bid } from "../types/bid.types";
-import { Toast } from "react-native-toast-message/lib/src/Toast";
+import { validateBidDraft } from "../utils/bidValidation";
 
 interface BidFormProps {
     helpRequestId?: string;
@@ -33,45 +34,28 @@ export const BidForm: React.FC<BidFormProps> = ({
         message: initialData?.message || "",
     });
 
-    const [validationError, setValidationError] = useState<string | null>(null);
-
-    const validateForm = (): boolean => {
-        const amount = parseFloat(formData.amount);
-
-        if (!formData.amount || isNaN(amount) || amount <= 0) {
-            setValidationError("Bid amount must be greater than 0");
-            return false;
-        }
-
-        if (!formData.message.trim()) {
-            setValidationError("Message is required");
-            return false;
-        }
-
-        if (formData.message.length < 10) {
-            setValidationError("Message must be at least 10 characters");
-            return false;
-        }
-
-        if (formData.message.length > 500) {
-            setValidationError("Message must be less than 500 characters");
-            return false;
-        }
-
-
-        return true;
-    };
+    const { validationError, setValidationError, clearValidationError } = useFormValidation();
 
     const handleInputChange = (field: string, value: string) => {
         setFormData((prev) => ({
             ...prev,
             [field]: value,
         }));
-        setValidationError(null);
+        clearValidationError();
     };
 
     const handleSubmit = async () => {
-        if (!validateForm()) return;
+        const validation = validateBidDraft({
+            amountInput: formData.amount,
+            message: formData.message,
+            helpRequestId: isUpdate ? undefined : formData.helpRequestId,
+            mode: isUpdate ? "edit" : "create",
+        });
+
+        if (validation) {
+            setValidationError(validation);
+            return;
+        }
 
         const data = isUpdate
             ? {
@@ -84,6 +68,7 @@ export const BidForm: React.FC<BidFormProps> = ({
                 message: formData.message,
             };
 
+        clearValidationError();
         await onSubmit(data);
 
         if (!isUpdate) {
