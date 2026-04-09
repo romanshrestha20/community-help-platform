@@ -25,7 +25,7 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
   const [loading, setLoading] = useState(false);
   const [hydrating, setHydrating] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [streetQuery, setStreetQuery] = useState(
+  const [streetQuery, setStreetQueryState] = useState(
     initialValue?.formattedAddress || initialValue?.addressLine1 || ""
   );
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
@@ -51,7 +51,7 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
     async (location: AppLocation | null, query?: string) => {
       setValueState(location);
       skipNextSearchRef.current = true;
-      setStreetQuery(
+      setStreetQueryState(
         query ?? location?.formattedAddress ?? location?.addressLine1 ?? ""
       );
       setSuggestions([]);
@@ -76,13 +76,13 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
 
           setValueState(savedLocation);
           skipNextSearchRef.current = true;
-          setStreetQuery(
+          setStreetQueryState(
             savedLocation.formattedAddress || savedLocation.addressLine1 || ""
           );
         } else if (initialValue) {
           setValueState(initialValue);
           skipNextSearchRef.current = true;
-          setStreetQuery(
+          setStreetQueryState(
             initialValue.formattedAddress || initialValue.addressLine1 || ""
           );
         }
@@ -92,7 +92,7 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
         if (initialValue) {
           setValueState(initialValue);
           skipNextSearchRef.current = true;
-          setStreetQuery(
+          setStreetQueryState(
             initialValue.formattedAddress || initialValue.addressLine1 || ""
           );
         }
@@ -240,6 +240,20 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
   const clearLocation = useCallback(async () => {
     await applyLocation(null, "");
   }, [applyLocation]);
+
+  const setStreetQuery = useCallback((nextQuery: string) => {
+    setStreetQueryState((previousQuery) => {
+      const previous = previousQuery.trim();
+      const next = nextQuery.trim();
+
+      // If user manually edits the query away from current selection, invalidate stale location.
+      if (next !== previous && !skipNextSearchRef.current) {
+        setValueState(null);
+      }
+
+      return nextQuery;
+    });
+  }, []);
 
   return {
     value,
