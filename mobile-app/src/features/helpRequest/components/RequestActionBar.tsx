@@ -116,12 +116,22 @@ export const RequestActionBar = ({
             <Card style={[styles.card, { borderColor: palette.border }]}>
                 <Row justify="space-between" align="flex-start" style={styles.headerRow}>
                     <View style={styles.titleWrap}>
-                        <Row gap="xs" align="center">
-                            <Ionicons name="settings-outline" size={16} color={palette.textSecondary} />
-                            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-                                Manage Request
-                            </Text>
-                        </Row>
+                        <View
+                            style={[
+                                styles.titlePill,
+                                {
+                                    backgroundColor: palette.surfaceMuted,
+                                    borderColor: palette.border,
+                                },
+                            ]}
+                        >
+                            <Row gap="xs" align="center">
+                                <Ionicons name="settings-outline" size={14} color={palette.textSecondary} />
+                                <Text style={[styles.titlePillText, { color: palette.textSecondary }]}>Owner actions</Text>
+                            </Row>
+                        </View>
+
+                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Manage Request</Text>
                         <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
                             Open quick actions from the menu.
                         </Text>
@@ -162,6 +172,7 @@ const styles = StyleSheet.create({
     card: {
         marginTop: theme.spacing.md,
         borderWidth: 1,
+        borderRadius: 16,
         padding: theme.spacing.md,
     },
     headerRow: {
@@ -171,9 +182,23 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingRight: theme.spacing.sm,
     },
+    titlePill: {
+        alignSelf: "flex-start",
+        borderWidth: 1,
+        borderRadius: theme.radius.fill,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        marginBottom: theme.spacing.xs,
+    },
+    titlePillText: {
+        fontSize: theme.typography.fontSize.xs,
+        fontWeight: theme.typography.fontWeight.semibold,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+    },
     sectionTitle: {
         fontSize: theme.typography.fontSize.md,
-        fontWeight: theme.typography.fontWeight.semibold,
+        fontWeight: theme.typography.fontWeight.bold,
     },
     sectionSubtitle: {
         marginTop: theme.spacing.xxs,
