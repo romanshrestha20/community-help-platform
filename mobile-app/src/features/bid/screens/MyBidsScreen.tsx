@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Alert, StyleSheet } from "react-native";
+import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -9,11 +9,14 @@ import { BidComposerCard } from "@/features/bid/components/BidComposerCard";
 import { BidEmptyState } from "@/features/bid/components/BidEmptyState";
 import { BidList } from "@/features/bid/components/BidList";
 import { useMyBidsScreen } from "@/features/bid/hooks/useMyBidsScreen";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { showSuccessToast } from "@/utils/toast";
 import { APP_ROUTES } from "@/config/routes";
 
+
 export const MyBidsScreen = () => {
     const router = useRouter();
+    const { palette } = useThemeContext();
     const {
         bids,
         loading,
@@ -29,6 +32,18 @@ export const MyBidsScreen = () => {
     } = useMyBidsScreen();
 
     const visibleBids = useMemo(() => bids, [bids]);
+    const pendingCount = useMemo(
+        () => visibleBids.filter((bid) => bid.status === "PENDING").length,
+        [visibleBids]
+    );
+    const acceptedCount = useMemo(
+        () => visibleBids.filter((bid) => bid.status === "ACCEPTED").length,
+        [visibleBids]
+    );
+    const rejectedCount = useMemo(
+        () => visibleBids.filter((bid) => bid.status === "REJECTED").length,
+        [visibleBids]
+    );
 
     const handleDeleteBid = (bidId: string) => {
         Alert.alert("Delete bid", "This will permanently remove your bid.", [
@@ -47,88 +62,237 @@ export const MyBidsScreen = () => {
     };
 
     return (
-        <ScreenView>
-            <AppHeader
-                title="My Bids"
-                subtitle="Review, edit, and remove bids you submitted."
-                showBackButton
-                backButtonProps={{
-                    fallback: APP_ROUTES.HOME,
-                    variant: "secondary",
-                }}
-            />
+        <ScreenView style={styles.screen}>
+            <FlatList
+                data={visibleBids}
+                keyExtractor={(item) => item.id}
+                refreshing={false}
+                onRefresh={refreshBids}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.contentContainer}
+                scrollEnabled={true}
+                renderItem={() => null}
+                ListHeaderComponent={
+                    <View style={styles.headerWrap}>
+                        <AppHeader
+                            title="My Bids"
+                            subtitle="Review, edit, and remove bids you submitted."
+                            variant="large"
+                            divider
+                            showBackButton
+                            backButtonProps={{
+                                fallback: APP_ROUTES.HOME,
+                                variant: "secondary",
+                            }}
+                        />
 
-            <Card>
-                <Row gap="sm" style={styles.headerActions}>
-                    <AppButton
-                        title="Refresh"
-                        onPress={refreshBids}
-                        variant="secondary"
-                        fullWidth={false}
-                        disabled={loading || Boolean(savingBidId) || Boolean(deletingBidId)}
-                    />
-                </Row>
-                {error ? <BidEmptyState title="Action unavailable" description={error} /> : null}
-            </Card>
+                        <Card style={styles.summaryCard}>
+                            <Stack gap="sm">
+                                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Overview</Text>
 
-            <BidList
-                bids={visibleBids}
-                title="Submitted bids"
-                listPadding="none"
-                loading={loading}
-                error={error}
-                emptyMessage="You have not placed any bids yet."
-                onRetry={refreshBids}
-                canModify
-                onBidPress={(bid) => router.push(`/home/requests/${bid.helpRequestId}`)}
-                onBidUpdate={(bid) => openEditBid(bid)}
-                onBidDelete={(bid) => handleDeleteBid(bid.id)}
-                onBidViewProfile={undefined}
-                actionLoadingByBidId={
-                    savingBidId || deletingBidId ? { [savingBidId || deletingBidId || ""]: true } : {}
+                                <Row gap="sm" style={styles.summaryRow}>
+                                    <View
+                                        style={[
+                                            styles.metricTile,
+                                            {
+                                                backgroundColor: palette.surfaceMuted,
+                                                borderColor: palette.border,
+                                            },
+                                        ]}
+                                    >
+                                        <Text style={[styles.metricValue, { color: palette.textPrimary }]}>
+                                            {visibleBids.length}
+                                        </Text>
+                                        <Text style={[styles.metricLabel, { color: palette.textSecondary }]}>
+                                            Total
+                                        </Text>
+                                    </View>
+                                    <View
+                                        style={[
+                                            styles.metricTile,
+                                            {
+                                                backgroundColor: palette.surfaceMuted,
+                                                borderColor: palette.border,
+                                            },
+                                        ]}
+                                    >
+                                        <Text style={[styles.metricValue, { color: palette.textPrimary }]}>
+                                            {pendingCount}
+                                        </Text>
+                                        <Text style={[styles.metricLabel, { color: palette.textSecondary }]}>
+                                            Pending
+                                        </Text>
+                                    </View>
+                                    <View
+                                        style={[
+                                            styles.metricTile,
+                                            {
+                                                backgroundColor: palette.surfaceMuted,
+                                                borderColor: palette.border,
+                                            },
+                                        ]}
+                                    >
+                                        <Text style={[styles.metricValue, { color: palette.textPrimary }]}>
+                                            {acceptedCount}
+                                        </Text>
+                                        <Text style={[styles.metricLabel, { color: palette.textSecondary }]}>
+                                            Accepted
+                                        </Text>
+                                    </View>
+                                    <View
+                                        style={[
+                                            styles.metricTile,
+                                            {
+                                                backgroundColor: palette.surfaceMuted,
+                                                borderColor: palette.border,
+                                            },
+                                        ]}
+                                    >
+                                        <Text style={[styles.metricValue, { color: palette.textPrimary }]}>
+                                            {rejectedCount}
+                                        </Text>
+                                        <Text style={[styles.metricLabel, { color: palette.textSecondary }]}>
+                                            Rejected
+                                        </Text>
+                                    </View>
+                                </Row>
+                            </Stack>
+                        </Card>
+
+                        <Text style={[styles.listTitle, { color: palette.textPrimary }]}>
+                            Submitted bids ({visibleBids.length})
+                        </Text>
+                    </View>
                 }
-            />
-
-            {editingBid ? (
-                <BidComposerCard
-                    mode="edit"
-                    initialData={editingBid}
-                    title="Edit bid"
-                    submitLabel="Save bid"
-                    onSubmit={submitEditBid}
-                    loading={Boolean(savingBidId)}
-                    disabled={!editingBid}
-                />
-            ) : null}
-
-            {editingBid ? (
-                <Stack style={styles.editActions}>
-                    <AppButton
-                        title="Close editor"
-                        onPress={closeEditBid}
-                        variant="secondary"
-                        fullWidth={false}
-                        disabled={Boolean(savingBidId)}
+                ListEmptyComponent={
+                    <View>
+                        {error ? (
+                            <BidEmptyState
+                                title="Action unavailable"
+                                description={error}
+                                actionLabel="Retry"
+                                onAction={refreshBids}
+                            />
+                        ) : (
+                            <BidEmptyState
+                                title="No bids yet"
+                                description="Browse requests and place your first bid from a request detail screen."
+                            />
+                        )}
+                    </View>
+                }
+                ListFooterComponent={
+                    <View>
+                        {editingBid ? (
+                            <Card style={styles.editorCard}>
+                                <Stack gap="sm">
+                                    <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                                        Edit bid
+                                    </Text>
+                                    <BidComposerCard
+                                        mode="edit"
+                                        initialData={editingBid}
+                                        title="Edit bid"
+                                        submitLabel="Save bid"
+                                        onSubmit={submitEditBid}
+                                        loading={Boolean(savingBidId)}
+                                        disabled={!editingBid}
+                                    />
+                                    <AppButton
+                                        title="Close editor"
+                                        onPress={closeEditBid}
+                                        variant="secondary"
+                                        fullWidth={false}
+                                        disabled={Boolean(savingBidId)}
+                                    />
+                                </Stack>
+                            </Card>
+                        ) : null}
+                        <Text style={[styles.caption, { color: palette.textSecondary }]}>
+                            Pull down to refresh your latest bid activity.
+                        </Text>
+                    </View>
+                }
+            >
+                {loading || visibleBids.length > 0 ? (
+                    <BidList
+                        bids={visibleBids}
+                        title=""
+                        listPadding="none"
+                        loading={loading}
+                        error={error}
+                        emptyMessage=""
+                        onRetry={refreshBids}
+                        canModify
+                        onBidPress={(bid) => router.push(`/home/requests/${bid.helpRequestId}`)}
+                        onBidUpdate={(bid) => openEditBid(bid)}
+                        onBidDelete={(bid) => handleDeleteBid(bid.id)}
+                        onBidViewProfile={undefined}
+                        actionLoadingByBidId={
+                            savingBidId || deletingBidId ? { [savingBidId || deletingBidId || ""]: true } : {}
+                        }
                     />
-                </Stack>
-            ) : null}
-
-            {!loading && !error && visibleBids.length === 0 ? (
-                <BidEmptyState
-                    title="No bids yet"
-                    description="Browse requests and place your first bid from a request detail screen."
-                />
-            ) : null}
+                ) : null}
+            </FlatList>
         </ScreenView>
     );
 };
 
 const styles = StyleSheet.create({
-    headerActions: {
-        justifyContent: "flex-end",
+    screen: {
+        flex: 1,
     },
-    editActions: {
+    contentContainer: {
+        padding: theme.spacing.sm,
+    },
+    headerWrap: {
+        marginBottom: theme.spacing.xs,
+    },
+    summaryCard: {
+        marginBottom: theme.spacing.sm,
+    },
+    summaryRow: {
+        flexWrap: "wrap",
+    },
+    metricTile: {
+        flex: 1,
+        minWidth: 70,
+        borderRadius: theme.radius.md,
+        borderWidth: 1,
+        paddingVertical: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.sm,
+    },
+    metricValue: {
+        fontSize: theme.typography.fontSize.lg,
+        lineHeight: theme.typography.lineHeight.lg,
+        fontWeight: theme.typography.fontWeight.bold,
+    },
+    metricLabel: {
+        marginTop: theme.spacing.xxs,
+        fontSize: theme.typography.fontSize.xs,
+        lineHeight: theme.typography.lineHeight.xs,
+        fontWeight: theme.typography.fontWeight.medium,
+    },
+    sectionTitle: {
+        fontSize: theme.typography.fontSize.sm,
+        lineHeight: theme.typography.lineHeight.sm,
+        fontWeight: theme.typography.fontWeight.semibold,
+    },
+    listTitle: {
+        marginTop: theme.spacing.xs,
+        marginBottom: theme.spacing.xs,
+        fontSize: theme.typography.fontSize.sm,
+        lineHeight: theme.typography.lineHeight.sm,
+        fontWeight: theme.typography.fontWeight.semibold,
+    },
+    editorCard: {
         marginTop: theme.spacing.sm,
+        marginBottom: theme.spacing.sm,
+    },
+    caption: {
+        marginTop: theme.spacing.sm,
+        fontSize: theme.typography.fontSize.xs,
+        lineHeight: theme.typography.lineHeight.xs,
     },
 });
 
