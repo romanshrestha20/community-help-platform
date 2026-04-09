@@ -7,12 +7,14 @@ import { canMutateBid } from "@/features/bid/utils/bidValidation";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { HelpRequest } from "../types/helpRequest.types";
 import { RequestCard } from "./RequestCard";
+import { AppLocation } from "@/features/location/types/location.types";
 
 interface HelpingOpportunitiesSectionProps {
   requests: HelpRequest[];
   myBids?: Bid[];
   onPressBid: (request: HelpRequest) => void;
   onRemoveBid?: (request: HelpRequest, bid: Bid) => void;
+ userLocation?: AppLocation | null;
 }
 
 export const AvailableOpportunitiesSection: React.FC<HelpingOpportunitiesSectionProps> = ({
@@ -20,6 +22,7 @@ export const AvailableOpportunitiesSection: React.FC<HelpingOpportunitiesSection
   myBids = [],
   onPressBid,
   onRemoveBid,
+  userLocation,
 }) => {
   const { palette } = useThemeContext();
   const hasRequests = requests.length > 0;
@@ -75,6 +78,7 @@ export const AvailableOpportunitiesSection: React.FC<HelpingOpportunitiesSection
                 <RequestCard
                   key={request.id}
                   request={request}
+                                    userLocation={userLocation}
                   primaryActionLabel={
                     canRemoveBid
                       ? "Remove Bid"
