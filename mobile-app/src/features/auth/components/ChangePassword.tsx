@@ -8,6 +8,8 @@ import { AppInput } from "@/components/ui/AppInput";
 import { Stack, theme } from "@/design-system";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { APP_ROUTES } from "@/config/routes";
+import { validateChangePasswordForm } from "@/features/auth/utils/authValidation";
+import { useFormValidation } from "@/utils/validation/useFormValidation";
 
 
 export const ChangePasswordSection = () => {
@@ -18,15 +20,20 @@ export const ChangePasswordSection = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
+    const { validationError, setValidationError, clearValidationError } = useFormValidation();
 
     const onSubmit = async () => {
-        if (!currentPassword || !newPassword) {
-            Toast.show({
-                type: "error",
-                text1: "Please fill in both fields"
-            });
+        const validation = validateChangePasswordForm({
+            currentPassword,
+            newPassword,
+        });
+
+        if (validation) {
+            setValidationError(validation);
             return;
         }
+
+        clearValidationError();
 
         try {
             const result = await handleChangePassword(
@@ -76,16 +83,27 @@ export const ChangePasswordSection = () => {
             <AppInput
                 label="Current Password"
                 value={currentPassword}
-                onChangeText={setCurrentPassword}
+                onChangeText={(value) => {
+                    clearValidationError();
+                    setCurrentPassword(value);
+                }}
                 secureTextEntry
             />
 
             <AppInput
                 label="New Password"
                 value={newPassword}
-                onChangeText={setNewPassword}
+                onChangeText={(value) => {
+                    clearValidationError();
+                    setNewPassword(value);
+                }}
                 secureTextEntry
             />
+            {validationError ? (
+                <Text style={{ color: "#dc2626", fontSize: theme.typography.fontSize.sm }}>
+                    {validationError}
+                </Text>
+            ) : null}
             <AppButton
                 title={loadingChangePassword ? "Updating..." : "Update Password"}
                 onPress={onSubmit}
@@ -95,7 +113,10 @@ export const ChangePasswordSection = () => {
 
             <AppButton
                 title="Cancel"
-                onPress={() => setIsOpen(false)}
+                onPress={() => {
+                    clearValidationError();
+                    setIsOpen(false);
+                }}
                 disabled={loadingChangePassword}
             />
         </Stack>
