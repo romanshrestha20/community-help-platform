@@ -47,7 +47,9 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
         validationError,
         requestError,
         locationPicker,
+        fieldErrors,
         updateField,
+        clearFieldError,
         submitRequest,
     } = useCreateEditRequestScreen({ requestId: activeRequestId });
 
@@ -162,7 +164,11 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                     <AppInput
                         label="Title"
                         value={form.title}
-                        onChangeText={(value) => updateField("title", value)}
+                        error={fieldErrors.title ?? null}
+                        onChangeText={(value) => {
+                            clearFieldError("title");
+                            updateField("title", value);
+                        }}
                         editable={!saving}
                         placeholder="What do you need help with?"
                     />
@@ -170,7 +176,11 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                     <AppInput
                         label="Description"
                         value={form.description}
-                        onChangeText={(value) => updateField("description", value)}
+                        error={fieldErrors.description ?? null}
+                        onChangeText={(value) => {
+                            clearFieldError("description");
+                            updateField("description", value);
+                        }}
                         editable={!saving}
                         placeholder="Describe the request clearly"
                         multiline
@@ -196,7 +206,11 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                     <AppInput
                         label="Budget"
                         value={form.budget}
-                        onChangeText={(value) => updateField("budget", value)}
+                        error={fieldErrors.budget ?? null}
+                        onChangeText={(value) => {
+                            clearFieldError("budget");
+                            updateField("budget", value);
+                        }}
                         editable={!saving}
                         keyboardType="decimal-pad"
                         placeholder="Optional"
@@ -205,13 +219,22 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                     <LocationPickerField
                         value={locationPicker.value}
                         loading={locationPicker.loading}
-                        error={locationPicker.error}
-                        onUseCurrentLocation={locationPicker.useCurrentLocation}
+                        error={fieldErrors.location ?? locationPicker.error}
+                        onUseCurrentLocation={async () => {
+                            clearFieldError("location");
+                            await locationPicker.useCurrentLocation();
+                        }}
                         streetQuery={locationPicker.streetQuery}
-                        onStreetQueryChange={locationPicker.setStreetQuery}
+                        onStreetQueryChange={(value) => {
+                            clearFieldError("location");
+                            locationPicker.setStreetQuery(value);
+                        }}
                         suggestions={locationPicker.suggestions}
                         suggestionsLoading={locationPicker.suggestionsLoading}
-                        onSelectSuggestion={locationPicker.selectSuggestion}
+                        onSelectSuggestion={async (suggestion) => {
+                            clearFieldError("location");
+                            await locationPicker.selectSuggestion(suggestion);
+                        }}
                     />
 
                     {validationError ? (

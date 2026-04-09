@@ -11,7 +11,7 @@ import {
 } from "../types/helpRequest.types";
 import {
     parseBudgetInput,
-    validateRequestDraft,
+    validateRequestDraftFields,
 } from "../utils/requestValidation";
 
 export type RequestFormState = {
@@ -73,6 +73,9 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
     const [loadingRequest, setLoadingRequest] = useState(Boolean(requestId));
     const [saving, setSaving] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<
+        Partial<Record<"title" | "description" | "budget" | "location", string>>
+    >({});
     const [form, setForm] = useState<RequestFormState>(DEFAULT_FORM);
 
     const isEditing = Boolean(requestId);
@@ -124,23 +127,40 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
     const updateField = <K extends keyof RequestFormState>(field: K, value: RequestFormState[K]) => {
         setForm((prev) => ({ ...prev, [field]: value }));
         setValidationError(null);
+        if (field === "title" || field === "description" || field === "budget") {
+            setFieldErrors((prev) => {
+                if (!prev[field]) return prev;
+                const { [field]: _removed, ...rest } = prev;
+                return rest;
+            });
+        }
+    };
+
+    const clearFieldError = (field: "title" | "description" | "budget" | "location") => {
+        setFieldErrors((prev) => {
+            if (!prev[field]) return prev;
+            const { [field]: _removed, ...rest } = prev;
+            return rest;
+        });
     };
 
     const submitRequest = async (selectedImages: RequestImageUploadInput[] = []) => {
-        const validation = validateRequestDraft({
+        const validation = validateRequestDraftFields({
             title: form.title,
             description: form.description,
             budgetInput: form.budget,
             location: locationPicker.value,
         });
 
-        if (validation) {
-            setValidationError(validation);
+        if (!validation.isValid) {
+            setValidationError(validation.formError);
+            setFieldErrors(validation.fieldErrors);
             return null;
         }
 
         setSaving(true);
         setValidationError(null);
+        setFieldErrors({});
 
         try {
             const location = locationPicker.value;
@@ -208,9 +228,11 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
         loadingRequest: loadingRequest || requestLoading,
         saving,
         validationError,
+        fieldErrors,
         requestError,
         locationPicker,
         updateField,
+        clearFieldError,
         setValidationError,
         submitRequest,
     };
