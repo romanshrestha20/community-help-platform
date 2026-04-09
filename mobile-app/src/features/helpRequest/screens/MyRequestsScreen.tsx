@@ -2,21 +2,35 @@ import React from "react";
 import { FlatList, StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
 
-import { AppButton } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { ScreenView, theme } from "@/design-system";
 import { RequestCard } from "@/features/helpRequest/components/RequestCard";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
+import { RequestForm } from "@/features/helpRequest/components/RequestForm";
+import { useHelpRequest } from "@/features/helpRequest/hooks/helpRequest.hook";
 import { useRequestList } from "@/features/helpRequest/hooks/useRequestList";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { APP_ROUTES } from "@/config/routes";
+import { showSuccessToast } from "@/utils/toast";
 
 export const MyRequestsScreen = () => {
     const router = useRouter();
     const { palette } = useThemeContext();
+    const { createHelpRequest } = useHelpRequest();
     const { requests, loading, error, refreshing, refreshRequests } = useRequestList({
         scope: "mine",
     });
+
+    const handleCreateRequest = async (data: Parameters<typeof createHelpRequest>[0]) => {
+        const created = await createHelpRequest(data);
+
+        if (created) {
+            showSuccessToast("Request created");
+            await refreshRequests();
+        }
+
+        return created;
+    };
 
     return (
         <ScreenView>
@@ -29,12 +43,9 @@ export const MyRequestsScreen = () => {
                     variant: "secondary",
                 }}
             />
-
-
-            <AppButton
-                title="Create Request"
-                onPress={() => router.push("/home/requests/new")}
-                fullWidth={false}
+            <RequestForm
+                onSubmit={handleCreateRequest}
+                compactTrigger
             />
 
             <FlatList
