@@ -1,4 +1,5 @@
 import { HelpRequest, HelpRequestStatus } from "../types/helpRequest.types";
+import { getReadableLocationLabel } from "@/features/location/utils/distance";
 
 export const REQUEST_STATUS_LABELS: Record<HelpRequestStatus, string> = {
     OPEN: "Open",
@@ -22,8 +23,13 @@ export const formatRequestBudget = (request: HelpRequest) => {
 };
 
 export const formatRequestLocation = (request: HelpRequest) => {
-    const fallback = request.location?.formattedAddress;
-    return [request.city, request.country].filter(Boolean).join(", ") || fallback || "Location not set";
+    const locationLabel = getReadableLocationLabel(request.location);
+
+    return (
+        locationLabel ||
+        [request.city, request.country].filter(Boolean).join(", ") ||
+        "Location not set"
+    );
 };
 
 export const formatRequestCreatedAt = (value: string) => {
