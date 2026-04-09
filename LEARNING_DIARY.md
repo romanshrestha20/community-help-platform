@@ -388,3 +388,75 @@ Form Components (register.tsx, ProfileEditForm.tsx)
 4. Implement animated transitions when field errors appear/disappear
 5. Add validation state caching for form recovery on app suspend/resume
 6. Create form documentation/storybook for validation patterns
+
+## 18. Distance Display: Location-Aware Request Discovery
+
+**Objective**: Show approximate distance from user's current location to each request location, enabling users to quickly assess proximity before browsing request details.
+
+**Implementation**:
+
+1. **Distance Calculation Utility** (`src/utils/distance.ts`)
+
+- Implemented Haversine formula for geodetic distance calculation
+- Converts degrees to radians for trigonometric calculations
+- Functions:
+  - `calculateDistance(lat1, lon1, lat2, lon2)`: Returns distance in kilometers
+  - `formatDistance(distanceKm)`: Formats as "Xkm" or "Ym" based on magnitude
+  - `getDistanceToRequest(userLat, userLon, reqLat, reqLon)`: End-to-end distance calculation with formatting
+
+2. **RequestCard Updates** (`src/features/helpRequest/components/RequestCard.tsx`)
+
+- Added `userLocation?: AppLocation | null` prop
+- Distance calculated conditionally if both user and request locations available
+- Distance displayed in meta section (alongside location, bid count, budget)
+- Styled with primary color to emphasize relevance
+- Format: "Location • Xkm" (e.g., "Downtown • 1.5km")
+
+3. **RequestList Updates** (`src/features/helpRequest/components/RequestList.tsx`)
+
+- Added `userLocation?: AppLocation | null` to component props
+- Passes user location through to each RequestCard instance
+- Seamlessly threads location through list rendering
+
+4. **Screen Integration**
+
+- **BrowseRequestsScreen**: Uses `useLocationPicker` hook with `autoUseCurrentLocationOnMount: true`
+  - Automatically fetches user's current location on screen load
+  - Passes to `RequestList` for distance calculations
+- **MyRequestsScreen**: Same pattern for owner's own requests
+  - Shows distance to their own request locations (useful context)
+
+**User Experience**:
+
+- Users see "1.5km" or "500m" next to each request location
+- Helps decide which requests are worth exploring without leaving browse screen
+- Works seamlessly when both locations available; gracefully omitted if missing
+
+**Edge Cases Handled**:
+
+1. **Missing user location**: Distance not displayed (no permission, disabled, etc.)
+2. **Missing request location**: Distance not displayed (old data, etc.)
+3. **Zero coordinates**: Validated in conditional before calculation
+4. **Null values**: Optional chaining prevents runtime errors
+
+**Distance Matrix**:
+
+- < 1km: Displayed as meters (e.g., "500m")
+- > = 1km: Displayed with one decimal (e.g., "1.5km", "12.3km")
+- Haversine formula provides ~0.5% accuracy (sufficient for UX context)
+
+**Files Modified**:
+
+1. `mobile-app/src/utils/distance.ts` (NEW) – Haversine calculation and formatting
+2. `mobile-app/src/features/helpRequest/components/RequestCard.tsx` – Distance display in meta section
+3. `mobile-app/src/features/helpRequest/components/RequestList.tsx` – Pass location through list
+4. `mobile-app/src/features/helpRequest/screens/BrowseRequestsScreen.tsx` – Get user location, pass to list
+5. `mobile-app/src/features/helpRequest/screens/MyRequestsScreen.tsx` – Get user location, pass to list
+
+**Testing Recommendations**:
+
+- Verify distance formatting: < 1km shows meters, >= 1km shows kilometers
+- Test with nearby requests (< 5km) and distant requests (> 100km)
+- Confirm distance omitted gracefully when location permissions denied
+- Compare calculated distances against map app for accuracy validation
+- Verify no performance regression when rendering large request lists (distances calc is lightweight)
