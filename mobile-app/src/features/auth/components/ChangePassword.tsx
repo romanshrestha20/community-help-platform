@@ -7,19 +7,20 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppInput } from "@/components/ui/AppInput";
 import { Stack, theme } from "@/design-system";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
+import { APP_ROUTES } from "@/config/routes";
 
 
-export const ChangePasswordSection = () => { 
+export const ChangePasswordSection = () => {
     const router = useRouter();
 
-    const {handleChangePassword, loadingChangePassword, error} = useAuth();
+    const { handleChangePassword, loadingChangePassword, error } = useAuth();
 
     const [isOpen, setIsOpen] = useState(false);
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
 
     const onSubmit = async () => {
-        if(!currentPassword || !newPassword) {
+        if (!currentPassword || !newPassword) {
             Toast.show({
                 type: "error",
                 text1: "Please fill in both fields"
@@ -32,13 +33,13 @@ export const ChangePasswordSection = () => {
                 currentPassword,
                 newPassword
             );
-            if(result.success) {
-                router.replace("/login");
+            if (result.success) {
+                router.replace(APP_ROUTES.AUTH_LOGIN);
                 Toast.show({
                     type: "success",
                     text1: "Password changed successfully. Please log in again."
                 });
-                
+
             } else {
                 Toast.show({
                     type: "error",
@@ -55,48 +56,48 @@ export const ChangePasswordSection = () => {
     }
     if (!isOpen) {
         return (
-            <AppButton 
-                title="Change Password" 
-                onPress={() => setIsOpen(true)} 
+            <AppButton
+                title="Change Password"
+                onPress={() => setIsOpen(true)}
             />
         );
     }
 
     return (
-          <Stack>
-      <Text
-        style={{
-          fontWeight: theme.typography.fontWeight.semibold,
-          marginBottom: theme.spacing.sm,
-        }}
-      >
-        Change Password
-      </Text>
-      <AppInput
-        label="Current Password"
-        value={currentPassword}
-        onChangeText={setCurrentPassword}
-        secureTextEntry
-      />
+        <Stack>
+            <Text
+                style={{
+                    fontWeight: theme.typography.fontWeight.semibold,
+                    marginBottom: theme.spacing.sm,
+                }}
+            >
+                Change Password
+            </Text>
+            <AppInput
+                label="Current Password"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry
+            />
 
-      <AppInput
-        label="New Password"
-        value={newPassword}
-        onChangeText={setNewPassword}
-        secureTextEntry
-      />
-      <AppButton
-        title={loadingChangePassword ? "Updating..." : "Update Password"}
-        onPress={onSubmit}
-        loading={loadingChangePassword}
-        disabled={loadingChangePassword}
-      />
+            <AppInput
+                label="New Password"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+            />
+            <AppButton
+                title={loadingChangePassword ? "Updating..." : "Update Password"}
+                onPress={onSubmit}
+                loading={loadingChangePassword}
+                disabled={loadingChangePassword}
+            />
 
-      <AppButton
-        title="Cancel"
-        onPress={() => setIsOpen(false)}
-        disabled={loadingChangePassword}
-      />
+            <AppButton
+                title="Cancel"
+                onPress={() => setIsOpen(false)}
+                disabled={loadingChangePassword}
+            />
         </Stack>
     )
 }
