@@ -10,7 +10,7 @@ import { FormContainer } from "@/components/ui/FormContainer";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { APP_ROUTES } from "@/config/routes";
-import { validateLoginForm } from "@/features/auth/utils/authValidation";
+import { validateLoginFormFields } from "@/features/auth/utils/authValidation";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 
 export default function LoginScreen() {
@@ -25,14 +25,22 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { validationError, setValidationError, clearValidationError } = useFormValidation();
+  const {
+    validationError,
+    setValidationError,
+    fieldErrors,
+    setFieldErrors,
+    clearFieldError,
+    clearValidationError,
+  } = useFormValidation<"email" | "password">();
 
   const isFormDisabled = loadingLogin;
 
   const handleEmailLogin = async () => {
-    const validation = validateLoginForm({ email, password });
-    if (validation) {
-      setValidationError(validation);
+    const validation = validateLoginFormFields({ email, password });
+    if (!validation.isValid) {
+      setValidationError(validation.formError);
+      setFieldErrors(validation.fieldErrors);
       return;
     }
 
@@ -50,8 +58,9 @@ export default function LoginScreen() {
             label="Email"
             placeholder="name@example.com"
             value={email}
+            error={fieldErrors.email ?? null}
             onChangeText={(value) => {
-              clearValidationError();
+              clearFieldError("email");
               setEmail(value);
             }}
             autoCapitalize="none"
@@ -63,8 +72,9 @@ export default function LoginScreen() {
             label="Password"
             placeholder="Enter password"
             value={password}
+            error={fieldErrors.password ?? null}
             onChangeText={(value) => {
-              clearValidationError();
+              clearFieldError("password");
               setPassword(value);
             }}
             secureTextEntry

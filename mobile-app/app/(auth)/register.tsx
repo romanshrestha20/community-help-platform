@@ -12,7 +12,7 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import LocationPickerField from "@/features/location/components/LocationPickerField";
 import { LocationSuggestion } from "@/features/location/types/location.types";
-import { validateRegisterForm } from "@/features/auth/utils/authValidation";
+import { validateRegisterFormFields } from "@/features/auth/utils/authValidation";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 
 type Gender = "MALE" | "FEMALE" | "OTHER";
@@ -34,14 +34,23 @@ export default function RegisterScreen() {
   const [gender, setGender] = useState<Gender>("MALE");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [password, setPassword] = useState("");
-  const { validationError, setValidationError, clearValidationError } = useFormValidation();
+  const {
+    validationError,
+    setValidationError,
+    fieldErrors,
+    setFieldErrors,
+    clearFieldError,
+    clearValidationError,
+  } = useFormValidation<
+    "fullName" | "email" | "phone" | "password" | "dateOfBirth" | "location"
+  >();
 
   const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
     locationPicker.selectSuggestion(suggestion);
   };
 
   const onRegister = async () => {
-    const validation = validateRegisterForm({
+    const validation = validateRegisterFormFields({
       fullName,
       email,
       phone,
@@ -50,8 +59,9 @@ export default function RegisterScreen() {
       location: locationPicker.value,
     });
 
-    if (validation) {
-      setValidationError(validation);
+    if (!validation.isValid) {
+      setValidationError(validation.formError);
+      setFieldErrors(validation.fieldErrors);
       return;
     }
 
@@ -117,46 +127,59 @@ export default function RegisterScreen() {
                   label="Full name"
                   placeholder="Your full name"
                   value={fullName}
+                  error={fieldErrors.fullName ?? null}
                   onChangeText={(value) => {
-                    clearValidationError();
+                    clearFieldError("fullName");
                     setFullName(value);
                   }}
                   autoCapitalize="words"
+                  autoComplete="name"
+                  textContentType="name"
+                  importantForAutofill="no"
                 />
 
                 <AppInput
                   label="Email"
                   placeholder="name@example.com"
                   value={email}
+                  error={fieldErrors.email ?? null}
                   onChangeText={(value) => {
-                    clearValidationError();
+                    clearFieldError("email");
                     setEmail(value);
                   }}
                   autoCapitalize="none"
                   keyboardType="email-address"
+                  autoComplete="email"
+                  textContentType="emailAddress"
                 />
 
                 <AppInput
                   label="Phone"
                   placeholder="Phone number"
                   value={phone}
+                  error={fieldErrors.phone ?? null}
                   onChangeText={(value) => {
-                    clearValidationError();
+                    clearFieldError("phone");
                     setPhone(value);
                   }}
                   keyboardType="phone-pad"
+                  autoComplete="tel"
+                  textContentType="telephoneNumber"
                 />
 
                 <AppInput
                   label="Password"
                   placeholder="Create a password"
                   value={password}
+                  error={fieldErrors.password ?? null}
                   onChangeText={(value) => {
-                    clearValidationError();
+                    clearFieldError("password");
                     setPassword(value);
                   }}
                   secureTextEntry
                   autoCapitalize="none"
+                  autoComplete="new-password"
+                  textContentType="newPassword"
                 />
               </Stack>
             </View>
@@ -171,8 +194,9 @@ export default function RegisterScreen() {
                   label="Date of birth"
                   placeholder="YYYY-MM-DD"
                   value={dateOfBirth}
+                  error={fieldErrors.dateOfBirth ?? null}
                   onChangeText={(value) => {
-                    clearValidationError();
+                    clearFieldError("dateOfBirth");
                     setDateOfBirth(value);
                   }}
                 />
@@ -190,7 +214,6 @@ export default function RegisterScreen() {
                         <Pressable
                           key={option}
                           onPress={() => {
-                            clearValidationError();
                             setGender(option);
                           }}
                           style={({ pressed }) => [
@@ -234,14 +257,20 @@ export default function RegisterScreen() {
               <LocationPickerField
                 value={locationPicker.value}
                 loading={locationPicker.loading}
-                error={locationPicker.error}
-                onUseCurrentLocation={locationPicker.useCurrentLocation}
+                error={fieldErrors.location ?? locationPicker.error}
+                onUseCurrentLocation={async () => {
+                  clearFieldError("location");
+                  await locationPicker.useCurrentLocation();
+                }}
                 streetQuery={locationPicker.streetQuery}
-                onStreetQueryChange={locationPicker.setStreetQuery}
+                onStreetQueryChange={(value) => {
+                  clearFieldError("location");
+                  locationPicker.setStreetQuery(value);
+                }}
                 suggestions={locationPicker.suggestions}
                 suggestionsLoading={locationPicker.suggestionsLoading}
                 onSelectSuggestion={async (suggestion) => {
-                  clearValidationError();
+                  clearFieldError("location");
                   await handleSelectSuggestion(suggestion);
                 }}
               />
@@ -267,6 +296,7 @@ export default function RegisterScreen() {
                 </Text>
               </View>
             ) : null}
+
 
             <Stack gap="sm">
               <AppButton

@@ -8,7 +8,7 @@ import { AppInput } from "@/components/ui/AppInput";
 import { Stack, theme } from "@/design-system";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { APP_ROUTES } from "@/config/routes";
-import { validateChangePasswordForm } from "@/features/auth/utils/authValidation";
+import { validateChangePasswordFormFields } from "@/features/auth/utils/authValidation";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 
 
@@ -20,16 +20,24 @@ export const ChangePasswordSection = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
-    const { validationError, setValidationError, clearValidationError } = useFormValidation();
+    const {
+        validationError,
+        setValidationError,
+        fieldErrors,
+        setFieldErrors,
+        clearFieldError,
+        clearValidationError,
+    } = useFormValidation<"currentPassword" | "newPassword">();
 
     const onSubmit = async () => {
-        const validation = validateChangePasswordForm({
+        const validation = validateChangePasswordFormFields({
             currentPassword,
             newPassword,
         });
 
-        if (validation) {
-            setValidationError(validation);
+        if (!validation.isValid) {
+            setValidationError(validation.formError);
+            setFieldErrors(validation.fieldErrors);
             return;
         }
 
@@ -83,8 +91,9 @@ export const ChangePasswordSection = () => {
             <AppInput
                 label="Current Password"
                 value={currentPassword}
+                error={fieldErrors.currentPassword ?? null}
                 onChangeText={(value) => {
-                    clearValidationError();
+                    clearFieldError("currentPassword");
                     setCurrentPassword(value);
                 }}
                 secureTextEntry
@@ -93,8 +102,9 @@ export const ChangePasswordSection = () => {
             <AppInput
                 label="New Password"
                 value={newPassword}
+                error={fieldErrors.newPassword ?? null}
                 onChangeText={(value) => {
-                    clearValidationError();
+                    clearFieldError("newPassword");
                     setNewPassword(value);
                 }}
                 secureTextEntry

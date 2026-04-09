@@ -31,22 +31,32 @@ export const DeleteAccountModal = ({
 }: Props) => {
   const { palette } = useThemeContext();
   const [password, setPassword] = useState("");
-  const { validationError, setValidationError, clearValidationError } = useFormValidation();
+  const {
+    validationError,
+    setValidationError,
+    fieldErrors,
+    setFieldError,
+    clearFieldError,
+    clearValidationError,
+  } = useFormValidation<"password">();
 
   useEffect(() => {
     if (!visible) {
       setPassword("");
+      clearFieldError("password");
       clearValidationError();
     }
-  }, [visible, clearValidationError]);
+  }, [visible, clearFieldError, clearValidationError]);
 
   const handleConfirm = async () => {
     const validation = validatePasswordConfirmation(password);
     if (validation) {
       setValidationError(validation);
+      setFieldError("password", validation);
       return;
     }
 
+    clearFieldError("password");
     clearValidationError();
 
     const success = await onConfirm(password);
@@ -78,7 +88,9 @@ export const DeleteAccountModal = ({
               label="Password"
               placeholder="Enter your password"
               value={password}
+              error={fieldErrors.password ?? null}
               onChangeText={(value) => {
+                clearFieldError("password");
                 clearValidationError();
                 setPassword(value);
               }}
