@@ -17,6 +17,10 @@ import { typography } from "@/design-system";
 import Toast from "react-native-toast-message";
 import { toastConfig } from "@/utils/toastConfig";
 import { configureToast } from "@/utils/toast";
+import { enableScreens } from "react-native-screens";
+
+// Temporary iOS Expo Go workaround: bypass native RNSScreen host views.
+enableScreens(false);
 
 type DefaultPropsTarget = {
   defaultProps?: {
@@ -62,7 +66,8 @@ export default function Layout() {
 
   useEffect(() => {
     if (!fontsLoaded) return;
-    applyGlobalTypographyDefaults();
+    // Temporarily skip global defaultProps mutation to avoid Fabric host prop issues.
+    // Keep typography controlled through explicit component styles/design-system tokens.
 
     configureToast({
       position: "top",
