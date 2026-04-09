@@ -70,20 +70,23 @@ export const RequestPhotoUploadSection = ({
     const { palette } = useThemeContext();
 
     return (
-        <Card style={styles.sectionCard}>
+        <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
             <Stack gap="sm">
                 <View style={styles.sectionHeader}>
                     <View style={styles.sectionTitleWrap}>
-                        <Text style={styles.sectionTitle}>{title}</Text>
-                        <Text style={styles.sectionDescription}>{description}</Text>
+                        <View style={[styles.titlePill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+                            <Text style={[styles.titlePillText, { color: palette.textSecondary }]}>Request media</Text>
+                        </View>
+                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>{title}</Text>
+                        <Text style={[styles.sectionDescription, { color: palette.textSecondary }]}>{description}</Text>
                     </View>
                 </View>
 
                 {existingImages.length ? (
-                    <View style={styles.sectionGroup}>
+                    <View style={[styles.sectionGroup, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
                         <View style={styles.groupHeader}>
-                            <Text style={styles.groupTitle}>Current photos</Text>
-                            <Text style={styles.groupMeta}>{existingImages.length}</Text>
+                            <Text style={[styles.groupTitle, { color: palette.textPrimary }]}>Current photos</Text>
+                            <Text style={[styles.groupMeta, { color: palette.textSecondary }]}>{existingImages.length}</Text>
                         </View>
                         <PhotoGrid
                             images={existingImages
@@ -95,10 +98,10 @@ export const RequestPhotoUploadSection = ({
                 ) : null}
 
                 {readOnly ? null : (
-                    <View style={styles.sectionGroup}>
+                    <View style={[styles.sectionGroup, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
                         <View style={styles.groupHeader}>
-                            <Text style={styles.groupTitle}>Add more photos</Text>
-                            <Text style={styles.groupMeta}>{selectedImages.length}/{imageLimit}</Text>
+                            <Text style={[styles.groupTitle, { color: palette.textPrimary }]}>Add more photos</Text>
+                            <Text style={[styles.groupMeta, { color: palette.textSecondary }]}>{selectedImages.length}/{imageLimit}</Text>
                         </View>
 
                         <AppButton
@@ -125,7 +128,7 @@ export const RequestPhotoUploadSection = ({
 const styles = StyleSheet.create({
     sectionCard: {
         padding: spacing.md,
-        borderRadius: theme.radius.lg,
+        borderRadius: 16,
     },
     sectionHeader: {
         gap: 2,
@@ -133,17 +136,32 @@ const styles = StyleSheet.create({
     sectionTitleWrap: {
         gap: 2,
     },
+    titlePill: {
+        alignSelf: "flex-start",
+        borderWidth: 1,
+        borderRadius: theme.radius.fill,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        marginBottom: spacing.xs,
+    },
+    titlePillText: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: typography.fontWeight.semibold,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+    },
     sectionTitle: {
         fontSize: typography.fontSize.md,
         fontWeight: typography.fontWeight.bold,
-        color: colors.textPrimary,
     },
     sectionDescription: {
         fontSize: typography.fontSize.xs,
         lineHeight: 18,
-        color: colors.textSecondary,
     },
     sectionGroup: {
+        borderWidth: 1,
+        borderRadius: 12,
+        padding: spacing.sm,
         gap: spacing.sm,
     },
     groupHeader: {
@@ -154,12 +172,10 @@ const styles = StyleSheet.create({
     groupTitle: {
         fontSize: typography.fontSize.sm,
         fontWeight: typography.fontWeight.bold,
-        color: colors.textPrimary,
     },
     groupMeta: {
         fontSize: typography.fontSize.xs,
         fontWeight: typography.fontWeight.semibold,
-        color: colors.textSecondary,
     },
     emptyPhotosText: {
         fontSize: typography.fontSize.xs,
