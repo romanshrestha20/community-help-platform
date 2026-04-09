@@ -88,19 +88,16 @@ export const ScreenView = ({
   ...props
 }: ScreenViewProps) => {
   const { palette } = useThemeContext();
-  const insets = useSafeAreaInsets();
 
-  const bottomSpacing = withTabBarSpacing
-    ? TAB_BAR_CONSTANTS.HEIGHT + insets.bottom + theme.spacing.sm
-    : 0;
+
+
 
   const content = (
     <View
       style={[
         styles.flex,
         {
-          padding: theme.spacing.lg,
-          paddingBottom: theme.spacing.lg + bottomSpacing,
+          padding: theme.spacing.sm,
           backgroundColor: palette.background,
           justifyContent: centered ? "center" : "flex-start",
         },
