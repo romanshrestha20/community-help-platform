@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
-import { StyleSheet, Text } from "react-native";
+import { Platform, StyleSheet, Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -77,8 +77,9 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
 
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsMultipleSelection: true,
-            selectionLimit: remainingSlots,
+            // iOS multi-select can hang on Done in some dev-client/simulator states.
+            allowsMultipleSelection: Platform.OS !== "ios",
+            selectionLimit: Platform.OS === "ios" ? 1 : remainingSlots,
             quality: 0.85,
         });
 
