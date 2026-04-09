@@ -205,12 +205,12 @@ apiClient.interceptors.response.use(
         "Something went wrong";
 
       showToast("error", "Error", message);
-      console.error("API Error:", message);
+      console.warn("API Error:", message);
     } else if (error.request) {
       showToast("error", "Network Error");
-      console.error("Network error");
+      console.warn("Network error");
     } else {
-      console.error("Request error:", error.message);
+      console.warn("Request error:", error.message);
     }
 
     return Promise.reject(error);
