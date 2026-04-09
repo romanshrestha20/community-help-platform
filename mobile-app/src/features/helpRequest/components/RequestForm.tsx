@@ -13,7 +13,7 @@ import {
     HelpRequest,
     RequestImageUploadInput,
 } from "../types/helpRequest.types";
-import { validateRequestDraft } from "../utils/requestValidation";
+import { validateRequestDraftFields } from "../utils/requestValidation";
 import { RequestFormContent, RequestFormValues } from "./RequestFormContent";
 import { RequestFormTrigger } from "./RequestFormTrigger";
 
@@ -50,7 +50,14 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     });
 
     const [selectedImages, setSelectedImages] = useState<RequestImageUploadInput[]>([]);
-    const { validationError, setValidationError, clearValidationError } = useFormValidation();
+    const {
+        validationError,
+        setValidationError,
+        fieldErrors,
+        setFieldErrors,
+        clearFieldError,
+        clearValidationError,
+    } = useFormValidation<"title" | "description" | "budget" | "location">();
     const [modalVisible, setModalVisible] = useState(false);
 
     const triggerTitle = initialData ? "Edit request" : "Create request";
@@ -63,7 +70,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         value: RequestFormValues[K]
     ) => {
         setValues((prev) => ({ ...prev, [field]: value }));
-        clearValidationError();
+        clearFieldError(field as "title" | "description" | "budget");
     };
 
     const handlePickImages = async () => {
@@ -106,15 +113,16 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     };
 
     const handleSubmit = async () => {
-        const validation = validateRequestDraft({
+        const validation = validateRequestDraftFields({
             title: values.title,
             description: values.description,
             budgetInput: values.budget ? String(values.budget) : "",
             location: locationPicker.value,
         });
 
-        if (validation) {
-            setValidationError(validation);
+        if (!validation.isValid) {
+            setValidationError(validation.formError);
+            setFieldErrors(validation.fieldErrors);
             return;
         }
 
@@ -191,6 +199,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                     values={values}
                     loading={loading}
                     validationError={validationError}
+                    fieldErrors={fieldErrors}
                     error={error}
                     selectedImages={selectedImages}
                     existingImages={existingImages}
@@ -200,7 +209,14 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                     onChangeField={handleChangeField}
                     locationPickerProps={{
                         ...locationPicker,
-                        onUseCurrentLocation: locationPicker.useCurrentLocation,
+                        onUseCurrentLocation: async () => {
+                            clearFieldError("location");
+                            await locationPicker.useCurrentLocation();
+                        },
+                        onSelectSuggestion: async (suggestion) => {
+                            clearFieldError("location");
+                            await locationPicker.selectSuggestion?.(suggestion);
+                        },
                     }}
                 />
             </AppModal>

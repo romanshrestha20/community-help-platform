@@ -26,6 +26,7 @@ export type RequestFormContentProps = {
     categories?: RequestFormCategory[];
     loading?: boolean;
     validationError?: string | null;
+    fieldErrors?: Partial<Record<"title" | "description" | "budget" | "location", string>>;
     error?: string | null;
     selectedImages?: RequestImageUploadInput[];
     existingImages?: HelpRequest["images"];
@@ -48,6 +49,7 @@ export const RequestFormContent = ({
     categories = DEFAULT_CATEGORIES,
     loading = false,
     validationError,
+    fieldErrors = {},
     error,
     selectedImages = [],
     existingImages = [],
@@ -80,6 +82,7 @@ export const RequestFormContent = ({
                     label="Title"
                     placeholder="What do you need help with?"
                     value={values.title}
+                    error={fieldErrors.title ?? null}
                     onChangeText={(value) => onChangeField("title", value)}
                     editable={!loading}
                 />
@@ -88,6 +91,7 @@ export const RequestFormContent = ({
                     label="Description"
                     placeholder="Explain the situation, timeline, and anything helpful to know"
                     value={values.description}
+                    error={fieldErrors.description ?? null}
                     onChangeText={(value) => onChangeField("description", value)}
                     editable={!loading}
                     multiline
@@ -117,6 +121,7 @@ export const RequestFormContent = ({
                         placeholder="Optional amount"
                         keyboardType="decimal-pad"
                         value={values.budget?.toString() || ""}
+                        error={fieldErrors.budget ?? null}
                         onChangeText={(value) =>
                             onChangeField("budget", value ? parseFloat(value) : undefined)
                         }
@@ -142,7 +147,7 @@ export const RequestFormContent = ({
                     }}
                 >
                     <Text style={[styles.errorText, { color: palette.danger }]}>
-                        {validationError || error}
+                        {fieldErrors.location || validationError || error}
                     </Text>
                 </RequestFormSection>
             ) : null}

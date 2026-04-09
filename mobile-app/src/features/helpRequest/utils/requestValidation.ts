@@ -6,6 +6,7 @@ import {
     REQUEST_TITLE_MAX_LENGTH,
     REQUEST_TITLE_MIN_LENGTH,
     validateRequestDraft,
+    validateRequestDraftFields,
 } from "@/utils/validation/forms";
 
 const ALLOWED_STATUS_TRANSITIONS: Record<HelpRequestStatus, HelpRequestStatus[]> = {
@@ -22,6 +23,7 @@ export {
     REQUEST_TITLE_MAX_LENGTH,
     REQUEST_TITLE_MIN_LENGTH,
     validateRequestDraft,
+    validateRequestDraftFields,
 };
 
 export const canTransitionRequestStatus = (
