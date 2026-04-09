@@ -2,10 +2,28 @@ import React from "react";
 import { StyleSheet } from "react-native";
 
 import { Screen } from "@/design-system";
+import type { ScreenProps } from "@/design-system/layout/Screen";
 
-export const FormContainer = ({ children }: { children: React.ReactNode }) => {
+type FormContainerProps = Pick<
+  ScreenProps,
+  "children" | "contentContainerStyle" | "style" | "useSafeArea" | "withTabBarSpacing"
+>;
+
+export const FormContainer = ({
+  children,
+  contentContainerStyle,
+  style,
+  useSafeArea,
+  withTabBarSpacing,
+}: FormContainerProps) => {
   return (
-    <Screen centered contentContainerStyle={styles.container}>
+    <Screen
+      centered
+      contentContainerStyle={[styles.container, contentContainerStyle]}
+      style={style}
+      useSafeArea={useSafeArea}
+      withTabBarSpacing={withTabBarSpacing}
+    >
       {children}
     </Screen>
   );
