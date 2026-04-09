@@ -193,8 +193,8 @@ const styles = StyleSheet.create({
     container: {
         marginTop: theme.spacing.xs,
         borderRadius: 24,
-        padding: theme.spacing.lg,
-        gap: theme.spacing.md,
+        padding: theme.spacing.md,
+        gap: theme.spacing.sm,
         overflow: "hidden",
         borderWidth: 1,
         shadowOpacity: 0.06,
@@ -214,12 +214,12 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "flex-start",
         justifyContent: "space-between",
-        gap: theme.spacing.md,
+        gap: theme.spacing.sm,
     },
     identityBlock: {
         flex: 1,
-        gap: 4,
-        paddingTop: 2,
+        gap: 2,
+        paddingTop: 0,
     },
     eyebrow: {
         fontSize: theme.typography.fontSize.xs,
@@ -229,8 +229,8 @@ const styles = StyleSheet.create({
         fontWeight: theme.typography.fontWeight.semibold,
     },
     title: {
-        fontSize: 28,
-        lineHeight: 32,
+        fontSize: theme.typography.fontSize.lg,
+        lineHeight: theme.typography.lineHeight.lg,
         fontWeight: theme.typography.fontWeight.bold,
     },
     metaRow: {
