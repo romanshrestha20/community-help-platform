@@ -13,7 +13,7 @@ import { Card, Row, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { Gender, UpdateUserProfilePayload, User, UserType } from "../types/user.types";
-import { validateProfileUpdateForm } from "../utils/userValidation";
+import { validateProfileUpdateFormFields } from "../utils/userValidation";
 
 type Props = {
   user: User | null;
@@ -27,7 +27,14 @@ const userTypeOptions: UserType[] = [UserType.GENERAL, UserType.ELDERLY, UserTyp
 
 export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: Props) => {
   const { palette } = useThemeContext();
-  const { validationError, setValidationError, clearValidationError } = useFormValidation();
+  const {
+    validationError,
+    setValidationError,
+    fieldErrors,
+    setFieldErrors,
+    clearFieldError,
+    clearValidationError,
+  } = useFormValidation<"fullName" | "dateOfBirth" | "bio">();
 
   const [fullName, setFullName] = useState("");
   const [bio, setBio] = useState("");
@@ -45,14 +52,15 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
   }, [clearValidationError, user]);
 
   const handleSave = async () => {
-    const validation = validateProfileUpdateForm({
+    const validation = validateProfileUpdateFormFields({
       fullName,
       dateOfBirth,
       bio,
     });
 
-    if (validation) {
-      setValidationError(validation);
+    if (!validation.isValid) {
+      setValidationError(validation.formError);
+      setFieldErrors(validation.fieldErrors);
       return;
     }
 
@@ -77,7 +85,7 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
             <TextInput
               value={fullName}
               onChangeText={(value) => {
-                clearValidationError();
+                clearFieldError("fullName");
                 setFullName(value);
               }}
               placeholder="Enter full name"
@@ -91,13 +99,16 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
               ]}
               placeholderTextColor={palette.textSecondary}
             />
+            {fieldErrors.fullName ? (
+              <Text style={[styles.errorText, { color: palette.danger }]}>{fieldErrors.fullName}</Text>
+            ) : null}
           </Field>
 
           <Field label="Bio">
             <TextInput
               value={bio}
               onChangeText={(value) => {
-                clearValidationError();
+                clearFieldError("bio");
                 setBio(value);
               }}
               placeholder="Tell something about yourself"
@@ -114,13 +125,16 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
               ]}
               placeholderTextColor={palette.textSecondary}
             />
+            {fieldErrors.bio ? (
+              <Text style={[styles.errorText, { color: palette.danger }]}>{fieldErrors.bio}</Text>
+            ) : null}
           </Field>
 
           <Field label="Date of birth">
             <TextInput
               value={dateOfBirth}
               onChangeText={(value) => {
-                clearValidationError();
+                clearFieldError("dateOfBirth");
                 setDateOfBirth(value);
               }}
               placeholder="YYYY-MM-DD"
@@ -134,6 +148,9 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
               ]}
               placeholderTextColor={palette.textSecondary}
             />
+            {fieldErrors.dateOfBirth ? (
+              <Text style={[styles.errorText, { color: palette.danger }]}>{fieldErrors.dateOfBirth}</Text>
+            ) : null}
           </Field>
 
           <Field label="Gender">
