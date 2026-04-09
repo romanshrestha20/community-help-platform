@@ -52,20 +52,22 @@ export const BidCard = ({
   return (
     <>
       <Pressable onPress={onPress}>
-        <Card>
+        <Card style={styles.card}>
           <Stack gap="sm">
             <Row justify="space-between" align="flex-start">
               <View style={styles.flex}>
                 <Text style={[styles.name, { color: palette.textPrimary }]}>
                   {bid.helperName}
                 </Text>
-                <Text style={[styles.amount, { color: palette.primary }]}>
-                  {formatBidAmount(bid.amount)}
-                </Text>
               </View>
 
               <BidStatusBadge status={bid.status} />
             </Row>
+
+            <View style={[styles.amountPanel, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+              <Text style={[styles.amountLabel, { color: palette.textSecondary }]}>Bid amount</Text>
+              <Text style={[styles.amount, { color: palette.primary }]}>{formatBidAmount(bid.amount)}</Text>
+            </View>
 
             {shouldShowProfileAction ? (
               <AppButton
@@ -76,13 +78,14 @@ export const BidCard = ({
               />
             ) : null}
 
-            <Text style={[styles.message, { color: palette.textSecondary }]}>
-              {bid.message}
-            </Text>
+            <View style={[styles.messagePanel, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+              <Text style={[styles.messageLabel, { color: palette.textSecondary }]}>Message</Text>
+              <Text style={[styles.message, { color: palette.textSecondary }]}>{bid.message}</Text>
+            </View>
 
-            <Text style={[styles.date, { color: palette.textSecondary }]}>
-              Submitted {formatBidCreatedAt(bid.createdAt)}
-            </Text>
+            <View style={[styles.metaChip, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+              <Text style={[styles.date, { color: palette.textSecondary }]}>Submitted {formatBidCreatedAt(bid.createdAt)}</Text>
+            </View>
 
             {requesterActions && bid.status === "PENDING" && (onAccept || onReject) ? (
               <Row gap="sm">
@@ -132,6 +135,9 @@ export const BidCard = ({
 };
 
 const styles = StyleSheet.create({
+  card: {
+    borderRadius: 16,
+  },
   flex: {
     flex: 1,
   },
@@ -139,16 +145,50 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
+  amountPanel: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  amountLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
   amount: {
-    marginTop: 2,
-    fontSize: 15,
-    fontWeight: "700",
+    marginTop: 3,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "800",
+  },
+  messagePanel: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  messageLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 4,
   },
   message: {
     fontSize: 14,
     lineHeight: 20,
   },
+  metaChip: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    alignSelf: "flex-start",
+  },
   date: {
     fontSize: 12,
+    fontWeight: "500",
   },
 });

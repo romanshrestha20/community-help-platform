@@ -1,7 +1,10 @@
 import React from "react";
 import { FlatList, StyleSheet, View, Text } from "react-native";
-import { Stack, Card, spacing, colors, typography } from "@/design-system";
+import Ionicons from "@expo/vector-icons/Ionicons";
+
+import { Stack, Card, spacing, typography } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { BidCard } from "./BidCard";
 import { Bid } from "../types/bid.types";
 
@@ -44,6 +47,7 @@ export const BidList: React.FC<BidListProps> = ({
     disableRespondActions = false,
     onRetry,
 }) => {
+    const { palette } = useThemeContext();
     const containerStyle = listPadding === "none" ? styles.containerNoPadding : styles.container;
 
     const renderBid = ({ item }: { item: Bid }) => (
@@ -66,7 +70,9 @@ export const BidList: React.FC<BidListProps> = ({
     if (loading && bids.length === 0) {
         return (
             <View style={containerStyle}>
-                <Text style={styles.bodyText}>Loading bids...</Text>
+                <View style={[styles.statePanel, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+                    <Text style={[styles.bodyText, { color: palette.textSecondary }]}>Loading bids...</Text>
+                </View>
             </View>
         );
     }
@@ -74,10 +80,10 @@ export const BidList: React.FC<BidListProps> = ({
     if (error && bids.length === 0) {
         return (
             <View style={containerStyle}>
-                <Card style={{ backgroundColor: colors.dangerSoft }}>
+                <Card style={{ backgroundColor: palette.dangerSoft, borderColor: palette.danger }}>
                     <Stack gap="sm">
-                        <Text style={[styles.bodyText, { color: colors.danger }]}>Error</Text>
-                        <Text style={[styles.captionText, { color: colors.danger }]}>{error}</Text>
+                        <Text style={[styles.bodyText, { color: palette.danger }]}>Error</Text>
+                        <Text style={[styles.captionText, { color: palette.danger }]}>{error}</Text>
                         {onRetry && <AppButton title="Retry" onPress={onRetry} />}
                     </Stack>
                 </Card>
@@ -88,16 +94,27 @@ export const BidList: React.FC<BidListProps> = ({
     if (bids.length === 0) {
         return (
             <View style={containerStyle}>
-                <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{emptyMessage}</Text>
+                <View style={[styles.statePanel, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+                    <Text style={[styles.bodyText, { color: palette.textSecondary }]}>{emptyMessage}</Text>
+                </View>
             </View>
         );
     }
 
     return (
         <View style={containerStyle}>
-            <Text style={[styles.bodyText, { fontWeight: typography.fontWeight.semibold, marginBottom: spacing.md }]}>
-                {title} ({bids.length})
-            </Text>
+            <View style={[styles.titlePill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+                <Ionicons name="receipt-outline" size={14} color={palette.textSecondary} />
+                <Text
+                    style={[
+                        styles.bodyText,
+                        styles.titleText,
+                        { color: palette.textSecondary, fontWeight: typography.fontWeight.semibold },
+                    ]}
+                >
+                    {title} ({bids.length})
+                </Text>
+            </View>
             <FlatList
                 data={bids}
                 renderItem={renderBid}
@@ -115,14 +132,32 @@ const styles = StyleSheet.create({
         fontSize: typography.fontSize.md,
         lineHeight: typography.lineHeight.md,
         fontWeight: typography.fontWeight.regular,
-        color: colors.textPrimary,
     },
     captionText: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.fontSize.sm,
         lineHeight: typography.lineHeight.sm,
         fontWeight: typography.fontWeight.regular,
-        color: colors.textPrimary,
+    },
+    titlePill: {
+        flexDirection: "row",
+        alignItems: "center",
+        alignSelf: "flex-start",
+        borderWidth: 1,
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 7,
+        marginBottom: spacing.md,
+        columnGap: spacing.xs,
+    },
+    titleText: {
+        fontSize: typography.fontSize.sm,
+    },
+    statePanel: {
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
     },
     container: {
         paddingHorizontal: spacing.lg,
