@@ -7,6 +7,7 @@ import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { Card, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppInput } from "@/components/ui/AppInput";
+import { DatePickerField } from "@/components/ui/DatePickerField";
 import { FormContainer } from "@/components/ui/FormContainer";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
@@ -190,9 +191,8 @@ export default function RegisterScreen() {
               </Text>
 
               <Stack gap="md">
-                <AppInput
+                <DatePickerField
                   label="Date of birth"
-                  placeholder="YYYY-MM-DD"
                   value={dateOfBirth}
                   error={fieldErrors.dateOfBirth ?? null}
                   onChangeText={(value) => {

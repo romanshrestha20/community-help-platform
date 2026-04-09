@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { Card, Row, Stack, theme } from "@/design-system";
+import { DatePickerField } from "@/components/ui/DatePickerField";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { Gender, UpdateUserProfilePayload, User, UserType } from "../types/user.types";
@@ -131,26 +132,14 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
           </Field>
 
           <Field label="Date of birth">
-            <TextInput
+            <DatePickerField
               value={dateOfBirth}
+              error={fieldErrors.dateOfBirth ?? null}
               onChangeText={(value) => {
                 clearFieldError("dateOfBirth");
                 setDateOfBirth(value);
               }}
-              placeholder="YYYY-MM-DD"
-              style={[
-                styles.input,
-                {
-                  backgroundColor: palette.surfaceMuted,
-                  borderColor: palette.border,
-                  color: palette.textPrimary,
-                },
-              ]}
-              placeholderTextColor={palette.textSecondary}
             />
-            {fieldErrors.dateOfBirth ? (
-              <Text style={[styles.errorText, { color: palette.danger }]}>{fieldErrors.dateOfBirth}</Text>
-            ) : null}
           </Field>
 
           <Field label="Gender">

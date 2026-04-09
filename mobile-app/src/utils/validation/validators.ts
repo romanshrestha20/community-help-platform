@@ -55,6 +55,8 @@ export const validatePhoneNumber = (phone: string) => {
   return null;
 };
 
+const MIN_AGE_YEARS = 13;
+
 export const validateDateOfBirth = (dateOfBirth: string) => {
   const trimmed = dateOfBirth.trim();
 
@@ -66,22 +68,56 @@ export const validateDateOfBirth = (dateOfBirth: string) => {
     return "Date of birth must be in YYYY-MM-DD format.";
   }
 
-  const parsed = new Date(`${trimmed}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) {
+  // Parse as local date to avoid timezone issues
+  const [yearStr, monthStr, dayStr] = trimmed.split("-");
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+  const day = parseInt(dayStr, 10);
+
+  // Validate that the date components form a valid calendar date
+  if (month < 1 || month > 12) {
     return "Please enter a valid date of birth.";
   }
 
-  const [year, month, day] = trimmed.split("-").map(Number);
-  if (
-    parsed.getUTCFullYear() !== year ||
-    parsed.getUTCMonth() + 1 !== month ||
-    parsed.getUTCDate() !== day
-  ) {
+  const daysInMonth = [
+    31, // January
+    year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28, // February (leap year aware)
+    31, // March
+    30, // April
+    31, // May
+    30, // June
+    31, // July
+    31, // August
+    30, // September
+    31, // October
+    30, // November
+    31, // December
+  ];
+
+  if (day < 1 || day > daysInMonth[month - 1]) {
     return "Please enter a valid date of birth.";
   }
 
-  if (parsed >= new Date()) {
+  // Use local date parsing to avoid timezone mismatch
+  const parsed = new Date(year, month - 1, day);
+  const now = new Date();
+
+  if (parsed >= now) {
     return "Date of birth must be in the past.";
+  }
+
+  // Calculate age
+  let age = now.getFullYear() - year;
+  const hasHadBirthdayThisYear =
+    now.getMonth() > month - 1 ||
+    (now.getMonth() === month - 1 && now.getDate() >= day);
+
+  if (!hasHadBirthdayThisYear) {
+    age--;
+  }
+
+  if (age < MIN_AGE_YEARS) {
+    return `You must be at least ${MIN_AGE_YEARS} years old to register.`;
   }
 
   return null;
