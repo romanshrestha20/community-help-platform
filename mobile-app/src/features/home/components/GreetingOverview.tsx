@@ -4,11 +4,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Card, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
-import { formatShortAddress } from "@/features/location/components/LocationPickerField";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { AppLocation } from "@/features/location/types/location.types";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
+import { getReadableLocationLabel } from "@/features/location/utils/distance";
 
 interface GreetingOverviewProps {
     name?: string;
@@ -53,7 +53,7 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
 
     const currentLocationText = useMemo(() => {
         if (locationPicker.value) {
-            return formatShortAddress(locationPicker.value);
+            return getReadableLocationLabel(locationPicker.value) || locationPicker.value.formattedAddress || "N/A";
         }
 
         return localLocation || location || "N/A";
@@ -72,9 +72,13 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
     }, [activeRequests]);
 
     useEffect(() => {
+        setLocalLocation(location);
+    }, [location]);
+
+    useEffect(() => {
         if (!locationPicker.value) return;
 
-        const nextLocation = formatShortAddress(locationPicker.value);
+        const nextLocation = getReadableLocationLabel(locationPicker.value) || locationPicker.value.formattedAddress || "";
         setLocalLocation(nextLocation);
         onUpdateLocation?.(locationPicker.value);
     }, [locationPicker.value, onUpdateLocation]);
