@@ -28,6 +28,7 @@ import {
 import { ThemeModeCard } from "@/features/settings/components/ThemeModeCard";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { showSuccessToast, showErrorToast } from "@/utils/toast";
+import { APP_ROUTES } from "@/config/routes";
 
 export default function ProfileTabScreen() {
   const { palette } = useThemeContext();
@@ -86,13 +87,13 @@ export default function ProfileTabScreen() {
         id: "requests",
         title: "My Requests",
         subtitle: "Create, edit, and monitor the requests you posted.",
-        onPress: () => router.push("/profile/requests"),
+        onPress: () => router.push(APP_ROUTES.PROFILE_REQUESTS),
       },
       {
         id: "bids",
         title: "My Bids",
         subtitle: "Review and update the bids you have placed.",
-        onPress: () => router.push("/profile/bids"),
+        onPress: () => router.push(APP_ROUTES.PROFILE_BIDS),
       },
       {
         id: "history",
@@ -250,7 +251,7 @@ export default function ProfileTabScreen() {
                     await handleLogout();
                     setSessionModalVisible(false);
                     showSuccessToast("Logged out successfully");
-                    router.replace("/(auth)/login");
+                    router.replace(APP_ROUTES.AUTH_LOGIN);
                   } catch {
                     showErrorToast("Logout failed", "Please try again.");
                   }

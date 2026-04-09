@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Text, StyleSheet, View } from "react-native";
+import { Text, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 
 import { Card, Stack, theme } from "@/design-system";
@@ -9,6 +9,7 @@ import { AppInput } from "@/components/ui/AppInput";
 import { FormContainer } from "@/components/ui/FormContainer";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { APP_ROUTES } from "@/config/routes";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function LoginScreen() {
   return (
     <FormContainer>
       <Card>
-        <AppHeader title="Login" subtitle="Welcome back" />
+        <AppHeader title="Sign In" subtitle="Access your account to continue" />
 
         <Stack>
           <AppInput
@@ -69,7 +70,7 @@ export default function LoginScreen() {
 
           <Text
             style={[styles.link, { color: palette.primary }]}
-            onPress={() => router.push("/register")}
+            onPress={() => router.push(APP_ROUTES.AUTH_REGISTER)}
           >
             Don&apos;t have an account? Register
           </Text>
