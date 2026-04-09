@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { router } from "expo-router";
 
 import { theme } from "@/design-system";
 import {
@@ -130,9 +131,12 @@ export const CustomTabBar: React.FC<CustomTabBarProps> = ({
             canPreventDefault: true,
           });
 
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
+          if (event.defaultPrevented) {
+            return;
           }
+
+          // Always route to the tab root path so reselecting a focused tab resets nested paths.
+          router.replace(`/${route.name}` as `/${string}`);
         };
 
         const handleLongPress = () => {
