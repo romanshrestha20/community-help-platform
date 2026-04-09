@@ -35,7 +35,9 @@ export const RequestFormTrigger = ({ title, subtitle, compact = false, onPress }
                 </View>
                 <View style={styles.compactCopy}>
                     <Text style={[styles.compactTitle, { color: palette.textPrimary }]}>{title}</Text>
-                    <Text style={[styles.compactSubtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
+                    {subtitle ? (
+                        <Text style={[styles.compactSubtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
+                    ) : null}
                 </View>
             </TouchableOpacity>
         );
@@ -114,12 +116,14 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     compactCard: {
+        alignSelf: "flex-start",
         minHeight: 56,
         borderRadius: theme.radius.lg,
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.sm,
         paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
         borderWidth: 1,
     },
     compactIcon: {
@@ -130,7 +134,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     compactCopy: {
-        flex: 1,
+        flexShrink: 1,
     },
     compactTitle: {
         fontSize: typography.fontSize.sm,
