@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   iconWrapper: {
     width: 40,
     height: 40,
-    borderRadius: theme.radius.fill,
+    borderRadius: theme.radius.full,
     alignItems: "center",
     justifyContent: "center",
   },
