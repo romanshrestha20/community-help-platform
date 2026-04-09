@@ -6,9 +6,11 @@ import { theme } from "@/design-system";
 import { HelpRequest } from "../types/helpRequest.types";
 import { RequestCard } from "./RequestCard";
 import { RequestEmptyState } from "./RequestEmptyState";
+import { AppLocation } from "@/features/location/types/location.types";
 
 type Props = {
     requests: HelpRequest[];
+    userLocation?: AppLocation | null;
     onPressItem?: (item: HelpRequest) => void;
     refreshing?: boolean;
     onRefresh?: () => void;
@@ -20,6 +22,7 @@ type Props = {
 
 export const RequestList = ({
     requests,
+    userLocation,
     onPressItem,
     refreshing,
     onRefresh,
@@ -33,7 +36,7 @@ export const RequestList = ({
             data={requests}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-                <RequestCard request={item} onPress={() => onPressItem?.(item)} />
+                <RequestCard request={item} userLocation={userLocation} onPress={() => onPressItem?.(item)} />
             )}
             contentContainerStyle={styles.contentContainer}
             showsVerticalScrollIndicator={false}

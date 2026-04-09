@@ -12,9 +12,12 @@ import {
   REQUEST_CATEGORY_LABELS,
 } from "../utils/requestDisplay";
 import { RequestStatusBadge } from "./RequestStatusBadge";
+import { AppLocation } from "@/features/location/types/location.types";
+import { getDistanceToRequest } from "@/utils/distance";
 
 type Props = {
   request: HelpRequest;
+  userLocation?: AppLocation | null;
   onPress?: () => void;
   primaryActionLabel?: string;
   secondaryActionLabel?: string;
@@ -27,6 +30,7 @@ type Props = {
 
 export const RequestCard = ({
   request,
+  userLocation,
   onPress,
   primaryActionLabel,
   secondaryActionLabel,
@@ -39,6 +43,21 @@ export const RequestCard = ({
   const { palette } = useThemeContext();
   const imagePreviews = request.images?.slice(0, 3) ?? [];
   const extraImageCount = Math.max((request.images?.length ?? 0) - imagePreviews.length, 0);
+
+  const distance =
+    userLocation &&
+    request.location &&
+    userLocation.latitude != null &&
+    userLocation.longitude != null &&
+    request.location.latitude != null &&
+    request.location.longitude != null
+      ? getDistanceToRequest(
+          userLocation.latitude,
+          userLocation.longitude,
+          request.location.latitude,
+          request.location.longitude
+        )
+      : null;
 
   return (
     <Pressable
@@ -134,6 +153,12 @@ export const RequestCard = ({
                 style={[styles.meta, styles.location, { color: palette.textSecondary }]}
               >
                 {formatRequestLocation(request)}
+                {distance ? (
+                  <Text style={[styles.distance, { color: palette.primary }]}>
+                    {" • "}
+                    {distance}
+                  </Text>
+                ) : null}
               </Text>
 
               <Text style={[styles.meta, { color: palette.textSecondary }]}>
@@ -247,6 +272,9 @@ const styles = StyleSheet.create({
   location: {
     flex: 1,
     paddingRight: theme.spacing.sm,
+  },
+  distance: {
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   footer: {
     marginTop: theme.spacing.xxs,
