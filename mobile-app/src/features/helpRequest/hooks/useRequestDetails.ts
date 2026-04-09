@@ -25,6 +25,7 @@ export const useRequestDetails = (requestId: string) => {
         loading: bidLoading,
         error: bidError,
         getBidsByHelpRequestId,
+        getMyBids,
         respondToBidOptimistic,
         createBid,
         updateBid,
@@ -46,14 +47,40 @@ export const useRequestDetails = (requestId: string) => {
         if (!requestId) return;
         setActionError(null);
 
-        const [requestResult, bidsResult] = await Promise.all([
-            getHelpRequestById(requestId),
-            getBidsByHelpRequestId(requestId, { forceRefresh: true }),
-        ]);
+        const requestResult = await getHelpRequestById(requestId);
+        if (!requestResult) return;
 
-        if (requestResult) setRequest(requestResult);
-        if (bidsResult) setBids(bidsResult);
-    }, [getHelpRequestById, getBidsByHelpRequestId, requestId]);
+        setRequest(requestResult);
+
+        const requestOwnerId = requestResult.requesterId;
+        const isRequestOwner = Boolean(currentUserId && requestOwnerId && requestOwnerId === currentUserId);
+
+        if (isRequestOwner) {
+            const ownerBids = await getBidsByHelpRequestId(requestId, { forceRefresh: true });
+            setBids(ownerBids ?? []);
+            return;
+        }
+
+        // Non-owners should only fetch their own bids to avoid forbidden access on owner-only endpoints.
+        const myBidsForAllRequests = await getMyBids();
+        const myBidsForThisRequest = (myBidsForAllRequests ?? []).filter((bid) => {
+            if (bid.helpRequestId !== requestId) return false;
+            if (!currentUserId) return false;
+
+            // Hard guard: even if API payload drifts, only keep bids that belong to the current user.
+            return bid.helperId === currentUserId;
+        });
+
+        // Keep only the latest bid for this request in non-owner view.
+        const latestMyBid = myBidsForThisRequest
+            .sort(
+                (a, b) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )
+            .slice(0, 1);
+
+        setBids(latestMyBid);
+    }, [currentUserId, getHelpRequestById, getBidsByHelpRequestId, getMyBids, requestId]);
 
     const acceptBid = useCallback(async (bidId: string) => {
         const targetBid = bids.find((bid) => bid.id === bidId);
