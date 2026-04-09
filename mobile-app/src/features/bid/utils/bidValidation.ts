@@ -4,6 +4,7 @@ import {
     BID_MESSAGE_MIN_LENGTH,
     parseBidAmountInput,
     validateBidDraft,
+    validateBidDraftFields,
 } from "@/utils/validation/forms";
 
 export {
@@ -11,6 +12,7 @@ export {
     BID_MESSAGE_MIN_LENGTH,
     parseBidAmountInput,
     validateBidDraft,
+    validateBidDraftFields,
 };
 
 export const canMutateBid = (status: BidStatus) => {

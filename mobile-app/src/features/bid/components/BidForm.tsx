@@ -7,7 +7,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { spacing, colors } from "@/design-system/tokens";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { CreateBidData, UpdateBidData, Bid } from "../types/bid.types";
-import { validateBidDraft } from "../utils/bidValidation";
+import { validateBidDraftFields } from "../utils/bidValidation";
 
 interface BidFormProps {
     helpRequestId?: string;
@@ -34,26 +34,36 @@ export const BidForm: React.FC<BidFormProps> = ({
         message: initialData?.message || "",
     });
 
-    const { validationError, setValidationError, clearValidationError } = useFormValidation();
+    const {
+        validationError,
+        setValidationError,
+        fieldErrors,
+        setFieldErrors,
+        clearFieldError,
+        clearValidationError,
+    } = useFormValidation<"amount" | "message" | "helpRequestId">();
 
     const handleInputChange = (field: string, value: string) => {
         setFormData((prev) => ({
             ...prev,
             [field]: value,
         }));
-        clearValidationError();
+        if (field === "amount" || field === "message") {
+            clearFieldError(field);
+        }
     };
 
     const handleSubmit = async () => {
-        const validation = validateBidDraft({
+        const validation = validateBidDraftFields({
             amountInput: formData.amount,
             message: formData.message,
             helpRequestId: isUpdate ? undefined : formData.helpRequestId,
             mode: isUpdate ? "edit" : "create",
         });
 
-        if (validation) {
-            setValidationError(validation);
+        if (!validation.isValid) {
+            setValidationError(validation.formError);
+            setFieldErrors(validation.fieldErrors);
             return;
         }
 
@@ -111,6 +121,7 @@ export const BidForm: React.FC<BidFormProps> = ({
                             placeholder="Enter your bid amount"
                             keyboardType="decimal-pad"
                             value={formData.amount}
+                            error={fieldErrors.amount ?? null}
                             onChangeText={(value) => handleInputChange("amount", value)}
                             editable={!loading}
                         />
@@ -129,6 +140,7 @@ export const BidForm: React.FC<BidFormProps> = ({
                             multiline
                             numberOfLines={5}
                             value={formData.message}
+                            error={fieldErrors.message ?? null}
                             onChangeText={(value) => handleInputChange("message", value)}
                             editable={!loading}
                         />
