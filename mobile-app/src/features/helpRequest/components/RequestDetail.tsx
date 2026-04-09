@@ -6,6 +6,7 @@ import { Row } from "@/design-system/layout/Row";
 import { AppButton } from "@/components/ui/AppButton";
 import { spacing, colors, typography } from "@/design-system";
 import { HelpRequest, HelpRequestStatus } from "../types/helpRequest.types";
+import { formatRequestLocation } from "../utils/requestDisplay";
 
 interface RequestDetailProps {
     request: HelpRequest;
@@ -41,6 +42,7 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
     isOwner = false,
     loading = false,
 }) => {
+    const locationLabel = formatRequestLocation(request);
     const statusActions: { label: string; status: HelpRequestStatus; color?: string }[] = [];
     if (request.status === "OPEN") {
         statusActions.push({ label: "Mark as Assigned", status: "ASSIGNED" });
@@ -105,12 +107,10 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
                         </Row>
                     )}
 
-                    {request.city && (
+                    {locationLabel !== "Location not set" && (
                         <Row style={{ justifyContent: "space-between" }}>
                             <Text style={[styles.captionText, { color: colors.textSecondary }]}>Location</Text>
-                            <Text style={styles.bodyText}>
-                                {request.city}, {request.country || ""}
-                            </Text>
+                            <Text style={styles.bodyText}>{locationLabel}</Text>
                         </Row>
                     )}
 
@@ -174,7 +174,7 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
                 <Card style={styles.section}>
                     <AppButton
                         title="Place a Bid"
-                        onPress={onPlaceBid ?? (() => {})}
+                        onPress={onPlaceBid ?? (() => { })}
                         disabled={loading}
                     />
                 </Card>
