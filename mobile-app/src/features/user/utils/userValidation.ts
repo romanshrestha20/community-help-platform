@@ -1,1 +1,4 @@
-export { validateProfileUpdateForm } from "@/utils/validation/forms";
+export {
+	validateProfileUpdateForm,
+	validateProfileUpdateFormFields,
+} from "@/utils/validation/forms";
