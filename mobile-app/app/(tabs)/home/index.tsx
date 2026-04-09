@@ -15,6 +15,7 @@ import { BidRequestModal } from "@/features/bid/components";
 import { useHomeScreen } from "@/features/home/hooks";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { APP_ROUTES } from "@/config/routes";
+import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 
 type ActionTileProps = {
   title: string;
@@ -102,6 +103,7 @@ function ActionTile({
 export default function Home() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const { value: userLocation } = useLocationPicker({ autoUseCurrentLocationOnMount: true });
 
   const {
     filters,
@@ -196,6 +198,7 @@ export default function Home() {
         myBids={myBids}
         onPressBid={openBidModal}
         onRemoveBid={(request) => void handleRemoveBid(request.id)}
+        userLocation={userLocation}
       />
 
       <BidRequestModal
