@@ -116,7 +116,7 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
 
     hasAutoInitializedRef.current = true;
 
-    if (!value && autoUseCurrentLocationOnMount) {
+    if (autoUseCurrentLocationOnMount) {
       void (async () => {
         try {
           setLoading(true);
