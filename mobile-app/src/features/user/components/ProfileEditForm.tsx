@@ -11,7 +11,9 @@ import {
 
 import { Card, Row, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { Gender, UpdateUserProfilePayload, User, UserType } from "../types/user.types";
+import { validateProfileUpdateForm } from "../utils/userValidation";
 
 type Props = {
   user: User | null;
@@ -25,6 +27,7 @@ const userTypeOptions: UserType[] = [UserType.GENERAL, UserType.ELDERLY, UserTyp
 
 export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: Props) => {
   const { palette } = useThemeContext();
+  const { validationError, setValidationError, clearValidationError } = useFormValidation();
 
   const [fullName, setFullName] = useState("");
   const [bio, setBio] = useState("");
@@ -38,9 +41,23 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     setDateOfBirth(user?.dateOfBirth ?? "");
     setGender(user?.gender);
     setUserType(user?.userType ?? UserType.GENERAL);
-  }, [user]);
+    clearValidationError();
+  }, [clearValidationError, user]);
 
   const handleSave = async () => {
+    const validation = validateProfileUpdateForm({
+      fullName,
+      dateOfBirth,
+      bio,
+    });
+
+    if (validation) {
+      setValidationError(validation);
+      return;
+    }
+
+    clearValidationError();
+
     await onSubmit({
       fullName: fullName.trim(),
       bio: bio.trim(),
@@ -59,7 +76,10 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
           <Field label="Full name">
             <TextInput
               value={fullName}
-              onChangeText={setFullName}
+              onChangeText={(value) => {
+                clearValidationError();
+                setFullName(value);
+              }}
               placeholder="Enter full name"
               style={[
                 styles.input,
@@ -76,7 +96,10 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
           <Field label="Bio">
             <TextInput
               value={bio}
-              onChangeText={setBio}
+              onChangeText={(value) => {
+                clearValidationError();
+                setBio(value);
+              }}
               placeholder="Tell something about yourself"
               multiline
               textAlignVertical="top"
@@ -96,7 +119,10 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
           <Field label="Date of birth">
             <TextInput
               value={dateOfBirth}
-              onChangeText={setDateOfBirth}
+              onChangeText={(value) => {
+                clearValidationError();
+                setDateOfBirth(value);
+              }}
               placeholder="YYYY-MM-DD"
               style={[
                 styles.input,
@@ -124,7 +150,10 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
                         borderColor: active ? palette.primary : palette.border,
                       },
                     ]}
-                    onPress={() => setGender(option)}
+                    onPress={() => {
+                      clearValidationError();
+                      setGender(option);
+                    }}
                   >
                     <Text
                       style={[
@@ -156,7 +185,10 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
                         borderColor: active ? palette.accent : palette.border,
                       },
                     ]}
-                    onPress={() => setUserType(option)}
+                    onPress={() => {
+                      clearValidationError();
+                      setUserType(option);
+                    }}
                   >
                     <Text
                       style={[
@@ -173,6 +205,10 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
               })}
             </View>
           </Field>
+
+          {validationError ? (
+            <Text style={[styles.errorText, { color: palette.danger }]}>{validationError}</Text>
+          ) : null}
 
           <Row gap="sm" style={styles.actions}>
             {onCancel ? (
@@ -291,5 +327,8 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.7,
+  },
+  errorText: {
+    fontSize: theme.typography.fontSize.sm,
   },
 });

@@ -11,6 +11,8 @@ import {
 import { AppInput } from "@/components/ui/AppInput";
 import { Card, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { validatePasswordConfirmation } from "@/features/auth/utils/authValidation";
+import { useFormValidation } from "@/utils/validation/useFormValidation";
 
 type Props = {
   visible: boolean;
@@ -29,22 +31,23 @@ export const DeleteAccountModal = ({
 }: Props) => {
   const { palette } = useThemeContext();
   const [password, setPassword] = useState("");
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const { validationError, setValidationError, clearValidationError } = useFormValidation();
 
   useEffect(() => {
     if (!visible) {
       setPassword("");
-      setValidationError(null);
+      clearValidationError();
     }
-  }, [visible]);
+  }, [visible, clearValidationError]);
 
   const handleConfirm = async () => {
-    setValidationError(null);
-
-    if (!password.trim()) {
-      setValidationError("Please enter your password.");
+    const validation = validatePasswordConfirmation(password);
+    if (validation) {
+      setValidationError(validation);
       return;
     }
+
+    clearValidationError();
 
     const success = await onConfirm(password);
     if (success) {
@@ -75,7 +78,10 @@ export const DeleteAccountModal = ({
               label="Password"
               placeholder="Enter your password"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(value) => {
+                clearValidationError();
+                setPassword(value);
+              }}
               secureTextEntry
               editable={!loading}
             />
