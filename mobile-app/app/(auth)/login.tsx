@@ -10,6 +10,8 @@ import { FormContainer } from "@/components/ui/FormContainer";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { APP_ROUTES } from "@/config/routes";
+import { validateLoginForm } from "@/features/auth/utils/authValidation";
+import { useFormValidation } from "@/utils/validation/useFormValidation";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -23,10 +25,18 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const { validationError, setValidationError, clearValidationError } = useFormValidation();
 
   const isFormDisabled = loadingLogin;
 
   const handleEmailLogin = async () => {
+    const validation = validateLoginForm({ email, password });
+    if (validation) {
+      setValidationError(validation);
+      return;
+    }
+
+    clearValidationError();
     await handleLogin({ email, password });
   };
 
@@ -40,7 +50,10 @@ export default function LoginScreen() {
             label="Email"
             placeholder="name@example.com"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(value) => {
+              clearValidationError();
+              setEmail(value);
+            }}
             autoCapitalize="none"
             keyboardType="email-address"
             editable={!isFormDisabled}
@@ -50,14 +63,17 @@ export default function LoginScreen() {
             label="Password"
             placeholder="Enter password"
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(value) => {
+              clearValidationError();
+              setPassword(value);
+            }}
             secureTextEntry
             editable={!isFormDisabled}
           />
 
-          {error ? (
+          {validationError || error ? (
             <Text style={[styles.error, { color: palette.danger }]}>
-              {error}
+              {validationError || error}
             </Text>
           ) : null}
 

@@ -12,6 +12,8 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import LocationPickerField from "@/features/location/components/LocationPickerField";
 import { LocationSuggestion } from "@/features/location/types/location.types";
+import { validateRegisterForm } from "@/features/auth/utils/authValidation";
+import { useFormValidation } from "@/utils/validation/useFormValidation";
 
 type Gender = "MALE" | "FEMALE" | "OTHER";
 
@@ -32,24 +34,34 @@ export default function RegisterScreen() {
   const [gender, setGender] = useState<Gender>("MALE");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [password, setPassword] = useState("");
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const { validationError, setValidationError, clearValidationError } = useFormValidation();
 
   const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
     locationPicker.selectSuggestion(suggestion);
   };
 
   const onRegister = async () => {
-    setValidationError(null);
+    const validation = validateRegisterForm({
+      fullName,
+      email,
+      phone,
+      password,
+      dateOfBirth,
+      location: locationPicker.value,
+    });
 
-    if (!fullName || !email || !phone || !password || !dateOfBirth) {
-      setValidationError("Please fill in all required fields.");
+    if (validation) {
+      setValidationError(validation);
       return;
     }
 
-    if (!locationPicker.value) {
-      setValidationError("Please select your location.");
+    const location = locationPicker.value;
+    if (!location) {
+      // Already validated above; this guards against stale state between validation and submit.
       return;
     }
+
+    clearValidationError();
 
     const result = await handleRegister({
       email,
@@ -58,7 +70,7 @@ export default function RegisterScreen() {
       fullName,
       gender,
       dateOfBirth,
-      location: locationPicker.value,
+      location,
     });
 
     if (result?.success) {
@@ -105,7 +117,10 @@ export default function RegisterScreen() {
                   label="Full name"
                   placeholder="Your full name"
                   value={fullName}
-                  onChangeText={setFullName}
+                  onChangeText={(value) => {
+                    clearValidationError();
+                    setFullName(value);
+                  }}
                   autoCapitalize="words"
                 />
 
@@ -113,7 +128,10 @@ export default function RegisterScreen() {
                   label="Email"
                   placeholder="name@example.com"
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(value) => {
+                    clearValidationError();
+                    setEmail(value);
+                  }}
                   autoCapitalize="none"
                   keyboardType="email-address"
                 />
@@ -122,7 +140,10 @@ export default function RegisterScreen() {
                   label="Phone"
                   placeholder="Phone number"
                   value={phone}
-                  onChangeText={setPhone}
+                  onChangeText={(value) => {
+                    clearValidationError();
+                    setPhone(value);
+                  }}
                   keyboardType="phone-pad"
                 />
 
@@ -130,7 +151,10 @@ export default function RegisterScreen() {
                   label="Password"
                   placeholder="Create a password"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(value) => {
+                    clearValidationError();
+                    setPassword(value);
+                  }}
                   secureTextEntry
                   autoCapitalize="none"
                 />
@@ -147,7 +171,10 @@ export default function RegisterScreen() {
                   label="Date of birth"
                   placeholder="YYYY-MM-DD"
                   value={dateOfBirth}
-                  onChangeText={setDateOfBirth}
+                  onChangeText={(value) => {
+                    clearValidationError();
+                    setDateOfBirth(value);
+                  }}
                 />
 
                 <View style={styles.genderSection}>
@@ -162,7 +189,10 @@ export default function RegisterScreen() {
                       return (
                         <Pressable
                           key={option}
-                          onPress={() => setGender(option)}
+                          onPress={() => {
+                            clearValidationError();
+                            setGender(option);
+                          }}
                           style={({ pressed }) => [
                             styles.genderChip,
                             {
@@ -210,7 +240,10 @@ export default function RegisterScreen() {
                 onStreetQueryChange={locationPicker.setStreetQuery}
                 suggestions={locationPicker.suggestions}
                 suggestionsLoading={locationPicker.suggestionsLoading}
-                onSelectSuggestion={handleSelectSuggestion}
+                onSelectSuggestion={async (suggestion) => {
+                  clearValidationError();
+                  await handleSelectSuggestion(suggestion);
+                }}
               />
             </View>
 
