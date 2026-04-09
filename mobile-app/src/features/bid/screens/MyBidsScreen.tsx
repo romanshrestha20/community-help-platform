@@ -53,7 +53,7 @@ export const MyBidsScreen = () => {
                 subtitle="Review, edit, and remove bids you submitted."
                 showBackButton
                 backButtonProps={{
-                    fallback: APP_ROUTES.PROFILE,
+                    fallback: APP_ROUTES.HOME,
                     variant: "secondary",
                 }}
             />
