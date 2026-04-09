@@ -33,7 +33,7 @@ export default function LoginScreen() {
   return (
     <FormContainer>
       <Card>
-        <AppHeader title="Sign In" subtitle="Access your account to continue" />
+        <AppHeader title="Sign In" subtitle="Sign in to continue helping your community" />
 
         <Stack>
           <AppInput
