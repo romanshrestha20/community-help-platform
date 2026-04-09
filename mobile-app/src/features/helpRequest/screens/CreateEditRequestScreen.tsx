@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { Platform, StyleSheet, Text } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppInput } from "@/components/ui/AppInput";
@@ -26,9 +26,16 @@ type Props = {
 
 export const CreateEditRequestScreen = ({ requestId }: Props) => {
     const params = useLocalSearchParams<{ id?: string }>();
+    const pathname = usePathname();
     const router = useRouter();
     const { palette } = useThemeContext();
     const [selectedImages, setSelectedImages] = useState<RequestImageUploadInput[]>([]);
+    const isProfileRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
+    const requestListRoute = isProfileRoute
+        ? APP_ROUTES.PROFILE_REQUESTS
+        : APP_ROUTES.HOME_REQUESTS;
+    const requestDetailRoute = (id: string) =>
+        isProfileRoute ? APP_ROUTES.PROFILE_REQUEST_DETAILS(id) : APP_ROUTES.HOME_REQUEST_DETAILS(id);
 
     const activeRequestId = requestId || params.id;
     const {
@@ -46,7 +53,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
 
     const handleBack = () => {
         goBackOrFallback({
-            fallback: APP_ROUTES.HOME_REQUESTS,
+            fallback: requestListRoute,
             replace: true,
         });
     };
@@ -56,7 +63,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
         if (!saved) return;
 
         showSuccessToast(isEditing ? "Request updated successfully" : "Request created successfully");
-        router.replace(`/home/requests/${saved.id}`);
+        router.replace(requestDetailRoute(saved.id));
     };
 
     const handlePickImages = async () => {
@@ -134,7 +141,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                 }
                 showBackButton
                 backButtonProps={{
-                    fallback: APP_ROUTES.HOME_REQUESTS,
+                    fallback: requestListRoute,
                     variant: "secondary",
                 }}
             />
