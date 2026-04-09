@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, TextInput, Text, StyleSheet } from "react-native";
 
 import { theme } from "@/design-system";
@@ -11,23 +11,56 @@ type Props = React.ComponentProps<typeof TextInput> & {
 
 export const AppInput = ({ label, error, ...props }: Props) => {
   const { palette } = useThemeContext();
+  const [isFocused, setIsFocused] = useState(false);
+
+  const {
+    style,
+    onFocus,
+    onBlur,
+    multiline,
+    ...restProps
+  } = props;
 
   return (
     <View style={styles.container}>
       {label && <Text style={[styles.label, { color: palette.textPrimary }]}>{label}</Text>}
-      <TextInput
-        {...props}
+      <View
         style={[
-          styles.input,
+          styles.inputContainer,
           {
-            borderColor: palette.border,
-            color: palette.textPrimary,
+            borderColor: error
+              ? palette.danger
+              : isFocused
+                ? palette.primary
+                : palette.border,
             backgroundColor: palette.surface,
+            shadowColor: palette.textPrimary,
           },
-          error && { borderColor: palette.danger },
+          isFocused && styles.inputContainerFocused,
         ]}
-        placeholderTextColor={palette.textSecondary}
-      />
+      >
+        <TextInput
+          {...restProps}
+          multiline={multiline}
+          onFocus={(event) => {
+            setIsFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setIsFocused(false);
+            onBlur?.(event);
+          }}
+          style={[
+            styles.input,
+            multiline && styles.inputMultiline,
+            {
+              color: palette.textPrimary,
+            },
+            style,
+          ]}
+          placeholderTextColor={palette.textSecondary}
+        />
+      </View>
       {error && <Text style={[styles.error, { color: palette.danger }]}>{error}</Text>}
     </View>
   );
@@ -35,21 +68,43 @@ export const AppInput = ({ label, error, ...props }: Props) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
   },
   label: {
     marginBottom: theme.spacing.xxs,
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
+    letterSpacing: 0.2,
+  },
+  inputContainer: {
+    borderWidth: 1,
+    borderRadius: theme.radius.md,
+    minHeight: 46,
+    justifyContent: "center",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
+  },
+  inputContainerFocused: {
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   input: {
-    borderWidth: 1,
     padding: theme.spacing.sm,
-    borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.sm,
     fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+  },
+  inputMultiline: {
+    minHeight: 96,
+    textAlignVertical: "top",
   },
   error: {
     marginTop: theme.spacing.xxs,
     fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.medium,
   },
 });
