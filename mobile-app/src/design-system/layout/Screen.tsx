@@ -22,8 +22,8 @@ type BaseScreenProps = {
   withTabBarSpacing?: boolean;
 };
 
-type ScreenProps = ScrollViewProps & BaseScreenProps;
-type ScreenViewProps = ViewProps & BaseScreenProps;
+export type ScreenProps = ScrollViewProps & BaseScreenProps;
+export type ScreenViewProps = ViewProps & BaseScreenProps;
 
 const createContentStyle = (
   centered: boolean,
@@ -35,7 +35,7 @@ const createContentStyle = (
   justifyContent: centered ? "center" : "flex-start",
 });
 
-export const Screen = ({
+export function Screen({
   centered = false,
   useSafeArea = true,
   withTabBarSpacing = true,
@@ -43,7 +43,7 @@ export const Screen = ({
   children,
   style,
   ...props
-}: ScreenProps) => {
+}: ScreenProps): React.JSX.Element {
   const { palette } = useThemeContext();
   const insets = useSafeAreaInsets();
 
@@ -77,16 +77,16 @@ export const Screen = ({
       {scrollView}
     </SafeAreaView>
   );
-};
+}
 
-export const ScreenView = ({
+export function ScreenView({
   centered = false,
   useSafeArea = true,
   withTabBarSpacing = true,
   children,
   style,
   ...props
-}: ScreenViewProps) => {
+}: ScreenViewProps): React.JSX.Element {
   const { palette } = useThemeContext();
 
 
@@ -121,7 +121,7 @@ export const ScreenView = ({
       {content}
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   flex: {
