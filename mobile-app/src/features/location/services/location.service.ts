@@ -26,16 +26,47 @@ export async function getCurrentCoordinates() {
         throw new Error("Location permission denied");
     }
 
-    // Request the current position with balanced accuracy 
-    // to optimize for battery life.
-    const result = await ExpoLocation.getCurrentPositionAsync({
-        accuracy: ExpoLocation.Accuracy.Balanced,
-    });
+    const minimumAccuracyMeters = 100;
+    const maxAttempts = 3;
+    let bestResult: ExpoLocation.LocationObject | null = null;
 
-    return {
-        latitude: result.coords.latitude,
-        longitude: result.coords.longitude,
-    };
+    const lastKnownPosition = await ExpoLocation.getLastKnownPositionAsync();
+
+    if (lastKnownPosition) {
+        bestResult = lastKnownPosition;
+    }
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const result = await ExpoLocation.getCurrentPositionAsync({
+            accuracy: ExpoLocation.Accuracy.Highest,
+        });
+
+        const reportedAccuracy = result.coords.accuracy;
+        if (
+            !bestResult ||
+            (typeof reportedAccuracy === "number" &&
+                (typeof bestResult.coords.accuracy !== "number" ||
+                    reportedAccuracy < bestResult.coords.accuracy))
+        ) {
+            bestResult = result;
+        }
+
+        if (typeof reportedAccuracy !== "number" || reportedAccuracy <= minimumAccuracyMeters) {
+            return {
+                latitude: result.coords.latitude,
+                longitude: result.coords.longitude,
+            };
+        }
+    }
+
+    if (bestResult) {
+        return {
+            latitude: bestResult.coords.latitude,
+            longitude: bestResult.coords.longitude,
+        };
+    }
+
+    throw new Error("Unable to determine current location");
 }
 
 // This function takes latitude and longitude as input 
