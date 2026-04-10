@@ -460,3 +460,114 @@ Form Components (register.tsx, ProfileEditForm.tsx)
 - Confirm distance omitted gracefully when location permissions denied
 - Compare calculated distances against map app for accuracy validation
 - Verify no performance regression when rendering large request lists (distances calc is lightweight)
+
+## 19. Request Detail UI Unification + Spacing Token System
+
+**Objective**: Bring the request detail experience to production-level consistency by unifying component visuals and enforcing a token-driven spacing rhythm.
+
+**Implementation**:
+
+1. **Request Detail Visual Language Unification**
+
+- Upgraded request detail surfaces to a shared style language: pill labels, bordered info chips, panel blocks, section framing, and stronger typography hierarchy.
+- Aligned header, bid sections, action sections, and photo sections so they read as one system rather than isolated components.
+
+2. **Avatar Profile Interaction**
+
+- Added tappable requester avatar behavior in request details.
+- Introduced a requester profile modal pattern for contextual profile details without navigation jumps.
+
+3. **Bid Form Stabilization + Polish**
+
+- Replaced inconsistent intermediate markup with a stable, themed implementation.
+- Standardized validation/error rendering blocks and trimmed user message payload before submit.
+- Fixed runtime fragility from partially refactored UI state by restoring explicit, complete style definitions.
+
+4. **Design Token Spacing Adoption**
+
+- Refactored key spacing/radius values from hardcoded numbers to `theme.spacing` and `theme.radius` tokens.
+- Introduced token-derived constants for optical balance while preserving visual density.
+- Documented repeatable spacing rules for future UI work.
+
+**Files Modified**:
+
+1. `mobile-app/src/features/helpRequest/components/RequestDetailHeader.tsx`
+2. `mobile-app/src/features/helpRequest/screens/RequestDetailsScreen.tsx`
+3. `mobile-app/src/features/helpRequest/components/RequestActionBar.tsx`
+4. `mobile-app/src/features/helpRequest/components/RequestPhotoUploadSection.tsx`
+5. `mobile-app/src/features/bid/components/BidCard.tsx`
+6. `mobile-app/src/features/bid/components/BidList.tsx`
+7. `mobile-app/src/features/bid/components/BidForm.tsx`
+8. `mobile-app/readme/SPACING_SYSTEM_GUIDE.md` (NEW)
+
+**Reusable Patterns Established**:
+
+1. **Section Framing Pattern**: pill label + strong heading + bordered content panel
+2. **Metadata Chip Pattern**: compact bordered row with icon + text
+3. **Error Surface Pattern**: `dangerSoft` background + `danger` border + concise message
+4. **Token-First Spacing Pattern**: default to spacing/radius tokens, derive one-off optical values from tokens
+
+**Lessons Learned**:
+
+- Visual consistency is easiest to maintain when spacing decisions are token-based, not ad hoc.
+- Refactors that mix old/new layout systems can cause runtime drift; replace fully, then validate.
+- A small spacing guide dramatically lowers design drift across contributors.
+- Feature polish should include interaction polish (tap targets, modal affordances), not only typography/colors.
+
+**Testing Recommendations**:
+
+1. Validate spacing rhythm on small and large devices (especially vertical density).
+2. Verify profile modal open/close behavior and backdrop dismissal flow.
+3. Stress-test bid form validation states (empty, invalid range, max-length breach).
+4. Compare request detail sections for consistent chip/panel padding and border radius.
+5. Run through owner vs helper flows to ensure no visual/behavior regression.
+
+## 20. Cross-Platform Date Picker UX + Minimal Toast Redesign (2026-04-10)
+
+**Objective**: Improve form UX quality by making date selection feel native on both web and iOS, and simplify toast styling to a clean minimal system.
+
+**Implementation**:
+
+1. **Date Picker: Web + iOS behavior split with shared shell**
+
+- Updated `DatePickerField` to keep the same closed-state visual shell on both platforms:
+  - label on top
+  - rounded bordered field
+  - left calendar icon
+  - formatted value/placeholder text
+  - error border support
+- On web:
+  - prevented unsupported native picker crashes by not rendering `@react-native-community/datetimepicker`
+  - used browser-native date picker via `TextInput` with web props (`type: "date"`, `max`)
+  - preserved formatted preview text in the field shell
+- On iOS:
+  - bottom sheet modal with `Cancel`, title (`Select date`), `Done`
+  - wheel changes write to `tempDate`
+  - committed value updates only on `Done`
+  - `Cancel` discards in-progress changes
+
+2. **Profile Date Field web compatibility guard**
+
+- Added platform guard in profile date field so `DateTimePicker` only renders on non-web platforms.
+
+3. **Toast system visual simplification**
+
+- Refined global toast renderer to a minimal card style:
+  - removed accent rail and status chip
+  - removed heavy icon bubble treatment
+  - reduced elevation/shadow intensity
+  - tightened spacing and typography hierarchy
+  - retained semantic differentiation through subtle icon color (success/error/info)
+- Kept existing toast API usage unchanged by applying all changes centrally in toast config.
+
+**Files Modified**:
+
+1. `mobile-app/src/components/ui/DatePickerField.tsx`
+2. `mobile-app/src/features/user/profile/components/ProfileDateField.tsx`
+3. `mobile-app/src/utils/toastConfig.tsx`
+
+**Lessons Learned**:
+
+- Cross-platform input components should default to platform guards when third-party native components do not support web.
+- For date selection UX, staged edits (`tempDate`) with explicit commit (`Done`) on iOS feel more intentional than immediate commit.
+- Global UI primitives like toasts are best simplified centrally so all feature teams inherit consistent visual behavior automatically.
