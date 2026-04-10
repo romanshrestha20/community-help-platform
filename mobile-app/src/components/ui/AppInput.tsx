@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, TextInput, Text, StyleSheet } from "react-native";
+import { View, TextInput, Text, StyleSheet, StyleProp, ViewStyle } from "react-native";
 
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
@@ -7,9 +7,10 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 type Props = React.ComponentProps<typeof TextInput> & {
   label?: string;
   error?: string | null;
+  containerStyle?: StyleProp<ViewStyle>;
 };
 
-export const AppInput = ({ label, error, ...props }: Props) => {
+export const AppInput = ({ label, error, containerStyle, ...props }: Props) => {
   const { palette } = useThemeContext();
   const [isFocused, setIsFocused] = useState(false);
 
@@ -22,7 +23,7 @@ export const AppInput = ({ label, error, ...props }: Props) => {
   } = props;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       {label && <Text style={[styles.label, { color: palette.textPrimary }]}>{label}</Text>}
       <View
         style={[
