@@ -1,6 +1,9 @@
 import { prisma } from "../lib/prisma.js";
 import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.js";
+import { createNotification } from "../services/notification.service.js";
+import { NotificationType } from "../../generated/prisma/client.js";
+import { error } from "console";
 
 const calculateAge = (dateOfBirth?: Date | string | null) => {
   if (!dateOfBirth) return undefined;
@@ -78,8 +81,38 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
       },
     });
 
+    await createNotification({
+      userId: request.requesterId,
+      actorId: helperId,
+      type: NotificationType.BID_RECEIVED,
+      title: "New bid received",
+      body: `${bid.helper?.profile?.fullName} placed a bid on "${request.title}"`,
+      requestId: request.id,
+      bidId: bid.id,
+      data: {
+        requestTitle: request.title,
+        bidAmount: bid.amount,
+      },
+    });
+
+    console.log("Bid placed:", {
+      bidId: bid.id,
+      helpRequestId,
+      helperId,
+      amount: normalizedAmount,
+      notification: {
+        userId: request.requesterId,
+        actorId: helperId,
+        type: NotificationType.BID_RECEIVED,
+        title: "New bid received",
+        body: `${bid.helper?.profile?.fullName} placed a bid on "${request.title}"`,
+        requestId: request.id,
+        bidId: bid.id,
+      },
+    });
     sendResponse(res, formatBid(bid), "Bid placed");
   } catch {
+    console.error("Place Bid Error:", error);
     next(new AppError("Failed to place bid", 500));
   }
 };
