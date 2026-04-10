@@ -1,7 +1,6 @@
 import React from "react";
 import { Text, StyleSheet } from "react-native";
 import { AppModal } from "@/components/ui/AppModal";
-import { AppButton } from "@/components/ui/AppButton";
 import { theme } from "@/design-system";
 import { HelpRequest } from "@/features/helpRequest/components";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
@@ -31,13 +30,13 @@ export const BidRequestModal: React.FC<BidRequestModalProps> = ({
             visible={visible}
             title={selectedRequest ? `Bid on: ${selectedRequest.title}` : "Place Bid"}
             onClose={onClose}
-            actions={<AppButton title="Close" variant="ghost" onPress={onClose} />}
         >
             {selectedRequest ? (
                 <BidForm
                     helpRequestId={selectedRequest.id}
                     requestTitle={selectedRequest.title}
                     onSubmit={onSubmit}
+                    onCancel={onClose}
                     loading={loading}
                     error={error}
                 />
