@@ -9,6 +9,10 @@ import { AppLocation } from "@/features/location/types/location.types";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { getReadableLocationLabel } from "@/features/location/utils/distance";
+import {
+    formatCompactAddress,
+    shortenPlainAddress,
+} from "@/features/location/utils/address";
 
 interface GreetingOverviewProps {
     name?: string;
@@ -53,10 +57,14 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
 
     const currentLocationText = useMemo(() => {
         if (locationPicker.value) {
-            return getReadableLocationLabel(locationPicker.value) || locationPicker.value.formattedAddress || "N/A";
+            return (
+                formatCompactAddress(locationPicker.value, "") ||
+                getReadableLocationLabel(locationPicker.value) ||
+                "N/A"
+            );
         }
 
-        return localLocation || location || "N/A";
+        return shortenPlainAddress(localLocation || location || "N/A", "N/A");
     }, [locationPicker.value, localLocation, location]);
 
     const statusText = useMemo(() => {
@@ -78,7 +86,10 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
     useEffect(() => {
         if (!locationPicker.value) return;
 
-        const nextLocation = getReadableLocationLabel(locationPicker.value) || locationPicker.value.formattedAddress || "";
+        const nextLocation =
+            formatCompactAddress(locationPicker.value, "") ||
+            getReadableLocationLabel(locationPicker.value) ||
+            "";
         setLocalLocation(nextLocation);
         onUpdateLocation?.(locationPicker.value);
     }, [locationPicker.value, onUpdateLocation]);

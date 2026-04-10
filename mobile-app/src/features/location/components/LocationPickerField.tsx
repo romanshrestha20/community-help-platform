@@ -6,7 +6,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -15,6 +14,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppInput } from "@/components/ui/AppInput";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { AppLocation, LocationSuggestion } from "../types/location.types";
+import { formatCompactAddress, shortenPlainAddress } from "../utils/address";
 
 type Props = {
   value: AppLocation | null;
@@ -29,43 +29,16 @@ type Props = {
   onSelectSuggestion?: (suggestion: LocationSuggestion) => Promise<void> | void;
 };
 
-export function formatShortAddress(location: AppLocation | null): string {
-  if (!location) return "Select your current location";
-
-  const primaryParts = [
-    location.addressLine1,
-    [location.postalCode, location.city].filter(Boolean).join(" "),
-  ].filter((part) => typeof part === "string" && part.trim().length > 0);
-
-  if (primaryParts.length > 0) {
-    return primaryParts.join(", ");
-  }
-
-  const secondaryParts = [location.state, location.country].filter(
-    (part) => typeof part === "string" && part.trim().length > 0
-  );
-
-  if (secondaryParts.length > 0) {
-    return secondaryParts.join(", ");
-  }
-
-  if (location.formattedAddress?.trim()) {
-    return location.formattedAddress.trim();
-  }
-
-  return "Select your current location";
-}
-
 export function hasUsableLocation(location: AppLocation | null): boolean {
   if (!location) return false;
 
   return Boolean(
     location.addressLine1?.trim() ||
-      location.city?.trim() ||
-      location.state?.trim() ||
-      location.country?.trim() ||
-      location.postalCode?.trim() ||
-      location.formattedAddress?.trim()
+    location.city?.trim() ||
+    location.state?.trim() ||
+    location.country?.trim() ||
+    location.postalCode?.trim() ||
+    location.formattedAddress?.trim()
   );
 }
 
@@ -81,20 +54,23 @@ export default function LocationPickerField({
   onSelectSuggestion,
 }: Props) {
   const { palette } = useThemeContext();
-  const { width } = useWindowDimensions();
-
-  const isWideLayout = width >= 700;
   const showStreetSearch =
     typeof onStreetQueryChange === "function" &&
     typeof onSelectSuggestion === "function";
 
-  const formattedAddress = useMemo(() => formatShortAddress(value), [value]);
+  const formattedAddress = useMemo(
+    () => formatCompactAddress(value, "Select your current location"),
+    [value]
+  );
   const hasSelectedLocation = useMemo(() => hasUsableLocation(value), [value]);
   const showSuggestions = showStreetSearch && streetQuery.trim().length >= 2;
   const showNoMatches =
     showSuggestions && !suggestionsLoading && suggestions.length === 0 && !hasSelectedLocation;
   const showSuggestionDropdown =
     showSuggestions && (suggestionsLoading || suggestions.length > 0 || showNoMatches);
+  const selectedBackground = hasSelectedLocation
+    ? (palette.successSoft ?? palette.surfaceMuted)
+    : palette.surface;
 
   return (
     <View style={styles.container}>
@@ -107,38 +83,33 @@ export default function LocationPickerField({
           },
         ]}
       >
-        <View
-          style={[
-            styles.topRow,
-            isWideLayout ? styles.topRowWide : styles.topRowStacked,
-          ]}
-        >
+
+
+        <View style={styles.topRowStacked}>
           <View style={styles.inputWrapper}>
             <AppInput
               label="Street address"
               placeholder="Type street name"
               value={streetQuery}
               onChangeText={onStreetQueryChange}
+              containerStyle={styles.streetInputContainer}
             />
           </View>
 
-          <View
-            style={
-              isWideLayout ? styles.buttonWrapperWide : styles.buttonWrapperStacked
-            }
-          >
+          <View style={styles.buttonWrapperStacked}>
             <AppButton
               title={loading ? "Detecting..." : "Use current location"}
               onPress={onUseCurrentLocation}
               loading={loading}
               disabled={loading}
-              fullWidth={!isWideLayout}
+              fullWidth
+              variant="secondary"
               icon={
                 !loading ? (
                   <Ionicons
                     name="locate"
-                    size={18}
-                    color={palette.textInverse}
+                    size={theme.typography.fontSize.md}
+                    color={palette.textPrimary}
                   />
                 ) : undefined
               }
@@ -183,7 +154,7 @@ export default function LocationPickerField({
                           : "transparent",
                       },
                       index === suggestions.length - 1 &&
-                        styles.lastSuggestionItem,
+                      styles.lastSuggestionItem,
                     ]}
                   >
                     <View
@@ -194,40 +165,55 @@ export default function LocationPickerField({
                     >
                       <Ionicons
                         name="location-outline"
-                        size={16}
+                        size={theme.typography.fontSize.md}
                         color={palette.primary}
                       />
                     </View>
 
                     <View style={styles.suggestionTextBlock}>
-                      <Text
-                        style={[
-                          styles.suggestionTitle,
-                          { color: palette.textPrimary },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {[item.addressLine1, item.postalCode, item.city]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </Text>
+                      {(() => {
+                        const suggestionTitle = formatCompactAddress(
+                          item,
+                          item.label || "Address unavailable"
+                        );
+                        const suggestionSubtitle = shortenPlainAddress(
+                          item.formattedAddress,
+                          ""
+                        );
+                        const showSubtitle =
+                          suggestionSubtitle.length > 0 && suggestionSubtitle !== suggestionTitle;
 
-                      {!!(item.state || item.country) && (
-                        <Text
-                          style={[
-                            styles.suggestionSubtitle,
-                            { color: palette.textSecondary },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {[item.state, item.country].filter(Boolean).join(", ")}
-                        </Text>
-                      )}
+                        return (
+                          <>
+                            <Text
+                              style={[
+                                styles.suggestionTitle,
+                                { color: palette.textPrimary },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {suggestionTitle}
+                            </Text>
+
+                            {showSubtitle ? (
+                              <Text
+                                style={[
+                                  styles.suggestionSubtitle,
+                                  { color: palette.textSecondary },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {suggestionSubtitle}
+                              </Text>
+                            ) : null}
+                          </>
+                        );
+                      })()}
                     </View>
 
                     <Ionicons
                       name="chevron-forward"
-                      size={16}
+                      size={theme.typography.fontSize.md}
                       color={palette.textSecondary}
                     />
                   </Pressable>
@@ -237,7 +223,7 @@ export default function LocationPickerField({
               <View style={styles.stateRow}>
                 <Ionicons
                   name="search-outline"
-                  size={16}
+                  size={theme.typography.fontSize.md}
                   color={palette.textSecondary}
                 />
                 <Text
@@ -250,51 +236,52 @@ export default function LocationPickerField({
             }
           </View>
         ) : null}
-      </View>
-
-      <View
-        style={[
-          styles.selectedAddressCard,
-          {
-            backgroundColor: palette.surface,
-            borderColor: hasSelectedLocation ? palette.border : palette.border,
-          },
-        ]}
-      >
-        <View style={styles.selectedAddressHeader}>
-          <View
-            style={[
-              styles.selectedIconBadge,
-              {
-                backgroundColor: palette.surfaceMuted,
-              },
-            ]}
-          >
-            <Ionicons
-              name={hasSelectedLocation ? "checkmark-circle" : "location-outline"}
-              size={18}
-              color={hasSelectedLocation ? palette.success : palette.textSecondary}
-            />
-          </View>
-
-          <View style={styles.selectedAddressTextBlock}>
-            <Text
-              style={[styles.selectedAddressLabel, { color: palette.textSecondary }]}
-            >
-              {hasSelectedLocation ? "Selected address" : "Location"}
-            </Text>
-            <Text
+        <View
+          style={[
+            styles.selectedAddressCard,
+            {
+              backgroundColor: selectedBackground,
+              borderColor: hasSelectedLocation ? palette.success : palette.border,
+            },
+          ]}
+        >
+          <View style={styles.selectedAddressHeader}>
+            <View
               style={[
-                styles.valueText,
+                styles.selectedIconBadge,
                 {
-                  color: hasSelectedLocation
-                    ? palette.textPrimary
-                    : palette.textSecondary,
+                  backgroundColor: hasSelectedLocation
+                    ? (palette.successSoft ?? palette.surfaceMuted)
+                    : palette.surfaceMuted,
                 },
               ]}
             >
-              {formattedAddress}
-            </Text>
+              <Ionicons
+                name={hasSelectedLocation ? "checkmark-circle" : "location-outline"}
+                size={theme.typography.fontSize.md}
+                color={hasSelectedLocation ? palette.success : palette.textSecondary}
+              />
+            </View>
+
+            <View style={styles.selectedAddressTextBlock}>
+              <Text
+                style={[styles.selectedAddressLabel, { color: palette.textSecondary }]}
+              >
+                {hasSelectedLocation ? "Selected address" : "Location"}
+              </Text>
+              <Text
+                style={[
+                  styles.valueText,
+                  {
+                    color: hasSelectedLocation
+                      ? palette.textPrimary
+                      : palette.textSecondary,
+                  },
+                ]}
+              >
+                {formattedAddress}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -311,7 +298,7 @@ export default function LocationPickerField({
         >
           <Ionicons
             name="alert-circle-outline"
-            size={16}
+            size={theme.typography.fontSize.md}
             color={palette.danger}
           />
           <Text style={[styles.errorText, { color: palette.danger }]}>
@@ -330,57 +317,63 @@ const styles = StyleSheet.create({
   },
   searchCard: {
     borderWidth: 1,
-    borderRadius: 16,
-    padding: theme.spacing.sm,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
     gap: theme.spacing.sm,
   },
-  topRow: {
-    gap: theme.spacing.sm,
+  headerBlock: {
+    gap: theme.spacing.xxs,
   },
-  topRowWide: {
-    flexDirection: "row",
-    alignItems: "flex-end",
+  sectionTitle: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  sectionDescription: {
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: theme.typography.lineHeight.xs,
   },
   topRowStacked: {
     flexDirection: "column",
+    gap: theme.spacing.sm,
   },
   inputWrapper: {
-    flex: 1,
+    minWidth: 0,
   },
-  buttonWrapperWide: {
-    minWidth: 180,
+  streetInputContainer: {
+    marginBottom: 0,
   },
   buttonWrapperStacked: {
     width: "100%",
+    justifyContent: "flex-end",
   },
   dropdown: {
     borderWidth: 1,
-    borderRadius: 14,
-    maxHeight: 240,
+    borderRadius: theme.radius.lg,
+    maxHeight: 220,
     overflow: "hidden",
   },
   suggestionItem: {
-    minHeight: 60,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    minHeight: 52,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: theme.spacing.xs,
   },
   lastSuggestionItem: {
     borderBottomWidth: 0,
   },
   iconBadge: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
   },
   suggestionTextBlock: {
     flex: 1,
-    gap: 2,
+    gap: theme.spacing.xxs,
   },
   suggestionTitle: {
     fontSize: theme.typography.fontSize.sm,
@@ -392,34 +385,35 @@ const styles = StyleSheet.create({
   stateRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    gap: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
   },
   helperTextInline: {
     fontSize: theme.typography.fontSize.xs,
   },
   selectedAddressCard: {
     borderWidth: 1,
-    borderRadius: 16,
-    padding: theme.spacing.sm,
+    borderRadius: theme.radius.lg,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
   },
   selectedAddressHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
+    gap: theme.spacing.xs,
   },
   selectedIconBadge: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
+    marginTop: 1,
   },
   selectedAddressTextBlock: {
     flex: 1,
-    gap: 2,
+    gap: theme.spacing.xxs,
   },
   selectedAddressLabel: {
     fontSize: theme.typography.fontSize.xs,
@@ -429,16 +423,16 @@ const styles = StyleSheet.create({
     fontWeight:
       theme.typography.fontWeight.semibold ??
       theme.typography.fontWeight.medium,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   errorBox: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 8,
+    gap: theme.spacing.xs,
   },
   errorText: {
     flex: 1,
