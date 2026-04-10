@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Card, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { formatCompactAddress } from "@/features/location/utils/address";
 import { User } from "../types/user.types";
 
 type Props = {
@@ -45,9 +46,7 @@ export const ProfileInfoSection = ({ user, onEditProfile }: Props) => {
         <Stack gap="xs">
           <Text style={[styles.label, { color: palette.textSecondary }]}>Address</Text>
           <Text style={[styles.bodyText, { color: palette.textPrimary }]}>
-            {user?.address?.formattedAddress?.trim()
-              ? user.address.formattedAddress
-              : "No address added yet."}
+            {formatCompactAddress(user?.address, "No address added yet.")}
           </Text>
         </Stack>
 

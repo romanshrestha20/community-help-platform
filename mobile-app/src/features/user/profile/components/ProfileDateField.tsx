@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, View, StyleSheet } from "react-native";
+import { Text, View, StyleSheet, Platform } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -15,12 +15,13 @@ type ProfileDateFieldProps = {
 
 export const ProfileDateField = ({ value, showDatePicker, onPress, onChange }: ProfileDateFieldProps) => {
   const { palette } = useThemeContext();
+  const isWeb = Platform.OS === "web";
 
   return (
     <View style={styles.container}>
       <Text style={[styles.label, { color: palette.textPrimary }]}>Date of Birth:</Text>
       <AppButton title={value || "Select Date"} onPress={onPress} />
-      {showDatePicker && (
+      {!isWeb && showDatePicker && (
         <DateTimePicker
           value={value ? new Date(value) : new Date()}
           mode="date"

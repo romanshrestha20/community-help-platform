@@ -1,6 +1,15 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, Modal } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import React, { useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Modal,
+  Platform,
+} from "react-native";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { theme } from "@/design-system";
@@ -9,27 +18,35 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 type Props = {
   label?: string;
   error?: string | null;
-  value: string; // YYYY-MM-DD format
+  value: string; // YYYY-MM-DD
   onChangeText: (value: string) => void;
+  placeholder?: string;
 };
 
-export const DatePickerField = ({ label, error, value, onChangeText }: Props) => {
+export const DatePickerField = ({
+  label,
+  error,
+  value,
+  onChangeText,
+  placeholder = "Select date",
+}: Props) => {
   const { palette } = useThemeContext();
-  const [showPicker, setShowPicker] = useState(false);
+  const isWeb = Platform.OS === "web";
+  const isIOS = Platform.OS === "ios";
 
-  // Parse the YYYY-MM-DD string to Date, or use today's date as default
+  const [showPicker, setShowPicker] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
+
   const parseDate = (dateStr: string): Date => {
-    if (!dateStr) {
-      return new Date();
-    }
+    if (!dateStr) return new Date();
 
     const [year, month, day] = dateStr.split("-").map(Number);
-    return new Date(year, month - 1, day);
+    const parsed = new Date(year, month - 1, day);
+
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
   };
 
-  const currentDate = parseDate(value);
-
-  // Format Date to YYYY-MM-DD string
   const formatDateToString = (date: Date): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -37,75 +54,200 @@ export const DatePickerField = ({ label, error, value, onChangeText }: Props) =>
     return `${year}-${month}-${day}`;
   };
 
-  // Display-friendly format: "Jan 1, 2002"
   const formatDateForDisplay = (dateStr: string): string => {
-    if (!dateStr) return "Select date of birth";
+    if (!dateStr) return placeholder;
 
     const date = parseDate(dateStr);
-    const options: Intl.DateTimeFormatOptions = {
+
+    return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
-    };
-    return date.toLocaleDateString("en-US", options);
+    }).format(date);
   };
 
-  const handleDateChange = (_event: any, selectedDate?: Date) => {
-    if (selectedDate) {
-      const formatted = formatDateToString(selectedDate);
-      onChangeText(formatted);
-    }
+  const currentDate = useMemo(() => parseDate(value), [value]);
+  const maxDateString = useMemo(() => formatDateToString(new Date()), []);
+  const WebDateInput = "input" as unknown as React.ElementType;
+
+  const openIOSPicker = () => {
+    setTempDate(currentDate);
+    setIsFocused(true);
+    setShowPicker(true);
   };
+
+  const handleNativeChange = (
+    _event: DateTimePickerEvent,
+    selectedDate?: Date
+  ) => {
+    if (!selectedDate) return;
+
+    if (isIOS) {
+      setTempDate(selectedDate);
+      return;
+    }
+
+    onChangeText(formatDateToString(selectedDate));
+  };
+
+  const handleDone = () => {
+    onChangeText(formatDateToString(tempDate));
+    setShowPicker(false);
+    setIsFocused(false);
+  };
+
+  const handleCancel = () => {
+    setTempDate(currentDate);
+    setShowPicker(false);
+    setIsFocused(false);
+  };
+
+  const borderColor = error
+    ? palette.danger
+    : isFocused
+      ? palette.primary
+      : palette.border;
+  const displayColor = value ? palette.textPrimary : palette.textSecondary;
 
   return (
     <View style={styles.container}>
-      {label && <Text style={[styles.label, { color: palette.textPrimary }]}>{label}</Text>}
+      {label ? (
+        <Text style={[styles.label, { color: palette.textPrimary }]}>
+          {label}
+        </Text>
+      ) : null}
 
-      <Pressable
-        onPress={() => setShowPicker(true)}
-        style={[
-          styles.inputContainer,
-          {
-            borderColor: error ? palette.danger : palette.border,
-            backgroundColor: palette.surface,
-          },
-        ]}
-      >
-        <Ionicons name="calendar" size={20} color={palette.textSecondary} style={styles.icon} />
-        <Text
+      {isWeb ? (
+        <View
           style={[
-            styles.text,
+            styles.inputContainer,
             {
-              color: value ? palette.textPrimary : palette.textSecondary,
+              borderColor,
+              backgroundColor: palette.surface,
+              shadowColor: palette.textPrimary,
             },
+            isFocused && styles.inputContainerFocused,
           ]}
         >
-          {formatDateForDisplay(value)}
-        </Text>
-      </Pressable>
+          <Ionicons
+            name="calendar-outline"
+            size={18}
+            color={palette.textSecondary}
+            style={styles.icon}
+          />
 
-      {error && <Text style={[styles.error, { color: palette.danger }]}>{error}</Text>}
+          <Text style={[styles.text, { color: displayColor }]}>
+            {formatDateForDisplay(value)}
+          </Text>
 
-      <Modal visible={showPicker} transparent animationType="slide" onRequestClose={() => setShowPicker(false)}>
-        <View style={styles.modalContainer}>
-          <View style={[styles.pickerWrapper, { backgroundColor: palette.surface }]}>
-            <View style={[styles.pickerHeader, { borderBottomColor: palette.border }]}>
-              <Pressable onPress={() => setShowPicker(false)}>
-                <Text style={[styles.headerButton, { color: palette.primary }]}>Done</Text>
-              </Pressable>
-            </View>
-
-            <DateTimePicker
-              value={currentDate}
-              mode="date"
-              display="spinner"
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-              textColor={palette.textPrimary}
-            />
-          </View>
+          <WebDateInput
+            value={value || ""}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              onChangeText(event.target.value);
+            }}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            type="date"
+            max={maxDateString}
+            aria-label={label ?? "Select date"}
+            style={styles.webNativeInput as unknown as React.CSSProperties}
+          />
         </View>
-      </Modal>
+      ) : (
+        <>
+          <Pressable
+            onPress={openIOSPicker}
+            style={[
+              styles.inputContainer,
+              {
+                borderColor,
+                backgroundColor: palette.surface,
+                shadowColor: palette.textPrimary,
+              },
+              isFocused && styles.inputContainerFocused,
+            ]}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={18}
+              color={palette.textSecondary}
+              style={styles.icon}
+            />
+
+            <Text style={[styles.text, { color: displayColor }]}>
+              {formatDateForDisplay(value)}
+            </Text>
+
+            <Ionicons
+              name="chevron-down"
+              size={18}
+              color={palette.textSecondary}
+            />
+          </Pressable>
+
+          <Modal
+            visible={showPicker}
+            transparent
+            animationType="slide"
+            onRequestClose={handleCancel}
+          >
+            <Pressable
+              style={styles.backdrop}
+              onPress={handleCancel}
+            />
+
+            <View
+              style={[
+                styles.sheet,
+                {
+                  backgroundColor: palette.surface,
+                  borderTopColor: palette.border,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.sheetHeader,
+                  {
+                    borderBottomColor: palette.border,
+                  },
+                ]}
+              >
+                <Pressable onPress={handleCancel} hitSlop={8}>
+                  <Text style={[styles.headerAction, { color: palette.textSecondary }]}>
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                <Text style={[styles.sheetTitle, { color: palette.textPrimary }]}>
+                  Select date
+                </Text>
+
+                <Pressable onPress={handleDone} hitSlop={8}>
+                  <Text style={[styles.headerAction, { color: palette.primary }]}>
+                    Done
+                  </Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.pickerContainer}>
+                <DateTimePicker
+                  value={tempDate}
+                  mode="date"
+                  display="spinner"
+                  maximumDate={new Date()}
+                  onChange={handleNativeChange}
+                  textColor={palette.textPrimary}
+                />
+              </View>
+            </View>
+          </Modal>
+        </>
+      )}
+
+      {error ? (
+        <Text style={[styles.error, { color: palette.danger }]}>{error}</Text>
+      ) : null}
     </View>
   );
 };
@@ -121,18 +263,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   inputContainer: {
+    minHeight: 46,
     borderWidth: 1,
     borderRadius: theme.radius.md,
-    minHeight: 46,
-    justifyContent: "center",
     paddingHorizontal: theme.spacing.sm,
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing.sm,
+    justifyContent: "center",
     shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 1,
+  },
+  inputContainerFocused: {
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   icon: {
     marginRight: theme.spacing.xs,
@@ -142,32 +289,51 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
   },
+  webNativeInput: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0,
+    cursor: "pointer" as any,
+    outlineStyle: "none" as any,
+    borderWidth: 0,
+    backgroundColor: "transparent",
+    width: "100%" as any,
+    height: "100%" as any,
+  },
   error: {
     marginTop: theme.spacing.xxs,
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.medium,
   },
-  modalContainer: {
+  backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
-  pickerWrapper: {
-    borderTopLeftRadius: theme.radius.xl,
-    borderTopRightRadius: theme.radius.xl,
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: "hidden",
+    borderTopWidth: 1,
   },
-  pickerHeader: {
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.lg,
+  sheetHeader: {
+    minHeight: 56,
     borderBottomWidth: 1,
+    paddingHorizontal: theme.spacing.lg,
     flexDirection: "row",
-    justifyContent: "flex-end",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  headerButton: {
+  headerAction: {
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.semibold,
-    paddingVertical: theme.spacing.xs,
-    paddingHorizontal: theme.spacing.sm,
+    minWidth: 64,
+  },
+  sheetTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  pickerContainer: {
+    paddingVertical: theme.spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
