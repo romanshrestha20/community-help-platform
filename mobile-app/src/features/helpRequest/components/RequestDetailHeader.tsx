@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppModal } from "@/components/ui/AppModal";
-import { Card, Row, Stack } from "@/design-system";
+import { Card, Row, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { HelpRequest } from "../types/helpRequest.types";
@@ -14,6 +14,7 @@ import {
 } from "../utils/requestDisplay";
 import { getRelativePostedTime } from "../utils/requestTime";
 import { RequestStatusBadge } from "./RequestStatusBadge";
+import { useRequestDetails } from "../hooks/useRequestDetails";
 
 type Props = {
   request: HelpRequest;
@@ -40,7 +41,7 @@ const getDescriptionBullets = (description: string): string[] => {
 export const RequestDetailsHeader = ({ request }: Props) => {
   const { palette } = useThemeContext();
   const [profileModalVisible, setProfileModalVisible] = useState(false);
-
+  const { isOwner } = useRequestDetails(request.id);
   const postedTime = useMemo(
     () => getRelativePostedTime(request.createdAt),
     [request.createdAt]
@@ -90,7 +91,7 @@ export const RequestDetailsHeader = ({ request }: Props) => {
           <Text style={[styles.budgetEyebrow, { color: palette.textSecondary }]}>Estimated budget</Text>
           <Text style={[styles.price, { color: palette.primary }]}>{budgetLabel}</Text>
           <Row justify="space-between" align="center" style={styles.bidRow}>
-            <Text style={[styles.bidSummary, { color: palette.textPrimary }]}>{bidSummary}</Text>
+            {isOwner && request.status === "OPEN" && (<Text style={[styles.bidSummary, { color: palette.textPrimary }]}>{bidSummary}</Text>)}
             <Text style={[styles.bidSecondary, { color: palette.textSecondary }]}>{bidSecondary}</Text>
           </Row>
         </View>
@@ -106,19 +107,17 @@ export const RequestDetailsHeader = ({ request }: Props) => {
           <View style={styles.posterCopy}>
             <Text style={[styles.posterName, { color: palette.textPrimary }]}>Posted by {request.requesterName}</Text>
             <Text style={[styles.posterMeta, { color: palette.textSecondary }]}>Community member</Text>
-            <Text style={[styles.posterHint, { color: palette.textSecondary }]}>Tap avatar to view profile</Text>
           </View>
         </Row>
 
         <Stack gap="sm">
-          <View style={[styles.metaChip, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+
+
+          <View>
             <Row gap="xs" align="center">
               <Ionicons name="location-outline" size={14} color={palette.textSecondary} />
               <Text style={[styles.metaText, { color: palette.textSecondary }]}>{locationLabel}</Text>
             </Row>
-          </View>
-
-          <View style={[styles.metaChip, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
             <Row gap="xs" align="center">
               <Ionicons name="time-outline" size={14} color={palette.textSecondary} />
               <Text style={[styles.metaText, { color: palette.textSecondary }]}>Posted {postedTime}</Text>
@@ -185,14 +184,22 @@ export const RequestDetailsHeader = ({ request }: Props) => {
   );
 };
 
+const HALF_XXS = theme.spacing.xxs / 2;
+const CHIP_PADDING_Y = theme.spacing.xxs + HALF_XXS;
+const CHIP_PADDING_X = theme.spacing.xs + HALF_XXS;
+const PANEL_RADIUS = theme.radius.lg + HALF_XXS;
+const PANEL_PADDING_X = theme.spacing.sm + HALF_XXS;
+const BULLET_SIZE = theme.spacing.xs - 1;
+const BULLET_OFFSET_TOP = theme.spacing.xs - 1;
+
 const styles = StyleSheet.create({
   card: {
     overflow: "hidden",
   },
   categoryPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: CHIP_PADDING_Y,
+    borderRadius: theme.radius.fill,
     borderWidth: 1,
   },
   categoryPillLabel: {
@@ -207,11 +214,11 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   budgetPanel: {
-    borderRadius: 16,
+    borderRadius: PANEL_RADIUS,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    rowGap: 4,
+    paddingHorizontal: PANEL_PADDING_X,
+    paddingVertical: theme.spacing.sm,
+    rowGap: theme.spacing.xxs,
   },
   budgetEyebrow: {
     fontSize: 12,
@@ -225,7 +232,7 @@ const styles = StyleSheet.create({
     lineHeight: 38,
   },
   bidRow: {
-    marginTop: 4,
+    marginTop: theme.spacing.xxs,
   },
   bidSummary: {
     fontSize: 15,
@@ -239,7 +246,7 @@ const styles = StyleSheet.create({
     height: 1,
   },
   posterRow: {
-    marginTop: 2,
+    marginTop: HALF_XXS,
   },
   posterCopy: {
     flex: 1,
@@ -249,18 +256,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   posterMeta: {
-    marginTop: 2,
+    marginTop: HALF_XXS,
     fontSize: 13,
   },
   posterHint: {
-    marginTop: 3,
+    marginTop: theme.spacing.xxs - 1,
     fontSize: 12,
   },
   metaChip: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
+    borderRadius: theme.radius.md + HALF_XXS,
+    paddingHorizontal: CHIP_PADDING_X,
+    paddingVertical: theme.spacing.xs + 1,
   },
   metaText: {
     flex: 1,
@@ -269,25 +276,25 @@ const styles = StyleSheet.create({
   },
   descriptionPanel: {
     borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: PANEL_RADIUS,
+    paddingHorizontal: PANEL_PADDING_X,
+    paddingVertical: theme.spacing.sm,
   },
   sectionLabel: {
     fontSize: 15,
     fontWeight: "700",
   },
   descriptionList: {
-    marginTop: 8,
+    marginTop: theme.spacing.xs,
   },
   descriptionRow: {
-    paddingRight: 8,
+    paddingRight: theme.spacing.xs,
   },
   bulletDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 999,
-    marginTop: 7,
+    width: BULLET_SIZE,
+    height: BULLET_SIZE,
+    borderRadius: theme.radius.fill,
+    marginTop: BULLET_OFFSET_TOP,
   },
   descriptionItem: {
     fontSize: 14,
@@ -296,13 +303,13 @@ const styles = StyleSheet.create({
   },
   profileAvatarWrap: {
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: theme.spacing.xs,
   },
   profileRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: theme.spacing.sm,
   },
   profileLabel: {
     fontSize: 12,
