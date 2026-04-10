@@ -14,6 +14,7 @@ interface BidFormProps {
     requestTitle?: string;
     initialData?: Bid;
     onSubmit: (data: CreateBidData | UpdateBidData) => Promise<void>;
+    onCancel?: () => void;
     loading?: boolean;
     error?: string | null;
     isUpdate?: boolean;
@@ -24,6 +25,7 @@ export const BidForm: React.FC<BidFormProps> = ({
     requestTitle,
     initialData,
     onSubmit,
+    onCancel,
     loading = false,
     error = null,
     isUpdate = false,
@@ -109,6 +111,8 @@ export const BidForm: React.FC<BidFormProps> = ({
 
     return (
         <Stack gap="md">
+            <Text style={[styles.caption, { color: palette.textSecondary }]}>Fields marked * are required</Text>
+
             {requestTitle ? (
                 <View
                     style={[
@@ -129,10 +133,17 @@ export const BidForm: React.FC<BidFormProps> = ({
                 </View>
             ) : null}
 
-            <Stack gap="xs">
-                <Text style={[styles.label, { color: palette.textPrimary }]}>Bid amount *</Text>
-
+            <View
+                style={[
+                    styles.sectionCard,
+                    {
+                        borderColor: palette.border,
+                        backgroundColor: palette.surfaceSecondary,
+                    },
+                ]}
+            >
                 <AppInput
+                    label="Bid amount *"
                     placeholder="Enter your offer amount"
                     keyboardType="decimal-pad"
                     value={formData.amount}
@@ -142,18 +153,21 @@ export const BidForm: React.FC<BidFormProps> = ({
                 />
 
                 {amountPreview ? (
-                    <Text style={[styles.helperText, { color: palette.textSecondary }]}>Your offer: ${amountPreview}</Text>
+                    <Text style={[styles.helperTextStrong, { color: palette.textPrimary }]}>Your offer: ${amountPreview}</Text>
                 ) : null}
-            </Stack>
+            </View>
 
-            <Stack gap="xs">
-                <Text style={[styles.label, { color: palette.textPrimary }]}>Message *</Text>
-
-                <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                    Explain briefly why you are a good fit for this request.
-                </Text>
-
+            <View
+                style={[
+                    styles.sectionCard,
+                    {
+                        borderColor: palette.border,
+                        backgroundColor: palette.surfaceSecondary,
+                    },
+                ]}
+            >
                 <AppInput
+                    label="Message *"
                     placeholder="Write a short message..."
                     multiline
                     numberOfLines={5}
@@ -163,8 +177,12 @@ export const BidForm: React.FC<BidFormProps> = ({
                     editable={!loading}
                 />
 
+                <Text style={[styles.helperText, { color: palette.textSecondary }]}> 
+                    Explain briefly why you are a good fit for this request.
+                </Text>
+
                 <Text style={[styles.counterText, { color: counterColor }]}>{messageLength}/500</Text>
-            </Stack>
+            </View>
 
             {validationError ? (
                 <View
@@ -194,19 +212,46 @@ export const BidForm: React.FC<BidFormProps> = ({
                 </View>
             ) : null}
 
-            <AppButton
-                title={loading ? "Submitting..." : isUpdate ? "Update Bid" : "Place Bid"}
-                onPress={handleSubmit}
-                disabled={loading || !formData.amount || !formData.message.trim()}
-            />
+            {onCancel ? (
+                <View style={styles.actionsRow}>
+                    <View style={styles.actionButton}>
+                        <AppButton
+                            title="Cancel"
+                            onPress={onCancel}
+                            variant="secondary"
+                            fullWidth
+                            disabled={loading}
+                        />
+                    </View>
+
+                    <View style={styles.actionButton}>
+                        <AppButton
+                            title={loading ? "Submitting..." : isUpdate ? "Update Bid" : "Place Bid"}
+                            onPress={handleSubmit}
+                            fullWidth
+                            disabled={loading || !formData.amount || !formData.message.trim()}
+                        />
+                    </View>
+                </View>
+            ) : (
+                <AppButton
+                    title={loading ? "Submitting..." : isUpdate ? "Update Bid" : "Place Bid"}
+                    onPress={handleSubmit}
+                    disabled={loading || !formData.amount || !formData.message.trim()}
+                />
+            )}
         </Stack>
     );
 };
 
 const styles = StyleSheet.create({
+    caption: {
+        fontSize: theme.typography.fontSize.xs,
+        lineHeight: theme.typography.lineHeight.xs,
+    },
     requestInfo: {
         borderWidth: 1,
-        borderRadius: theme.radius.lg,
+        borderRadius: theme.radius.md,
         padding: theme.spacing.md,
     },
     requestLabel: {
@@ -221,16 +266,23 @@ const styles = StyleSheet.create({
         lineHeight: theme.typography.lineHeight.md,
         fontWeight: theme.typography.fontWeight.semibold,
     },
-    label: {
-        fontSize: theme.typography.fontSize.md,
-        fontWeight: theme.typography.fontWeight.semibold,
+    sectionCard: {
+        borderWidth: 1,
+        borderRadius: theme.radius.md,
+        padding: theme.spacing.md,
+        gap: theme.spacing.xs,
     },
     helperText: {
+        fontSize: theme.typography.fontSize.xs,
+        lineHeight: theme.typography.lineHeight.xs,
+    },
+    helperTextStrong: {
         fontSize: theme.typography.fontSize.sm,
         lineHeight: theme.typography.lineHeight.sm,
+        fontWeight: theme.typography.fontWeight.semibold,
     },
     counterText: {
-        fontSize: theme.typography.fontSize.sm,
+        fontSize: theme.typography.fontSize.xs,
         textAlign: "right",
     },
     errorBox: {
@@ -242,6 +294,13 @@ const styles = StyleSheet.create({
         fontSize: theme.typography.fontSize.sm,
         lineHeight: theme.typography.lineHeight.sm,
         fontWeight: theme.typography.fontWeight.medium,
+    },
+    actionsRow: {
+        flexDirection: "row",
+        gap: theme.spacing.sm,
+    },
+    actionButton: {
+        flex: 1,
     },
 });
 

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
-import { Platform } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppModal } from "@/components/ui/AppModal";
@@ -176,20 +176,24 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                 scrollable
                 actions={
                     <>
-                        <AppButton
-                            title="Cancel"
-                            onPress={() => setModalVisible(false)}
-                            variant="secondary"
-                            fullWidth={false}
-                            disabled={loading}
-                        />
-                        <AppButton
-                            title={loading ? "Saving..." : initialData ? "Update request" : "Post request"}
-                            onPress={handleSubmit}
-                            variant="primary"
-                            fullWidth={false}
-                            disabled={loading}
-                        />
+                        <View style={styles.actionButton}>
+                            <AppButton
+                                title="Cancel"
+                                onPress={() => setModalVisible(false)}
+                                variant="secondary"
+                                fullWidth
+                                disabled={loading}
+                            />
+                        </View>
+                        <View style={styles.actionButton}>
+                            <AppButton
+                                title={loading ? "Saving..." : initialData ? "Update request" : "Post request"}
+                                onPress={handleSubmit}
+                                variant="primary"
+                                fullWidth
+                                disabled={loading}
+                            />
+                        </View>
                     </>
                 }
             >
@@ -223,3 +227,9 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         </>
     );
 };
+
+const styles = StyleSheet.create({
+    actionButton: {
+        flex: 1,
+    },
+});
