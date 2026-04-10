@@ -161,100 +161,153 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                         description="Add or review images before you save the request."
                     />
 
-                    <AppInput
-                        label="Title"
-                        value={form.title}
-                        error={fieldErrors.title ?? null}
-                        onChangeText={(value) => {
-                            clearFieldError("title");
-                            updateField("title", value);
-                        }}
-                        editable={!saving}
-                        placeholder="What do you need help with?"
-                    />
+                    <View
+                        style={[
+                            styles.sectionCard,
+                            {
+                                borderColor: palette.border,
+                                backgroundColor: palette.surfaceSecondary,
+                            },
+                        ]}
+                    >
+                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Request details</Text>
+                        <Text style={[styles.sectionDescription, { color: palette.textSecondary }]}>Write a clear title and description so helpers understand the need quickly.</Text>
 
-                    <AppInput
-                        label="Description"
-                        value={form.description}
-                        error={fieldErrors.description ?? null}
-                        onChangeText={(value) => {
-                            clearFieldError("description");
-                            updateField("description", value);
-                        }}
-                        editable={!saving}
-                        placeholder="Describe the request clearly"
-                        multiline
-                        numberOfLines={5}
-                    />
+                        <AppInput
+                            label="Title"
+                            value={form.title}
+                            error={fieldErrors.title ?? null}
+                            onChangeText={(value) => {
+                                clearFieldError("title");
+                                updateField("title", value);
+                            }}
+                            editable={!saving}
+                            placeholder="What do you need help with?"
+                        />
 
-                    <Stack gap="xs">
-                        <Text style={[styles.label, { color: palette.textPrimary }]}>Category</Text>
-                        <Row gap="sm" style={styles.wrapRow}>
-                            {CATEGORY_OPTIONS.map((category) => (
-                                <AppButton
-                                    key={category}
-                                    title={category}
-                                    onPress={() => updateField("category", category)}
-                                    variant={form.category === category ? "primary" : "secondary"}
-                                    fullWidth={false}
-                                    disabled={saving}
-                                />
-                            ))}
-                        </Row>
-                    </Stack>
+                        <AppInput
+                            label="Description"
+                            value={form.description}
+                            error={fieldErrors.description ?? null}
+                            onChangeText={(value) => {
+                                clearFieldError("description");
+                                updateField("description", value);
+                            }}
+                            editable={!saving}
+                            placeholder="Describe the request clearly"
+                            multiline
+                            numberOfLines={5}
+                        />
+                    </View>
 
-                    <AppInput
-                        label="Budget"
-                        value={form.budget}
-                        error={fieldErrors.budget ?? null}
-                        onChangeText={(value) => {
-                            clearFieldError("budget");
-                            updateField("budget", value);
-                        }}
-                        editable={!saving}
-                        keyboardType="decimal-pad"
-                        placeholder="Optional"
-                    />
+                    <View
+                        style={[
+                            styles.sectionCard,
+                            {
+                                borderColor: palette.border,
+                                backgroundColor: palette.surfaceSecondary,
+                            },
+                        ]}
+                    >
+                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Category and budget</Text>
+                        <Text style={[styles.sectionDescription, { color: palette.textSecondary }]}>Pick the closest category and add a budget if relevant.</Text>
 
-                    <LocationPickerField
-                        value={locationPicker.value}
-                        loading={locationPicker.loading}
-                        error={fieldErrors.location ?? locationPicker.error}
-                        onUseCurrentLocation={async () => {
-                            clearFieldError("location");
-                            await locationPicker.useCurrentLocation();
-                        }}
-                        streetQuery={locationPicker.streetQuery}
-                        onStreetQueryChange={(value) => {
-                            clearFieldError("location");
-                            locationPicker.setStreetQuery(value);
-                        }}
-                        suggestions={locationPicker.suggestions}
-                        suggestionsLoading={locationPicker.suggestionsLoading}
-                        onSelectSuggestion={async (suggestion) => {
-                            clearFieldError("location");
-                            await locationPicker.selectSuggestion(suggestion);
-                        }}
-                    />
+                        <Stack gap="xs">
+                            <Text style={[styles.label, { color: palette.textPrimary }]}>Category</Text>
+                            <Row gap="sm" style={styles.wrapRow}>
+                                {CATEGORY_OPTIONS.map((category) => (
+                                    <AppButton
+                                        key={category}
+                                        title={category}
+                                        onPress={() => updateField("category", category)}
+                                        variant={form.category === category ? "primary" : "secondary"}
+                                        fullWidth={false}
+                                        disabled={saving}
+                                    />
+                                ))}
+                            </Row>
+                        </Stack>
+
+                        <AppInput
+                            label="Budget"
+                            value={form.budget}
+                            error={fieldErrors.budget ?? null}
+                            onChangeText={(value) => {
+                                clearFieldError("budget");
+                                updateField("budget", value);
+                            }}
+                            editable={!saving}
+                            keyboardType="decimal-pad"
+                            placeholder="Optional"
+                        />
+                    </View>
+
+                    <View
+                        style={[
+                            styles.sectionCard,
+                            {
+                                borderColor: palette.border,
+                                backgroundColor: palette.surfaceSecondary,
+                            },
+                        ]}
+                    >
+                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Location</Text>
+                        <Text style={[styles.sectionDescription, { color: palette.textSecondary }]}>Set where help is needed so nearby people can find your request.</Text>
+
+                        <LocationPickerField
+                            value={locationPicker.value}
+                            loading={locationPicker.loading}
+                            error={fieldErrors.location ?? locationPicker.error}
+                            onUseCurrentLocation={async () => {
+                                clearFieldError("location");
+                                await locationPicker.useCurrentLocation();
+                            }}
+                            streetQuery={locationPicker.streetQuery}
+                            onStreetQueryChange={(value) => {
+                                clearFieldError("location");
+                                locationPicker.setStreetQuery(value);
+                            }}
+                            suggestions={locationPicker.suggestions}
+                            suggestionsLoading={locationPicker.suggestionsLoading}
+                            onSelectSuggestion={async (suggestion) => {
+                                clearFieldError("location");
+                                await locationPicker.selectSuggestion(suggestion);
+                            }}
+                        />
+                    </View>
 
                     {validationError ? (
-                        <Text style={[styles.error, { color: palette.danger }]}>{validationError}</Text>
+                        <View
+                            style={[
+                                styles.errorCard,
+                                {
+                                    borderColor: palette.danger,
+                                    backgroundColor: palette.dangerSoft,
+                                },
+                            ]}
+                        >
+                            <Text style={[styles.error, { color: palette.danger }]}>{validationError}</Text>
+                        </View>
                     ) : null}
 
-                    <Row gap="sm">
-                        <AppButton
-                            title="Cancel"
-                            onPress={handleBack}
-                            variant="secondary"
-                            fullWidth={false}
-                            disabled={saving}
-                        />
-                        <AppButton
-                            title={saving ? "Saving..." : isEditing ? "Update Request" : "Create Request"}
-                            onPress={handleSave}
-                            loading={saving}
-                            fullWidth={false}
-                        />
+                    <Row gap="sm" style={styles.actionsRow}>
+                        <View style={styles.actionButton}>
+                            <AppButton
+                                title="Cancel"
+                                onPress={handleBack}
+                                variant="secondary"
+                                fullWidth
+                                disabled={saving}
+                            />
+                        </View>
+                        <View style={styles.actionButton}>
+                            <AppButton
+                                title={saving ? "Saving..." : isEditing ? "Update Request" : "Create Request"}
+                                onPress={handleSave}
+                                loading={saving}
+                                fullWidth
+                            />
+                        </View>
                     </Row>
                 </Stack>
             </Card>
@@ -267,14 +320,39 @@ const styles = StyleSheet.create({
         fontSize: theme.typography.fontSize.sm,
         fontWeight: theme.typography.fontWeight.semibold,
     },
-    helperText: {
+    sectionCard: {
+        borderWidth: 1,
+        borderRadius: theme.radius.md,
+        padding: theme.spacing.md,
+        gap: theme.spacing.sm,
+    },
+    sectionTitle: {
+        fontSize: theme.typography.fontSize.md,
+        lineHeight: theme.typography.lineHeight.md,
+        fontWeight: theme.typography.fontWeight.semibold,
+    },
+    sectionDescription: {
         fontSize: theme.typography.fontSize.xs,
+        lineHeight: theme.typography.lineHeight.xs,
     },
     wrapRow: {
         flexWrap: "wrap",
     },
+    actionsRow: {
+        marginTop: theme.spacing.xxs,
+    },
+    actionButton: {
+        flex: 1,
+    },
+    errorCard: {
+        borderWidth: 1,
+        borderRadius: theme.radius.md,
+        padding: theme.spacing.sm,
+    },
     error: {
         fontSize: theme.typography.fontSize.sm,
+        lineHeight: theme.typography.lineHeight.sm,
+        fontWeight: theme.typography.fontWeight.medium,
     },
 });
 
