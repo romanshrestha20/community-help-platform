@@ -571,3 +571,157 @@ Form Components (register.tsx, ProfileEditForm.tsx)
 - Cross-platform input components should default to platform guards when third-party native components do not support web.
 - For date selection UX, staged edits (`tempDate`) with explicit commit (`Done`) on iOS feel more intentional than immediate commit.
 - Global UI primitives like toasts are best simplified centrally so all feature teams inherit consistent visual behavior automatically.
+
+## 21. Notifications System: In-App UX + Real Push Pipeline (2026-04-11)
+
+**Objective**: Move from a basic in-app notification list to a production-ready notification system with live badge updates and real OS-level push delivery.
+
+**Implementation**:
+
+1. **In-app notifications UX redesign**
+
+- Refined notifications screen into a cleaner feed-style experience.
+- Added filtering and clearer visual hierarchy for unread/read states.
+- Improved copy/timestamp readability and interaction polish.
+- Added swipe-to-delete interaction to reduce visible action clutter.
+
+2. **Live badge-count behavior**
+
+- Wired notification unread count into shared badge state so tab indicators update without opening the notification screen.
+- Added background/foreground refresh behavior and synchronized native app badge value from unread count.
+
+3. **Mobile push registration flow (Expo)**
+
+- Added push registration hook at app root startup for authenticated users.
+- Implemented permission request + Expo token retrieval + backend token registration.
+- Added notification tap routing support (open target route from push payload data).
+- Added unregister flow on logout to remove stale tokens.
+- Configured foreground notification behavior with current Expo fields:
+  - `shouldShowBanner`
+  - `shouldShowList`
+  - `shouldPlaySound`
+  - `shouldSetBadge`
+
+4. **Backend push-token and dispatch pipeline**
+
+- Added `PushToken` model in Prisma schema with user relation and useful indexes.
+- Exposed authenticated endpoints for token register/unregister.
+- Added push-token service for upsert/get/delete operations.
+- Added notification dispatch service to map notification types to in-app routes and send Expo push payloads.
+- Updated notification creation flow to asynchronously trigger push dispatch after DB persistence.
+
+5. **Testing coverage added**
+
+- Added focused controller tests for push token register/unregister.
+- Added route-level integration tests with supertest for push-token endpoints.
+- Verified notification controller + notification route test suites passing.
+
+6. **Debugging and production lessons from rollout**
+
+- Diagnosed backend 500 on push-token registration to stale Prisma client generation:
+  - runtime had `prisma.pushToken` undefined
+  - resolved by regenerating Prisma client (`npx prisma generate`) and restarting backend
+- Clarified test environment constraints:
+  - remote push banners are not supported on iOS Simulator / Android Emulator
+  - physical device is required for true remote push validation
+- Clarified Expo runtime requirement:
+  - use development build for modern push testing, not simulator-only workflow
+
+7. **Dev-client scheme + build workflow fixes for push testing**
+
+- Resolved dev-client scheme mismatch warning by aligning Android deep-link intent filters with app scheme(s) used by iOS.
+- Updated `eas.json` with practical build profiles:
+  - `development-android` for Android dev client APK
+  - `development-ios-simulator` for iOS simulator build without Apple paid team
+- Documented iOS cloud device build limitation when Apple account has no developer team.
+
+**Key files touched (high-signal set)**:
+
+Backend:
+
+1. `backend/prisma/schema.prisma`
+2. `backend/src/controllers/notification.controller.ts`
+3. `backend/src/routes/notification.route.ts`
+4. `backend/src/services/push-token.service.ts`
+5. `backend/src/services/notification-dispatch.service.ts`
+6. `backend/src/services/expo-push.service.ts`
+7. `backend/src/services/notification.service.ts`
+8. `backend/src/controllers/__tests__/notification.controller.test.ts`
+9. `backend/src/routes/__tests__/notification.route.test.ts`
+
+Mobile:
+
+1. `mobile-app/src/features/notifications/hooks/usePushNotifications.ts`
+2. `mobile-app/src/features/notifications/api/notification.api.ts`
+3. `mobile-app/src/features/notifications/service/notification.service.ts`
+4. `mobile-app/src/hooks/useBadgeCounts.ts`
+5. `mobile-app/app/(tabs)/notifications/index.tsx`
+6. `mobile-app/app/_layout.tsx`
+7. `mobile-app/app.json`
+8. `mobile-app/android/app/src/main/AndroidManifest.xml`
+9. `mobile-app/eas.json`
+
+**Lessons Learned**:
+
+- A complete notification system requires both in-app state flow and out-of-app push delivery; DB notifications alone are not enough.
+- Push rollout failures often come from environment mismatches (simulator vs real device, Expo runtime mode, credentials) more than UI code.
+- Prisma schema changes must be followed by client regeneration, or runtime delegates can be missing even when code compiles.
+- Token lifecycle hygiene (register on auth, unregister on logout) is essential to avoid noisy/stale push delivery.
+- Route data in push payloads greatly improves UX by taking users directly to the relevant screen on tap.
+
+**Follow-up Suggestions**:
+
+1. Add delivery observability (success/failure logs + receipt handling) for Expo push sends.
+2. Add automated tests for `notification-dispatch.service` route mapping and badge payload correctness.
+3. Add token pruning strategy for permanently invalid Expo push tokens.
+4. Add manual QA checklist for real-device push testing across foreground/background/terminated states.
+
+## 22. Project-Wide Zod Migration and Backend Type Cleanup (2026-04-11)
+
+**Objective**: Replace the remaining hand-written validation paths with Zod across the mobile app and backend, then fix the type issues introduced by that refactor.
+
+**Implementation**:
+
+1. **Mobile validation migration**
+
+- Reworked the central form validation module to use Zod-backed schemas while preserving the existing validator function API.
+- Kept the mobile feature code unchanged at the call sites so forms still receive the same validation results and error messages.
+
+2. **Backend validation migration**
+
+- Added shared backend Zod schemas for auth, notification push tokens, help requests, and bids.
+- Updated controllers to validate request bodies with Zod instead of ad hoc manual checks.
+
+3. **Controller cleanup after the schema refactor**
+
+- Normalized request route params in the request controller so `req.params` values are handled safely even when typed as `string | string[]`.
+- Tightened request-image handlers so invalid request/image IDs fail fast with a clean 400 or 404 response.
+- Added a defensive password-hash guard in auth before calling bcrypt so null hashes do not produce runtime/type errors.
+
+4. **Verification sweep**
+
+- Ran diagnostics on the touched backend controllers and the mobile validation file.
+- Confirmed the backend and mobile app are clean after the migration.
+
+**Files Modified**:
+
+1. `mobile-app/src/utils/validation/forms.ts`
+2. `backend/src/utils/zod.ts`
+3. `backend/src/utils/validation-schemas.ts`
+4. `backend/src/controllers/auth.controller.ts`
+5. `backend/src/controllers/notification.controller.ts`
+6. `backend/src/controllers/request.controller.ts`
+7. `backend/src/controllers/bid.controller.ts`
+
+**Lessons Learned**:
+
+- Zod migrations are safest when you keep the public validation API stable and only change the internals.
+- Express route params often need explicit normalization before TypeScript and Prisma are happy with them.
+- Any login or password flow that touches bcrypt should guard against missing hashes before comparing.
+- It is worth doing a full diagnostics sweep after a validation refactor because the compile errors often appear in adjacent code, not just the edited schema file.
+
+**Outcome**:
+
+- The project now uses Zod for the main validation paths in both mobile and backend.
+- The remaining compile/type issues from the refactor were resolved.
+- Both apps were verified clean after the migration.
