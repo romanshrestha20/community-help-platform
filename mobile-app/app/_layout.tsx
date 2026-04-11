@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Slot, useRouter, useSegments } from "expo-router";
 import {
@@ -14,43 +14,14 @@ import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useThemeStore } from "@/features/settings/store/theme.store";
 import { getAccessToken, getRefreshToken, clearTokens } from "@/utils/token";
 import { getMe } from "@/features/auth/api/auth.api";
-import { typography } from "@/design-system";
 import Toast from "react-native-toast-message";
 import { toastConfig } from "@/utils/toastConfig";
 import { configureToast } from "@/utils/toast";
 import { enableScreens } from "react-native-screens";
+import { usePushNotifications } from "../src/features/notifications/hooks/usePushNotifications";
 
 // Temporary iOS Expo Go workaround: bypass native RNSScreen host views.
 enableScreens(false);
-
-type DefaultPropsTarget = {
-  defaultProps?: {
-    style?: unknown;
-  };
-};
-
-let hasAppliedGlobalTypography = false;
-
-const applyGlobalTypographyDefaults = () => {
-  if (hasAppliedGlobalTypography) return;
-
-  const globalText = Text as typeof Text & DefaultPropsTarget;
-  const globalTextInput = TextInput as typeof TextInput & DefaultPropsTarget;
-
-  globalText.defaultProps = globalText.defaultProps || {};
-  globalText.defaultProps.style = [
-    { fontFamily: typography.fontFamily.regular },
-    globalText.defaultProps.style,
-  ];
-
-  globalTextInput.defaultProps = globalTextInput.defaultProps || {};
-  globalTextInput.defaultProps.style = [
-    { fontFamily: typography.fontFamily.regular },
-    globalTextInput.defaultProps.style,
-  ];
-
-  hasAppliedGlobalTypography = true;
-};
 
 export default function Layout() {
   const router = useRouter();
@@ -64,6 +35,8 @@ export default function Layout() {
 
   const { login, logout, isAuthenticated } = useAuthStore();
   const [isInitializing, setIsInitializing] = useState(true);
+
+  usePushNotifications();
 
   useEffect(() => {
     if (!fontsLoaded) return;
