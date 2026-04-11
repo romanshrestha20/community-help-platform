@@ -6,6 +6,7 @@ export type UpsertPushTokenInput = {
     platform?: string | null;
 };
 
+// Handler to register or update a push token for the authenticated user
 export const upsertPushTokenForUser = async ({ userId, token, platform }: UpsertPushTokenInput) => {
     const normalizedToken = token.trim();
 
@@ -27,6 +28,7 @@ export const upsertPushTokenForUser = async ({ userId, token, platform }: Upsert
     });
 };
 
+// Function to retrieve all push tokens for a given user
 export const getPushTokensForUser = async (userId: string) => {
     return prisma.pushToken.findMany({
         where: { userId },
@@ -34,6 +36,7 @@ export const getPushTokensForUser = async (userId: string) => {
     });
 };
 
+// Handler to delete a push token for the authenticated user
 export const deletePushTokenForUser = async (userId: string, token: string) => {
     const normalizedToken = token.trim();
 

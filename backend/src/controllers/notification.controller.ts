@@ -170,6 +170,8 @@ export const removeNotification = async (
     }
 };
 
+
+// Push Token Handlers for Mobile App
 export const registerPushToken = async (
     req: Request,
     res: Response,
@@ -181,6 +183,7 @@ export const registerPushToken = async (
             return next(new AppError("Unauthorized", 401));
         }
 
+        // Validate and sanitize input fields
         const token = typeof req.body?.token === "string" ? req.body.token.trim() : "";
         const platform = typeof req.body?.platform === "string" ? req.body.platform.trim() : null;
 
@@ -200,6 +203,7 @@ export const registerPushToken = async (
     }
 };
 
+// Handler to unregister a push token for the authenticated user
 export const unregisterPushToken = async (
     req: Request,
     res: Response,
