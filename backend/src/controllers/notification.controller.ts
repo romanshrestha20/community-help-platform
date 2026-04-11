@@ -8,6 +8,7 @@ import {
     markNotificationAsRead,
     markNotificationAsUnread,
 } from "../services/notification.service.js";
+import { deletePushTokenForUser, upsertPushTokenForUser } from "../services/push-token.service.js";
 
 
 const handleResponse = <T>(res: Response, data: T, message?: string) => {
@@ -164,6 +165,61 @@ export const removeNotification = async (
             success: true,
             message: "Notification deleted",
         });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const registerPushToken = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const userId = requireUserId(req);
+        if (!userId) {
+            return next(new AppError("Unauthorized", 401));
+        }
+
+        const token = typeof req.body?.token === "string" ? req.body.token.trim() : "";
+        const platform = typeof req.body?.platform === "string" ? req.body.platform.trim() : null;
+
+        if (!token) {
+            return next(new AppError("Push token is required", 400));
+        }
+
+        await upsertPushTokenForUser({
+            userId,
+            token,
+            platform,
+        });
+
+        handleResponse(res, null, "Push token registered");
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const unregisterPushToken = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const userId = requireUserId(req);
+        if (!userId) {
+            return next(new AppError("Unauthorized", 401));
+        }
+
+        const token = typeof req.body?.token === "string" ? req.body.token.trim() : "";
+
+        if (!token) {
+            return next(new AppError("Push token is required", 400));
+        }
+
+        await deletePushTokenForUser(userId, token);
+
+        handleResponse(res, null, "Push token removed");
     } catch (error) {
         next(error);
     }

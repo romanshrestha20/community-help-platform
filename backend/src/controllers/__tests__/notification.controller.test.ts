@@ -11,6 +11,13 @@ const { notificationServiceMock } = vi.hoisted(() => ({
     },
 }));
 
+const { pushTokenServiceMock } = vi.hoisted(() => ({
+    pushTokenServiceMock: {
+        upsertPushTokenForUser: vi.fn(),
+        deletePushTokenForUser: vi.fn(),
+    },
+}));
+
 vi.mock("../../services/notification.service.js", () => ({
     getUserNotifications: notificationServiceMock.getUserNotifications,
     getUnreadNotificationCount: notificationServiceMock.getUnreadNotificationCount,
@@ -19,11 +26,18 @@ vi.mock("../../services/notification.service.js", () => ({
     deleteNotification: notificationServiceMock.deleteNotification,
 }));
 
+vi.mock("../../services/push-token.service.js", () => ({
+    upsertPushTokenForUser: pushTokenServiceMock.upsertPushTokenForUser,
+    deletePushTokenForUser: pushTokenServiceMock.deletePushTokenForUser,
+}));
+
 import {
     listNotifications,
     readAllNotifications,
     readNotification,
     removeNotification,
+    registerPushToken,
+    unregisterPushToken,
     unreadNotificationCount,
 } from "../notification.controller.js";
 
@@ -178,6 +192,54 @@ describe("notification.controller", () => {
         );
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({ success: true, message: "Notification deleted" })
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("registerPushToken: stores push token for authenticated user", async () => {
+        pushTokenServiceMock.upsertPushTokenForUser.mockResolvedValue({
+            id: "push-token-1",
+            token: "ExponentPushToken[abc]",
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            body: { token: "ExponentPushToken[abc]", platform: "ios" },
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await registerPushToken(req, res, next);
+
+        expect(pushTokenServiceMock.upsertPushTokenForUser).toHaveBeenCalledWith({
+            userId: "user-1",
+            token: "ExponentPushToken[abc]",
+            platform: "ios",
+        });
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ success: true, message: "Push token registered" })
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("unregisterPushToken: removes push token for authenticated user", async () => {
+        pushTokenServiceMock.deletePushTokenForUser.mockResolvedValue({ count: 1 });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            body: { token: "ExponentPushToken[abc]" },
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await unregisterPushToken(req, res, next);
+
+        expect(pushTokenServiceMock.deletePushTokenForUser).toHaveBeenCalledWith(
+            "user-1",
+            "ExponentPushToken[abc]"
+        );
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ success: true, message: "Push token removed" })
         );
         expect(next).not.toHaveBeenCalled();
     });
