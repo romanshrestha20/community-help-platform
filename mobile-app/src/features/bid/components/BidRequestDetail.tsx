@@ -7,7 +7,7 @@ import { showErrorToast, showSuccessToast } from "@/utils/toast";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useHelpRequest } from "@/features/helpRequest/hooks/helpRequest.hook";
 import { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
-import { BidStatus, CreateBidData } from "../types/bid.types";
+import { Bid, BidStatus, CreateBidData } from "../types/bid.types";
 import { BidForm } from "./BidForm";
 import { BidList } from "./BidList";
 import { useBid } from "../hooks/bid.hook";
