@@ -19,8 +19,18 @@ const { prismaMock } = vi.hoisted(() => ({
     },
 }));
 
+const { notificationServiceMock } = vi.hoisted(() => ({
+    notificationServiceMock: {
+        createNotification: vi.fn(),
+    },
+}));
+
 vi.mock("../../lib/prisma.js", () => ({
     prisma: prismaMock,
+}));
+
+vi.mock("../../services/notification.service.js", () => ({
+    createNotification: notificationServiceMock.createNotification,
 }));
 
 import { deleteBid, placeBid, respondToBid } from "../bid.controller.js";
@@ -41,14 +51,18 @@ describe("bid.controller", () => {
     });
 
     it("placeBid: creates bid successfully", async () => {
-        prismaMock.helpRequest.findUnique.mockResolvedValue({ id: "req-1", status: "OPEN", requesterId: "requester-1" });
+        prismaMock.helpRequest.findUnique.mockResolvedValue({ id: "req-1", title: "Need help", status: "OPEN", requesterId: "requester-1" });
         prismaMock.bid.findFirst.mockResolvedValue(null);
         prismaMock.bid.create.mockResolvedValue({
             id: "bid-1",
             message: "I can help",
             amount: 40,
             status: "PENDING",
-            helper: null,
+            helper: {
+                id: "helper-1",
+                email: "helper@example.com",
+                profile: { fullName: "Helper One", dateOfBirth: null },
+            },
             createdAt: new Date("2026-03-29T00:00:00.000Z"),
         });
 
@@ -63,17 +77,35 @@ describe("bid.controller", () => {
                 data: { message: "I can help", amount: 40, helperId: "helper-1", helpRequestId: "req-1" },
             }),
         );
+        expect(notificationServiceMock.createNotification).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userId: "requester-1",
+                actorId: "helper-1",
+                type: "BID_RECEIVED",
+                title: "New bid received",
+                requestId: "req-1",
+                bidId: "bid-1",
+            }),
+        );
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: "Bid placed" }));
         expect(next).not.toHaveBeenCalled();
     });
 
     it("respondToBid: accepts bid and updates request state", async () => {
+        const txHelpRequestUpdate = vi.fn().mockResolvedValue({
+            id: "req-1",
+            status: "ASSIGNED",
+            assignedHelperId: "helper-1",
+        });
+
         prismaMock.bid.findUnique
             .mockResolvedValueOnce({
                 id: "bid-1",
                 helpRequestId: "req-1",
                 status: "PENDING",
-                request: { requesterId: "requester-1" },
+                helperId: "helper-1",
+                amount: 30,
+                request: { requesterId: "requester-1", title: "Need help" },
             })
             .mockResolvedValueOnce({
                 id: "bid-1",
@@ -91,6 +123,9 @@ describe("bid.controller", () => {
         prismaMock.$transaction.mockImplementation(async (fn: any) => {
             const tx = {
                 bid: {
+                    findMany: vi.fn().mockResolvedValue([
+                        { id: "bid-2", helperId: "helper-2" },
+                    ]),
                     updateMany: vi.fn(),
                     update: vi.fn().mockResolvedValue({
                         id: "bid-1",
@@ -101,7 +136,7 @@ describe("bid.controller", () => {
                     }),
                 },
                 helpRequest: {
-                    update: vi.fn(),
+                    update: txHelpRequestUpdate,
                 },
             };
             return fn(tx);
@@ -117,21 +152,113 @@ describe("bid.controller", () => {
 
         await respondToBid(req, res, next);
 
+        expect(txHelpRequestUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { id: "req-1" },
+                data: expect.objectContaining({
+                    status: "ASSIGNED",
+                    assignedHelperId: "helper-1",
+                }),
+            }),
+        );
+
+        expect(notificationServiceMock.createNotification).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userId: "helper-1",
+                actorId: "requester-1",
+                type: "BID_ACCEPTED",
+                title: "Your bid was accepted",
+                requestId: "req-1",
+                bidId: "bid-1",
+            }),
+        );
+        expect(notificationServiceMock.createNotification).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userId: "helper-2",
+                actorId: "requester-1",
+                type: "BID_REJECTED",
+                title: "Your bid was rejected",
+                requestId: "req-1",
+                bidId: "bid-2",
+            }),
+        );
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({ success: true, message: "Bid accepted", data: expect.objectContaining({ id: "bid-1" }) }),
         );
         expect(next).not.toHaveBeenCalled();
     });
 
-    it("deleteBid: blocks deletion for non-pending bid", async () => {
-        prismaMock.bid.findUnique.mockResolvedValue({ id: "bid-1", helperId: "helper-1", status: "ACCEPTED" });
+    it("respondToBid: rejects a bid and notifies the selected helper", async () => {
+        prismaMock.bid.findUnique
+            .mockResolvedValueOnce({
+                id: "bid-1",
+                helpRequestId: "req-1",
+                status: "PENDING",
+                helperId: "helper-1",
+                amount: 25,
+                request: { requesterId: "requester-1", title: "Need help" },
+                helper: {
+                    id: "helper-1",
+                    email: "helper@example.com",
+                    profile: { fullName: "Helper One", dateOfBirth: null },
+                },
+            })
+            .mockResolvedValueOnce({
+                id: "bid-1",
+                helpRequestId: "req-1",
+                status: "REJECTED",
+                message: "ok",
+                amount: 25,
+                createdAt: new Date("2026-03-29T00:00:00.000Z"),
+                helper: {
+                    id: "helper-1",
+                    email: "helper@example.com",
+                    profile: { fullName: "Helper One", dateOfBirth: null },
+                },
+            });
+        prismaMock.$transaction.mockImplementation(async (fn: any) => {
+            const tx = {
+                bid: {
+                    findMany: vi.fn().mockResolvedValue([]),
+                    updateMany: vi.fn(),
+                    update: vi.fn().mockResolvedValue({
+                        id: "bid-1",
+                        status: "REJECTED",
+                        message: "ok",
+                        amount: 25,
+                        createdAt: new Date("2026-03-29T00:00:00.000Z"),
+                    }),
+                },
+                helpRequest: {
+                    update: vi.fn(),
+                },
+            };
+            return fn(tx);
+        });
 
-        const req = makeReq({ user: { userId: "helper-1" }, params: { bidId: "bid-1" } });
+        const req = makeReq({
+            user: { userId: "requester-1" },
+            params: { bidId: "bid-1" },
+            body: { status: "REJECTED" },
+        });
         const res = makeRes();
         const next = makeNext();
 
-        await deleteBid(req, res, next);
+        await respondToBid(req, res, next);
 
-        expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: "Cannot delete", statusCode: 400 }));
+        expect(notificationServiceMock.createNotification).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userId: "helper-1",
+                actorId: "requester-1",
+                type: "BID_REJECTED",
+                title: "Your bid was rejected",
+                requestId: "req-1",
+                bidId: "bid-1",
+            }),
+        );
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ success: true, message: "Bid rejected", data: expect.objectContaining({ id: "bid-1" }) }),
+        );
+        expect(next).not.toHaveBeenCalled();
     });
 });

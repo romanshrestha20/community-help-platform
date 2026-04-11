@@ -36,6 +36,12 @@ const { cloudinaryUtilsMock } = vi.hoisted(() => ({
     },
 }));
 
+const { notificationServiceMock } = vi.hoisted(() => ({
+    notificationServiceMock: {
+        createNotification: vi.fn(),
+    },
+}));
+
 vi.mock("../../lib/prisma.js", () => ({
     prisma: prismaMock,
 }));
@@ -47,6 +53,10 @@ vi.mock("../../services/helpRequest.service.js", () => ({
 vi.mock("../../utils/cloudinary.js", () => ({
     uploadImageToCloudinary: cloudinaryUtilsMock.uploadImageToCloudinary,
     deleteImageFromCloudinary: cloudinaryUtilsMock.deleteImageFromCloudinary,
+}));
+
+vi.mock("../../services/notification.service.js", () => ({
+    createNotification: notificationServiceMock.createNotification,
 }));
 
 import {
@@ -261,6 +271,84 @@ describe("request.controller", () => {
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({ message: "Invalid status transition", statusCode: 400 }),
         );
+    });
+
+    it("updateHelpRequestStatus: marks request completed and notifies assigned helper", async () => {
+        prismaMock.helpRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            requesterId: "user-1",
+            assignedHelperId: "helper-1",
+            status: "ASSIGNED",
+            title: "Need help",
+        });
+        prismaMock.helpRequest.update.mockResolvedValue({
+            id: "req-1",
+            status: "COMPLETED",
+            images: [],
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            params: { id: "req-1" },
+            body: { status: "COMPLETED" },
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await updateHelpRequestStatus(req, res, next);
+
+        expect(notificationServiceMock.createNotification).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userId: "helper-1",
+                actorId: "user-1",
+                type: "REQUEST_COMPLETED",
+                title: "Request marked as completed",
+                requestId: "req-1",
+            }),
+        );
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ message: "Status changed to COMPLETED" }),
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("updateHelpRequestStatus: marks request cancelled and notifies assigned helper", async () => {
+        prismaMock.helpRequest.findUnique.mockResolvedValue({
+            id: "req-2",
+            requesterId: "user-1",
+            assignedHelperId: "helper-2",
+            status: "ASSIGNED",
+            title: "Need help again",
+        });
+        prismaMock.helpRequest.update.mockResolvedValue({
+            id: "req-2",
+            status: "CANCELLED",
+            images: [],
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            params: { id: "req-2" },
+            body: { status: "CANCELLED" },
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await updateHelpRequestStatus(req, res, next);
+
+        expect(notificationServiceMock.createNotification).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userId: "helper-2",
+                actorId: "user-1",
+                type: "REQUEST_CANCELLED",
+                title: "Request was cancelled",
+                requestId: "req-2",
+            }),
+        );
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ message: "Status changed to CANCELLED" }),
+        );
+        expect(next).not.toHaveBeenCalled();
     });
 
     it("updateHelpRequest: updates fields and nested location", async () => {
