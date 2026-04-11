@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { jwtMock, notificationServiceMock } = vi.hoisted(() => ({
+const { jwtMock, notificationServiceMock, pushTokenServiceMock } = vi.hoisted(() => ({
     jwtMock: {
         verifyAccessToken: vi.fn(),
     },
@@ -11,6 +11,10 @@ const { jwtMock, notificationServiceMock } = vi.hoisted(() => ({
         markAllNotificationsAsRead: vi.fn(),
         markNotificationAsRead: vi.fn(),
         deleteNotification: vi.fn(),
+    },
+    pushTokenServiceMock: {
+        upsertPushTokenForUser: vi.fn(),
+        deletePushTokenForUser: vi.fn(),
     },
 }));
 
@@ -24,6 +28,11 @@ vi.mock("../../services/notification.service.js", () => ({
     markAllNotificationsAsRead: notificationServiceMock.markAllNotificationsAsRead,
     markNotificationAsRead: notificationServiceMock.markNotificationAsRead,
     deleteNotification: notificationServiceMock.deleteNotification,
+}));
+
+vi.mock("../../services/push-token.service.js", () => ({
+    upsertPushTokenForUser: pushTokenServiceMock.upsertPushTokenForUser,
+    deletePushTokenForUser: pushTokenServiceMock.deletePushTokenForUser,
 }));
 
 import app from "../../app.js";
@@ -137,6 +146,52 @@ describe("notification routes integration", () => {
             expect.objectContaining({
                 success: true,
                 message: "Notification deleted",
+            })
+        );
+    });
+
+    it("POST /api/notifications/push-token registers a device token", async () => {
+        pushTokenServiceMock.upsertPushTokenForUser.mockResolvedValue({
+            id: "push-token-1",
+            token: "ExponentPushToken[abc]",
+        });
+
+        const res = await request(app)
+            .post("/api/notifications/push-token")
+            .set("Authorization", "Bearer valid-token")
+            .send({ token: "ExponentPushToken[abc]", platform: "ios" });
+
+        expect(pushTokenServiceMock.upsertPushTokenForUser).toHaveBeenCalledWith({
+            userId: "user-1",
+            token: "ExponentPushToken[abc]",
+            platform: "ios",
+        });
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual(
+            expect.objectContaining({
+                success: true,
+                message: "Push token registered",
+            })
+        );
+    });
+
+    it("DELETE /api/notifications/push-token unregisters a device token", async () => {
+        pushTokenServiceMock.deletePushTokenForUser.mockResolvedValue({ count: 1 });
+
+        const res = await request(app)
+            .delete("/api/notifications/push-token")
+            .set("Authorization", "Bearer valid-token")
+            .send({ token: "ExponentPushToken[abc]" });
+
+        expect(pushTokenServiceMock.deletePushTokenForUser).toHaveBeenCalledWith(
+            "user-1",
+            "ExponentPushToken[abc]"
+        );
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual(
+            expect.objectContaining({
+                success: true,
+                message: "Push token removed",
             })
         );
     });

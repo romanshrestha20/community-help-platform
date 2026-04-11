@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
     listNotifications,
+    registerPushToken,
+    unregisterPushToken,
     readAllNotifications,
     readNotification,
     removeNotification,
@@ -15,6 +17,8 @@ router.use(authenticateUser);
 
 router.get("/", listNotifications);
 router.get("/unread-count", unreadNotificationCount);
+router.post("/push-token", registerPushToken);
+router.delete("/push-token", unregisterPushToken);
 router.patch("/read-all", readAllNotifications);
 router.patch("/:id/read", readNotification);
 router.patch("/:id/unread", unreadNotification);
