@@ -12,6 +12,9 @@ import {
   deleteImageFromCloudinary,
 } from "../utils/cloudinary.js";
 
+import { createNotification } from "../services/notification.service.js";
+import { NotificationType } from "../../generated/prisma/client.js";
+
 const validCategories = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
 const validStatuses = ["OPEN", "ASSIGNED", "COMPLETED", "CANCELLED"];
 
@@ -332,6 +335,18 @@ export const updateHelpRequestStatus = async (
 
     const existing = await prisma.helpRequest.findUnique({
       where: { id },
+      include: {
+        requester: {
+          select: {
+            id: true,
+            profile: {
+              select: {
+                fullName: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!existing) {
@@ -355,6 +370,34 @@ export const updateHelpRequestStatus = async (
       },
     });
 
+    if (status === "COMPLETED" && existing.assignedHelperId) {
+      await createNotification({
+        userId: existing.assignedHelperId,
+        actorId: userId,
+        type: NotificationType.REQUEST_COMPLETED,
+        title: "Request marked as completed",
+        body: `"${existing.title}" was marked as completed.`,
+        requestId: existing.id,
+        data: {
+          requestTitle: existing.title,
+        },
+      });
+    }
+
+    if (status === "CANCELLED" && existing.assignedHelperId) {
+      await createNotification({
+        userId: existing.assignedHelperId,
+        actorId: userId,
+        type: NotificationType.REQUEST_CANCELLED,
+        title: "Request was cancelled",
+        body: `"${existing.title}" was cancelled by the requester.`,
+        requestId: existing.id,
+        data: {
+          requestTitle: existing.title,
+        },
+      });
+    }
+
     sendResponse(
       res,
       {
@@ -377,7 +420,7 @@ export const updateHelpRequest = async (
 ) => {
   const userId = req.user?.userId;
   const { id } = req.params;
-  const { title, description, category, budget, status, isPaid, serviceRadiusMeters } =
+  const { title, description, category, budget, isPaid, serviceRadiusMeters } =
     req.body;
   const hasLocationPayload = Object.prototype.hasOwnProperty.call(req.body, "location");
 
@@ -403,25 +446,12 @@ export const updateHelpRequest = async (
       return next(new AppError("Invalid category", 400));
     }
 
-    const allowedStatuses: Record<string, string[]> = {
-      OPEN: ["ASSIGNED", "CANCELLED"],
-      ASSIGNED: ["COMPLETED"],
-      COMPLETED: [],
-      CANCELLED: [],
-    };
 
     if (status && !validStatuses.includes(status)) {
       return next(new AppError("Invalid status", 400));
     }
 
-    if (status && !allowedStatuses[request.status].includes(status)) {
-      return next(
-        new AppError(
-          `Cannot change status from ${request.status} to ${status}`,
-          400
-        )
-      );
-    }
+
 
     const location = normalizeIncomingLocation(req.body as Record<string, unknown>);
 
@@ -439,7 +469,6 @@ export const updateHelpRequest = async (
       ...(description !== undefined && { description }),
       ...(category !== undefined && { category }),
       ...(budget !== undefined && { budget: budget === null ? null : Number(budget) }),
-      ...(status !== undefined && { status }),
       ...(isPaid !== undefined && { isPaid: isPaid === true || isPaid === "true" }),
       ...(serviceRadiusMeters !== undefined && {
         serviceRadiusMeters: Number(serviceRadiusMeters),

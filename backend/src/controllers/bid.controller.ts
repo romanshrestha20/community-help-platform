@@ -3,7 +3,6 @@ import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.js";
 import { createNotification } from "../services/notification.service.js";
 import { NotificationType } from "../../generated/prisma/client.js";
-import { error } from "console";
 
 const calculateAge = (dateOfBirth?: Date | string | null) => {
   if (!dateOfBirth) return undefined;
@@ -112,7 +111,6 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
     });
     sendResponse(res, formatBid(bid), "Bid placed");
   } catch {
-    console.error("Place Bid Error:", error);
     next(new AppError("Failed to place bid", 500));
   }
 };
@@ -194,34 +192,117 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
 
   try {
     if (!userId) return next(new AppError("Unauthorized", 401));
+
     if (!["ACCEPTED", "REJECTED"].includes(status)) {
       return next(new AppError("Invalid status", 400));
     }
 
     const bid = await prisma.bid.findUnique({
       where: { id: bidId },
-      include: { request: true },
+      include: {
+        request: true,
+        helper: {
+          select: {
+            id: true,
+            email: true,
+            profile: {
+              select: {
+                fullName: true,
+                dateOfBirth: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!bid) return next(new AppError("Bid not found", 404));
     if (bid.request.requesterId !== userId) return next(new AppError("Forbidden", 403));
     if (bid.status !== "PENDING") return next(new AppError("Already processed", 400));
 
+    let autoRejectedBids: { id: string; helperId: string }[] = [];
+
     const updated = await prisma.$transaction(async (tx: any) => {
       if (status === "ACCEPTED") {
+        autoRejectedBids = await tx.bid.findMany({
+          where: {
+            helpRequestId: bid.helpRequestId,
+            id: { not: bidId },
+            status: "PENDING",
+          },
+          select: {
+            id: true,
+            helperId: true,
+          },
+        });
+
         await tx.bid.updateMany({
-          where: { helpRequestId: bid.helpRequestId, id: { not: bidId }, status: "PENDING" },
-          data: { status: "REJECTED" },
+          where: {
+            helpRequestId: bid.helpRequestId,
+            id: { not: bidId },
+            status: "PENDING",
+          },
+          data: {
+            status: "REJECTED",
+          },
         });
 
         await tx.helpRequest.update({
           where: { id: bid.helpRequestId },
-          data: { status: "ASSIGNED" },
+          data: {
+            status: "ASSIGNED",
+            assignedHelperId: bid.helperId,
+          },
         });
       }
 
-      return tx.bid.update({ where: { id: bidId }, data: { status } });
+      return tx.bid.update({
+        where: { id: bidId },
+        data: { status },
+      });
     });
+
+    await createNotification({
+      userId: bid.helperId,
+      actorId: userId,
+      type:
+        status === "ACCEPTED"
+          ? NotificationType.BID_ACCEPTED
+          : NotificationType.BID_REJECTED,
+      title:
+        status === "ACCEPTED"
+          ? "Your bid was accepted"
+          : "Your bid was rejected",
+      body:
+        status === "ACCEPTED"
+          ? `Your bid for "${bid.request.title}" was accepted.`
+          : `Your bid for "${bid.request.title}" was rejected.`,
+      requestId: bid.helpRequestId,
+      bidId: bid.id,
+      data: {
+        requestTitle: bid.request.title,
+        bidAmount: bid.amount,
+      },
+    });
+
+    if (status === "ACCEPTED" && autoRejectedBids.length > 0) {
+      await Promise.all(
+        autoRejectedBids.map((rejectedBid) =>
+          createNotification({
+            userId: rejectedBid.helperId,
+            actorId: userId,
+            type: NotificationType.BID_REJECTED,
+            title: "Your bid was rejected",
+            body: `Your bid for "${bid.request.title}" was rejected.`,
+            requestId: bid.helpRequestId,
+            bidId: rejectedBid.id,
+            data: {
+              requestTitle: bid.request.title,
+            },
+          })
+        )
+      );
+    }
 
     const updatedWithHelper = await prisma.bid.findUnique({
       where: { id: updated.id },
@@ -230,13 +311,22 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
           select: {
             id: true,
             email: true,
-            profile: { select: { fullName: true, dateOfBirth: true } },
+            profile: {
+              select: {
+                fullName: true,
+                dateOfBirth: true,
+              },
+            },
           },
         },
       },
     });
 
-    sendResponse(res, formatBid(updatedWithHelper || updated), `Bid ${status.toLowerCase()}`);
+    sendResponse(
+      res,
+      formatBid(updatedWithHelper || updated),
+      `Bid ${status.toLowerCase()}`
+    );
   } catch (error) {
     console.error("Respond To Bid Error:", error);
     next(new AppError("Failed to respond", 500));
