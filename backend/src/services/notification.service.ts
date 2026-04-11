@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { NotificationType, Prisma } from "../../generated//prisma/client.js";
+import { dispatchNotificationPush } from "./notification-dispatch.service.js";
 
 type CreateNotificationInput = {
     userId: string;
@@ -17,7 +18,7 @@ type CreateNotificationInput = {
 
 
 export const createNotification = async (input: CreateNotificationInput) => {
-    return prisma.notification.create({
+    const notification = await prisma.notification.create({
         data: {
             userId: input.userId,
             actorId: input.actorId,
@@ -32,6 +33,12 @@ export const createNotification = async (input: CreateNotificationInput) => {
             data: input.data,
         },
     });
+
+    void dispatchNotificationPush(notification).catch((error) => {
+        console.warn("Notification push dispatch failed:", error);
+    });
+
+    return notification;
 }
 
 
