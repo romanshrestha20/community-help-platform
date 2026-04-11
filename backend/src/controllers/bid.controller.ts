@@ -110,7 +110,9 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
       },
     });
     sendResponse(res, formatBid(bid), "Bid placed");
-  } catch {
+
+  } catch (error) {
+    console.error("Place Bid Error:", error);
     next(new AppError("Failed to place bid", 500));
   }
 };
