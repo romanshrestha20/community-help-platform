@@ -115,6 +115,7 @@ export const CustomTabBar: React.FC<CustomTabBarProps> = ({
           (item) => item.key === route.key
         );
         const isFocused = state.index === routeIndex;
+        const iconName = isFocused && tab.activeIcon ? tab.activeIcon : tab.icon;
 
         const options = descriptors[route.key]?.options;
         const label =
@@ -156,8 +157,8 @@ export const CustomTabBar: React.FC<CustomTabBarProps> = ({
           >
             <View style={styles.iconWrapper}>
               <FontAwesome
-                name={tab.icon}
-                size={TAB_BAR_CONSTANTS.ICON_SIZE}
+                name={iconName}
+                size={tab.name === "notifications" && !!tab.badge ? TAB_BAR_CONSTANTS.ICON_SIZE + 1 : TAB_BAR_CONSTANTS.ICON_SIZE}
                 color={isFocused ? colors.primaryColor : colors.secondaryColor}
               />
 
