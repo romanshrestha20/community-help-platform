@@ -134,6 +134,14 @@ const getNotificationDestination = (item: AppNotification) => {
         return APP_ROUTES.PROFILE_BIDS;
     }
 
+    if (
+        item.type === "REQUEST_ASSIGNED" ||
+        item.type === "REQUEST_COMPLETED" ||
+        item.type === "REQUEST_CANCELLED"
+    ) {
+        return item.requestId ? APP_ROUTES.HOME_REQUEST_DETAILS(item.requestId) : APP_ROUTES.HOME_REQUESTS;
+    }
+
     if (item.requestId) {
         return APP_ROUTES.PROFILE_REQUEST_DETAILS(item.requestId);
     }
