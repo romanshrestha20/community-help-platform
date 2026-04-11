@@ -1,14 +1,9 @@
+import { z } from "zod";
+
 import { AppLocation } from "@/features/location/types/location.types";
 import { HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
 
-import {
-    firstValidationError,
-    requireValue,
-    validateDateOfBirth,
-    validateEmail,
-    validatePassword,
-    validatePhoneNumber,
-} from "./validators";
+import { firstValidationError, validateDateOfBirth } from "./validators";
 
 export type FieldErrorMap<TField extends string = string> = Partial<Record<TField, string>>;
 
@@ -88,30 +83,146 @@ export const PROFILE_FULL_NAME_MIN_LENGTH = 2;
 export const PROFILE_FULL_NAME_MAX_LENGTH = 80;
 export const PROFILE_BIO_MAX_LENGTH = 280;
 
+const PASSWORD_MIN_LENGTH = 8;
+
 const toValidationResult = <TField extends string>(
-    fieldErrors: FieldErrorMap<TField>,
+    result: any,
     fallbackFormError?: string | null
 ): FormValidationResult<TField> => {
+    if (result.success) {
+        return {
+            fieldErrors: {},
+            formError: fallbackFormError ?? null,
+            isValid: !fallbackFormError,
+        };
+    }
+
+    const fieldErrors: FieldErrorMap<TField> = {};
+    let formError = fallbackFormError ?? null;
+
+    for (const issue of result.error.issues) {
+        const fieldName = issue.path[0];
+
+        if (typeof fieldName === "string") {
+            if (!fieldErrors[fieldName as TField]) {
+                fieldErrors[fieldName as TField] = issue.message;
+            }
+            continue;
+        }
+
+        formError = firstValidationError(formError, issue.message);
+    }
+
     const firstFieldError = firstValidationError(
-        ...(Object.values(fieldErrors) as Array<string | null | undefined>)
+        ...(Object.values(fieldErrors) as (string | null | undefined)[])
     );
-    const formError = firstValidationError(fallbackFormError ?? null, firstFieldError);
 
     return {
         fieldErrors,
-        formError,
-        isValid: !formError,
+        formError: firstValidationError(formError, firstFieldError),
+        isValid: !firstValidationError(formError, firstFieldError),
     };
 };
+
+const locationRequiredIssue = (message: string) =>
+    z.any().refine((value) => Boolean(value), {
+        message,
+    });
+
+const emailSchema = z.string().trim().min(1, "Email is required.").email("Please enter a valid email address.");
+
+const passwordSchema = (options?: { requiredMessage?: string; minLength?: number }) =>
+    z
+        .string()
+        .trim()
+        .min(1, options?.requiredMessage ?? "Password is required.")
+        .min(options?.minLength ?? PASSWORD_MIN_LENGTH, `Password must be at least ${options?.minLength ?? PASSWORD_MIN_LENGTH} characters.`);
+
+const phoneSchema = z
+    .string()
+    .trim()
+    .min(1, "Phone number is required.")
+    .refine((value) => {
+        const normalized = value.replace(/[^\d+]/g, "");
+        return normalized.replace(/\D/g, "").length >= 7;
+    }, "Please enter a valid phone number.");
+
+const dateOfBirthSchema = (requiredMessage = "Date of birth is required.") =>
+    z
+        .string()
+        .trim()
+        .min(1, requiredMessage)
+        .refine((value) => validateDateOfBirth(value) === null, {
+            message: "Please enter a valid date of birth.",
+        });
+
+const fullNameSchema = (requiredMessage = "Full name is required.") =>
+    z
+        .string()
+        .trim()
+        .min(1, requiredMessage);
+
+const maybeDateOfBirthSchema = z
+    .string()
+    .trim()
+    .optional()
+    .superRefine((value, ctx) => {
+        if (value && validateDateOfBirth(value) !== null) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Please enter a valid date of birth.",
+            });
+        }
+    });
+
+const requestTitleSchema = z
+    .string()
+    .trim()
+    .min(REQUEST_TITLE_MIN_LENGTH, `Title must be at least ${REQUEST_TITLE_MIN_LENGTH} characters.`)
+    .max(REQUEST_TITLE_MAX_LENGTH, `Title must be ${REQUEST_TITLE_MAX_LENGTH} characters or fewer.`);
+
+const requestDescriptionSchema = z
+    .string()
+    .trim()
+    .min(REQUEST_DESCRIPTION_MIN_LENGTH, `Description must be at least ${REQUEST_DESCRIPTION_MIN_LENGTH} characters.`)
+    .max(REQUEST_DESCRIPTION_MAX_LENGTH, `Description must be ${REQUEST_DESCRIPTION_MAX_LENGTH} characters or fewer.`);
+
+const bidAmountSchema = z
+    .string()
+    .trim()
+    .min(1, "Bid amount is required.")
+    .refine((value) => {
+        const numeric = Number(value);
+        return Number.isFinite(numeric) && numeric > 0;
+    }, "Bid amount must be greater than 0.");
+
+const bidMessageSchema = z
+    .string()
+    .trim()
+    .min(BID_MESSAGE_MIN_LENGTH, `Message must be at least ${BID_MESSAGE_MIN_LENGTH} characters.`)
+    .max(BID_MESSAGE_MAX_LENGTH, `Message must be ${BID_MESSAGE_MAX_LENGTH} characters or fewer.`);
+
+const profileFullNameSchema = z
+    .string()
+    .trim()
+    .min(PROFILE_FULL_NAME_MIN_LENGTH, `Full name must be at least ${PROFILE_FULL_NAME_MIN_LENGTH} characters.`)
+    .max(PROFILE_FULL_NAME_MAX_LENGTH, `Full name must be ${PROFILE_FULL_NAME_MAX_LENGTH} characters or fewer.`);
+
+const profileBioSchema = z
+    .string()
+    .trim()
+    .optional();
 
 export const validateLoginFormFields = ({
     email,
     password,
 }: LoginValidationArgs): FormValidationResult<LoginField> => {
-    return toValidationResult<LoginField>({
-        email: validateEmail(email) ?? undefined,
-        password: validatePassword(password) ?? undefined,
-    });
+    const result = z.object({
+        email: emailSchema,
+        password: passwordSchema(),
+    }).safeParse({ email, password });
+
+    return toValidationResult<LoginField>(result);
 };
 
 export const validateLoginForm = ({ email, password }: LoginValidationArgs) => {
@@ -126,14 +237,18 @@ export const validateRegisterFormFields = ({
     dateOfBirth,
     location,
 }: RegisterValidationArgs): FormValidationResult<RegisterField> => {
-    return toValidationResult<RegisterField>({
-        fullName: requireValue(fullName, "Full name is required.") ?? undefined,
-        email: validateEmail(email) ?? undefined,
-        phone: validatePhoneNumber(phone) ?? undefined,
-        password: validatePassword(password) ?? undefined,
-        dateOfBirth: validateDateOfBirth(dateOfBirth) ?? undefined,
-        location: location ? undefined : "Please select your location.",
-    });
+    const result = z
+        .object({
+            fullName: fullNameSchema(),
+            email: emailSchema,
+            phone: phoneSchema,
+            password: passwordSchema(),
+            dateOfBirth: dateOfBirthSchema(),
+            location: locationRequiredIssue("Please select your location."),
+        })
+        .safeParse({ fullName, email, phone, password, dateOfBirth, location });
+
+    return toValidationResult<RegisterField>(result);
 };
 
 export const validateRegisterForm = ({
@@ -158,14 +273,12 @@ export const validateChangePasswordFormFields = ({
     currentPassword,
     newPassword,
 }: ChangePasswordValidationArgs): FormValidationResult<ChangePasswordField> => {
-    return toValidationResult<ChangePasswordField>({
-        currentPassword:
-            validatePassword(currentPassword, {
-                requiredMessage: "Current password is required.",
-                minLength: 1,
-            }) ?? undefined,
-        newPassword: validatePassword(newPassword) ?? undefined,
-    });
+    const result = z.object({
+        currentPassword: passwordSchema({ requiredMessage: "Current password is required.", minLength: 1 }),
+        newPassword: passwordSchema(),
+    }).safeParse({ currentPassword, newPassword });
+
+    return toValidationResult<ChangePasswordField>(result);
 };
 
 export const validateChangePasswordForm = ({
@@ -179,10 +292,9 @@ export const validateChangePasswordForm = ({
 };
 
 export const validatePasswordConfirmation = (password: string) => {
-    return validatePassword(password, {
-        requiredMessage: "Please enter your password.",
-        minLength: 1,
-    });
+    const result = passwordSchema({ requiredMessage: "Please enter your password.", minLength: 1 }).safeParse(password);
+
+    return result.success ? null : result.error.issues[0]?.message ?? "Please enter your password.";
 };
 
 export const parseBudgetInput = (budgetInput: string): ParseAmountResult => {
@@ -214,38 +326,26 @@ export const validateRequestDraftFields = ({
     budgetInput,
     location,
 }: ValidateRequestDraftArgs): FormValidationResult<RequestField> => {
-    const normalizedTitle = title.trim();
-    const normalizedDescription = description.trim();
     const budgetResult = parseBudgetInput(budgetInput);
 
-    const titleError = (() => {
-        if (!normalizedTitle) return "Title is required.";
-        if (normalizedTitle.length < REQUEST_TITLE_MIN_LENGTH) {
-            return `Title must be at least ${REQUEST_TITLE_MIN_LENGTH} characters.`;
-        }
-        if (normalizedTitle.length > REQUEST_TITLE_MAX_LENGTH) {
-            return `Title must be ${REQUEST_TITLE_MAX_LENGTH} characters or fewer.`;
-        }
-        return undefined;
-    })();
+    const result = z
+        .object({
+            title: requestTitleSchema,
+            description: requestDescriptionSchema,
+            location: locationRequiredIssue("Please choose a location."),
+        })
+        .superRefine((data, ctx) => {
+            if (budgetResult.error) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ["budget"],
+                    message: budgetResult.error,
+                });
+            }
+        })
+        .safeParse({ title, description, budgetInput, location });
 
-    const descriptionError = (() => {
-        if (!normalizedDescription) return "Description is required.";
-        if (normalizedDescription.length < REQUEST_DESCRIPTION_MIN_LENGTH) {
-            return `Description must be at least ${REQUEST_DESCRIPTION_MIN_LENGTH} characters.`;
-        }
-        if (normalizedDescription.length > REQUEST_DESCRIPTION_MAX_LENGTH) {
-            return `Description must be ${REQUEST_DESCRIPTION_MAX_LENGTH} characters or fewer.`;
-        }
-        return undefined;
-    })();
-
-    return toValidationResult<RequestField>({
-        title: titleError,
-        description: descriptionError,
-        budget: budgetResult.error,
-        location: location ? undefined : "Please choose a location.",
-    });
+    return toValidationResult<RequestField>(result);
 };
 
 export const parseBidAmountInput = (amountInput: string): ParseAmountResult => {
@@ -270,31 +370,46 @@ export const validateBidDraftFields = ({
     mode,
 }: ValidateBidDraftArgs): FormValidationResult<BidField> => {
     const parsedAmount = parseBidAmountInput(amountInput);
-    const normalizedMessage = message.trim();
 
-    const messageError = (() => {
-        if (normalizedMessage.length < BID_MESSAGE_MIN_LENGTH) {
-            return `Message must be at least ${BID_MESSAGE_MIN_LENGTH} characters.`;
-        }
-        if (normalizedMessage.length > BID_MESSAGE_MAX_LENGTH) {
-            return `Message must be ${BID_MESSAGE_MAX_LENGTH} characters or fewer.`;
-        }
-        return undefined;
-    })();
+    const result = z
+        .object({
+            helpRequestId: z.string().trim().optional(),
+            amountInput: bidAmountSchema,
+            message: bidMessageSchema,
+            mode: z.enum(["create", "edit"]),
+        })
+        .superRefine((data, ctx) => {
+            if (mode === "create" && !helpRequestId) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ["helpRequestId"],
+                    message: "Unable to submit bid without a request id.",
+                });
+            }
 
-    return toValidationResult<BidField>(
-        {
-            helpRequestId:
-                mode === "create" && !helpRequestId
-                    ? "Unable to submit bid without a request id."
-                    : undefined,
-            amount: parsedAmount.error,
-            message: messageError,
-        },
-        requestStatus && requestStatus !== "OPEN"
-            ? "Bidding is only available while a request is open."
-            : null
-    );
+            if (parsedAmount.error) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ["amount"],
+                    message: parsedAmount.error,
+                });
+            }
+
+            if (requestStatus && requestStatus !== "OPEN") {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "Bidding is only available while a request is open.",
+                });
+            }
+        })
+        .safeParse({
+            helpRequestId,
+            amountInput,
+            message,
+            mode,
+        });
+
+    return toValidationResult<BidField>(result, requestStatus && requestStatus !== "OPEN" ? "Bidding is only available while a request is open." : null);
 };
 
 export const validateBidDraft = ({
@@ -318,31 +433,26 @@ export const validateProfileUpdateFormFields = ({
     dateOfBirth,
     bio,
 }: ValidateProfileUpdateArgs): FormValidationResult<ProfileField> => {
-    const normalizedName = fullName.trim();
-    const dateError = dateOfBirth?.trim() ? validateDateOfBirth(dateOfBirth) : null;
-    const normalizedBio = bio?.trim() ?? "";
+    const result = z
+        .object({
+            fullName: profileFullNameSchema,
+            dateOfBirth: maybeDateOfBirthSchema,
+            bio: profileBioSchema,
+        })
+        .superRefine((data, ctx) => {
+            const normalizedBio = data.bio?.trim() ?? "";
 
-    const fullNameError = (() => {
-        if (!normalizedName) {
-            return "Full name is required.";
-        }
-        if (normalizedName.length < PROFILE_FULL_NAME_MIN_LENGTH) {
-            return `Full name must be at least ${PROFILE_FULL_NAME_MIN_LENGTH} characters.`;
-        }
-        if (normalizedName.length > PROFILE_FULL_NAME_MAX_LENGTH) {
-            return `Full name must be ${PROFILE_FULL_NAME_MAX_LENGTH} characters or fewer.`;
-        }
-        return undefined;
-    })();
+            if (normalizedBio.length > PROFILE_BIO_MAX_LENGTH) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ["bio"],
+                    message: `Bio must be ${PROFILE_BIO_MAX_LENGTH} characters or fewer.`,
+                });
+            }
+        })
+        .safeParse({ fullName, dateOfBirth, bio });
 
-    return toValidationResult<ProfileField>({
-        fullName: fullNameError,
-        dateOfBirth: dateError ?? undefined,
-        bio:
-            normalizedBio.length > PROFILE_BIO_MAX_LENGTH
-                ? `Bio must be ${PROFILE_BIO_MAX_LENGTH} characters or fewer.`
-                : undefined,
-    });
+    return toValidationResult<ProfileField>(result);
 };
 
 export const validateProfileUpdateForm = ({
