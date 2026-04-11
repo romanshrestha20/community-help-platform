@@ -1,5 +1,5 @@
 
-import Toast  from "react-native-toast-message";
+import Toast from "react-native-toast-message";
 import * as bidService from "../services/bid.service";
 import { CreateBidData, UpdateBidData, BidStatus, Bid } from "../types/bid.types";
 import { useAsync } from "@/utils/useAsync";
@@ -26,9 +26,9 @@ export const useBid = () => {
         const created = await run(() => bidService.createBid(data));
 
         if (created) {
+            Toast.show({ type: "success", text1: "Bid created successfully" });
             setBidsByRequestId((prev) => {
                 const existing = prev[data.helpRequestId] || [];
-                Toast.show({ type: "success", text1: "Bid created successfully" });
                 return {
                     ...prev,
                     [data.helpRequestId]: [created, ...existing],
