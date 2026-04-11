@@ -7,16 +7,25 @@ import {
   normalizeIncomingLocation,
   toLocationCreateInput,
 } from "../utils/location.js";
+import { getZodErrorMessage } from "../utils/zod.js";
+import {
+  changePasswordBodySchema,
+  loginBodySchema,
+  refreshTokenBodySchema,
+  registerUserBodySchema,
+} from "../utils/validation-schemas.js";
 
 
 export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
-  const { email, password, phone, fullName, gender, dateOfBirth } = req.body;
   const location = normalizeIncomingLocation(req.body as Record<string, unknown>);
+  const parsedBody = registerUserBodySchema.safeParse(req.body);
 
   try {
-    if (!email || !password || !phone || !fullName || !gender || !dateOfBirth) {
-      return next(new AppError("Missing required fields", 400));
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
+
+    const { email, password, phone, fullName, gender, dateOfBirth } = parsedBody.data;
 
     if (!location) {
       return next(new AppError("A valid location is required", 400));
@@ -101,8 +110,10 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 
 export const loginUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) return next(new AppError("Email and password are required", 400));
+    const parsedBody = loginBodySchema.safeParse(req.body);
+    if (!parsedBody.success) return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
+
+    const { email, password } = parsedBody.data;
 
     // Find user by email for password check
     const user = await prisma.userModel.findUnique({ where: { email } });
@@ -121,6 +132,10 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       }
 
       return next(new AppError("Invalid email or password", 401));
+    }
+
+    if (!user.passwordHash) {
+      return next(new AppError("Account is missing a password", 500));
     }
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
@@ -185,17 +200,17 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.userId;
-    const { currentPassword, newPassword } = req.body;
+    const parsedBody = changePasswordBodySchema.safeParse(req.body);
 
     if (!userId) {
       return next(new AppError("Unauthorized", 401));
     }
 
-
-
-    if (!currentPassword || !newPassword) {
-      return next(new AppError("Current and new passwords are required", 400));
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
+
+    const { currentPassword, newPassword } = parsedBody.data;
 
     if (currentPassword === newPassword) {
       return next(new AppError("New password must be different", 400));
@@ -210,6 +225,10 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
 
     if (!user) {
       return next(new AppError("User not found", 404));
+    }
+
+    if (!user.passwordHash) {
+      return next(new AppError("Account is missing a password", 500));
     }
 
     // Verify current password
@@ -244,11 +263,12 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
 
 export const refreshAccessToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { refreshToken } = req.body;
+    const parsedBody = refreshTokenBodySchema.safeParse(req.body);
 
-    if (!refreshToken) {
-      return next(new AppError("Refresh token is required", 400));
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
+    const { refreshToken } = parsedBody.data;
     const decoded = verifyRefreshToken(refreshToken);
 
     const storedToken = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });

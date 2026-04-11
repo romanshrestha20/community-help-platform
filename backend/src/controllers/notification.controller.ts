@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import AppError from "../utils/appError.js";
+import { getZodErrorMessage } from "../utils/zod.js";
+import { pushTokenBodySchema } from "../utils/validation-schemas.js";
 import {
     deleteNotification,
     getUnreadNotificationCount,
@@ -183,13 +185,12 @@ export const registerPushToken = async (
             return next(new AppError("Unauthorized", 401));
         }
 
-        // Validate and sanitize input fields
-        const token = typeof req.body?.token === "string" ? req.body.token.trim() : "";
-        const platform = typeof req.body?.platform === "string" ? req.body.platform.trim() : null;
-
-        if (!token) {
-            return next(new AppError("Push token is required", 400));
+        const parsedBody = pushTokenBodySchema.safeParse(req.body);
+        if (!parsedBody.success) {
+            return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
         }
+
+        const { token, platform } = parsedBody.data;
 
         await upsertPushTokenForUser({
             userId,
@@ -215,11 +216,12 @@ export const unregisterPushToken = async (
             return next(new AppError("Unauthorized", 401));
         }
 
-        const token = typeof req.body?.token === "string" ? req.body.token.trim() : "";
-
-        if (!token) {
-            return next(new AppError("Push token is required", 400));
+        const parsedBody = pushTokenBodySchema.safeParse(req.body);
+        if (!parsedBody.success) {
+            return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
         }
+
+        const { token } = parsedBody.data;
 
         await deletePushTokenForUser(userId, token);
 

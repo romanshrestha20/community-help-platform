@@ -3,6 +3,12 @@ import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.js";
 import { createNotification } from "../services/notification.service.js";
 import { NotificationType } from "../../generated/prisma/client.js";
+import { getZodErrorMessage } from "../utils/zod.js";
+import {
+  placeBidBodySchema,
+  respondToBidBodySchema,
+  updateBidBodySchema,
+} from "../utils/validation-schemas.js";
 
 const calculateAge = (dateOfBirth?: Date | string | null) => {
   if (!dateOfBirth) return undefined;
@@ -19,6 +25,19 @@ const calculateAge = (dateOfBirth?: Date | string | null) => {
   }
 
   return age >= 0 ? age : undefined;
+};
+
+const normalizeParamId = (value: string | string[] | undefined): string | null => {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+
+  if (Array.isArray(value) && value.length > 0) {
+    const first = value[0];
+    return typeof first === "string" && first.trim().length > 0 ? first : null;
+  }
+
+  return null;
 };
 
 // Centralized response
@@ -43,17 +62,15 @@ const formatBid = (bid: any) => ({
 // PLACE BID
 export const placeBid = async (req: Request, res: Response, next: NextFunction) => {
   const helperId = req.user?.userId;
-  const { helpRequestId, message, amount } = req.body;
 
   try {
     if (!helperId) return next(new AppError("Unauthorized", 401));
-    if (!helpRequestId || !message || amount === undefined || amount === null) {
-      return next(new AppError("All fields are required", 400));
+    const parsedBody = placeBidBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
-    const normalizedAmount = Number(amount);
-    if (Number.isNaN(normalizedAmount) || normalizedAmount <= 0) {
-      return next(new AppError("Invalid amount", 400));
-    }
+
+    const { helpRequestId, message, amount } = parsedBody.data;
 
     const request = await prisma.helpRequest.findUnique({ where: { id: helpRequestId } });
     if (!request) return next(new AppError("Request not found", 404));
@@ -68,7 +85,7 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
     if (existingBid) return next(new AppError("Already bid", 400));
 
     const bid = await prisma.bid.create({
-      data: { message, amount: normalizedAmount, helperId, helpRequestId },
+      data: { message, amount, helperId, helpRequestId },
       include: {
         helper: {
           select: {
@@ -98,7 +115,7 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
       bidId: bid.id,
       helpRequestId,
       helperId,
-      amount: normalizedAmount,
+      amount,
       notification: {
         userId: request.requesterId,
         actorId: helperId,
@@ -124,7 +141,8 @@ export const getBidsForHelpRequest = async (req: Request, res: Response, next: N
   try {
     if (!userId) return next(new AppError("Unauthorized", 401));
 
-    const { helpRequestId } = req.params;
+    const helpRequestId = normalizeParamId(req.params.helpRequestId);
+    if (!helpRequestId) return next(new AppError("Request not found", 404));
 
     const request = await prisma.helpRequest.findUnique({
       where: { id: helpRequestId },
@@ -189,15 +207,19 @@ export const getMyBids = async (req: Request, res: Response, next: NextFunction)
 // RESPOND TO BID
 export const respondToBid = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
-  const { bidId } = req.params;
-  const { status } = req.body;
+  const bidId = normalizeParamId(req.params.bidId);
 
   try {
     if (!userId) return next(new AppError("Unauthorized", 401));
 
-    if (!["ACCEPTED", "REJECTED"].includes(status)) {
-      return next(new AppError("Invalid status", 400));
+    if (!bidId) return next(new AppError("Bid not found", 404));
+
+    const parsedBody = respondToBidBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
+
+    const { status } = parsedBody.data;
 
     const bid = await prisma.bid.findUnique({
       where: { id: bidId },
@@ -338,10 +360,11 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
 // DELETE BID
 export const deleteBid = async (req: Request, res: Response, next: NextFunction) => {
   const helperId = req.user?.userId;
-  const { bidId } = req.params;
+  const bidId = normalizeParamId(req.params.bidId);
 
   try {
     if (!helperId) return next(new AppError("Unauthorized", 401));
+    if (!bidId) return next(new AppError("Not found", 404));
 
     const bid = await prisma.bid.findUnique({ where: { id: bidId } });
     if (!bid) return next(new AppError("Not found", 404));
@@ -358,15 +381,17 @@ export const deleteBid = async (req: Request, res: Response, next: NextFunction)
 
 export const updateBid = async (req: Request, res: Response, next: NextFunction) => {
   const helperId = req.user?.userId;
-  const { bidId } = req.params;
-  const { message, amount } = req.body;
+  const bidId = normalizeParamId(req.params.bidId);
 
   try {
     if (!helperId) return next(new AppError("Unauthorized", 401));
-    if (!message && (amount === undefined || amount === null)) {
-      return next(new AppError("At least one field (message or amount) is required", 400));
+    if (!bidId) return next(new AppError("Bid not found", 404));
+    const parsedBody = updateBidBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
-    if (amount !== undefined && amount <= 0) return next(new AppError("Amount must be greater than 0", 400));
+
+    const { message, amount } = parsedBody.data;
 
     const bid = await prisma.bid.findUnique({ where: { id: bidId } });
     if (!bid) return next(new AppError("Bid not found", 404));
@@ -400,10 +425,11 @@ export const updateBid = async (req: Request, res: Response, next: NextFunction)
 // Get a single bid by ID (optional)
 export const getBidById = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
-  const { bidId } = req.params;
+  const bidId = normalizeParamId(req.params.bidId);
 
   try {
     if (!userId) return next(new AppError("Unauthorized", 401));
+    if (!bidId) return next(new AppError("Bid not found", 404));
 
     const bid = await prisma.bid.findUnique({
       where: { id: bidId },

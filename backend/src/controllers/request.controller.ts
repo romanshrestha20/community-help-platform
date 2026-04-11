@@ -11,12 +11,15 @@ import {
   uploadImageToCloudinary,
   deleteImageFromCloudinary,
 } from "../utils/cloudinary.js";
+import { getZodErrorMessage } from "../utils/zod.js";
+import {
+  createHelpRequestBodySchema,
+  updateHelpRequestBodySchema,
+  updateHelpRequestStatusBodySchema,
+} from "../utils/validation-schemas.js";
 
 import { createNotification } from "../services/notification.service.js";
 import { NotificationType } from "../../generated/prisma/client.js";
-
-const validCategories = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
-const validStatuses = ["OPEN", "ASSIGNED", "COMPLETED", "CANCELLED"];
 
 const sendResponse = (
   res: Response,
@@ -40,6 +43,18 @@ const stripImagePublicId = <T extends { publicId?: string | null }>(image: T) =>
   return safeImage;
 };
 
+const normalizeParamId = (value: string | string[] | undefined): string | null => {
+  if (typeof value === "string" && value.trim()) {
+    return value;
+  }
+
+  if (Array.isArray(value) && typeof value[0] === "string" && value[0].trim()) {
+    return value[0];
+  }
+
+  return null;
+};
+
 // CREATE
 export const createHelpRequest = async (
   req: Request,
@@ -53,9 +68,12 @@ export const createHelpRequest = async (
       return next(new AppError("Unauthorized", 401));
     }
 
-    const { title, description, category, budget, isPaid, serviceRadiusMeters } =
-      req.body;
-    console.log("Create Help Request Payload:", req.body);
+    const parsedBody = createHelpRequestBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
+    }
+
+    const { title, description, category, budget, isPaid, serviceRadiusMeters } = parsedBody.data;
 
     const location = normalizeIncomingLocation(req.body as Record<string, unknown>);
     const files = getUploadedFiles(req);
@@ -69,14 +87,6 @@ export const createHelpRequest = async (
       return next(new AppError("Invalid session. Please log in again.", 401));
     }
 
-    if (!title || !description || !category) {
-      return next(new AppError("Title, description, and category are required", 400));
-    }
-
-    if (!validCategories.includes(category)) {
-      return next(new AppError("Invalid category", 400));
-    }
-
     if (!location) {
       return next(new AppError("A valid location is required", 400));
     }
@@ -86,10 +96,10 @@ export const createHelpRequest = async (
         title,
         description,
         category,
-        budget: budget !== undefined && budget !== null ? Number(budget) : null,
-        isPaid: isPaid === true || isPaid === "true",
+        budget: budget ?? null,
+        isPaid: isPaid ?? false,
         ...(serviceRadiusMeters !== undefined && {
-          serviceRadiusMeters: Number(serviceRadiusMeters),
+          serviceRadiusMeters,
         }),
         requester: {
           connect: { id: userId },
@@ -208,9 +218,13 @@ export const getHelpRequestById = async (
   next: NextFunction
 ) => {
   try {
-    const { id } = req.params;
+    const id = normalizeParamId(req.params.id);
 
-    const r = await prisma.helpRequest.findUnique({
+    if (!id) {
+      return next(new AppError("Not found", 404));
+    }
+
+    const r: any = await prisma.helpRequest.findUnique({
       where: { id },
       include: {
         location: true,
@@ -272,9 +286,13 @@ export const deleteHelpRequest = async (
       return next(new AppError("Unauthorized", 401));
     }
 
-    const { id } = req.params;
+    const id = normalizeParamId(req.params.id);
 
-    const existing = await prisma.helpRequest.findUnique({
+    if (!id) {
+      return next(new AppError("Not found", 404));
+    }
+
+    const existing: any = await prisma.helpRequest.findUnique({
       where: { id },
       include: {
         images: true,
@@ -314,8 +332,8 @@ export const updateHelpRequestStatus = async (
   next: NextFunction
 ) => {
   const userId = req.user?.userId;
-  const { id } = req.params;
-  const { status } = req.body;
+  const id = normalizeParamId(req.params.id);
+  const parsedBody = updateHelpRequestStatusBodySchema.safeParse(req.body);
 
   const transitions: Record<string, string[]> = {
     OPEN: ["ASSIGNED", "CANCELLED"],
@@ -329,11 +347,17 @@ export const updateHelpRequestStatus = async (
       return next(new AppError("Unauthorized", 401));
     }
 
-    if (!validStatuses.includes(status)) {
-      return next(new AppError("Invalid status", 400));
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
 
-    const existing = await prisma.helpRequest.findUnique({
+    if (!id) {
+      return next(new AppError("Not found", 404));
+    }
+
+    const { status } = parsedBody.data;
+
+    const existing: any = await prisma.helpRequest.findUnique({
       where: { id },
       include: {
         requester: {
@@ -361,7 +385,7 @@ export const updateHelpRequestStatus = async (
       return next(new AppError("Invalid status transition", 400));
     }
 
-    const updated = await prisma.helpRequest.update({
+    const updated: any = await prisma.helpRequest.update({
       where: { id },
       data: { status },
       include: {
@@ -419,9 +443,8 @@ export const updateHelpRequest = async (
   next: NextFunction
 ) => {
   const userId = req.user?.userId;
-  const { id } = req.params;
-  const { title, description, category, budget, isPaid, serviceRadiusMeters } =
-    req.body;
+  const id = normalizeParamId(req.params.id);
+  const parsedBody = updateHelpRequestBodySchema.safeParse(req.body);
   const hasLocationPayload = Object.prototype.hasOwnProperty.call(req.body, "location");
 
   try {
@@ -429,7 +452,11 @@ export const updateHelpRequest = async (
       return next(new AppError("Unauthorized", 401));
     }
 
-    const request = await prisma.helpRequest.findUnique({
+    if (!id) {
+      return next(new AppError("Help request not found", 404));
+    }
+
+    const request: any = await prisma.helpRequest.findUnique({
       where: { id },
       include: { location: true },
     });
@@ -442,13 +469,11 @@ export const updateHelpRequest = async (
       return next(new AppError("Forbidden", 403));
     }
 
-    if (category && !validCategories.includes(category)) {
-      return next(new AppError("Invalid category", 400));
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
 
-
-
-
+    const { title, description, category, budget, isPaid, serviceRadiusMeters } = parsedBody.data;
     const location = normalizeIncomingLocation(req.body as Record<string, unknown>);
 
     if (hasLocationPayload && !location) {
@@ -464,10 +489,10 @@ export const updateHelpRequest = async (
       ...(title !== undefined && { title }),
       ...(description !== undefined && { description }),
       ...(category !== undefined && { category }),
-      ...(budget !== undefined && { budget: budget === null ? null : Number(budget) }),
-      ...(isPaid !== undefined && { isPaid: isPaid === true || isPaid === "true" }),
+      ...(budget !== undefined && { budget }),
+      ...(isPaid !== undefined && { isPaid }),
       ...(serviceRadiusMeters !== undefined && {
-        serviceRadiusMeters: Number(serviceRadiusMeters),
+        serviceRadiusMeters,
       }),
     };
 
@@ -483,7 +508,7 @@ export const updateHelpRequest = async (
       }
     }
 
-    const updatedRequest = await prisma.helpRequest.update({
+    const updatedRequest: any = await prisma.helpRequest.update({
       where: { id },
       data: updateData,
       include: {
@@ -527,7 +552,7 @@ export const addRequestImages = async (
   next: NextFunction
 ) => {
   const userId = req.user?.userId;
-  const requestId = req.params.id;
+  const requestId = normalizeParamId(req.params.id);
 
   try {
     if (!userId) {
@@ -540,7 +565,11 @@ export const addRequestImages = async (
       return next(new AppError("At least one image is required", 400));
     }
 
-    const helpRequest = await prisma.helpRequest.findUnique({
+    if (!requestId) {
+      return next(new AppError("Request not found", 404));
+    }
+
+    const helpRequest: any = await prisma.helpRequest.findUnique({
       where: { id: requestId },
       include: {
         images: true,
@@ -600,15 +629,19 @@ export const deleteRequestImage = async (
   next: NextFunction
 ) => {
   const userId = req.user?.userId;
-  const requestId = req.params.id;
-  const imageId = req.params.imageId;
+  const requestId = normalizeParamId(req.params.id);
+  const imageId = normalizeParamId(req.params.imageId);
 
   try {
     if (!userId) {
       return next(new AppError("Unauthorized", 401));
     }
 
-    const helpRequest = await prisma.helpRequest.findUnique({
+    if (!requestId || !imageId) {
+      return next(new AppError("Invalid request image parameters", 400));
+    }
+
+    const helpRequest: any = await prisma.helpRequest.findUnique({
       where: { id: requestId },
     });
 
