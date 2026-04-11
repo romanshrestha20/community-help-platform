@@ -1,50 +1,72 @@
-/**
- * Badge counts hook
- * Manages notification and message badge counts
- */
+import { useCallback, useEffect } from "react";
+import { AppState } from "react-native";
+import { create } from "zustand";
 
-import { useState, useEffect } from "react";
+import { fetchUnreadCount } from "@/features/notifications/service/notification.service";
 
 export interface BadgeCounts {
     messages: number;
     notifications: number;
 }
 
-/**
- * Hook to fetch and manage badge counts
- * Connect this to your API or state management
- */
+type BadgeCountState = BadgeCounts & {
+    setMessageCount: (count: number) => void;
+    setNotificationCount: (count: number) => void;
+};
+
+const useBadgeCountStore = create<BadgeCountState>((set) => ({
+    messages: 3,
+    notifications: 0,
+    setMessageCount: (count) => set({ messages: count }),
+    setNotificationCount: (count) => set({ notifications: count }),
+}));
+
 export const useBadgeCounts = (): BadgeCounts => {
-    const [counts, setCounts] = useState<BadgeCounts>({
-        messages: 0,
-        notifications: 0,
-    });
+    const messages = useBadgeCountStore((state) => state.messages);
+    const notifications = useBadgeCountStore((state) => state.notifications);
 
-    useEffect(() => {
-        // Fetch badge counts from API
-        // For now, using mock data - replace with actual API call
-        const fetchCounts = async () => {
-            try {
-                // Example API call:
-                // const response = await api.getBadgeCounts();
-                // setCounts(response);
-
-                // Mock data for demonstration
-                setCounts({
-                    messages: 3,
-                    notifications: 2,
-                });
-            } catch (error) {
-                console.error("Error fetching badge counts:", error);
-            }
-        };
-
-        fetchCounts();
-
-        // Optional: Set up polling or real-time updates
-        // const interval = setInterval(fetchCounts, 30000); // Poll every 30s
-        // return () => clearInterval(interval);
+    const refreshNotificationCount = useCallback(async () => {
+        try {
+            const unreadCount = await fetchUnreadCount();
+            useBadgeCountStore.getState().setNotificationCount(unreadCount);
+        } catch (error) {
+            console.warn("Failed to refresh notification badge count:", error);
+        }
     }, []);
 
-    return counts;
+    useEffect(() => {
+        let isActive = true;
+
+        const syncNotificationCount = async () => {
+            if (!isActive) {
+                return;
+            }
+
+            await refreshNotificationCount();
+        };
+
+        void syncNotificationCount();
+
+        const intervalId = setInterval(() => {
+            void syncNotificationCount();
+        }, 30000);
+
+        const appStateSubscription = AppState.addEventListener("change", (nextState) => {
+            if (nextState === "active") {
+                void syncNotificationCount();
+            }
+        });
+
+        return () => {
+            isActive = false;
+            clearInterval(intervalId);
+            appStateSubscription.remove();
+        };
+    }, [refreshNotificationCount]);
+
+    return { messages, notifications };
+};
+
+export const setNotificationBadgeCount = (count: number) => {
+    useBadgeCountStore.getState().setNotificationCount(count);
 };
