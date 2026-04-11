@@ -121,7 +121,7 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
 
     const budgetValue = useMemo(() => {
         const parsed = parseBudgetInput(form.budget);
-        return parsed.budget;
+        return parsed.amount;
     }, [form.budget]);
 
     const updateField = <K extends keyof RequestFormState>(field: K, value: RequestFormState[K]) => {
@@ -129,8 +129,9 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
         setValidationError(null);
         if (field === "title" || field === "description" || field === "budget") {
             setFieldErrors((prev) => {
-                if (!prev[field]) return prev;
-                const { [field]: _removed, ...rest } = prev;
+                const typedField = field as keyof typeof prev;
+                if (!prev[typedField]) return prev;
+                const { [typedField]: _removed, ...rest } = prev;
                 return rest;
             });
         }
