@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
+import * as Notifications from "expo-notifications";
 import { create } from "zustand";
 
 import { fetchUnreadCount } from "@/features/notifications/service/notification.service";
@@ -63,6 +64,16 @@ export const useBadgeCounts = (): BadgeCounts => {
             appStateSubscription.remove();
         };
     }, [refreshNotificationCount]);
+
+    useEffect(() => {
+        if (Platform.OS === "web") {
+            return;
+        }
+
+        void Notifications.setBadgeCountAsync(notifications).catch((error) => {
+            console.warn("Failed to sync native app badge count:", error);
+        });
+    }, [notifications]);
 
     return { messages, notifications };
 };
