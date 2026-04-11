@@ -13,8 +13,6 @@ const buildFormFromUser = (user: User | null): UpdateUserProfilePayload => {
         dateOfBirth: user.dateOfBirth ?? "",
         gender: user.gender ?? undefined,
         userType: user.userType,
-        rating: user.rating,
-        helpCount: user.helpCount,
         address: user.address ?? null,
     };
 };

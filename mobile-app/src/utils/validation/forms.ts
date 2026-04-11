@@ -92,7 +92,9 @@ const toValidationResult = <TField extends string>(
     fieldErrors: FieldErrorMap<TField>,
     fallbackFormError?: string | null
 ): FormValidationResult<TField> => {
-    const firstFieldError = firstValidationError(...Object.values(fieldErrors));
+    const firstFieldError = firstValidationError(
+        ...(Object.values(fieldErrors) as Array<string | null | undefined>)
+    );
     const formError = firstValidationError(fallbackFormError ?? null, firstFieldError);
 
     return {
