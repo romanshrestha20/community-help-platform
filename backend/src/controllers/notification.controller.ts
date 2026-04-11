@@ -6,7 +6,17 @@ import {
     getUserNotifications,
     markAllNotificationsAsRead,
     markNotificationAsRead,
+    markNotificationAsUnread,
 } from "../services/notification.service.js";
+
+
+const handleResponse = <T>(res: Response, data: T, message?: string) => {
+    res.json({
+        success: true,
+        data,
+        message,
+    });
+};
 
 const requireUserId = (req: Request): string | null => {
     return req.user?.userId ?? null;
@@ -25,6 +35,8 @@ const normalizeParamId = (value: string | string[] | undefined): string | null =
     return null;
 };
 
+
+
 export const listNotifications = async (
     req: Request,
     res: Response,
@@ -38,10 +50,7 @@ export const listNotifications = async (
 
         const notifications = await getUserNotifications(userId);
 
-        res.json({
-            success: true,
-            data: notifications,
-        });
+        handleResponse(res, notifications);
     } catch (error) {
         next(error);
     }
@@ -60,10 +69,7 @@ export const unreadNotificationCount = async (
 
         const count = await getUnreadNotificationCount(userId);
 
-        res.json({
-            success: true,
-            data: { count },
-        });
+        handleResponse(res, { count });
     } catch (error) {
         next(error);
     }
@@ -87,10 +93,31 @@ export const readNotification = async (
 
         await markNotificationAsRead(id, userId);
 
-        res.json({
-            success: true,
-            message: "Notification marked as read",
-        });
+        handleResponse(res, null, "Notification marked as read");
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const unreadNotification = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const userId = requireUserId(req);
+        if (!userId) {
+            return next(new AppError("Unauthorized", 401));
+        }
+
+        const id = normalizeParamId(req.params.id);
+        if (!id) {
+            return next(new AppError("Notification ID is required", 400));
+        }
+
+        await markNotificationAsUnread(id, userId);
+
+        handleResponse(res, null, "Notification marked as unread");
     } catch (error) {
         next(error);
     }
@@ -109,10 +136,7 @@ export const readAllNotifications = async (
 
         await markAllNotificationsAsRead(userId);
 
-        res.json({
-            success: true,
-            message: "All notifications marked as read",
-        });
+        handleResponse(res, null, "All notifications marked as read");
     } catch (error) {
         next(error);
     }

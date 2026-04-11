@@ -319,7 +319,7 @@ export const updateHelpRequestStatus = async (
 
   const transitions: Record<string, string[]> = {
     OPEN: ["ASSIGNED", "CANCELLED"],
-    ASSIGNED: ["COMPLETED"],
+    ASSIGNED: ["COMPLETED", "CANCELLED"],
     COMPLETED: [],
     CANCELLED: [],
   };
@@ -446,10 +446,6 @@ export const updateHelpRequest = async (
       return next(new AppError("Invalid category", 400));
     }
 
-
-    if (status && !validStatuses.includes(status)) {
-      return next(new AppError("Invalid status", 400));
-    }
 
 
 
