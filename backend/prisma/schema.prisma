@@ -30,6 +30,7 @@ model UserModel {
 
   refreshTokens RefreshToken[]
   oauthAccounts OAuthAccount[]
+  pushTokens    PushToken[]
 
   reviews       Review[]
   reviewReplies ReviewReply[]
@@ -129,6 +130,21 @@ model RefreshToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([platform])
+  @@map("push_tokens")
 }
 
 model HelpRequest {
