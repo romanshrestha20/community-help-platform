@@ -5,6 +5,7 @@
 
 import React from "react";
 import { View, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 interface TabScreenContainerProps {
@@ -29,8 +30,11 @@ export const TabScreenContainer: React.FC<TabScreenContainerProps> = ({ children
     const { colors } = useThemeContext();
 
     return (
-        <View style={[styles.container, { backgroundColor: colors.backgroundColor }]}>
+        <SafeAreaView
+            edges={["top", "left", "right"]}
+            style={[styles.container, { backgroundColor: colors.backgroundColor }]}
+        >
             <View style={styles.content}>{children}</View>
-        </View>
+        </SafeAreaView>
     );
 };

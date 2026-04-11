@@ -4,6 +4,7 @@ import type FontAwesome from "@expo/vector-icons/FontAwesome";
 export interface TabItem {
   name: string;
   icon: ComponentProps<typeof FontAwesome>["name"];
+  activeIcon?: ComponentProps<typeof FontAwesome>["name"];
   label: string;
   badge?: number;
 }

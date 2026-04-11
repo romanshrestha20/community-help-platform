@@ -37,7 +37,8 @@ export const defaultTabsConfig: TabItem[] = [
   },
   {
     name: "notifications",
-    icon: "bell",
+    icon: "bell-o",
+    activeIcon: "bell",
     label: "Notifications",
   },
   {
