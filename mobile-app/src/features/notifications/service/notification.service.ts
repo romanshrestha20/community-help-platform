@@ -6,6 +6,8 @@ import {
     markAllAsReadApi,
     markAsReadApi,
     markAsUnreadApi,
+    registerPushTokenApi,
+    unregisterPushTokenApi,
 } from "../api/notification.api";
 
 export const fetchNotifications = async (): Promise<AppNotification[]> => {
@@ -32,9 +34,19 @@ export const deleteNotificationById = async (notificationId: string): Promise<vo
     await deleteNotificationApi(notificationId);
 };
 
+export const registerPushToken = async (token: string, platform: string): Promise<void> => {
+    await registerPushTokenApi(token, platform);
+};
+
+export const unregisterPushToken = async (token: string): Promise<void> => {
+    await unregisterPushTokenApi(token);
+};
+
 export const fetchAllNotifications = fetchNotifications;
 export const getUnreadCount = fetchUnreadCount;
 export const markAsRead = markNotificationAsRead;
 export const markAsUnread = markNotificationAsUnread;
 export const markAllAsRead = markAllNotificationsAsRead;
 export const deleteNotification = deleteNotificationById;
+export const registerNotificationPushToken = registerPushToken;
+export const unregisterNotificationPushToken = unregisterPushToken;

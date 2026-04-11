@@ -38,3 +38,20 @@ export const deleteNotificationApi = async (notificationId: string): Promise<voi
     const response = await apiClient.delete<ApiResponse<null>>(`/notifications/${notificationId}`);
     unwrapResponse(response.data);
 };
+
+export const registerPushTokenApi = async (token: string, platform: string): Promise<void> => {
+    const response = await apiClient.post<ApiResponse<null>>("/notifications/push-token", {
+        token,
+        platform,
+    });
+
+    unwrapResponse(response.data);
+};
+
+export const unregisterPushTokenApi = async (token: string): Promise<void> => {
+    const response = await apiClient.delete<ApiResponse<null>>("/notifications/push-token", {
+        data: { token },
+    });
+
+    unwrapResponse(response.data);
+};
