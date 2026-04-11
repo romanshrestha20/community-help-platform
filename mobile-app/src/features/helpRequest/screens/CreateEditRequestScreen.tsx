@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
-import { Platform, StyleSheet, Text } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
