@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Text, TextInput, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Slot, useRouter, useSegments } from "expo-router";
 import {
   Inter_400Regular,
@@ -153,10 +154,10 @@ export default function Layout() {
   }
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <Slot />
       <Toast config={toastConfig} />
-    </>
+    </GestureHandlerRootView>
   );
 }
 

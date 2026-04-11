@@ -8,6 +8,7 @@ import {
     View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import Swipeable from "react-native-gesture-handler/Swipeable";
 import { AppButton } from "@/components/ui/AppButton";
 import { TabScreenContainer } from "@/components/ui/TabScreenContainer";
 import { Card, theme } from "@/design-system";
@@ -121,7 +122,15 @@ const getNotificationDestination = (item: AppNotification) => {
         return "/messages";
     }
 
-    if (item.type === "BID_ACCEPTED" || item.type === "BID_REJECTED") {
+    if (item.type === "BID_RECEIVED" && item.requestId) {
+        return APP_ROUTES.PROFILE_REQUEST_DETAILS(item.requestId);
+    }
+
+    if (item.type === "BID_ACCEPTED") {
+        return APP_ROUTES.PROFILE_BIDS;
+    }
+
+    if (item.type === "BID_REJECTED") {
         return APP_ROUTES.PROFILE_BIDS;
     }
 
@@ -263,6 +272,23 @@ const styles = StyleSheet.create({
     },
     notificationTouchArea: {
         width: "100%",
+    },
+    swipeAction: {
+        justifyContent: "center",
+        alignItems: "flex-end",
+        paddingRight: theme.spacing.xs,
+    },
+    swipeDeleteButton: {
+        minWidth: 88,
+        height: "100%",
+        borderRadius: theme.radius.lg,
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 4,
+    },
+    swipeDeleteLabel: {
+        fontSize: theme.typography.fontSize.xs,
+        fontWeight: theme.typography.fontWeight.semibold,
     },
     notificationHeader: {
         flexDirection: "row",
@@ -424,95 +450,107 @@ export default function NotificationsScreen() {
         const isUnread = !item.isRead;
         const isLoading = actionLoadingId === item.id;
         const visuals = getNotificationVisuals(item, palette);
-
-        return (
-            <Pressable
-                onPress={() => openNotification(item)}
-                android_ripple={{ color: palette.overlay }}
-                style={({ pressed }) => [
-                    styles.notificationTouchArea,
-                    {
-                        opacity: isLoading ? 0.7 : 1,
-                        transform: [{ scale: pressed ? 0.995 : 1 }],
-                    },
-                ]}
-            >
-                <View
-                    style={[
-                        styles.notificationCard,
+        const deleteAction = () => (
+            <View style={styles.swipeAction}>
+                <Pressable
+                    onPress={() => void removeNotification(item.id)}
+                    style={({ pressed }) => [
+                        styles.swipeDeleteButton,
                         {
-                            backgroundColor: isUnread ? palette.surfaceSecondary : palette.surface,
-                            borderColor: isUnread ? palette.primarySoft : palette.border,
-                            borderWidth: 1,
+                            backgroundColor: palette.danger,
+                            opacity: pressed ? 0.9 : 0.82,
                         },
                     ]}
                 >
-                    <View style={styles.notificationHeader}>
-                        <View style={styles.notificationHeaderLeft}>
-                            <View style={[styles.iconPill, { backgroundColor: visuals.background }]}>
-                                <Ionicons name={visuals.icon} size={19} color={visuals.tint} />
-                            </View>
-                            <View style={{ flex: 1, gap: theme.spacing.xxs }}>
-                                <View style={styles.metaInline}>
-                                    {isUnread ? <View style={[styles.unreadDot, { backgroundColor: palette.primary }]} /> : null}
-                                    <Text style={[styles.notificationPrimary, { color: palette.textPrimary }]} numberOfLines={2}>
-                                        {getNotificationCopy(item).primary}
+                    <Ionicons name="trash-outline" size={18} color={palette.textInverse} />
+                    <Text style={[styles.swipeDeleteLabel, { color: palette.textInverse }]}>Delete</Text>
+                </Pressable>
+            </View>
+        );
+
+        return (
+            <Swipeable
+                overshootRight={false}
+                renderRightActions={deleteAction}
+            >
+                <Pressable
+                    onPress={() => openNotification(item)}
+                    android_ripple={{ color: palette.overlay }}
+                    style={({ pressed }) => [
+                        styles.notificationTouchArea,
+                        {
+                            opacity: isLoading ? 0.7 : 1,
+                            transform: [{ scale: pressed ? 0.995 : 1 }],
+                        },
+                    ]}
+                >
+                    <View
+                        style={[
+                            styles.notificationCard,
+                            {
+                                backgroundColor: isUnread ? palette.surfaceSecondary : palette.surface,
+                                borderColor: isUnread ? palette.primarySoft : palette.border,
+                                borderWidth: 1,
+                            },
+                        ]}
+                    >
+                        <View style={styles.notificationHeader}>
+                            <View style={styles.notificationHeaderLeft}>
+                                <View style={[styles.iconPill, { backgroundColor: visuals.background }]}>
+                                    <Ionicons name={visuals.icon} size={19} color={visuals.tint} />
+                                </View>
+                                <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+                                    <View style={styles.metaInline}>
+                                        {isUnread ? <View style={[styles.unreadDot, { backgroundColor: palette.primary }]} /> : null}
+                                        <Text style={[styles.notificationPrimary, { color: palette.textPrimary }]} numberOfLines={2}>
+                                            {getNotificationCopy(item).primary}
+                                        </Text>
+                                    </View>
+                                    <Text style={[styles.notificationSecondary, { color: palette.textSecondary }]} numberOfLines={2}>
+                                        {getNotificationCopy(item).secondary}
                                     </Text>
                                 </View>
-                                <Text style={[styles.notificationSecondary, { color: palette.textSecondary }]} numberOfLines={2}>
-                                    {getNotificationCopy(item).secondary}
-                                </Text>
                             </View>
                         </View>
-                        <Pressable
-                            onPress={(event) => {
-                                event.stopPropagation();
-                                void removeNotification(item.id);
-                            }}
-                            hitSlop={10}
-                            style={({ pressed }) => [{ opacity: pressed ? 0.4 : 0.3 }]}
-                        >
-                            <Ionicons name="trash-outline" size={16} color={palette.textSecondary} />
-                        </Pressable>
-                    </View>
 
-                    <View style={styles.metaRow}>
-                        <View style={styles.metaRowLeft}>
-                            {!isUnread ? (
-                                <Pressable
-                                    onPress={(event) => {
-                                        event.stopPropagation();
-                                        void markUnread(item.id);
-                                    }}
-                                    hitSlop={10}
-                                    disabled={isLoading}
-                                    style={({ pressed }) => [{ opacity: pressed ? 0.55 : 0.7 }]}
-                                >
-                                    <Ionicons name="mail-outline" size={15} color={palette.textSecondary} />
-                                </Pressable>
-                            ) : null}
-                            <Text style={[styles.metaText, { color: palette.textMuted }]}>
-                                {formatTime(item.createdAt)}
-                            </Text>
-                            <View
-                                style={[
-                                    styles.badge,
-                                    {
-                                        backgroundColor: isUnread ? palette.surfaceMuted : palette.surfaceMuted,
-                                        borderWidth: 1,
-                                        borderColor: palette.border,
-                                        opacity: 0.82,
-                                    },
-                                ]}
-                            >
-                                <Text style={{ color: palette.textSecondary, fontSize: 10, fontWeight: theme.typography.fontWeight.semibold }} numberOfLines={1}>
-                                    {item.type.replace(/_/g, " ")}
+                        <View style={styles.metaRow}>
+                            <View style={styles.metaRowLeft}>
+                                {!isUnread ? (
+                                    <Pressable
+                                        onPress={(event) => {
+                                            event.stopPropagation();
+                                            void markUnread(item.id);
+                                        }}
+                                        hitSlop={10}
+                                        disabled={isLoading}
+                                        style={({ pressed }) => [{ opacity: pressed ? 0.55 : 0.7 }]}
+                                    >
+                                        <Ionicons name="mail-outline" size={15} color={palette.textSecondary} />
+                                    </Pressable>
+                                ) : null}
+                                <Text style={[styles.metaText, { color: palette.textMuted }]}>
+                                    {formatTime(item.createdAt)}
                                 </Text>
+                                <View
+                                    style={[
+                                        styles.badge,
+                                        {
+                                            backgroundColor: palette.surfaceMuted,
+                                            borderWidth: 1,
+                                            borderColor: palette.border,
+                                            opacity: 0.82,
+                                        },
+                                    ]}
+                                >
+                                    <Text style={{ color: palette.textSecondary, fontSize: 10, fontWeight: theme.typography.fontWeight.semibold }} numberOfLines={1}>
+                                        {item.type.replace(/_/g, " ")}
+                                    </Text>
+                                </View>
                             </View>
                         </View>
                     </View>
-                </View>
-            </Pressable>
+                </Pressable>
+            </Swipeable>
         );
     };
 
