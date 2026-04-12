@@ -1,10 +1,13 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+    ActivityIndicator,
     FlatList,
     KeyboardAvoidingView,
     Platform,
     RefreshControl,
+    NativeScrollEvent,
+    NativeSyntheticEvent,
     StyleSheet,
     Text,
     View,
@@ -38,8 +41,11 @@ interface ChatProps {
     refreshing?: boolean;
     sending?: boolean;
     deletingMessageId?: string | null;
+    loadingOlder?: boolean;
+    hasOlderMessages?: boolean;
     error?: string | null;
     onRefresh?: () => void;
+    onLoadOlder?: () => void;
     onSend: (content: string) => Promise<unknown> | unknown;
     onDeleteMessage?: (messageId: string) => Promise<unknown> | unknown;
 }
@@ -91,8 +97,11 @@ const Chat: React.FC<ChatProps> = ({
     refreshing,
     sending,
     deletingMessageId,
+    loadingOlder,
+    hasOlderMessages,
     error,
     onRefresh,
+    onLoadOlder,
     onSend,
     onDeleteMessage,
 }) => {
@@ -135,6 +144,16 @@ const Chat: React.FC<ChatProps> = ({
         requestAnimationFrame(() => {
             listRef.current?.scrollToEnd({ animated });
         });
+    };
+
+    const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        if (!hasOlderMessages || loadingOlder || !onLoadOlder) {
+            return;
+        }
+
+        if (event.nativeEvent.contentOffset.y <= 96) {
+            onLoadOlder();
+        }
     };
 
     useEffect(() => {
@@ -215,6 +234,11 @@ const Chat: React.FC<ChatProps> = ({
                     ]}
                     keyboardDismissMode="interactive"
                     keyboardShouldPersistTaps="handled"
+                    maintainVisibleContentPosition={{
+                        minIndexForVisible: 1,
+                    }}
+                    onScroll={handleScroll}
+                    scrollEventThrottle={16}
                     onLayout={() => {
                         if (messages.length > 0) {
                             scrollToBottom(false);
@@ -238,6 +262,22 @@ const Chat: React.FC<ChatProps> = ({
                         <View style={styles.emptyWrap}>
                             <ChatEmptyState />
                         </View>
+                    }
+                    ListHeaderComponent={
+                        loadingOlder ? (
+                            <View style={styles.olderLoading}>
+                                <ActivityIndicator size="small" color={palette.primary} />
+                                <Text style={[styles.olderLoadingText, { color: palette.textMuted }]}>
+                                    Loading older messages
+                                </Text>
+                            </View>
+                        ) : hasOlderMessages ? (
+                            <View style={styles.olderHint}>
+                                <Text style={[styles.olderHintText, { color: palette.textMuted }]}>
+                                    Scroll up to load older messages
+                                </Text>
+                            </View>
+                        ) : null
                     }
                     renderItem={({ item }) => {
                         if (item.type === "date") {
@@ -349,6 +389,25 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         minHeight: 280,
+    },
+    olderLoading: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: theme.spacing.xs,
+        paddingTop: theme.spacing.xs,
+        paddingBottom: theme.spacing.sm,
+    },
+    olderLoadingText: {
+        ...theme.typography.textStyle.caption,
+    },
+    olderHint: {
+        alignItems: "center",
+        paddingTop: theme.spacing.xs,
+        paddingBottom: theme.spacing.sm,
+    },
+    olderHintText: {
+        ...theme.typography.textStyle.caption,
     },
     composerShell: {
         borderTopWidth: 1,
