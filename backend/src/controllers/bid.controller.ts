@@ -2,7 +2,8 @@ import { prisma } from "../lib/prisma.js";
 import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.js";
 import { createNotification } from "../services/notification.service.js";
-import { NotificationType } from "../../generated/prisma/client.js";
+import { ensureConversationForRequestInTransaction } from "../services/conversation.service.js";
+import { NotificationType, Prisma } from "../../generated/prisma/client.js";
 import { getZodErrorMessage } from "../utils/zod.js";
 import {
   placeBidBodySchema,
@@ -246,7 +247,9 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
 
     let autoRejectedBids: { id: string; helperId: string }[] = [];
 
-    const updated = await prisma.$transaction(async (tx: any) => {
+    const { updatedBid, conversationResult } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      let txConversationResult: Awaited<ReturnType<typeof ensureConversationForRequestInTransaction>> | null = null;
+
       if (status === "ACCEPTED") {
         autoRejectedBids = await tx.bid.findMany({
           where: {
@@ -278,13 +281,22 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
             assignedHelperId: bid.helperId,
           },
         });
+
+        txConversationResult = await ensureConversationForRequestInTransaction(tx, bid.helpRequestId);
       }
 
-      return tx.bid.update({
+      const txUpdatedBid = await tx.bid.update({
         where: { id: bidId },
         data: { status },
       });
+
+      return {
+        updatedBid: txUpdatedBid,
+        conversationResult: txConversationResult,
+      };
     });
+
+    const conversation = conversationResult?.conversation ?? null;
 
     await createNotification({
       userId: bid.helperId,
@@ -303,9 +315,12 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
           : `Your bid for "${bid.request.title}" was rejected.`,
       requestId: bid.helpRequestId,
       bidId: bid.id,
+      conversationId: conversation?.id ?? null,
       data: {
         requestTitle: bid.request.title,
         bidAmount: bid.amount,
+        conversationId: conversation?.id ?? null,
+        starterNote: conversationResult?.starterNote ?? null,
       },
     });
 
@@ -329,7 +344,7 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
     }
 
     const updatedWithHelper = await prisma.bid.findUnique({
-      where: { id: updated.id },
+      where: { id: updatedBid.id },
       include: {
         helper: {
           select: {
@@ -348,7 +363,7 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
 
     sendResponse(
       res,
-      formatBid(updatedWithHelper || updated),
+      formatBid(updatedWithHelper || updatedBid),
       `Bid ${status.toLowerCase()}`
     );
   } catch (error) {
