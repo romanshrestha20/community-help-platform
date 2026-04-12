@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AppState } from "react-native";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 import type { Conversation, Message } from "../types/conversation.type";
 import {
     deleteConversationMessage,
@@ -10,6 +12,9 @@ import {
     markConversationAsRead,
     sendConversationMessage,
 } from "../services/conversation.service";
+
+const CONVERSATIONS_POLL_INTERVAL_MS = 15000;
+const THREAD_POLL_INTERVAL_MS = 5000;
 
 const sortByCreatedAtAsc = (messages: Message[]) => {
     return [...messages].sort(
@@ -80,6 +85,40 @@ export const useConversations = () => {
         };
     }, [loadConversations]);
 
+    useEffect(() => {
+        let isActive = true;
+
+        const syncConversations = async () => {
+            if (!isActive) {
+                return;
+            }
+
+            try {
+                await loadConversations();
+            } catch (caughtError) {
+                if (isActive) {
+                    setError(getErrorMessage(caughtError, "Could not refresh conversations"));
+                }
+            }
+        };
+
+        const intervalId = setInterval(() => {
+            void syncConversations();
+        }, CONVERSATIONS_POLL_INTERVAL_MS);
+
+        const appStateSubscription = AppState.addEventListener("change", (nextState) => {
+            if (nextState === "active") {
+                void syncConversations();
+            }
+        });
+
+        return () => {
+            isActive = false;
+            clearInterval(intervalId);
+            appStateSubscription.remove();
+        };
+    }, [loadConversations]);
+
     const reload = useCallback(async () => {
         setRefreshing(true);
         try {
@@ -122,14 +161,19 @@ export const useConversationThread = (
     const [sending, setSending] = useState(false);
     const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const activeUserId = useAuthStore((state) => state.user?.id ?? "");
 
     const resolvedConversationId = useMemo(
         () => conversation?.id ?? conversationId ?? null,
         [conversation?.id, conversationId]
     );
 
-    const loadThread = useCallback(async () => {
-        setError(null);
+    const loadThread = useCallback(async (options: { preserveError?: boolean } = {}) => {
+        const { preserveError = false } = options;
+
+        if (!preserveError) {
+            setError(null);
+        }
 
         if (!conversationId && !requestId) {
             setConversation(null);
@@ -162,18 +206,26 @@ export const useConversationThread = (
         setConversation(activeConversation);
 
         const loadedMessages = await getConversationMessages(activeConversation.id);
-        setMessages(sortByCreatedAtAsc(loadedMessages));
+        const sortedMessages = sortByCreatedAtAsc(loadedMessages);
+        const hasUnreadIncoming = autoMarkRead
+            ? sortedMessages.some(
+                (message) => !message.isRead && message.senderId !== activeUserId
+            )
+            : false;
 
-        if (autoMarkRead) {
+        if (hasUnreadIncoming) {
             await markConversationAsRead(activeConversation.id);
-            setMessages((current) =>
-                current.map((message) => ({
-                    ...message,
-                    isRead: true,
-                }))
-            );
         }
-    }, [autoMarkRead, conversationId, requestId]);
+
+        setMessages(
+            hasUnreadIncoming
+                ? sortedMessages.map((message) => ({
+                    ...message,
+                    isRead: message.senderId === activeUserId ? message.isRead : true,
+                }))
+                : sortedMessages
+        );
+    }, [activeUserId, autoMarkRead, conversationId, requestId]);
 
     useEffect(() => {
         let isMounted = true;
@@ -202,6 +254,46 @@ export const useConversationThread = (
             isMounted = false;
         };
     }, [loadThread]);
+
+    useEffect(() => {
+        let isActive = true;
+
+        if (!resolvedConversationId) {
+            return () => {
+                isActive = false;
+            };
+        }
+
+        const syncThread = async () => {
+            if (!isActive) {
+                return;
+            }
+
+            try {
+                await loadThread({ preserveError: true });
+            } catch (caughtError) {
+                if (isActive) {
+                    setError(getErrorMessage(caughtError, "Could not refresh conversation"));
+                }
+            }
+        };
+
+        const intervalId = setInterval(() => {
+            void syncThread();
+        }, THREAD_POLL_INTERVAL_MS);
+
+        const appStateSubscription = AppState.addEventListener("change", (nextState) => {
+            if (nextState === "active") {
+                void syncThread();
+            }
+        });
+
+        return () => {
+            isActive = false;
+            clearInterval(intervalId);
+            appStateSubscription.remove();
+        };
+    }, [loadThread, resolvedConversationId]);
 
     const reload = useCallback(async () => {
         setRefreshing(true);
