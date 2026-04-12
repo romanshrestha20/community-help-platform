@@ -19,6 +19,9 @@ export default function ConversationChatRoute() {
         sending,
         error,
         reload,
+        loadOlderMessages,
+        loadingOlder,
+        hasOlderMessages,
         sendMessage,
         deleteMessage,
         deletingMessageId,
@@ -37,8 +40,11 @@ export default function ConversationChatRoute() {
                 refreshing={refreshing}
                 sending={sending}
                 deletingMessageId={deletingMessageId}
+                loadingOlder={loadingOlder}
+                hasOlderMessages={hasOlderMessages}
                 error={error}
                 onRefresh={reload}
+                onLoadOlder={loadOlderMessages}
                 onSend={sendMessage}
                 onDeleteMessage={deleteMessage}
             />
