@@ -1,4 +1,4 @@
-import type { Conversation, ConversationMember, Message } from "../types/conversation.type";
+import type { Conversation, ConversationMember } from "../types/conversation.type";
 
 /**
  * Returns the other participant in a conversation (not the current user).
