@@ -15,11 +15,26 @@ import {
 
 const CONVERSATIONS_POLL_INTERVAL_MS = 15000;
 const THREAD_POLL_INTERVAL_MS = 5000;
+const THREAD_PAGE_SIZE = 20;
 
 const sortByCreatedAtAsc = (messages: Message[]) => {
     return [...messages].sort(
         (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
     );
+};
+
+const mergeMessages = (current: Message[], incoming: Message[]) => {
+    const merged = new Map<string, Message>();
+
+    for (const message of current) {
+        merged.set(message.id, message);
+    }
+
+    for (const message of incoming) {
+        merged.set(message.id, message);
+    }
+
+    return sortByCreatedAtAsc(Array.from(merged.values()));
 };
 
 const getErrorMessage = (caughtError: unknown, fallback: string) => {
@@ -160,16 +175,19 @@ export const useConversationThread = (
     const [refreshing, setRefreshing] = useState(false);
     const [sending, setSending] = useState(false);
     const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+    const [loadingOlder, setLoadingOlder] = useState(false);
+    const [hasOlderMessages, setHasOlderMessages] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const activeUserId = useAuthStore((state) => state.user?.id ?? "");
+    const [nextOlderPage, setNextOlderPage] = useState<number | null>(null);
 
     const resolvedConversationId = useMemo(
         () => conversation?.id ?? conversationId ?? null,
         [conversation?.id, conversationId]
     );
 
-    const loadThread = useCallback(async (options: { preserveError?: boolean } = {}) => {
-        const { preserveError = false } = options;
+    const loadThread = useCallback(async (options: { preserveError?: boolean; mergeIntoCurrent?: boolean } = {}) => {
+        const { preserveError = false, mergeIntoCurrent = false } = options;
 
         if (!preserveError) {
             setError(null);
@@ -205,8 +223,12 @@ export const useConversationThread = (
 
         setConversation(activeConversation);
 
-        const loadedMessages = await getConversationMessages(activeConversation.id);
-        const sortedMessages = sortByCreatedAtAsc(loadedMessages);
+        const latestPage = await getConversationMessages(activeConversation.id, {
+            page: 1,
+            limit: THREAD_PAGE_SIZE,
+            sort: "desc",
+        });
+        const sortedMessages = latestPage.messages;
         const hasUnreadIncoming = autoMarkRead
             ? sortedMessages.some(
                 (message) => !message.isRead && message.senderId !== activeUserId
@@ -217,14 +239,26 @@ export const useConversationThread = (
             await markConversationAsRead(activeConversation.id);
         }
 
-        setMessages(
-            hasUnreadIncoming
-                ? sortedMessages.map((message) => ({
-                    ...message,
-                    isRead: message.senderId === activeUserId ? message.isRead : true,
-                }))
-                : sortedMessages
+        const normalizedMessages = hasUnreadIncoming
+            ? sortedMessages.map((message) => ({
+                ...message,
+                isRead: message.senderId === activeUserId ? message.isRead : true,
+            }))
+            : sortedMessages;
+
+        setMessages((current) =>
+            mergeIntoCurrent ? mergeMessages(current, normalizedMessages) : normalizedMessages
         );
+        setHasOlderMessages((current) =>
+            mergeIntoCurrent ? current || latestPage.meta.totalPages > 1 : latestPage.meta.totalPages > 1
+        );
+        setNextOlderPage((current) => {
+            if (mergeIntoCurrent) {
+                return current ?? (latestPage.meta.totalPages > 1 ? 2 : null);
+            }
+
+            return latestPage.meta.totalPages > 1 ? 2 : null;
+        });
     }, [activeUserId, autoMarkRead, conversationId, requestId]);
 
     useEffect(() => {
@@ -270,7 +304,7 @@ export const useConversationThread = (
             }
 
             try {
-                await loadThread({ preserveError: true });
+                await loadThread({ preserveError: true, mergeIntoCurrent: true });
             } catch (caughtError) {
                 if (isActive) {
                     setError(getErrorMessage(caughtError, "Could not refresh conversation"));
@@ -294,6 +328,33 @@ export const useConversationThread = (
             appStateSubscription.remove();
         };
     }, [loadThread, resolvedConversationId]);
+
+    const loadOlderMessages = useCallback(async () => {
+        const activeConversationId = resolvedConversationId;
+        const page = nextOlderPage;
+
+        if (!activeConversationId || !page || loadingOlder || !hasOlderMessages) {
+            return;
+        }
+
+        setLoadingOlder(true);
+
+        try {
+            const result = await getConversationMessages(activeConversationId, {
+                page,
+                limit: THREAD_PAGE_SIZE,
+                sort: "desc",
+            });
+
+            setMessages((current) => mergeMessages(result.messages, current));
+            setHasOlderMessages(result.meta.totalPages > page);
+            setNextOlderPage(result.meta.totalPages > page ? page + 1 : null);
+        } catch (caughtError) {
+            setError(getErrorMessage(caughtError, "Could not load older messages"));
+        } finally {
+            setLoadingOlder(false);
+        }
+    }, [hasOlderMessages, loadingOlder, nextOlderPage, resolvedConversationId]);
 
     const reload = useCallback(async () => {
         setRefreshing(true);
@@ -383,8 +444,11 @@ export const useConversationThread = (
         refreshing,
         sending,
         deletingMessageId,
+        loadingOlder,
+        hasOlderMessages,
         error,
         reload,
+        loadOlderMessages,
         sendMessage,
         markRead,
         deleteMessage,
