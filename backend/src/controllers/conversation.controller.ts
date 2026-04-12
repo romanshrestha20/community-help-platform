@@ -27,7 +27,35 @@ const handleResponse = <T>(res: Response, data: T, message?: string) => {
     });
 };
 
-const requireUserId = (req: Request): string | null => req.user?.userId ?? null;
+const handlePaginatedResponse = <T>(
+    res: Response,
+    data: T,
+    meta: {
+        total: number;
+        page: number;
+        totalPages: number;
+        limit: number;
+    }
+) => {
+    res.json({
+        success: true,
+        data,
+        meta,
+    });
+};
+
+const requireAuthenticatedUser = (
+    req: Request,
+    next: NextFunction
+): string | null => {
+    const userId = req.user?.userId ?? null;
+    if (!userId) {
+        next(new AppError("Unauthorized", 401));
+        return null;
+    }
+
+    return userId;
+};
 
 const normalizeParamId = (value: string | string[] | undefined): string | null => {
     if (typeof value === "string" && value.trim().length > 0) {
@@ -42,26 +70,37 @@ const normalizeParamId = (value: string | string[] | undefined): string | null =
     return null;
 };
 
+const parseConversationIdParam = (req: Request) =>
+    conversationIdParamSchema.safeParse({
+        conversationId: normalizeParamId(req.params.conversationId),
+    });
+
+const parseRequestIdParam = (req: Request) =>
+    requestIdParamSchema.safeParse({
+        requestId: normalizeParamId(req.params.requestId),
+    });
+
+const parseMessageIdParam = (req: Request) =>
+    messageIdParamSchema.safeParse({
+        messageId: normalizeParamId(req.params.messageId),
+    });
+
 export const ensureConversation = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
     try {
-        const userId = requireUserId(req);
-        if (!userId) {
-            return next(new AppError("Unauthorized", 401));
-        }
+        const userId = requireAuthenticatedUser(req, next);
+        if (!userId) return;
 
-        const parsedParams = requestIdParamSchema.safeParse({
-            requestId: normalizeParamId(req.params.requestId),
-        });
+        const parsedParams = parseRequestIdParam(req);
 
         if (!parsedParams.success) {
             return next(new AppError(getZodErrorMessage(parsedParams.error), 400));
         }
 
-        const conversation = await createConversation(parsedParams.data.requestId);
+        const conversation = await createConversation(parsedParams.data.requestId, userId);
         handleResponse(res, conversation, "Conversation ready");
     } catch (error) {
         next(error);
@@ -74,14 +113,10 @@ export const getConversationById = async (
     next: NextFunction
 ) => {
     try {
-        const userId = requireUserId(req);
-        if (!userId) {
-            return next(new AppError("Unauthorized", 401));
-        }
+        const userId = requireAuthenticatedUser(req, next);
+        if (!userId) return;
 
-        const parsedParams = conversationIdParamSchema.safeParse({
-            conversationId: normalizeParamId(req.params.conversationId),
-        });
+        const parsedParams = parseConversationIdParam(req);
 
         if (!parsedParams.success) {
             return next(new AppError(getZodErrorMessage(parsedParams.error), 400));
@@ -104,14 +139,10 @@ export const getConversationByRequestId = async (
     next: NextFunction
 ) => {
     try {
-        const userId = requireUserId(req);
-        if (!userId) {
-            return next(new AppError("Unauthorized", 401));
-        }
+        const userId = requireAuthenticatedUser(req, next);
+        if (!userId) return;
 
-        const parsedParams = requestIdParamSchema.safeParse({
-            requestId: normalizeParamId(req.params.requestId),
-        });
+        const parsedParams = parseRequestIdParam(req);
 
         if (!parsedParams.success) {
             return next(new AppError(getZodErrorMessage(parsedParams.error), 400));
@@ -134,10 +165,8 @@ export const getMyConversations = async (
     next: NextFunction
 ) => {
     try {
-        const userId = requireUserId(req);
-        if (!userId) {
-            return next(new AppError("Unauthorized", 401));
-        }
+        const userId = requireAuthenticatedUser(req, next);
+        if (!userId) return;
 
         const parsedQuery = paginationQuerySchema.safeParse(req.query);
         if (!parsedQuery.success) {
@@ -150,11 +179,7 @@ export const getMyConversations = async (
             limit: parsedQuery.data.limit,
         });
 
-        res.json({
-            success: true,
-            data: result.conversations,
-            meta: result.meta,
-        });
+        handlePaginatedResponse(res, result.conversations, result.meta);
     } catch (error) {
         next(error);
     }
@@ -166,14 +191,10 @@ export const getConversationMessages = async (
     next: NextFunction
 ) => {
     try {
-        const userId = requireUserId(req);
-        if (!userId) {
-            return next(new AppError("Unauthorized", 401));
-        }
+        const userId = requireAuthenticatedUser(req, next);
+        if (!userId) return;
 
-        const parsedParams = conversationIdParamSchema.safeParse({
-            conversationId: normalizeParamId(req.params.conversationId),
-        });
+        const parsedParams = parseConversationIdParam(req);
 
         if (!parsedParams.success) {
             return next(new AppError(getZodErrorMessage(parsedParams.error), 400));
@@ -191,11 +212,7 @@ export const getConversationMessages = async (
             limit: parsedQuery.data.limit,
         });
 
-        res.json({
-            success: true,
-            data: result.messages,
-            meta: result.meta,
-        });
+        handlePaginatedResponse(res, result.messages, result.meta);
     } catch (error) {
         next(error);
     }
@@ -207,14 +224,10 @@ export const postConversationMessage = async (
     next: NextFunction
 ) => {
     try {
-        const userId = requireUserId(req);
-        if (!userId) {
-            return next(new AppError("Unauthorized", 401));
-        }
+        const userId = requireAuthenticatedUser(req, next);
+        if (!userId) return;
 
-        const parsedParams = conversationIdParamSchema.safeParse({
-            conversationId: normalizeParamId(req.params.conversationId),
-        });
+        const parsedParams = parseConversationIdParam(req);
 
         if (!parsedParams.success) {
             return next(new AppError(getZodErrorMessage(parsedParams.error), 400));
@@ -243,14 +256,10 @@ export const readConversation = async (
     next: NextFunction
 ) => {
     try {
-        const userId = requireUserId(req);
-        if (!userId) {
-            return next(new AppError("Unauthorized", 401));
-        }
+        const userId = requireAuthenticatedUser(req, next);
+        if (!userId) return;
 
-        const parsedParams = conversationIdParamSchema.safeParse({
-            conversationId: normalizeParamId(req.params.conversationId),
-        });
+        const parsedParams = parseConversationIdParam(req);
 
         if (!parsedParams.success) {
             return next(new AppError(getZodErrorMessage(parsedParams.error), 400));
@@ -270,22 +279,16 @@ export const removeConversationMessage = async (
     next: NextFunction
 ) => {
     try {
-        const userId = requireUserId(req);
-        if (!userId) {
-            return next(new AppError("Unauthorized", 401));
-        }
+        const userId = requireAuthenticatedUser(req, next);
+        if (!userId) return;
 
-        const parsedConversationParams = conversationIdParamSchema.safeParse({
-            conversationId: normalizeParamId(req.params.conversationId),
-        });
+        const parsedConversationParams = parseConversationIdParam(req);
 
         if (!parsedConversationParams.success) {
             return next(new AppError(getZodErrorMessage(parsedConversationParams.error), 400));
         }
 
-        const parsedMessageParams = messageIdParamSchema.safeParse({
-            messageId: normalizeParamId(req.params.messageId),
-        });
+        const parsedMessageParams = parseMessageIdParam(req);
 
         if (!parsedMessageParams.success) {
             return next(new AppError(getZodErrorMessage(parsedMessageParams.error), 400));

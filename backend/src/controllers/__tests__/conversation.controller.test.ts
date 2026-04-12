@@ -173,7 +173,7 @@ describe("conversation.controller", () => {
 
         await ensureConversation(req, res, next);
 
-        expect(conversationServiceMock.createConversation).toHaveBeenCalledWith("req-1");
+        expect(conversationServiceMock.createConversation).toHaveBeenCalledWith("req-1", "user-1");
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({
                 success: true,
