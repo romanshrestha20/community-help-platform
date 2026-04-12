@@ -90,6 +90,21 @@ describe("conversation.service", () => {
         });
     });
 
+    it("ensureConversationForRequest: rejects when caller is not requester or assigned helper", async () => {
+        prismaMock.helpRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            requesterId: "requester-1",
+            assignedHelperId: "helper-1",
+        });
+
+        await expect(
+            ensureConversationForRequest({ requestId: "req-1", actorUserId: "outsider-1" })
+        ).rejects.toMatchObject({
+            message: "Forbidden",
+            statusCode: 403,
+        });
+    });
+
     it("ensureConversationForRequest: upserts conversation and members", async () => {
         prismaMock.helpRequest.findUnique.mockResolvedValue({
             id: "req-1",
