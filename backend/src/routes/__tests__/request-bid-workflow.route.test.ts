@@ -172,6 +172,12 @@ const { notificationServiceMock } = vi.hoisted(() => ({
     },
 }));
 
+const { conversationServiceMock } = vi.hoisted(() => ({
+    conversationServiceMock: {
+        ensureConversationForRequestInTransaction: vi.fn(),
+    },
+}));
+
 const { jwtMock } = vi.hoisted(() => ({
     jwtMock: {
         verifyAccessToken: vi.fn(),
@@ -196,6 +202,11 @@ vi.mock("../../services/notification.service.js", () => ({
     markNotificationAsRead: notificationServiceMock.markNotificationAsRead,
     markAllNotificationsAsRead: notificationServiceMock.markAllNotificationsAsRead,
     deleteNotification: notificationServiceMock.deleteNotification,
+}));
+
+vi.mock("../../services/conversation.service.js", () => ({
+    ensureConversationForRequestInTransaction:
+        conversationServiceMock.ensureConversationForRequestInTransaction,
 }));
 
 vi.mock("../../utils/jwt.js", () => ({
@@ -239,6 +250,16 @@ describe("request/bid notification workflow routes", () => {
             state.notifications.push(record);
             return record;
         });
+
+        conversationServiceMock.ensureConversationForRequestInTransaction.mockImplementation(
+            async (_tx: any, requestId: string) => ({
+                conversation: {
+                    id: `conv-${requestId}`,
+                    requestId,
+                },
+                starterNote: "Bid accepted. You can now coordinate through chat.",
+            })
+        );
 
         notificationServiceMock.getUserNotifications.mockImplementation(async (userId: string) => {
             return state.notifications
@@ -549,6 +570,8 @@ describe("request/bid notification workflow routes", () => {
         const bid = await placeBid(TEST_TOKENS.helperOne, helpRequest.id, 40, "I can help");
 
         await acceptBid(TEST_TOKENS.requester, bid.id);
+
+        expect(conversationServiceMock.ensureConversationForRequestInTransaction).toHaveBeenCalled();
 
         const assignedRequest = await getRequest(helpRequest.id);
         expect(assignedRequest.status).toBe("ASSIGNED");
