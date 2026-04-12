@@ -24,6 +24,7 @@ type ListConversationMessagesInput = {
     userId: string;
     page?: number;
     limit?: number;
+    sort?: "asc" | "desc";
 };
 
 type SendMessageInput = {
@@ -488,6 +489,7 @@ export const listConversationMessages = async ({
     userId,
     page = DEFAULT_PAGE,
     limit = DEFAULT_LIMIT,
+    sort = "asc",
 }: ListConversationMessagesInput) => {
     await assertConversationMembership(conversationId, userId);
 
@@ -505,7 +507,7 @@ export const listConversationMessages = async ({
                 conversationId,
                 deletedAt: null,
             },
-            orderBy: { createdAt: "asc" },
+            orderBy: { createdAt: sort },
             skip,
             take: safeLimit,
             include: {
