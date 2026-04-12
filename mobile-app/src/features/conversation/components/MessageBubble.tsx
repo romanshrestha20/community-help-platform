@@ -65,8 +65,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             style={[
                 styles.row,
                 {
-                    marginTop: groupedWithPrevious ? 2 : theme.spacing.sm,
-                    marginBottom: groupedWithNext ? 2 : theme.spacing.xs,
+                    marginTop: groupedWithPrevious ? 1 : theme.spacing.sm,
+                    marginBottom: groupedWithNext ? 1 : theme.spacing.xs,
                 },
             ]}
         >
@@ -161,23 +161,24 @@ const styles = StyleSheet.create({
         width: 30,
     },
     bubbleWrap: {
-        maxWidth: "78%",
+        maxWidth: "82%",
     },
     ownWrap: {
         marginLeft: theme.spacing.xl,
     },
     otherWrap: {
-        marginRight: theme.spacing.xl,
+        marginRight: theme.spacing.lg,
         marginLeft: theme.spacing.xs,
     },
     senderLabel: {
         ...theme.typography.textStyle.caption,
         marginLeft: 2,
+        marginBottom: 1,
     },
     bubble: {
         borderWidth: 1,
         paddingHorizontal: theme.spacing.sm,
-        paddingVertical: 10,
+        paddingVertical: 9,
     },
     ownBubble: {
         borderRadius: 22,
@@ -194,10 +195,10 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 10,
     },
     ownBubbleConnectedBottom: {
-        borderBottomRightRadius: 16,
+        borderBottomRightRadius: 18,
     },
     otherBubbleConnectedBottom: {
-        borderBottomLeftRadius: 16,
+        borderBottomLeftRadius: 18,
     },
     deletedBubble: {
         borderStyle: "dashed",
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
         ...theme.typography.textStyle.body,
     },
     metaRow: {
-        marginTop: 2,
+        marginTop: 1,
         paddingHorizontal: 2,
     },
     metaText: {
