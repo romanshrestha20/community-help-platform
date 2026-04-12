@@ -10,6 +10,7 @@ import { createNotification } from "./notification.service.js";
 
 type EnsureConversationInput = {
     requestId: string;
+    actorUserId?: string;
 };
 
 type ListUserConversationsInput = {
@@ -35,6 +36,7 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 const MESSAGE_MAX_LENGTH = 1000;
+const HANDOFF_STARTER_NOTE = "Bid accepted. You can now coordinate through chat.";
 
 type ConversationWithMembers = Prisma.ConversationGetPayload<{
     include: {
@@ -112,7 +114,8 @@ const sanitizePagination = (page?: number, limit?: number) => {
 const formatConversation = (
     conversation: ConversationWithMembers,
     lastMessage: MessageWithSender | null,
-    unreadCount: number
+    unreadCount: number,
+    starterNote: string | null = null
 ) => ({
     id: conversation.id,
     request: conversation.request,
@@ -140,9 +143,18 @@ const formatConversation = (
         }
         : null,
     unreadCount,
+    starterNote,
     createdAt: conversation.createdAt,
     updatedAt: conversation.updatedAt,
 });
+
+const buildStarterNote = (requestStatus: RequestStatus, hasMessages: boolean) => {
+    if (requestStatus !== RequestStatus.ASSIGNED || hasMessages) {
+        return null;
+    }
+
+    return HANDOFF_STARTER_NOTE;
+};
 
 const assertConversationMembership = async (conversationId: string, userId: string) => {
     const member = await prisma.conversationMember.findUnique({
@@ -159,8 +171,112 @@ const assertConversationMembership = async (conversationId: string, userId: stri
     }
 };
 
+export const ensureConversationForRequestInTransaction = async (
+    tx: Prisma.TransactionClient,
+    requestId: string
+) => {
+    const request = await tx.helpRequest.findUnique({
+        where: { id: requestId },
+        select: {
+            id: true,
+            requesterId: true,
+            assignedHelperId: true,
+        },
+    });
+
+    if (!request) {
+        throw new AppError("Help request not found", 404);
+    }
+
+    if (!request.assignedHelperId) {
+        throw new AppError("Cannot create conversation until a helper is assigned", 400);
+    }
+
+    const createdOrExisting = await tx.conversation.upsert({
+        where: { requestId },
+        create: { requestId },
+        update: {},
+        include: {
+            request: {
+                select: {
+                    id: true,
+                    title: true,
+                    status: true,
+                    requesterId: true,
+                    assignedHelperId: true,
+                },
+            },
+            members: {
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            email: true,
+                            profile: {
+                                select: {
+                                    fullName: true,
+                                    avatarUrl: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    await tx.conversationMember.createMany({
+        data: [
+            { conversationId: createdOrExisting.id, userId: request.requesterId },
+            { conversationId: createdOrExisting.id, userId: request.assignedHelperId },
+        ],
+        skipDuplicates: true,
+    });
+
+    const conversation = await tx.conversation.findUnique({
+        where: { id: createdOrExisting.id },
+        include: {
+            request: {
+                select: {
+                    id: true,
+                    title: true,
+                    status: true,
+                    requesterId: true,
+                    assignedHelperId: true,
+                },
+            },
+            members: {
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            email: true,
+                            profile: {
+                                select: {
+                                    fullName: true,
+                                    avatarUrl: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    if (!conversation) {
+        throw new AppError("Failed to initialize conversation", 500);
+    }
+
+    return {
+        conversation,
+        starterNote: buildStarterNote(conversation.request.status, false),
+    };
+};
+
 export const ensureConversationForRequest = async ({
     requestId,
+    actorUserId,
 }: EnsureConversationInput) => {
     const request = await prisma.helpRequest.findUnique({
         where: { id: requestId },
@@ -177,6 +293,14 @@ export const ensureConversationForRequest = async ({
 
     if (!request.assignedHelperId) {
         throw new AppError("Cannot create conversation until a helper is assigned", 400);
+    }
+
+    if (
+        actorUserId &&
+        actorUserId !== request.requesterId &&
+        actorUserId !== request.assignedHelperId
+    ) {
+        throw new AppError("Forbidden", 403);
     }
 
     const assignedHelperId = request.assignedHelperId;
@@ -259,11 +383,14 @@ export const ensureConversationForRequest = async ({
         throw new AppError("Failed to initialize conversation", 500);
     }
 
-    return conversation;
+    return {
+        ...conversation,
+        starterNote: buildStarterNote(conversation.request.status, false),
+    };
 };
 
-export const createConversation = async (requestId: string) => {
-    return ensureConversationForRequest({ requestId });
+export const createConversation = async (requestId: string, actorUserId?: string) => {
+    return ensureConversationForRequest({ requestId, actorUserId });
 };
 
 export const getConversationByIdForUser = async (
@@ -334,7 +461,10 @@ export const getConversationByIdForUser = async (
         throw new AppError("Conversation not found", 404);
     }
 
-    return conversation;
+    return {
+        ...conversation,
+        starterNote: buildStarterNote(conversation.request.status, conversation.messages.length > 0),
+    };
 };
 
 export const getConversationByRequestIdForUser = async (
@@ -517,7 +647,12 @@ export const listUserConversations = async ({
             const [lastMessage] = conversation.messages;
             const unreadCount = unreadMap.get(conversation.id) ?? 0;
 
-            return formatConversation(conversation, lastMessage ?? null, unreadCount);
+            return formatConversation(
+                conversation,
+                lastMessage ?? null,
+                unreadCount,
+                buildStarterNote(conversation.request.status, Boolean(lastMessage))
+            );
         }),
         meta: {
             total,
