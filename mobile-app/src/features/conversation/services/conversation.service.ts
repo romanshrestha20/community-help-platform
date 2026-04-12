@@ -1,4 +1,6 @@
 import {
+    type ConversationMessagesQuery,
+    type PaginatedMessagesResult,
     ensureConversationApi,
     getMyConversationsApi,
     getConversationByRequestIdApi,
@@ -42,9 +44,18 @@ export async function getConversationById(conversationId: string): Promise<Conve
 /**
  * Returns all messages for a conversation, sorted oldest to newest.
  */
-export async function getConversationMessages(conversationId: string): Promise<Message[]> {
-    const messages = await getConversationMessagesApi(conversationId);
-    return messages.slice().sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+export async function getConversationMessages(
+    conversationId: string,
+    query: ConversationMessagesQuery = {}
+): Promise<PaginatedMessagesResult> {
+    const result = await getConversationMessagesApi(conversationId, query);
+
+    return {
+        messages: result.messages.slice().sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        ),
+        meta: result.meta,
+    };
 }
 
 /**
