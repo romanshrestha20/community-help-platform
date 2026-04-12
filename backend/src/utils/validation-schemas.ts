@@ -151,6 +151,12 @@ export const paginationQuerySchema = z.object({
     limit: z.coerce.number().int().positive().max(50).optional(),
 });
 
+export const conversationMessagesQuerySchema = z.object({
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().max(50).optional(),
+    sort: z.enum(["asc", "desc"]).optional(),
+});
+
 export const sendConversationMessageBodySchema = z.object({
     content: z
         .string()
