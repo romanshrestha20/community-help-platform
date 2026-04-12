@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import AppError from "../utils/appError.js";
 import { getZodErrorMessage } from "../utils/zod.js";
 import {
+    conversationMessagesQuerySchema,
     conversationIdParamSchema,
     messageIdParamSchema,
     paginationQuerySchema,
@@ -168,7 +169,7 @@ export const getMyConversations = async (
         const userId = requireAuthenticatedUser(req, next);
         if (!userId) return;
 
-        const parsedQuery = paginationQuerySchema.safeParse(req.query);
+        const parsedQuery = conversationMessagesQuerySchema.safeParse(req.query);
         if (!parsedQuery.success) {
             return next(new AppError(getZodErrorMessage(parsedQuery.error), 400));
         }
@@ -177,6 +178,7 @@ export const getMyConversations = async (
             userId,
             page: parsedQuery.data.page,
             limit: parsedQuery.data.limit,
+            sort: parsedQuery.data.sort,
         });
 
         handlePaginatedResponse(res, result.conversations, result.meta);
