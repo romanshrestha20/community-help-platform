@@ -3,6 +3,7 @@ import { AppState, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { create } from "zustand";
 
+import { getMyConversations } from "@/features/conversation/services/conversation.service";
 import { fetchUnreadCount } from "@/features/notifications/service/notification.service";
 
 export interface BadgeCounts {
@@ -16,7 +17,7 @@ type BadgeCountState = BadgeCounts & {
 };
 
 const useBadgeCountStore = create<BadgeCountState>((set) => ({
-    messages: 3,
+    messages: 0,
     notifications: 0,
     setMessageCount: (count) => set({ messages: count }),
     setNotificationCount: (count) => set({ notifications: count }),
@@ -25,6 +26,20 @@ const useBadgeCountStore = create<BadgeCountState>((set) => ({
 export const useBadgeCounts = (): BadgeCounts => {
     const messages = useBadgeCountStore((state) => state.messages);
     const notifications = useBadgeCountStore((state) => state.notifications);
+
+    const refreshMessageCount = useCallback(async () => {
+        try {
+            const conversations = await getMyConversations();
+            const unreadCount = conversations.reduce(
+                (total, conversation) => total + conversation.unreadCount,
+                0
+            );
+
+            useBadgeCountStore.getState().setMessageCount(unreadCount);
+        } catch (error) {
+            console.warn("Failed to refresh message badge count:", error);
+        }
+    }, []);
 
     const refreshNotificationCount = useCallback(async () => {
         try {
@@ -38,23 +53,26 @@ export const useBadgeCounts = (): BadgeCounts => {
     useEffect(() => {
         let isActive = true;
 
-        const syncNotificationCount = async () => {
+        const syncBadgeCounts = async () => {
             if (!isActive) {
                 return;
             }
 
-            await refreshNotificationCount();
+            await Promise.all([
+                refreshMessageCount(),
+                refreshNotificationCount(),
+            ]);
         };
 
-        void syncNotificationCount();
+        void syncBadgeCounts();
 
         const intervalId = setInterval(() => {
-            void syncNotificationCount();
+            void syncBadgeCounts();
         }, 30000);
 
         const appStateSubscription = AppState.addEventListener("change", (nextState) => {
             if (nextState === "active") {
-                void syncNotificationCount();
+                void syncBadgeCounts();
             }
         });
 
@@ -63,7 +81,7 @@ export const useBadgeCounts = (): BadgeCounts => {
             clearInterval(intervalId);
             appStateSubscription.remove();
         };
-    }, [refreshNotificationCount]);
+    }, [refreshMessageCount, refreshNotificationCount]);
 
     useEffect(() => {
         if (Platform.OS === "web") {
