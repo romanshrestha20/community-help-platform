@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   Conversation,
   Message,
+  PaginatedMeta,
   PaginatedApiResponse,
 } from "../types/conversation.type";
 
@@ -48,13 +49,20 @@ export const getConversationByIdApi = async (
 };
 
 export const getConversationMessagesApi = async (
-  conversationId: string
-): Promise<Message[]> => {
-  const response =
-    await apiClient.get<PaginatedApiResponse<Message[]>>(
-      `/conversations/${conversationId}/messages`
-    );
-  return unwrapResponse(response.data);
+  conversationId: string,
+  query: ConversationMessagesQuery = {}
+): Promise<PaginatedMessagesResult> => {
+  const response = await apiClient.get<PaginatedApiResponse<Message[]>>(
+    `/conversations/${conversationId}/messages`,
+    {
+      params: query,
+    }
+  );
+
+  return {
+    messages: unwrapResponse(response.data),
+    meta: response.data.meta,
+  };
 };
 
 export const postConversationMessageApi = async (
@@ -86,4 +94,14 @@ export const removeConversationMessageApi = async (
     `/conversations/${conversationId}/messages/${messageId}`
   );
   unwrapResponse(response.data);
+};
+export type ConversationMessagesQuery = {
+  page?: number;
+  limit?: number;
+  sort?: "asc" | "desc";
+};
+
+export type PaginatedMessagesResult = {
+  messages: Message[];
+  meta: PaginatedMeta;
 };
