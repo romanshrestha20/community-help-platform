@@ -133,3 +133,28 @@ export const updateBidBodySchema = z
             });
         }
     });
+
+export const conversationIdParamSchema = z.object({
+    conversationId: z.string().trim().min(1, "Conversation ID is required."),
+});
+
+export const requestIdParamSchema = z.object({
+    requestId: z.string().trim().min(1, "Request ID is required."),
+});
+
+export const messageIdParamSchema = z.object({
+    messageId: z.string().trim().min(1, "Message ID is required."),
+});
+
+export const paginationQuerySchema = z.object({
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().max(50).optional(),
+});
+
+export const sendConversationMessageBodySchema = z.object({
+    content: z
+        .string()
+        .trim()
+        .min(1, "Message content is required.")
+        .max(1000, "Message cannot exceed 1000 characters."),
+});
