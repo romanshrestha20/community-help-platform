@@ -20,10 +20,19 @@ type NotificationLike = {
 const buildNotificationRoute = (notification: NotificationLike) => {
     switch (notification.type) {
         case "MESSAGE_RECEIVED":
-            return "/messages";
+            return notification.conversationId
+                ? `/messages/chat?conversationId=${notification.conversationId}`
+                : notification.requestId
+                    ? `/messages/chat?requestId=${notification.requestId}`
+                    : "/messages";
         case "BID_RECEIVED":
             return notification.requestId ? `/profile/requests/${notification.requestId}` : "/profile/bids";
         case "BID_ACCEPTED":
+            return notification.conversationId
+                ? `/messages/chat?conversationId=${notification.conversationId}`
+                : notification.requestId
+                    ? `/messages/chat?requestId=${notification.requestId}`
+                    : "/profile/bids";
         case "BID_REJECTED":
             return "/profile/bids";
         case "REQUEST_ASSIGNED":
