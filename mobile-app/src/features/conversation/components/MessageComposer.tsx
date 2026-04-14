@@ -13,12 +13,16 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 interface MessageComposerProps {
     onSend: (content: string) => Promise<unknown> | unknown;
+    onTyping?: () => void;
+    onStopTyping?: () => void;
     disabled?: boolean;
     sending?: boolean;
 }
 
 const MessageComposer: React.FC<MessageComposerProps> = ({
     onSend,
+    onTyping,
+    onStopTyping,
     disabled = false,
     sending = false,
 }) => {
@@ -35,6 +39,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
         const outboundText = trimmedText;
         setText("");
+        onStopTyping?.();
 
         try {
             await onSend(outboundText);
@@ -61,13 +66,22 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                     },
                 ]}
                 value={text}
-                onChangeText={setText}
+                onChangeText={(value) => {
+                    setText(value);
+
+                    if (value.trim().length > 0) {
+                        onTyping?.();
+                    } else {
+                        onStopTyping?.();
+                    }
+                }}
                 placeholder={disabled ? "Messaging unavailable" : "Type a message"}
                 placeholderTextColor={palette.textMuted}
                 editable={!disabled && !sending}
                 multiline
                 maxLength={1000}
                 textAlignVertical="center"
+                onBlur={onStopTyping}
             />
 
             <Pressable

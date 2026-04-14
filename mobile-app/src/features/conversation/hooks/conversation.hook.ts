@@ -1,6 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import {
+    addSocketListener,
+    connectSocket,
+    joinConversationRoom,
+    leaveConversationRoom,
+    markSocketConversationRead,
+    sendSocketMessage,
+    startSocketTyping,
+    stopSocketTyping,
+    type SocketMessageReadEvent,
+    type SocketTypingEvent,
+} from "@/lib/socket-client";
 import type { Conversation, Message } from "../types/conversation.type";
 import {
     deleteConversationMessage,
@@ -65,6 +77,7 @@ export const useConversations = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const joinedConversationIdsRef = useRef<Set<string>>(new Set());
 
     const loadConversations = useCallback(async () => {
         setError(null);
@@ -99,6 +112,62 @@ export const useConversations = () => {
             isMounted = false;
         };
     }, [loadConversations]);
+
+    useEffect(() => {
+        let isActive = true;
+        const cleanupFns: Array<() => void> = [];
+
+        const bindSocket = async () => {
+            try {
+                await connectSocket();
+
+                for (const conversation of conversations) {
+                    if (joinedConversationIdsRef.current.has(conversation.id)) {
+                        continue;
+                    }
+
+                    await joinConversationRoom(conversation.id);
+                    joinedConversationIdsRef.current.add(conversation.id);
+                }
+
+                cleanupFns.push(
+                    addSocketListener<{ conversationId: string }>("message:new", ({ conversationId }) => {
+                        if (!isActive || !joinedConversationIdsRef.current.has(conversationId)) {
+                            return;
+                        }
+
+                        void loadConversations().catch((caughtError) => {
+                            if (isActive) {
+                                setError(getErrorMessage(caughtError, "Could not refresh conversations"));
+                            }
+                        });
+                    }),
+                    addSocketListener<SocketMessageReadEvent>("message:read", ({ conversationId }) => {
+                        if (!isActive || !joinedConversationIdsRef.current.has(conversationId)) {
+                            return;
+                        }
+
+                        void loadConversations().catch((caughtError) => {
+                            if (isActive) {
+                                setError(getErrorMessage(caughtError, "Could not refresh conversations"));
+                            }
+                        });
+                    })
+                );
+            } catch (caughtError) {
+                if (isActive) {
+                    setError(getErrorMessage(caughtError, "Could not connect live inbox updates"));
+                }
+            }
+        };
+
+        void bindSocket();
+
+        return () => {
+            isActive = false;
+            cleanupFns.forEach((cleanup) => cleanup());
+        };
+    }, [conversations, loadConversations]);
 
     useEffect(() => {
         let isActive = true;
@@ -178,8 +247,12 @@ export const useConversationThread = (
     const [loadingOlder, setLoadingOlder] = useState(false);
     const [hasOlderMessages, setHasOlderMessages] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [liveWarning, setLiveWarning] = useState<string | null>(null);
     const activeUserId = useAuthStore((state) => state.user?.id ?? "");
     const [nextOlderPage, setNextOlderPage] = useState<number | null>(null);
+    const [typingUserId, setTypingUserId] = useState<string | null>(null);
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isTypingRef = useRef(false);
 
     const resolvedConversationId = useMemo(
         () => conversation?.id ?? conversationId ?? null,
@@ -260,6 +333,118 @@ export const useConversationThread = (
             return latestPage.meta.totalPages > 1 ? 2 : null;
         });
     }, [activeUserId, autoMarkRead, conversationId, requestId]);
+
+    useEffect(() => {
+        let isActive = true;
+        const activeConversationId = resolvedConversationId;
+
+        if (!activeConversationId) {
+            return () => {
+                isActive = false;
+            };
+        }
+
+        const bindSocket = async () => {
+            try {
+                const socket = await connectSocket();
+                setLiveWarning(null);
+                const handleConnect = () => {
+                    setLiveWarning(null);
+                };
+                const handleConnectError = () => {
+                    setLiveWarning("Live updates unavailable");
+                };
+
+                socket.on("connect", handleConnect);
+                socket.on("connect_error", handleConnectError);
+                cleanupFns.push(() => {
+                    socket.off("connect", handleConnect);
+                    socket.off("connect_error", handleConnectError);
+                });
+
+                await joinConversationRoom(activeConversationId);
+
+                const removeNewMessageListener = addSocketListener<{
+                    conversationId: string;
+                    message: Message;
+                }>("message:new", ({ conversationId: incomingConversationId, message }) => {
+                    if (!isActive || incomingConversationId !== activeConversationId) {
+                        return;
+                    }
+
+                    setMessages((current) => mergeMessages(current, [message]));
+                });
+
+                const removeReadListener = addSocketListener<SocketMessageReadEvent>(
+                    "message:read",
+                    ({ conversationId: incomingConversationId, userId }) => {
+                        if (!isActive || incomingConversationId !== activeConversationId || userId === activeUserId) {
+                            return;
+                        }
+
+                        setMessages((current) =>
+                            current.map((message) =>
+                                message.senderId === activeUserId
+                                    ? { ...message, isRead: true }
+                                    : message
+                            )
+                        );
+                    }
+                );
+
+                const removeTypingStartListener = addSocketListener<SocketTypingEvent>(
+                    "typing:start",
+                    ({ conversationId: incomingConversationId, userId }) => {
+                        if (!isActive || incomingConversationId !== activeConversationId || userId === activeUserId) {
+                            return;
+                        }
+
+                        setTypingUserId(userId);
+                    }
+                );
+
+                const removeTypingStopListener = addSocketListener<SocketTypingEvent>(
+                    "typing:stop",
+                    ({ conversationId: incomingConversationId, userId }) => {
+                        if (!isActive || incomingConversationId !== activeConversationId || userId === activeUserId) {
+                            return;
+                        }
+
+                        setTypingUserId((current) => (current === userId ? null : current));
+                    }
+                );
+
+                cleanupFns.push(
+                    removeNewMessageListener,
+                    removeReadListener,
+                    removeTypingStartListener,
+                    removeTypingStopListener
+                );
+            } catch (caughtError) {
+                if (isActive) {
+                    console.warn("Live conversation socket unavailable:", caughtError);
+                    setLiveWarning("Live updates unavailable");
+                }
+            }
+        };
+
+        const cleanupFns: Array<() => void> = [];
+
+        void bindSocket();
+
+        return () => {
+            isActive = false;
+            setTypingUserId(null);
+            setLiveWarning(null);
+            isTypingRef.current = false;
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = null;
+            }
+            cleanupFns.forEach((cleanup) => cleanup());
+            void leaveConversationRoom(activeConversationId).catch(() => undefined);
+        };
+    }, [activeUserId, resolvedConversationId]);
 
     useEffect(() => {
         let isMounted = true;
@@ -367,6 +552,45 @@ export const useConversationThread = (
         }
     }, [loadThread]);
 
+    const notifyTypingActivity = useCallback(() => {
+        const activeConversationId = resolvedConversationId;
+
+        if (!activeConversationId) {
+            return;
+        }
+
+        if (!isTypingRef.current) {
+            isTypingRef.current = true;
+            void startSocketTyping(activeConversationId).catch(() => undefined);
+        }
+
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        typingTimeoutRef.current = setTimeout(() => {
+            isTypingRef.current = false;
+            typingTimeoutRef.current = null;
+            void stopSocketTyping(activeConversationId).catch(() => undefined);
+        }, 1500);
+    }, [resolvedConversationId]);
+
+    const stopTyping = useCallback(() => {
+        const activeConversationId = resolvedConversationId;
+
+        if (!activeConversationId || !isTypingRef.current) {
+            return;
+        }
+
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
+        }
+
+        isTypingRef.current = false;
+        void stopSocketTyping(activeConversationId).catch(() => undefined);
+    }, [resolvedConversationId]);
+
     const sendMessage = useCallback(async (content: string) => {
         const activeConversationId = resolvedConversationId;
         if (!activeConversationId) {
@@ -377,8 +601,16 @@ export const useConversationThread = (
         setError(null);
 
         try {
-            const message = await sendConversationMessage(activeConversationId, content);
-            setMessages((current) => sortByCreatedAtAsc([...current, message]));
+            stopTyping();
+            let message: Message;
+
+            try {
+                message = await sendSocketMessage<Message>(activeConversationId, content);
+            } catch {
+                message = await sendConversationMessage(activeConversationId, content);
+            }
+
+            setMessages((current) => mergeMessages(current, [message]));
             return message;
         } catch (caughtError) {
             setError(getErrorMessage(caughtError, "Could not send message"));
@@ -386,7 +618,7 @@ export const useConversationThread = (
         } finally {
             setSending(false);
         }
-    }, [resolvedConversationId]);
+    }, [resolvedConversationId, stopTyping]);
 
     const markRead = useCallback(async () => {
         const activeConversationId = resolvedConversationId;
@@ -395,7 +627,12 @@ export const useConversationThread = (
         }
 
         try {
-            await markConversationAsRead(activeConversationId);
+            try {
+                await markSocketConversationRead(activeConversationId);
+            } catch {
+                await markConversationAsRead(activeConversationId);
+            }
+
             setMessages((current) =>
                 current.map((message) => ({
                     ...message,
@@ -453,5 +690,9 @@ export const useConversationThread = (
         markRead,
         deleteMessage,
         resolvedConversationId,
+        liveWarning,
+        typingUserId,
+        notifyTypingActivity,
+        stopTyping,
     };
 };

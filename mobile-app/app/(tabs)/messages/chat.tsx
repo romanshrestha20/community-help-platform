@@ -18,6 +18,7 @@ export default function ConversationChatRoute() {
         refreshing,
         sending,
         error,
+        liveWarning,
         reload,
         loadOlderMessages,
         loadingOlder,
@@ -25,11 +26,22 @@ export default function ConversationChatRoute() {
         sendMessage,
         deleteMessage,
         deletingMessageId,
+        typingUserId,
+        notifyTypingActivity,
+        stopTyping,
     } = useConversationThread({
         conversationId: typeof conversationId === "string" ? conversationId : undefined,
         requestId: typeof requestId === "string" ? requestId : undefined,
         autoMarkRead: true,
     });
+
+    const typingLabel = typingUserId
+        ? (() => {
+            const typingMember = conversation?.members.find((member) => member.id === typingUserId);
+            const name = typingMember?.fullName || typingMember?.email || "Someone";
+            return `${name} is typing...`;
+        })()
+        : null;
 
     return (
         <ScreenView useSafeArea={false} style={{ padding: 0 }}>
@@ -43,10 +55,14 @@ export default function ConversationChatRoute() {
                 loadingOlder={loadingOlder}
                 hasOlderMessages={hasOlderMessages}
                 error={error}
+                liveWarning={liveWarning}
                 onRefresh={reload}
                 onLoadOlder={loadOlderMessages}
                 onSend={sendMessage}
+                onTyping={notifyTypingActivity}
+                onStopTyping={stopTyping}
                 onDeleteMessage={deleteMessage}
+                typingLabel={typingLabel}
             />
         </ScreenView>
     );

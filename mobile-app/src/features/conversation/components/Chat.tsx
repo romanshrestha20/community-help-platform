@@ -44,10 +44,14 @@ interface ChatProps {
     loadingOlder?: boolean;
     hasOlderMessages?: boolean;
     error?: string | null;
+    liveWarning?: string | null;
     onRefresh?: () => void;
     onLoadOlder?: () => void;
     onSend: (content: string) => Promise<unknown> | unknown;
+    onTyping?: () => void;
+    onStopTyping?: () => void;
     onDeleteMessage?: (messageId: string) => Promise<unknown> | unknown;
+    typingLabel?: string | null;
 }
 
 const groupMessagesForTimeline = (messages: Message[]) => {
@@ -100,10 +104,14 @@ const Chat: React.FC<ChatProps> = ({
     loadingOlder,
     hasOlderMessages,
     error,
+    liveWarning,
     onRefresh,
     onLoadOlder,
     onSend,
+    onTyping,
+    onStopTyping,
     onDeleteMessage,
+    typingLabel,
 }) => {
     const { palette } = useThemeContext();
     const insets = useSafeAreaInsets();
@@ -213,6 +221,24 @@ const Chat: React.FC<ChatProps> = ({
                                 <Ionicons name="alert-circle-outline" size={16} color={palette.danger} />
                                 <Text style={[styles.feedbackText, { color: palette.textPrimary }]}>
                                     {error}
+                                </Text>
+                            </Row>
+                        </Card>
+                    ) : null}
+                    {liveWarning ? (
+                        <Card
+                            style={[
+                                styles.warningBar,
+                                {
+                                    backgroundColor: palette.surfaceMuted,
+                                    borderColor: palette.border,
+                                },
+                            ]}
+                        >
+                            <Row gap="xs" align="center">
+                                <Ionicons name="wifi-outline" size={16} color={palette.textSecondary} />
+                                <Text style={[styles.feedbackText, { color: palette.textSecondary }]}>
+                                    {liveWarning}
                                 </Text>
                             </Row>
                         </Card>
@@ -338,10 +364,17 @@ const Chat: React.FC<ChatProps> = ({
                                 ? `${getConversationStateLabel(conversation)}`
                                 : "Messaging is locked until the request is assigned."}
                         </Text>
+                        {typingLabel ? (
+                            <Text style={[styles.typingHint, { color: palette.primary }]}>
+                                {typingLabel}
+                            </Text>
+                        ) : null}
                     </Stack>
 
                     <MessageComposer
                         onSend={onSend}
+                        onTyping={onTyping}
+                        onStopTyping={onStopTyping}
                         disabled={!canSend}
                         sending={Boolean(sending)}
                     />
@@ -368,6 +401,12 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
     },
     feedbackBar: {
+        marginHorizontal: theme.spacing.md,
+        marginBottom: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: theme.spacing.xs,
+    },
+    warningBar: {
         marginHorizontal: theme.spacing.md,
         marginBottom: theme.spacing.sm,
         paddingHorizontal: theme.spacing.sm,
@@ -417,6 +456,10 @@ const styles = StyleSheet.create({
     },
     stateHint: {
         ...theme.typography.textStyle.caption,
+        paddingHorizontal: 2,
+    },
+    typingHint: {
+        ...theme.typography.textStyle.captionMedium,
         paddingHorizontal: 2,
     },
 });
