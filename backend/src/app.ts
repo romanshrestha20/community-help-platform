@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth.route.js';
 import requestRoutes from './routes/request.route.js';
+import categoryRoutes from './routes/category.route.js';
 import bidRoutes from './routes/bid.route.js';
 import notificationRoutes from './routes/notification.route.js';
 import conversationRoutes from './routes/conversation.route.js';
@@ -19,6 +20,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/bids', bidRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/conversations', conversationRoutes);
