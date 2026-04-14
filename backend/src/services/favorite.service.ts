@@ -29,6 +29,14 @@ type FavoriteListQuery = {
 };
 
 const REQUEST_INCLUDE = {
+  category: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      icon: true,
+    },
+  },
   location: true,
   images: true,
   requester: { select: { id: true, profile: { select: { fullName: true } } } },
@@ -62,7 +70,14 @@ const formatHelpRequest = (
   requesterId: request.requester.id,
   title: request.title,
   description: request.description,
-  category: request.category,
+  category: request.category
+    ? {
+        id: request.category.id,
+        name: request.category.name,
+        slug: request.category.slug,
+        icon: request.category.icon,
+      }
+    : null,
   budget: request.budget,
   status: request.status,
   isPaid: request.isPaid,

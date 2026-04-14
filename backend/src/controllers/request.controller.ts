@@ -55,6 +55,84 @@ const normalizeParamId = (value: string | string[] | undefined): string | null =
   return null;
 };
 
+const HELP_REQUEST_INCLUDE = {
+  category: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      icon: true,
+    },
+  },
+  location: true,
+  images: true,
+  requester: {
+    select: {
+      id: true,
+      profile: {
+        select: {
+          fullName: true,
+          address: true,
+        },
+      },
+    },
+  },
+  _count: {
+    select: {
+      bids: true,
+    },
+  },
+} as const;
+
+const formatHelpRequest = (r: any) => ({
+  id: r.id,
+  requesterId: r.requester?.id ?? r.requesterId,
+  title: r.title,
+  description: r.description,
+  category: r.category
+    ? {
+      id: r.category.id,
+      name: r.category.name,
+      slug: r.category.slug,
+      icon: r.category.icon,
+    }
+    : null,
+  budget: r.budget,
+  status: r.status,
+  isPaid: r.isPaid,
+  serviceRadiusMeters: r.serviceRadiusMeters ?? null,
+  location: r.location ?? null,
+  city: r.location?.city ?? null,
+  state: r.location?.state ?? null,
+  country: r.location?.country ?? null,
+  requesterName: r.requester?.profile?.fullName ?? null,
+  images: Array.isArray(r.images) ? r.images.map(stripImagePublicId) : [],
+  bidCount: r._count?.bids ?? 0,
+  createdAt: r.createdAt,
+  updatedAt: r.updatedAt,
+});
+
+const ensureActiveCategory = async (categoryId: string) => {
+  const category = await prisma.category.findFirst({
+    where: {
+      id: categoryId,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      icon: true,
+    },
+  });
+
+  if (!category) {
+    throw new AppError("Invalid category selected", 400);
+  }
+
+  return category;
+};
+
 // CREATE
 export const createHelpRequest = async (
   req: Request,
@@ -73,7 +151,14 @@ export const createHelpRequest = async (
       return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
 
-    const { title, description, category, budget, isPaid, serviceRadiusMeters } = parsedBody.data;
+    const {
+      title,
+      description,
+      categoryId,
+      budget,
+      isPaid,
+      serviceRadiusMeters,
+    } = parsedBody.data;
 
     const location = normalizeIncomingLocation(req.body as Record<string, unknown>);
     const files = getUploadedFiles(req);
@@ -91,11 +176,15 @@ export const createHelpRequest = async (
       return next(new AppError("A valid location is required", 400));
     }
 
+    await ensureActiveCategory(categoryId);
+
     const newRequest = await prisma.helpRequest.create({
       data: {
         title,
         description,
-        category,
+        category: {
+          connect: { id: categoryId },
+        },
         budget: budget ?? null,
         isPaid: isPaid ?? false,
         ...(serviceRadiusMeters !== undefined && {
@@ -143,36 +232,16 @@ export const createHelpRequest = async (
 
     const requestWithRelations = await prisma.helpRequest.findUnique({
       where: { id: newRequest.id },
-      include: {
-        location: true,
-        images: true,
-        requester: {
-          select: {
-            id: true,
-            profile: {
-              select: {
-                fullName: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: {
-            bids: true,
-          },
-        },
-      },
+      include: HELP_REQUEST_INCLUDE,
     });
 
     sendResponse(
       res,
       requestWithRelations
-        ? {
-          ...requestWithRelations,
-          images: requestWithRelations.images.map(stripImagePublicId),
-        }
+        ? formatHelpRequest(requestWithRelations)
         : {
           ...newRequest,
+          category: null,
           images: createdImages.map(stripImagePublicId),
         },
       "Help request created"
@@ -180,8 +249,12 @@ export const createHelpRequest = async (
   } catch (err) {
     console.error("Create Help Request Error:", err);
 
+    if (err instanceof AppError) {
+      return next(err);
+    }
+
     if ((err as any)?.code === "P2003") {
-      return next(new AppError("Invalid session. Please log in again.", 401));
+      return next(new AppError("Invalid related resource", 400));
     }
 
     next(new AppError("Failed to create help request", 500));
@@ -224,49 +297,16 @@ export const getHelpRequestById = async (
       return next(new AppError("Not found", 404));
     }
 
-    const r: any = await prisma.helpRequest.findUnique({
+    const r = await prisma.helpRequest.findUnique({
       where: { id },
-      include: {
-        location: true,
-        images: true,
-        requester: {
-          select: {
-            id: true,
-            profile: {
-              select: {
-                fullName: true,
-                address: true,
-              },
-            },
-          },
-        },
-        _count: { select: { bids: true } },
-      },
+      include: HELP_REQUEST_INCLUDE,
     });
 
     if (!r) {
       return next(new AppError("Not found", 404));
     }
 
-    const formatted = {
-      id: r.id,
-      requesterId: r.requester.id,
-      title: r.title,
-      description: r.description,
-      category: r.category,
-      budget: r.budget,
-      status: r.status,
-      isPaid: r.isPaid,
-      serviceRadiusMeters: (r as any).serviceRadiusMeters ?? null,
-      location: r.location,
-      images: r.images.map(stripImagePublicId),
-      requesterName: r.requester.profile?.fullName ?? null,
-      bidCount: r._count.bids,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
-    };
-
-    sendResponse(res, formatted);
+    sendResponse(res, formatHelpRequest(r));
   } catch (error) {
     console.error("Get Help Request By Id Error:", error);
     next(new AppError("Failed to fetch request", 500));
@@ -316,6 +356,7 @@ export const deleteHelpRequest = async (
         .filter((image: RequestImage) => image.publicId)
         .map((image: RequestImage) => deleteImageFromCloudinary(image.publicId!))
     );
+
     await prisma.helpRequest.delete({ where: { id } });
 
     sendResponse(res, null, "Deleted successfully");
@@ -385,13 +426,10 @@ export const updateHelpRequestStatus = async (
       return next(new AppError("Invalid status transition", 400));
     }
 
-    const updated: any = await prisma.helpRequest.update({
+    const updated = await prisma.helpRequest.update({
       where: { id },
       data: { status },
-      include: {
-        location: true,
-        images: true,
-      },
+      include: HELP_REQUEST_INCLUDE,
     });
 
     if (status === "COMPLETED" && existing.assignedHelperId) {
@@ -422,16 +460,14 @@ export const updateHelpRequestStatus = async (
       });
     }
 
-    sendResponse(
-      res,
-      {
-        ...updated,
-        images: updated.images.map(stripImagePublicId),
-      },
-      `Status changed to ${status}`
-    );
+    sendResponse(res, formatHelpRequest(updated), `Status changed to ${status}`);
   } catch (error) {
     console.error("Update Help Request Status Error:", error);
+
+    if (error instanceof AppError) {
+      return next(error);
+    }
+
     next(new AppError("Failed to update status", 500));
   }
 };
@@ -473,7 +509,15 @@ export const updateHelpRequest = async (
       return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
 
-    const { title, description, category, budget, isPaid, serviceRadiusMeters } = parsedBody.data;
+    const {
+      title,
+      description,
+      categoryId,
+      budget,
+      isPaid,
+      serviceRadiusMeters,
+    } = parsedBody.data;
+
     const location = normalizeIncomingLocation(req.body as Record<string, unknown>);
 
     if (hasLocationPayload && !location) {
@@ -485,10 +529,14 @@ export const updateHelpRequest = async (
       );
     }
 
+    if (categoryId !== undefined) {
+      await ensureActiveCategory(categoryId);
+    }
+
     const updateData: any = {
       ...(title !== undefined && { title }),
       ...(description !== undefined && { description }),
-      ...(category !== undefined && { category }),
+      ...(categoryId !== undefined && { categoryId }),
       ...(budget !== undefined && { budget }),
       ...(isPaid !== undefined && { isPaid }),
       ...(serviceRadiusMeters !== undefined && {
@@ -508,40 +556,24 @@ export const updateHelpRequest = async (
       }
     }
 
-    const updatedRequest: any = await prisma.helpRequest.update({
+    const updatedRequest = await prisma.helpRequest.update({
       where: { id },
       data: updateData,
-      include: {
-        location: true,
-        images: true,
-        requester: {
-          select: {
-            id: true,
-            profile: {
-              select: {
-                fullName: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: {
-            bids: true,
-          },
-        },
-      },
+      include: HELP_REQUEST_INCLUDE,
     });
 
     sendResponse(
       res,
-      {
-        ...updatedRequest,
-        images: updatedRequest.images.map(stripImagePublicId),
-      },
+      formatHelpRequest(updatedRequest),
       "Help request updated successfully"
     );
   } catch (error) {
     console.error("Update Help Request Error:", error);
+
+    if (error instanceof AppError) {
+      return next(error);
+    }
+
     next(new AppError("Failed to update help request", 500));
   }
 };
