@@ -4,7 +4,7 @@ import { HelpRequest, HelpRequestStatus } from "@/features/helpRequest/component
 
 export const useRequestFilters = (requests: HelpRequest[]) => {
     const [statusFilter, setStatusFilter] = useState<"ALL" | HelpRequestStatus>("ALL");
-    const [categoryFilter, setCategoryFilter] = useState<"ALL" | HelpRequest["category"]>("ALL");
+    const [categoryFilter, setCategoryFilter] = useState<"ALL" | string>("ALL");
     const [sortBy, setSortBy] = useState<"NEWEST" | "OLDEST" | "MOST_BIDS">("NEWEST");
     const [radiusFilter, setRadiusFilter] = useState<"ANY" | "5" | "10" | "25" | "50" | "100">("ANY");
 
@@ -12,7 +12,7 @@ export const useRequestFilters = (requests: HelpRequest[]) => {
         let next = [...requests];
 
         if (statusFilter !== "ALL") next = next.filter((r) => r.status === statusFilter);
-        if (categoryFilter !== "ALL") next = next.filter((r) => r.category === categoryFilter);
+        if (categoryFilter !== "ALL") next = next.filter((r) => r.categoryId === categoryFilter);
 
         if (sortBy === "NEWEST") next.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         if (sortBy === "OLDEST") next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
