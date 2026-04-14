@@ -133,11 +133,11 @@ model RefreshToken {
 }
 
 model PushToken {
-  id        String   @id @default(uuid())
-  userId    String
-  user      UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token     String   @unique
-  platform  String?
+  id       String    @id @default(uuid())
+  userId   String
+  user     UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token    String    @unique
+  platform String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -173,8 +173,9 @@ model HelpRequest {
   images        Image[]
   notifications Notification[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  favorites Favorite[]
 
   @@index([requesterId])
   @@index([assignedHelperId])
@@ -286,7 +287,7 @@ model Notification {
   request   HelpRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   bidId String?
-  bid   Bid? @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  bid   Bid?    @relation(fields: [bidId], references: [id], onDelete: Cascade)
 
   conversationId String?
   conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -299,7 +300,7 @@ model Notification {
 
   data Json?
 
-  isRead Boolean  @default(false)
+  isRead Boolean   @default(false)
   readAt DateTime?
 
   createdAt DateTime @default(now())
@@ -360,7 +361,7 @@ model ReviewReply {
   user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   likes      ReviewLike[]
-  likesCount Int @default(0)
+  likesCount Int          @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -394,15 +395,17 @@ model ReviewLike {
 }
 
 model Favorite {
-  id     String @id @default(uuid())
-  userId String
-
+  id        String   @id @default(uuid())
+  userId    String
+  requestId String
   createdAt DateTime @default(now())
 
-  user UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    UserModel   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  request HelpRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  @@unique([userId])
-  @@index([userId])
+  @@unique([userId, requestId])
+  @@index([userId, createdAt])
+  @@index([requestId])
   @@map("favorites")
 }
 
