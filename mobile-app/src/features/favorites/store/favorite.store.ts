@@ -86,14 +86,30 @@ export const useFavoriteStore = create<FavoriteState>((set) => ({
     })),
   setError: (error) => set({ error }),
   clearFavorites: () =>
-    set({
-      favoriteIds: [],
-      favoriteRequests: [],
-      meta: null,
-      idsLoaded: false,
-      idsLoading: false,
-      listLoading: false,
-      actionLoadingById: {},
-      error: null,
+    set((state) => {
+      const alreadyCleared =
+        state.favoriteIds.length === 0 &&
+        state.favoriteRequests.length === 0 &&
+        state.meta === null &&
+        state.idsLoaded === false &&
+        state.idsLoading === false &&
+        state.listLoading === false &&
+        Object.keys(state.actionLoadingById).length === 0 &&
+        state.error === null;
+
+      if (alreadyCleared) {
+        return state;
+      }
+
+      return {
+        favoriteIds: [],
+        favoriteRequests: [],
+        meta: null,
+        idsLoaded: false,
+        idsLoading: false,
+        listLoading: false,
+        actionLoadingById: {},
+        error: null,
+      };
     }),
 }));
