@@ -20,8 +20,8 @@ const applyFilters = (requests: HelpRequest[], filters: ReturnType<typeof useGlo
         next = next.filter((request) => request.status === filters.status);
     }
 
-    if (filters.category !== "ALL") {
-        next = next.filter((request) => request.category === filters.category);
+    if (filters.categoryId !== "ALL") {
+        next = next.filter((request) => request.categoryId === filters.categoryId);
     }
 
     if (filters.sortBy === "NEWEST") {
@@ -56,7 +56,8 @@ export const BrowseRequestsScreen = () => {
             const haystack = [
                 request.title,
                 request.description,
-                request.category,
+                request.category?.name ?? "",
+                request.category?.slug ?? "",
                 request.requesterName,
                 request.city ?? "",
                 request.country ?? "",
@@ -135,4 +136,3 @@ const styles = StyleSheet.create({
         flex: 1,
     },
 });
-

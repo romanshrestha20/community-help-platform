@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
@@ -6,18 +6,18 @@ import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppInput } from "@/components/ui/AppInput";
 import { AppHeader } from "@/components/ui/AppHeader";
-import { Card, Row, ScreenView, Stack, theme } from "@/design-system";
+import { Card, Row, Screen, ScreenView, Stack, theme } from "@/design-system";
 import LocationPickerField from "@/features/location/components/LocationPickerField";
 import { RequestPhotoUploadSection } from "@/features/helpRequest/components/RequestPhotoUploadSection";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useCreateEditRequestScreen } from "@/features/helpRequest/hooks/useCreateEditRequestScreen";
+import { useCategories } from "@/features/category/hooks/category.hook";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
 import { RequestImageUploadInput } from "@/features/helpRequest/types/helpRequest.types";
 import { showInfoToast, showSuccessToast } from "@/utils/toast";
 import { APP_ROUTES } from "@/config/routes";
 import { goBackOrFallback } from "@/utils/navigation";
 
-const CATEGORY_OPTIONS = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"] as const;
 const MAX_REQUEST_IMAGES = 5;
 
 type Props = {
@@ -29,6 +29,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
     const pathname = usePathname();
     const router = useRouter();
     const { palette } = useThemeContext();
+    const { categories } = useCategories();
     const [selectedImages, setSelectedImages] = useState<RequestImageUploadInput[]>([]);
     const isProfileRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
     const requestListRoute = isProfileRoute
@@ -52,6 +53,11 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
         clearFieldError,
         submitRequest,
     } = useCreateEditRequestScreen({ requestId: activeRequestId });
+
+    useEffect(() => {
+        if (form.categoryId || !categories.length) return;
+        updateField("categoryId", categories[0].id);
+    }, [categories, form.categoryId, updateField]);
 
     const handleBack = () => {
         goBackOrFallback({
@@ -133,7 +139,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
     }
 
     return (
-        <ScreenView>
+        <Screen>
             <AppHeader
                 title={isEditing ? "Edit Request" : "Create Request"}
                 subtitle={
@@ -215,12 +221,12 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                         <Stack gap="xs">
                             <Text style={[styles.label, { color: palette.textPrimary }]}>Category</Text>
                             <Row gap="sm" style={styles.wrapRow}>
-                                {CATEGORY_OPTIONS.map((category) => (
+                                {categories.map((category) => (
                                     <AppButton
-                                        key={category}
-                                        title={category}
-                                        onPress={() => updateField("category", category)}
-                                        variant={form.category === category ? "primary" : "secondary"}
+                                        key={category.id}
+                                        title={category.name}
+                                        onPress={() => updateField("categoryId", category.id)}
+                                        variant={form.categoryId === category.id ? "primary" : "secondary"}
                                         fullWidth={false}
                                         disabled={saving}
                                     />
@@ -311,7 +317,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                     </Row>
                 </Stack>
             </Card>
-        </ScreenView>
+        </Screen>
     );
 };
 
