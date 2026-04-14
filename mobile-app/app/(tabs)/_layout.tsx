@@ -5,9 +5,11 @@ import { CustomTabBar } from "@/components/ui/CustomTabBar";
 import { useBadgeCounts } from "@/hooks/useBadgeCounts";
 import { defaultTabsConfig } from "@/config/tabBarConfig";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { useFavoriteStore } from "@/features/favorites/store/favorite.store";
 
 export default function TabsLayout() {
   const { colorScheme } = useThemeContext();
+  const favoriteBadgeCount = useFavoriteStore((state) => state.favoriteIds.length);
   const {
     messages: messageBadgeCount,
     notifications: notificationBadgeCount,
@@ -19,13 +21,17 @@ export default function TabsLayout() {
         return { ...tab, badge: messageBadgeCount };
       }
 
+      if (tab.name === "favorites") {
+        return { ...tab, badge: favoriteBadgeCount };
+      }
+
       if (tab.name === "notifications") {
         return { ...tab, badge: notificationBadgeCount };
       }
 
       return { ...tab, badge: undefined };
     });
-  }, [messageBadgeCount, notificationBadgeCount]);
+  }, [favoriteBadgeCount, messageBadgeCount, notificationBadgeCount]);
 
   return (
     <Tabs
