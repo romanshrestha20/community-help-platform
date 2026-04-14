@@ -2,7 +2,6 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { io, type Socket } from "socket.io-client";
 
-import { useAuthStore } from "@/features/auth/store/auth.store";
 import { getAccessToken } from "@/utils/token";
 
 type AckResponse<T = unknown> = {
@@ -17,7 +16,14 @@ type MessageReadEvent = {
   readAt?: string;
 };
 
+type TypingEvent = {
+  conversationId: string;
+  userId: string;
+};
+
 let socket: Socket | null = null;
+const SOCKET_ACK_TIMEOUT_MS = 4000;
+const SOCKET_CONNECT_TIMEOUT_MS = 5000;
 
 const resolveSocketBaseUrl = () => {
   const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -57,6 +63,7 @@ const resolveSocketBaseUrl = () => {
 };
 
 const SOCKET_BASE_URL = resolveSocketBaseUrl();
+console.log("[socket-client] base URL:", SOCKET_BASE_URL);
 
 const ensureSocketInstance = () => {
   if (!socket) {
@@ -71,16 +78,26 @@ const ensureSocketInstance = () => {
 
 const emitAck = <T>(targetSocket: Socket, event: string, payload?: unknown) =>
   new Promise<AckResponse<T>>((resolve) => {
+    const timeoutId = setTimeout(() => {
+      resolve({
+        ok: false,
+        error: `Socket ${event} timed out`,
+      } as AckResponse<T>);
+    }, SOCKET_ACK_TIMEOUT_MS);
+
     targetSocket.emit(event, payload, (response: AckResponse<T>) => {
+      clearTimeout(timeoutId);
       resolve(response);
     });
   });
 
 export const connectSocket = async () => {
   const targetSocket = ensureSocketInstance();
-  const token =
-    useAuthStore.getState().accessToken ||
-    (await getAccessToken());
+  const token = await getAccessToken();
+  console.log("[socket-client] connect requested", {
+    hasToken: Boolean(token),
+    connected: targetSocket.connected,
+  });
 
   if (!token) {
     throw new Error("Missing access token for socket connection");
@@ -88,11 +105,43 @@ export const connectSocket = async () => {
 
   targetSocket.auth = { token };
 
-  if (!targetSocket.connected) {
-    targetSocket.connect();
+  if (targetSocket.connected) {
+    return targetSocket;
   }
 
-  return targetSocket;
+  return new Promise<Socket>((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      targetSocket.off("connect", handleConnect);
+      targetSocket.off("connect_error", handleConnectError);
+    };
+
+    const handleConnect = () => {
+      console.log("[socket-client] connected", {
+        socketId: targetSocket.id,
+      });
+      cleanup();
+      resolve(targetSocket);
+    };
+
+    const handleConnectError = (error: Error) => {
+      console.warn("[socket-client] connect_error", {
+        message: error.message,
+      });
+      cleanup();
+      reject(error);
+    };
+
+    const timeoutId = setTimeout(() => {
+      console.warn("[socket-client] connect timeout");
+      cleanup();
+      reject(new Error("Socket connection timed out"));
+    }, SOCKET_CONNECT_TIMEOUT_MS);
+
+    targetSocket.once("connect", handleConnect);
+    targetSocket.once("connect_error", handleConnectError);
+    targetSocket.connect();
+  });
 };
 
 export const disconnectSocket = () => {
@@ -101,13 +150,28 @@ export const disconnectSocket = () => {
   }
 
   socket.disconnect();
+  socket = null;
 };
 
 export const getSocket = () => socket;
 
+export const reconnectSocketWithFreshToken = async () => {
+  const token = await getAccessToken();
+
+  if (!socket || !token) {
+    return;
+  }
+
+  socket.auth = { token };
+  socket.disconnect();
+  socket.connect();
+};
+
 export const joinConversationRoom = async (conversationId: string) => {
   const targetSocket = await connectSocket();
+  console.log("[socket-client] joining conversation", { conversationId });
   const response = await emitAck(targetSocket, "conversation:join", { conversationId });
+  console.log("[socket-client] join ack", { conversationId, response });
 
   if (!response.ok) {
     throw new Error(response.error || "Failed to join conversation");
@@ -128,9 +192,17 @@ export const sendSocketMessage = async <TMessage>(
   content: string
 ) => {
   const targetSocket = await connectSocket();
+  console.log("[socket-client] message:send emit", {
+    conversationId,
+    contentLength: content.trim().length,
+  });
   const response = await emitAck<{ message: TMessage }>(targetSocket, "message:send", {
     conversationId,
     content,
+  });
+  console.log("[socket-client] message:send ack", {
+    conversationId,
+    response,
   });
 
   if (!response.ok || !response.message) {
@@ -142,11 +214,23 @@ export const sendSocketMessage = async <TMessage>(
 
 export const markSocketConversationRead = async (conversationId: string) => {
   const targetSocket = await connectSocket();
+  console.log("[socket-client] message:read emit", { conversationId });
   const response = await emitAck(targetSocket, "message:read", { conversationId });
+  console.log("[socket-client] message:read ack", { conversationId, response });
 
   if (!response.ok) {
     throw new Error(response.error || "Failed to mark conversation as read");
   }
+};
+
+export const startSocketTyping = async (conversationId: string) => {
+  const targetSocket = await connectSocket();
+  targetSocket.emit("typing:start", { conversationId });
+};
+
+export const stopSocketTyping = async (conversationId: string) => {
+  const targetSocket = await connectSocket();
+  targetSocket.emit("typing:stop", { conversationId });
 };
 
 export const addSocketListener = <T>(
@@ -162,3 +246,4 @@ export const addSocketListener = <T>(
 };
 
 export type SocketMessageReadEvent = MessageReadEvent;
+export type SocketTypingEvent = TypingEvent;
