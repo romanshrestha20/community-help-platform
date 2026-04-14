@@ -1,11 +1,11 @@
 
 import type { Server, Socket } from "socket.io";
-import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import {
   markConversationMessagesAsRead,
   sendConversationMessage,
 } from "../services/conversation.service.js";
+import { verifyAccessToken } from "../utils/jwt.js";
 
 type SocketUser = {
   userId: string;
@@ -35,14 +35,33 @@ export const registerSocketHandlers = (io: Server) => {
   io.use((socket: AuthedSocket, next) => {
     try {
       const token = getTokenFromSocket(socket);
+      console.log("[socket] auth attempt", {
+        socketId: socket.id,
+        hasToken: Boolean(token),
+      });
+
       if (!token) {
+        console.warn("[socket] auth failed: missing token", { socketId: socket.id });
         return next(new Error("Unauthorized"));
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { sub: string };
-      socket.data.user = { userId: decoded.sub };
+      const decoded = verifyAccessToken(token) as { userId?: string };
+      if (!decoded.userId) {
+        console.warn("[socket] auth failed: missing userId in token", { socketId: socket.id });
+        return next(new Error("Unauthorized"));
+      }
+
+      socket.data.user = { userId: decoded.userId };
+      console.log("[socket] auth success", {
+        socketId: socket.id,
+        userId: decoded.userId,
+      });
       next();
-    } catch {
+    } catch (error) {
+      console.warn("[socket] auth failed: jwt verify error", {
+        socketId: socket.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
       next(new Error("Unauthorized"));
     }
   });
@@ -50,14 +69,26 @@ export const registerSocketHandlers = (io: Server) => {
   io.on("connection", async (socket: AuthedSocket) => {
     const userId = socket.data.user?.userId;
     if (!userId) {
+      console.warn("[socket] connection rejected: missing authed user", { socketId: socket.id });
       socket.disconnect();
       return;
     }
+
+    console.log("[socket] connected", {
+      socketId: socket.id,
+      userId,
+    });
 
     socket.join(`user:${userId}`);
 
     socket.on("conversation:join", async ({ conversationId }, ack) => {
       try {
+        console.log("[socket] conversation:join attempt", {
+          socketId: socket.id,
+          userId,
+          conversationId,
+        });
+
         const member = await prisma.conversationMember.findFirst({
           where: {
             conversationId,
@@ -66,12 +97,28 @@ export const registerSocketHandlers = (io: Server) => {
         });
 
         if (!member) {
+          console.warn("[socket] conversation:join forbidden", {
+            socketId: socket.id,
+            userId,
+            conversationId,
+          });
           return ack?.({ ok: false, error: "Forbidden" });
         }
 
         socket.join(`conversation:${conversationId}`);
+        console.log("[socket] conversation:join success", {
+          socketId: socket.id,
+          userId,
+          conversationId,
+        });
         ack?.({ ok: true });
-      } catch {
+      } catch (error) {
+        console.warn("[socket] conversation:join failed", {
+          socketId: socket.id,
+          userId,
+          conversationId,
+          error: error instanceof Error ? error.message : "unknown",
+        });
         ack?.({ ok: false, error: "Failed to join conversation" });
       }
     });
@@ -84,8 +131,19 @@ export const registerSocketHandlers = (io: Server) => {
     socket.on("message:send", async (payload, ack) => {
       try {
         const { conversationId, content } = payload ?? {};
+        console.log("[socket] message:send attempt", {
+          socketId: socket.id,
+          userId,
+          conversationId,
+          contentLength: typeof content === "string" ? content.trim().length : null,
+        });
 
         if (!conversationId || typeof content !== "string" || !content.trim()) {
+          console.warn("[socket] message:send invalid payload", {
+            socketId: socket.id,
+            userId,
+            conversationId,
+          });
           return ack?.({ ok: false, error: "Invalid payload" });
         }
 
@@ -100,8 +158,19 @@ export const registerSocketHandlers = (io: Server) => {
           message,
         });
 
+        console.log("[socket] message:send success", {
+          socketId: socket.id,
+          userId,
+          conversationId,
+          messageId: message.id,
+        });
         ack?.({ ok: true, message });
       } catch (error) {
+        console.warn("[socket] message:send failed", {
+          socketId: socket.id,
+          userId,
+          error: error instanceof Error ? error.message : "unknown",
+        });
         ack?.({
           ok: false,
           error: error instanceof Error ? error.message : "Failed to send message",
@@ -160,7 +229,10 @@ export const registerSocketHandlers = (io: Server) => {
     });
 
     socket.on("disconnect", () => {
-      // optional: emit user offline
+      console.log("[socket] disconnected", {
+        socketId: socket.id,
+        userId,
+      });
     });
   });
 };
