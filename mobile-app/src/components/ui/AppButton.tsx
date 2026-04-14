@@ -1,12 +1,19 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from "react-native";
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  View,
+  GestureResponderEvent,
+} from "react-native";
 
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type Props = {
   title?: string;
-  onPress: () => void;
+  onPress: (event?: GestureResponderEvent) => void;
   loading?: boolean;
   disabled?: boolean;
   variant?: "primary" | "danger" | "ghost" | "secondary";
