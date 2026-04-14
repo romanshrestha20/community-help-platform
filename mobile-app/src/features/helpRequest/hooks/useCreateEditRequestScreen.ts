@@ -13,11 +13,12 @@ import {
     parseBudgetInput,
     validateRequestDraftFields,
 } from "../utils/requestValidation";
+import { AppCategory } from "@/features/category/types/category.types";
 
 export type RequestFormState = {
     title: string;
     description: string;
-    category: CreateHelpRequestData["category"];
+    categoryId: string;
     budget: string;
     city: string;
     country: string;
@@ -30,10 +31,29 @@ type Options = {
 const DEFAULT_FORM: RequestFormState = {
     title: "",
     description: "",
-    category: "FOOD",
+    categoryId: "",
     budget: "",
     city: "",
     country: "",
+};
+
+export const resolveRequestCategoryId = (
+    request: Pick<HelpRequest, "categoryId" | "category">,
+    categories: AppCategory[] = []
+) => {
+    if (typeof request.categoryId === "string" && request.categoryId.trim()) {
+        return request.categoryId;
+    }
+
+    if (request.category?.id) {
+        return request.category.id;
+    }
+
+    if (request.category?.slug) {
+        return categories.find((category) => category.slug === request.category?.slug)?.id ?? "";
+    }
+
+    return "";
 };
 
 const toRequestLocation = (request: HelpRequest): AppLocation | null => {
@@ -102,7 +122,7 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
             setForm({
                 title: loaded.title,
                 description: loaded.description,
-                category: loaded.category,
+                categoryId: resolveRequestCategoryId(loaded),
                 budget: typeof loaded.budget === "number" ? String(loaded.budget) : "",
                 city: loaded.city ?? loaded.location?.city ?? "",
                 country: loaded.country ?? loaded.location?.country ?? "",
@@ -174,7 +194,7 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
             const payloadBase = {
                 title: form.title.trim(),
                 description: form.description.trim(),
-                category: form.category,
+                categoryId: form.categoryId,
                 budget: budgetValue,
                 isPaid: Boolean(budgetValue),
                 city: location.city ?? (form.city.trim() || undefined),

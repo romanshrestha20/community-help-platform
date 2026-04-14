@@ -7,7 +7,7 @@ export type RequestRadiusFilter = "ANY" | "5" | "10" | "25" | "50" | "100";
 
 export type GlobalFilters = {
     status: "ALL" | HelpRequestStatus;
-    category: "ALL" | HelpRequest["category"];
+    categoryId: "ALL" | string;
     sortBy: RequestSortBy;
     radiusKm: RequestRadiusFilter;
     page: number;
@@ -15,7 +15,7 @@ export type GlobalFilters = {
 
 const DEFAULT_FILTERS: GlobalFilters = {
     status: "ALL",
-    category: "ALL",
+    categoryId: "ALL",
     sortBy: "NEWEST",
     radiusKm: "ANY",
     page: 1,

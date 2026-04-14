@@ -10,7 +10,7 @@ import { createHelpRequest as createHelpRequestService } from "@/features/helpRe
 
 export interface HomeFilters {
   status?: string;
-  category?: string;
+  categoryId?: string;
   sortBy?: "NEWEST" | "OLDEST" | "MOST_BIDS";
   radiusKm?: "ANY" | "5" | "10" | "25" | "50" | "100";
 }
@@ -88,8 +88,8 @@ export const useHomeData = () => {
           filtered = filtered.filter((r) => r.status === filters.status);
         }
 
-        if (filters?.category && filters.category !== "ALL") {
-          filtered = filtered.filter((r) => r.category === filters.category);
+        if (filters?.categoryId && filters.categoryId !== "ALL") {
+          filtered = filtered.filter((r) => r.categoryId === filters.categoryId);
         }
 
         if (filters?.sortBy === "NEWEST") {
