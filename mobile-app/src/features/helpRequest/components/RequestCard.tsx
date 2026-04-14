@@ -1,9 +1,18 @@
 import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  GestureResponderEvent,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { Card, Row, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
 import { HelpRequest } from "../types/helpRequest.types";
 import {
   formatRequestBudget,
@@ -41,28 +50,57 @@ export const RequestCard = ({
   footer,
 }: Props) => {
   const { palette } = useThemeContext();
+  const { isFavorite, toggleFavorite, actionLoadingById } = useFavorites();
+
   const imagePreviews = request.images?.slice(0, 3) ?? [];
   const extraImageCount = Math.max((request.images?.length ?? 0) - imagePreviews.length, 0);
+  const favoriteLoading = Boolean(actionLoadingById[request.id]);
+  const favorited = isFavorite(request.id);
 
   const distance =
     userLocation &&
-    request.location &&
-    userLocation.latitude != null &&
-    userLocation.longitude != null &&
-    request.location.latitude != null &&
-    request.location.longitude != null
+      request.location &&
+      userLocation.latitude != null &&
+      userLocation.longitude != null &&
+      request.location.latitude != null &&
+      request.location.longitude != null
       ? getDistanceToRequest(
-          userLocation.latitude,
-          userLocation.longitude,
-          request.location.latitude,
-          request.location.longitude
-        )
+        userLocation.latitude,
+        userLocation.longitude,
+        request.location.latitude,
+        request.location.longitude
+      )
       : null;
+
+  const title = request.title?.trim() || "Untitled request";
+  const description = request.description?.trim() || "No description provided.";
+  const location = formatRequestLocation(request);
+  const createdAt = formatRequestCreatedAt(request.createdAt);
+  const budget = formatRequestBudget(request);
+  const categoryLabel = REQUEST_CATEGORY_LABELS[request.category] ?? request.category;
+  const bidCount = request.bidCount ?? 0;
+
+  const handlePrimaryAction = (event?: GestureResponderEvent) => {
+    event?.stopPropagation();
+    onPrimaryAction?.();
+  };
+
+  const handleSecondaryAction = (event?: GestureResponderEvent) => {
+    event?.stopPropagation();
+    onSecondaryAction?.();
+  };
+
+  const handleFavoriteToggle = (event?: GestureResponderEvent) => {
+    event?.stopPropagation();
+    void toggleFavorite(request);
+  };
 
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={`Request: ${title}`}
       style={({ pressed }) => [
         styles.pressable,
         pressed && onPress ? styles.pressed : null,
@@ -80,26 +118,38 @@ export const RequestCard = ({
         <Stack gap="md">
           <Row justify="space-between" align="flex-start">
             <View style={styles.headerContent}>
-              <Text style={[styles.title, { color: palette.textPrimary }]}>
-                {request.title}
+              <Text
+                numberOfLines={2}
+                style={[styles.title, { color: palette.textPrimary }]}
+              >
+                {title}
               </Text>
 
-              <Text style={[styles.category, { color: palette.textSecondary }]}>
-                {REQUEST_CATEGORY_LABELS[request.category] ?? request.category}
-              </Text>
+              <View style={[styles.categoryPill, { backgroundColor: palette.surfaceMuted }]}>
+                <Text style={[styles.categoryText, { color: palette.textSecondary }]}>
+                  {categoryLabel}
+                </Text>
+              </View>
             </View>
 
             <RequestStatusBadge status={request.status} />
           </Row>
 
+          <Row justify="space-between" align="center">
+            <Text style={[styles.budget, { color: palette.primary }]}>{budget}</Text>
+            <Text style={[styles.bidCount, { color: palette.textSecondary }]}>
+              {bidCount} bid{bidCount === 1 ? "" : "s"}
+            </Text>
+          </Row>
+
           <Text
-            numberOfLines={3}
+            numberOfLines={2}
             style={[styles.description, { color: palette.textSecondary }]}
           >
-            {request.description}
+            {description}
           </Text>
 
-          {imagePreviews.length ? (
+          {imagePreviews.length > 0 ? (
             <View style={styles.imageRow}>
               {imagePreviews.map((image, index) => {
                 const isLastPreview = index === imagePreviews.length - 1;
@@ -109,17 +159,21 @@ export const RequestCard = ({
                   <View key={image.id} style={styles.imageWrapper}>
                     <Image
                       source={{ uri: image.url }}
-                      style={[styles.thumbnail, { backgroundColor: palette.surfaceMuted }]}
+                      style={[
+                        styles.thumbnail,
+                        { backgroundColor: palette.surfaceMuted },
+                      ]}
+                      resizeMode="cover"
                     />
 
                     {showOverflowBadge ? (
                       <View
                         style={[
-                          styles.imageOverflowBadge,
-                          { backgroundColor: palette.surfaceMuted },
+                          styles.imageOverlay,
+                          { backgroundColor: "rgba(0,0,0,0.35)" },
                         ]}
                       >
-                        <Text style={[styles.imageOverflowText, { color: palette.textPrimary }]}>+{extraImageCount}</Text>
+                        <Text style={styles.imageOverlayText}>+{extraImageCount}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -128,68 +182,79 @@ export const RequestCard = ({
             </View>
           ) : null}
 
-          <View
-            style={[
-              styles.metaSection,
-              {
-                backgroundColor: palette.surfaceMuted,
-                borderColor: palette.border,
-              },
-            ]}
-          >
-            <Row justify="space-between">
-              <Text style={[styles.price, { color: palette.primary }]}>
-                {formatRequestBudget(request)}
-              </Text>
-
-              <Text style={[styles.meta, { color: palette.textSecondary }]}>
-                {request.bidCount} bid{request.bidCount === 1 ? "" : "s"}
+          <View style={styles.metaList}>
+            <Row align="center" gap="xs">
+              <Ionicons name="location-outline" size={16} color={palette.textSecondary} />
+              <Text
+                numberOfLines={1}
+                style={[styles.metaText, styles.metaFlex, { color: palette.textSecondary }]}
+              >
+                {location}
               </Text>
             </Row>
 
-            <Row justify="space-between">
-              <Text
-                numberOfLines={1}
-                style={[styles.meta, styles.location, { color: palette.textSecondary }]}
-              >
-                {formatRequestLocation(request)}
-                {distance ? (
-                  <Text style={[styles.distance, { color: palette.primary }]}>
-                    {" • "}
+            <Row align="center" gap="md">
+              {distance ? (
+                <Row align="center" gap="xs">
+                  <Ionicons name="navigate-outline" size={16} color={palette.primary} />
+                  <Text style={[styles.metaText, { color: palette.primary }]}>
                     {distance}
                   </Text>
-                ) : null}
-              </Text>
+                </Row>
+              ) : null}
 
-              <Text style={[styles.meta, { color: palette.textSecondary }]}>
-                {formatRequestCreatedAt(request.createdAt)}
-              </Text>
+              <Row align="center" gap="xs">
+                <Ionicons name="time-outline" size={16} color={palette.textSecondary} />
+                <Text style={[styles.metaText, { color: palette.textSecondary }]}>
+                  {createdAt}
+                </Text>
+              </Row>
             </Row>
           </View>
 
-          {primaryActionLabel || secondaryActionLabel ? (
-            <Row gap="sm">
+          {(primaryActionLabel || secondaryActionLabel) && (
+            <Row gap="sm" style={styles.actionRow}>
+
               {secondaryActionLabel ? (
                 <AppButton
                   title={secondaryActionLabel}
-                  onPress={onSecondaryAction ?? (() => {})}
+                  onPress={handleSecondaryAction}
                   variant="secondary"
                   fullWidth={false}
                   disabled={secondaryActionDisabled}
                 />
               ) : null}
 
+
               {primaryActionLabel ? (
                 <AppButton
                   title={primaryActionLabel}
-                  onPress={onPrimaryAction ?? (() => {})}
-                  variant="ghost"
+                  onPress={handlePrimaryAction}
+                  variant="primary"
                   fullWidth={false}
                   disabled={primaryActionDisabled}
                 />
               ) : null}
+              <AppButton
+                title={favorited ? "Saved" : "Save"}
+                onPress={handleFavoriteToggle}
+                variant="secondary"
+                fullWidth={false}
+                disabled={favoriteLoading}
+                loading={favoriteLoading}
+                icon={
+                  !favoriteLoading ? (
+                    <Ionicons
+                      name={favorited ? "heart" : "heart-outline"}
+                      size={16}
+                      color={palette.textPrimary}
+                    />
+                  ) : undefined
+                }
+              />
+
             </Row>
-          ) : null}
+          )}
 
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </Stack>
@@ -204,6 +269,7 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.96,
+    transform: [{ scale: 0.995 }],
   },
   card: {
     borderWidth: 1,
@@ -213,68 +279,74 @@ const styles = StyleSheet.create({
   headerContent: {
     flex: 1,
     paddingRight: theme.spacing.sm,
+    gap: theme.spacing.xs,
   },
   title: {
-    fontSize: theme.typography.fontSize.md,
-    lineHeight: theme.typography.lineHeight.md,
+    fontSize: theme.typography.fontSize.lg,
+    lineHeight: theme.typography.lineHeight.lg,
     fontWeight: theme.typography.fontWeight.bold,
   },
-  category: {
-    marginTop: theme.spacing.xxs,
+  categoryPill: {
+    alignSelf: "flex-start",
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 6,
+    borderRadius: theme.radius.fill,
+  },
+  categoryText: {
     fontSize: theme.typography.fontSize.xs,
-    lineHeight: theme.typography.lineHeight.xs,
     fontWeight: theme.typography.fontWeight.medium,
+  },
+  budget: {
+    fontSize: theme.typography.fontSize.lg,
+    lineHeight: theme.typography.lineHeight.lg,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  bidCount: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
   },
   description: {
     fontSize: theme.typography.fontSize.sm,
-    lineHeight: theme.typography.lineHeight.sm,
+    lineHeight: theme.typography.lineHeight.md,
   },
   imageRow: {
     flexDirection: "row",
     gap: theme.spacing.xs,
-    flexWrap: "wrap",
   },
   imageWrapper: {
     position: "relative",
+    flex: 1,
+    overflow: "hidden",
+    borderRadius: theme.radius.md,
   },
   thumbnail: {
-    width: 74,
-    height: 74,
+    width: "100%",
+    height: 88,
     borderRadius: theme.radius.md,
   },
-  imageOverflowBadge: {
-    position: "absolute",
-    inset: 0,
-    borderRadius: theme.radius.md,
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
-    opacity: 0.92,
-  },
-  imageOverflowText: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  metaSection: {
-    borderWidth: 1,
     borderRadius: theme.radius.md,
-    padding: theme.spacing.sm,
-    gap: theme.spacing.xs,
   },
-  price: {
+  imageOverlayText: {
+    color: "#FFFFFF",
     fontSize: theme.typography.fontSize.md,
-    lineHeight: theme.typography.lineHeight.md,
     fontWeight: theme.typography.fontWeight.bold,
   },
-  meta: {
+  metaList: {
+    gap: theme.spacing.sm,
+  },
+  metaFlex: {
+    flex: 1,
+  },
+  metaText: {
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
   },
-  location: {
-    flex: 1,
-    paddingRight: theme.spacing.sm,
-  },
-  distance: {
-    fontWeight: theme.typography.fontWeight.semibold,
+  actionRow: {
+    flexWrap: "wrap",
   },
   footer: {
     marginTop: theme.spacing.xxs,

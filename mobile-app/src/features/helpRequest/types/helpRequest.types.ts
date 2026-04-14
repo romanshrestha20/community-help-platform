@@ -24,6 +24,7 @@ export interface HelpRequest {
     updatedAt?: string;
 
     bidCount: number;
+    favoritedAt?: string | null;
 }
 
 export interface HelpRequestImage {

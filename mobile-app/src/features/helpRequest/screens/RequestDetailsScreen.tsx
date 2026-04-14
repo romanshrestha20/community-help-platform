@@ -13,6 +13,7 @@ import { RequestActionBar } from "@/features/helpRequest/components/RequestActio
 import { RequestDetailsHeader } from "@/features/helpRequest/components/RequestDetailHeader";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
 import { useRequestDetails } from "@/features/helpRequest/hooks/useRequestDetails";
+import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { showSuccessToast } from "@/utils/toast";
 import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
@@ -33,11 +34,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
     const activeRequestId = requestId || params.id;
     const isProfileRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
-    const requestListRoute = isProfileRoute
-        ? APP_ROUTES.PROFILE_REQUESTS
-        : APP_ROUTES.HOME_REQUESTS;
-    const requestEditRoute = (id: string) =>
-        isProfileRoute ? APP_ROUTES.PROFILE_REQUEST_EDIT(id) : APP_ROUTES.HOME_REQUEST_EDIT(id);
+    const isFavoritesRoute = pathname.startsWith(APP_ROUTES.FAVORITES);
 
     const {
         request,
@@ -55,10 +52,21 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         actionError,
         actionLoadingByBidId,
     } = useRequestDetails(activeRequestId || "");
+    const { isFavorite, toggleFavorite, actionLoadingById } = useFavorites();
+
+    const requestListRoute = isProfileRoute
+        ? APP_ROUTES.PROFILE_REQUESTS
+        : isFavoritesRoute
+            ? APP_ROUTES.FAVORITES
+            : APP_ROUTES.HOME_REQUESTS;
+    const requestEditRoute = (id: string) =>
+        isOwner ? APP_ROUTES.PROFILE_REQUEST_EDIT(id) : APP_ROUTES.HOME_REQUEST_EDIT(id);
 
     const helperVisibleBids = useMemo(() => {
         return myBid ? [myBid] : [];
     }, [myBid]);
+    const favoriteLoading = activeRequestId ? Boolean(actionLoadingById[activeRequestId]) : false;
+    const favorited = activeRequestId ? isFavorite(activeRequestId) : false;
 
     const handleBack = useCallback(() => {
         goBackOrFallback({
@@ -150,6 +158,39 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
             />
 
             <RequestDetailsHeader request={request} />
+
+            <Card style={[styles.favoriteCard, { borderColor: palette.border }]}>
+                <Stack gap="sm">
+                    <View style={[styles.sectionPill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+                        <Ionicons name="heart-outline" size={14} color={palette.textSecondary} />
+                        <Text style={[styles.sectionPillText, { color: palette.textSecondary }]}>Saved requests</Text>
+                    </View>
+
+                    <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                        {favorited ? "Saved for later" : "Save this request"}
+                    </Text>
+
+                    <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                        Keep this request in your saved list so you can come back to it quickly.
+                    </Text>
+
+                    <AppButton
+                        title={favorited ? "Saved" : "Save request"}
+                        variant={favorited ? "secondary" : "primary"}
+                        loading={favoriteLoading}
+                        onPress={() => {
+                            void toggleFavorite(request);
+                        }}
+                        icon={
+                            <Ionicons
+                                name={favorited ? "heart" : "heart-outline"}
+                                size={16}
+                                color={favorited ? palette.textPrimary : palette.textInverse}
+                            />
+                        }
+                    />
+                </Stack>
+            </Card>
 
             {request.images?.length ? (
                 <RequestPhotoUploadSection
@@ -255,6 +296,9 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
 const styles = StyleSheet.create({
     sectionCard: {
+        borderRadius: 16,
+    },
+    favoriteCard: {
         borderRadius: 16,
     },
     alertCard: {
