@@ -1,6 +1,8 @@
 import app from './app.js';
 import { prisma } from './lib/prisma.js';
-
+import http from "http";
+import { initSocketServer } from "./lib/socket.js";
+import { registerSocketHandlers } from "./sockets/registerSocketHandlers.js";
 
 
 
@@ -15,10 +17,15 @@ import { prisma } from './lib/prisma.js';
   }
 })();
 
+const httpServer = http.createServer(app);
+const io = initSocketServer(httpServer);
+
+registerSocketHandlers(io);
+
 const PORT = Number(process.env.PORT) || 5001;
 const HOST = process.env.HOST || '0.0.0.0';
 
-app.listen(PORT, HOST, () => {
+httpServer.listen(PORT, HOST, () => {
   const publicHost = HOST === '0.0.0.0' ? 'localhost' : HOST;
   console.log(`Server is running on http://${publicHost}:${PORT}`);
 }); 
