@@ -178,7 +178,6 @@ export const getMyConversations = async (
             userId,
             page: parsedQuery.data.page,
             limit: parsedQuery.data.limit,
-            sort: parsedQuery.data.sort,
         });
 
         handlePaginatedResponse(res, result.conversations, result.meta);
