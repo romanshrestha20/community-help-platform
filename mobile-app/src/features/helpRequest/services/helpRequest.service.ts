@@ -8,8 +8,33 @@ import {
     RequestImageUploadInput,
     UpdateHelpRequestData,
 } from "../types/helpRequest.types";
+import { AppCategory } from "@/features/category/types/category.types";
 
 type UnknownRecord = Record<string, any>;
+
+const normalizeCategory = (category: unknown): AppCategory | null => {
+    if (!category || typeof category !== "object") {
+        return null;
+    }
+
+    const value = category as UnknownRecord;
+    const id = typeof value.id === "string" ? value.id : null;
+    const name = typeof value.name === "string" ? value.name : null;
+    const slug = typeof value.slug === "string" ? value.slug : null;
+
+    if (!id || !name || !slug) {
+        return null;
+    }
+
+    return {
+        id,
+        name,
+        slug,
+        icon: typeof value.icon === "string" ? value.icon : null,
+        color: typeof value.color === "string" ? value.color : null,
+        sortOrder: typeof value.sortOrder === "number" ? value.sortOrder : undefined,
+    };
+};
 
 const handleResponse = <T>(response: ApiResponse<T>): T => {
     const { success, data, message } = response;
@@ -44,6 +69,11 @@ const normalizeRequest = (request: UnknownRecord): HelpRequest => {
 
     return {
         ...request,
+        categoryId:
+            typeof request.categoryId === "string"
+                ? request.categoryId
+                : normalizeCategory(request.category)?.id ?? null,
+        category: normalizeCategory(request.category),
         images: imagesSource
             .map((image) => normalizeImage(image))
             .filter((image): image is HelpRequestImage => Boolean(image)),
