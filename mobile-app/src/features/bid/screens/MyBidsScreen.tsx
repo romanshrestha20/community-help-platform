@@ -227,6 +227,7 @@ export const MyBidsScreen = () => {
                         onBidPress={(bid) => router.push(`/home/requests/${bid.helpRequestId}`)}
                         onBidUpdate={(bid) => openEditBid(bid)}
                         onBidDelete={(bid) => handleDeleteBid(bid.id)}
+                        onBidMessage={(bid) => router.push(`/messages/chat?requestId=${bid.helpRequestId}` as never)}
                         onBidViewProfile={undefined}
                         actionLoadingByBidId={
                             savingBidId || deletingBidId ? { [savingBidId || deletingBidId || ""]: true } : {}
