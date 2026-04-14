@@ -281,20 +281,22 @@ const styles = StyleSheet.create({
     notificationTouchArea: {
         width: "100%",
     },
-    swipeAction: {
-        justifyContent: "center",
-        alignItems: "flex-end",
-        paddingRight: theme.spacing.xs,
+    swipeActionsRow: {
+        flexDirection: "row",
+        alignItems: "stretch",
+        justifyContent: "flex-end",
+        gap: theme.spacing.xs,
     },
-    swipeDeleteButton: {
+    swipeActionButton: {
         minWidth: 88,
         height: "100%",
         borderRadius: theme.radius.lg,
         justifyContent: "center",
         alignItems: "center",
         gap: 4,
+        paddingHorizontal: theme.spacing.sm,
     },
-    swipeDeleteLabel: {
+    swipeActionLabel: {
         fontSize: theme.typography.fontSize.xs,
         fontWeight: theme.typography.fontWeight.semibold,
     },
@@ -458,20 +460,87 @@ export default function NotificationsScreen() {
         const isUnread = !item.isRead;
         const isLoading = actionLoadingId === item.id;
         const visuals = getNotificationVisuals(item, palette);
-        const deleteAction = () => (
-            <View style={styles.swipeAction}>
+        const isBidReceived = item.type === "BID_RECEIVED";
+
+        const handleDelete = () => {
+            void removeNotification(item.id);
+        };
+
+        const handleMessage = () => {
+            if (!item.isRead) {
+                void markRead(item.id);
+            }
+
+            if (item.conversationId) {
+                router.push(`/messages/chat?conversationId=${item.conversationId}` as never);
+                return;
+            }
+
+            if (item.requestId) {
+                router.push(`/messages/chat?requestId=${item.requestId}` as never);
+                return;
+            }
+
+            router.push("/messages" as never);
+        };
+
+        const renderRightActions = () => (
+            <View
+                style={[
+                    styles.swipeActionsRow,
+                    { paddingLeft: theme.spacing.xs },
+                ]}
+            >
+                {isBidReceived ? (
+                    <Pressable
+                        onPress={handleMessage}
+                        style={({ pressed }) => [
+                            styles.swipeActionButton,
+                            {
+                                backgroundColor: palette.secondary,
+                                opacity: pressed ? 0.92 : 1,
+                            },
+                        ]}
+                    >
+                        <Ionicons
+                            name="chatbubble-ellipses-outline"
+                            size={18}
+                            color={palette.textInverse}
+                        />
+                        <Text
+                            style={[
+                                styles.swipeActionLabel,
+                                { color: palette.textInverse },
+                            ]}
+                        >
+                            Message
+                        </Text>
+                    </Pressable>
+                ) : null}
+
                 <Pressable
-                    onPress={() => void removeNotification(item.id)}
+                    onPress={handleDelete}
                     style={({ pressed }) => [
-                        styles.swipeDeleteButton,
+                        styles.swipeActionButton,
                         {
                             backgroundColor: palette.danger,
-                            opacity: pressed ? 0.9 : 0.82,
+                            opacity: pressed ? 0.92 : 1,
                         },
                     ]}
                 >
-                    <Ionicons name="trash-outline" size={18} color={palette.textInverse} />
-                    <Text style={[styles.swipeDeleteLabel, { color: palette.textInverse }]}>Delete</Text>
+                    <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color={palette.textInverse}
+                    />
+                    <Text
+                        style={[
+                            styles.swipeActionLabel,
+                            { color: palette.textInverse },
+                        ]}
+                    >
+                        Delete
+                    </Text>
                 </Pressable>
             </View>
         );
@@ -479,7 +548,7 @@ export default function NotificationsScreen() {
         return (
             <Swipeable
                 overshootRight={false}
-                renderRightActions={deleteAction}
+                renderRightActions={renderRightActions}
             >
                 <Pressable
                     onPress={() => openNotification(item)}
