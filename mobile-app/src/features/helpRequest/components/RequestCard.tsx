@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   GestureResponderEvent,
   Image,
@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
+import { ImagePreviewModal, PreviewImageItem } from "@/components/ui/ImagePreviewModal";
 import { Card, Row, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
@@ -18,7 +19,7 @@ import {
   formatRequestBudget,
   formatRequestCreatedAt,
   formatRequestLocation,
-  REQUEST_CATEGORY_LABELS,
+  getRequestCategoryLabel,
 } from "../utils/requestDisplay";
 import { RequestStatusBadge } from "./RequestStatusBadge";
 import { AppLocation } from "@/features/location/types/location.types";
@@ -51,11 +52,19 @@ export const RequestCard = ({
 }: Props) => {
   const { palette } = useThemeContext();
   const { isFavorite, toggleFavorite, actionLoadingById } = useFavorites();
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const imagePreviews = request.images?.slice(0, 3) ?? [];
   const extraImageCount = Math.max((request.images?.length ?? 0) - imagePreviews.length, 0);
   const favoriteLoading = Boolean(actionLoadingById[request.id]);
   const favorited = isFavorite(request.id);
+  const previewImages = useMemo<PreviewImageItem[]>(
+    () =>
+      (request.images ?? [])
+        .map((image) => ({ uri: image.url }))
+        .filter((image) => Boolean(image.uri)),
+    [request.images]
+  );
 
   const distance =
     userLocation &&
@@ -77,7 +86,7 @@ export const RequestCard = ({
   const location = formatRequestLocation(request);
   const createdAt = formatRequestCreatedAt(request.createdAt);
   const budget = formatRequestBudget(request);
-  const categoryLabel = REQUEST_CATEGORY_LABELS[request.category] ?? request.category;
+  const categoryLabel = getRequestCategoryLabel(request);
   const bidCount = request.bidCount ?? 0;
 
   const handlePrimaryAction = (event?: GestureResponderEvent) => {
@@ -93,6 +102,14 @@ export const RequestCard = ({
   const handleFavoriteToggle = (event?: GestureResponderEvent) => {
     event?.stopPropagation();
     void toggleFavorite(request);
+  };
+
+  const openPreview = (index: number) => {
+    setPreviewIndex(index);
+  };
+
+  const closePreview = () => {
+    setPreviewIndex(null);
   };
 
   return (
@@ -150,36 +167,92 @@ export const RequestCard = ({
           </Text>
 
           {imagePreviews.length > 0 ? (
-            <View style={styles.imageRow}>
-              {imagePreviews.map((image, index) => {
-                const isLastPreview = index === imagePreviews.length - 1;
-                const showOverflowBadge = isLastPreview && extraImageCount > 0;
-
-                return (
-                  <View key={image.id} style={styles.imageWrapper}>
+            imagePreviews.length === 1 ? (
+              <Pressable
+                onPress={(event) => {
+                  event.stopPropagation();
+                  openPreview(0);
+                }}
+                style={styles.singleImageWrapper}
+              >
+                <Image
+                  source={{ uri: imagePreviews[0].url }}
+                  style={[styles.singleImage, { backgroundColor: palette.surfaceMuted }]}
+                  resizeMode="cover"
+                />
+              </Pressable>
+            ) : imagePreviews.length === 2 ? (
+              <View style={styles.imageRow}>
+                {imagePreviews.map((image, index) => (
+                  <Pressable
+                    key={image.id}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      openPreview(index);
+                    }}
+                    style={styles.imageWrapper}
+                  >
                     <Image
                       source={{ uri: image.url }}
-                      style={[
-                        styles.thumbnail,
-                        { backgroundColor: palette.surfaceMuted },
-                      ]}
+                      style={[styles.thumbnail, { backgroundColor: palette.surfaceMuted }]}
                       resizeMode="cover"
                     />
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.imageCollage}>
+                <Pressable
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    openPreview(0);
+                  }}
+                  style={styles.collagePrimary}
+                >
+                  <Image
+                    source={{ uri: imagePreviews[0].url }}
+                    style={[styles.collagePrimaryImage, { backgroundColor: palette.surfaceMuted }]}
+                    resizeMode="cover"
+                  />
+                </Pressable>
 
-                    {showOverflowBadge ? (
-                      <View
-                        style={[
-                          styles.imageOverlay,
-                          { backgroundColor: "rgba(0,0,0,0.35)" },
-                        ]}
+                <View style={styles.collageSecondaryColumn}>
+                  {imagePreviews.slice(1).map((image, index) => {
+                    const previewIndexOffset = index + 1;
+                    const isLastPreview = previewIndexOffset === imagePreviews.length - 1;
+                    const showOverflowBadge = isLastPreview && extraImageCount > 0;
+
+                    return (
+                      <Pressable
+                        key={image.id}
+                        onPress={(event) => {
+                          event.stopPropagation();
+                          openPreview(previewIndexOffset);
+                        }}
+                        style={styles.collageSecondary}
                       >
-                        <Text style={styles.imageOverlayText}>+{extraImageCount}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                );
-              })}
-            </View>
+                        <Image
+                          source={{ uri: image.url }}
+                          style={[styles.collageSecondaryImage, { backgroundColor: palette.surfaceMuted }]}
+                          resizeMode="cover"
+                        />
+
+                        {showOverflowBadge ? (
+                          <View
+                            style={[
+                              styles.imageOverlay,
+                              { backgroundColor: "rgba(0,0,0,0.35)" },
+                            ]}
+                          >
+                            <Text style={styles.imageOverlayText}>+{extraImageCount}</Text>
+                          </View>
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )
           ) : null}
 
           <View style={styles.metaList}>
@@ -259,6 +332,14 @@ export const RequestCard = ({
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </Stack>
       </Card>
+
+      <ImagePreviewModal
+        visible={previewIndex !== null}
+        images={previewImages}
+        initialIndex={previewIndex ?? 0}
+        title={title}
+        onClose={closePreview}
+      />
     </Pressable>
   );
 };
@@ -313,15 +394,54 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: theme.spacing.xs,
   },
+  imageCollage: {
+    flexDirection: "row",
+    gap: theme.spacing.xs,
+    height: 188,
+  },
+  singleImageWrapper: {
+    borderRadius: theme.radius.lg,
+    overflow: "hidden",
+  },
+  singleImage: {
+    width: "100%",
+    height: 208,
+    borderRadius: theme.radius.lg,
+  },
   imageWrapper: {
     position: "relative",
     flex: 1,
     overflow: "hidden",
     borderRadius: theme.radius.md,
   },
+  collagePrimary: {
+    flex: 1.35,
+    borderRadius: theme.radius.lg,
+    overflow: "hidden",
+  },
+  collagePrimaryImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: theme.radius.lg,
+  },
+  collageSecondaryColumn: {
+    flex: 0.9,
+    gap: theme.spacing.xs,
+  },
+  collageSecondary: {
+    flex: 1,
+    borderRadius: theme.radius.md,
+    overflow: "hidden",
+    position: "relative",
+  },
+  collageSecondaryImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: theme.radius.md,
+  },
   thumbnail: {
     width: "100%",
-    height: 88,
+    height: 138,
     borderRadius: theme.radius.md,
   },
   imageOverlay: {

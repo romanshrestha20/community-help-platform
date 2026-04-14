@@ -34,7 +34,7 @@ export const createRequestApi = (data: CreateHelpRequestData) => {
     const payload = {
         title: data.title.trim(),
         description: data.description.trim(),
-        category: data.category,
+        categoryId: data.categoryId,
         budget: data.budget,
         location: {
             latitude: data.location.latitude,
@@ -64,7 +64,7 @@ export const createRequestWithImagesApi = (
 
     formData.append("title", data.title.trim());
     formData.append("description", data.description.trim());
-    formData.append("category", data.category);
+    formData.append("categoryId", data.categoryId);
 
     if (typeof data.budget === "number") {
         formData.append("budget", String(data.budget));
@@ -131,4 +131,3 @@ export const updateRequestStatusApi = (id: string, status: HelpRequestStatus) =>
 
 export const deleteRequestApi = (id: string) =>
     apiClient.delete(`/requests/${id}`);
-

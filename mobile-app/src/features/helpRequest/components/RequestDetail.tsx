@@ -6,7 +6,7 @@ import { Row } from "@/design-system/layout/Row";
 import { AppButton } from "@/components/ui/AppButton";
 import { spacing, colors, typography } from "@/design-system";
 import { HelpRequest, HelpRequestStatus } from "../types/helpRequest.types";
-import { formatRequestLocation } from "../utils/requestDisplay";
+import { formatRequestLocation, getRequestCategoryLabel } from "../utils/requestDisplay";
 
 interface RequestDetailProps {
     request: HelpRequest;
@@ -81,7 +81,7 @@ export const RequestDetail: React.FC<RequestDetailProps> = ({
                         </View>
                         <View>
                             <Text style={[styles.captionText, { color: colors.textSecondary }]}>Category</Text>
-                            <Text style={styles.bodyText}>{request.category}</Text>
+                            <Text style={styles.bodyText}>{getRequestCategoryLabel(request)}</Text>
                         </View>
                     </Row>
                 </Stack>
