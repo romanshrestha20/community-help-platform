@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
-import { Card, Row, Stack } from "@/design-system";
+import { Card, Row, Stack, spacing, typography } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { Bid } from "../types/bid.types";
@@ -22,6 +23,17 @@ type Props = {
   onReject?: () => void;
   onUpdate?: () => void;
   onDelete?: () => void;
+  onMessage?: () => void;
+};
+
+const getInitials = (name?: string) => {
+  if (!name) return "U";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 };
 
 export const BidCard = ({
@@ -37,12 +49,16 @@ export const BidCard = ({
   onReject,
   onUpdate,
   onDelete,
+  onMessage,
 }: Props) => {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const { palette } = useThemeContext();
+
+  const helperName = bid.helperName || "Community member";
+  const initials = useMemo(() => getInitials(helperName), [helperName]);
+
   const requesterActions = isRequestOwner || canRespond;
   const helperActions = !requesterActions && canModify;
-  const shouldShowProfileAction = requesterActions || Boolean(onViewProfile);
 
   const openProfileModal = () => {
     setProfileModalVisible(true);
@@ -51,78 +67,138 @@ export const BidCard = ({
 
   return (
     <>
-      <Pressable onPress={onPress}>
-        <Card style={styles.card}>
-          <Stack gap="sm">
-            <Row justify="space-between" align="flex-start">
-              <View style={styles.flex}>
-                <Text style={[styles.name, { color: palette.textPrimary }]}>
-                  {bid.helperName}
-                </Text>
-              </View>
+      <Pressable onPress={onPress} disabled={!onPress}>
+        {({ pressed }) => (
+          <Card
+            style={[
+              styles.card,
+              {
+                borderColor: palette.border,
+                backgroundColor: palette.surface,
+                opacity: pressed ? 0.96 : 1,
+              },
+            ]}
+          >
+            <Stack gap="md">
+              {/* HEADER */}
+              <Row justify="space-between" align="flex-start">
+                <Row align="center" gap="sm" style={{ flex: 1 }}>
+                  <View
+                    style={[
+                      styles.avatar,
+                      {
+                        backgroundColor: palette.surfaceMuted,
+                        borderColor: palette.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.avatarText, { color: palette.primary }]}>
+                      {initials}
+                    </Text>
+                  </View>
 
-              <BidStatusBadge status={bid.status} />
-            </Row>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[styles.name, { color: palette.textPrimary }]}
+                      numberOfLines={1}
+                    >
+                      {helperName}
+                    </Text>
 
-            <View style={[styles.amountPanel, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-              <Text style={[styles.amountLabel, { color: palette.textSecondary }]}>Bid amount</Text>
-              <Text style={[styles.amount, { color: palette.primary }]}>{formatBidAmount(bid.amount)}</Text>
-            </View>
+                    {/* PRICE + TIME */}
+                    <Text
+                      style={[styles.meta, { color: palette.textSecondary }]}
+                    >
+                      <Text style={{ color: palette.primary, fontWeight: "700" }}>
+                        {formatBidAmount(bid.amount)}
+                      </Text>{" "}
+                      · {formatBidCreatedAt(bid.createdAt)}
+                    </Text>
+                  </View>
+                </Row>
 
-            {shouldShowProfileAction ? (
-              <AppButton
-                title="View profile"
-                onPress={openProfileModal}
-                variant="ghost"
-                fullWidth={false}
-              />
-            ) : null}
-
-            <View style={[styles.messagePanel, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-              <Text style={[styles.messageLabel, { color: palette.textSecondary }]}>Message</Text>
-              <Text style={[styles.message, { color: palette.textSecondary }]}>{bid.message}</Text>
-            </View>
-
-            <View style={[styles.metaChip, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-              <Text style={[styles.date, { color: palette.textSecondary }]}>Submitted {formatBidCreatedAt(bid.createdAt)}</Text>
-            </View>
-
-            {requesterActions && bid.status === "PENDING" && (onAccept || onReject) ? (
-              <Row gap="sm">
-                {onAccept ? (
-                  <AppButton
-                    title="Accept"
-                    onPress={onAccept}
-                    loading={loading}
-                    disabled={disableRespondActions}
-                  />
-                ) : null}
-                {onReject ? (
-                  <AppButton
-                    title="Reject"
-                    onPress={onReject}
-                    loading={loading}
-                    variant="secondary"
-                    disabled={disableRespondActions}
-                  />
-                ) : null}
+                <BidStatusBadge status={bid.status} />
               </Row>
-            ) : null}
 
-            {helperActions && bid.status === "PENDING" && (onUpdate || onDelete) ? (
-              <Row gap="sm">
-                {onUpdate ? <AppButton title="Edit" onPress={onUpdate} /> : null}
-                {onDelete ? (
-                  <AppButton
-                    title="Delete"
-                    onPress={onDelete}
-                    variant="secondary"
-                  />
-                ) : null}
-              </Row>
-            ) : null}
-          </Stack>
-        </Card>
+              {/* MESSAGE */}
+              <Text
+                style={[styles.message, { color: palette.textPrimary }]}
+                numberOfLines={3}
+              >
+                {bid.message || "No message provided."}
+              </Text>
+
+              {/* ACTIONS */}
+              {requesterActions && bid.status === "PENDING" && (
+                <Row gap="sm">
+                  {onAccept && (
+                    <View style={styles.primaryAction}>
+                      <AppButton
+                        title="Accept"
+                        onPress={onAccept}
+                        loading={loading}
+                        disabled={disableRespondActions || loading}
+                      />
+                    </View>
+                  )}
+
+                  {onReject && (
+                    <View style={styles.secondaryAction}>
+                      <AppButton
+                        title="Reject"
+                        onPress={onReject}
+                        variant="secondary"
+                        loading={loading}
+                        disabled={disableRespondActions || loading}
+                      />
+                    </View>
+                  )}
+                </Row>
+              )}
+
+              {helperActions && bid.status === "PENDING" && (
+                <Row gap="sm">
+                  {onUpdate && (
+                    <View style={styles.secondaryAction}>
+                      <AppButton title="Edit" onPress={onUpdate} />
+                    </View>
+                  )}
+                  {onDelete && (
+                    <View style={styles.secondaryAction}>
+                      <AppButton title="Delete" variant="danger" onPress={onDelete} />
+                    </View>
+                  )}
+                </Row>
+              )}
+
+              {bid.status === "ACCEPTED" ? (
+                <Stack gap="sm">
+                  <Text style={[styles.acceptedLabel, { color: palette.success }]}>
+                    You accepted this offer
+                  </Text>
+
+                  {onMessage ? (
+                    <Row>
+                      <View style={styles.primaryAction}>
+                        <AppButton
+                          title="Message"
+                          onPress={onMessage}
+                          icon={
+                            <Ionicons
+                              name="chatbubble-outline"
+                              size={16}
+                              color={palette.textInverse}
+                            />
+                          }
+                        />
+                      </View>
+                    </Row>
+                  ) : null}
+                </Stack>
+              ) : null}
+            </Stack>
+          </Card>
+        )}
       </Pressable>
 
       <BidderProfileModal
@@ -136,59 +212,42 @@ export const BidCard = ({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: spacing.md,
   },
-  flex: {
-    flex: 1,
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  name: {
-    fontSize: 15,
+  avatarText: {
+    fontSize: typography.fontSize.sm,
     fontWeight: "700",
   },
-  amountPanel: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  name: {
+    fontSize: typography.fontSize.md,
+    fontWeight: "700",
   },
-  amountLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  amount: {
-    marginTop: 3,
-    fontSize: 22,
-    lineHeight: 26,
-    fontWeight: "800",
-  },
-  messagePanel: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  messageLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 4,
+  meta: {
+    marginTop: 2,
+    fontSize: typography.fontSize.sm,
   },
   message: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: typography.fontSize.md,
+    lineHeight: 22,
   },
-  metaChip: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    alignSelf: "flex-start",
+  acceptedLabel: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: "600",
   },
-  date: {
-    fontSize: 12,
-    fontWeight: "500",
+  primaryAction: {
+    flex: 1.2,
+  },
+  secondaryAction: {
+    flex: 1,
   },
 });
