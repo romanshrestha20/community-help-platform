@@ -1,12 +1,14 @@
 // src/types/helpRequest.types.ts
 import { AppLocation } from "@/features/location/types/location.types";
+import { AppCategory } from "@/features/category/types/category.types";
 
 export interface HelpRequest {
     id: string;
     requesterId?: string;
     title: string;
     description: string;
-    category: "FOOD" | "MEDICAL" | "EDUCATION" | "OTHER";
+    categoryId?: string | null;
+    category: AppCategory | null;
 
     budget?: number;
     isPaid: boolean;
@@ -46,7 +48,7 @@ export type HelpRequestStatus = "OPEN" | "ASSIGNED" | "COMPLETED" | "CANCELLED";
 export interface CreateHelpRequestData {
     title: string;
     description: string;
-    category: "FOOD" | "MEDICAL" | "EDUCATION" | "OTHER";
+    categoryId: string;
 
     budget?: number;
     isPaid?: boolean;
@@ -59,7 +61,7 @@ export interface CreateHelpRequestData {
 export interface UpdateHelpRequestData {
     title?: string;
     description?: string;
-    category?: "FOOD" | "MEDICAL" | "EDUCATION" | "OTHER";
+    categoryId?: string;
 
     budget?: number;
     isPaid?: boolean;

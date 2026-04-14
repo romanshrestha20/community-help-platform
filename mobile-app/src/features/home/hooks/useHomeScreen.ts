@@ -36,8 +36,8 @@ export const useHomeScreen = () => {
             next = next.filter((request) => request.status === filters.status);
         }
 
-        if (filters.category !== "ALL") {
-            next = next.filter((request) => request.category === filters.category);
+        if (filters.categoryId !== "ALL") {
+            next = next.filter((request) => request.categoryId === filters.categoryId);
         }
 
         if (filters.sortBy === "NEWEST") {
