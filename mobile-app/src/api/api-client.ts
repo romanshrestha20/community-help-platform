@@ -9,6 +9,7 @@ import {
 } from "../utils/token";
 import { showToast } from "../utils/toast";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { reconnectSocketWithFreshToken } from "@/lib/socket-client";
 
 type RetryRequest = AxiosRequestConfig & { _retry?: boolean };
 
@@ -174,6 +175,7 @@ apiClient.interceptors.response.use(
         }
 
         await saveTokens(newAccessToken, newRefreshToken);
+        await reconnectSocketWithFreshToken().catch(() => undefined);
 
         processQueue(null, newAccessToken);
 
