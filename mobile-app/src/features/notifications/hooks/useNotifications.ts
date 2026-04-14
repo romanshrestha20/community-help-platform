@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AppState } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 
 import { setNotificationBadgeCount } from "@/hooks/useBadgeCounts";
 import type { AppNotification } from "../types/notification.types";
@@ -78,6 +80,41 @@ export const useNotifications = () => {
 
         return () => {
             isMounted = false;
+        };
+    }, [loadNotifications]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const sync = () =>
+                loadNotifications().catch((caughtError) => {
+                    setError(getErrorMessage(caughtError, "Could not load notifications"));
+                });
+
+            void sync();
+
+            const intervalId = setInterval(() => {
+                void sync();
+            }, 15000);
+
+            return () => {
+                clearInterval(intervalId);
+            };
+        }, [loadNotifications])
+    );
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener("change", (nextState) => {
+            if (nextState !== "active") {
+                return;
+            }
+
+            void loadNotifications().catch((caughtError) => {
+                setError(getErrorMessage(caughtError, "Could not load notifications"));
+            });
+        });
+
+        return () => {
+            subscription.remove();
         };
     }, [loadNotifications]);
 
