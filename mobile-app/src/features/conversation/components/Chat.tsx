@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SearchField } from "@/components/ui/SearchField";
 import { Card, Row, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useAuthStore } from "@/features/auth/store/auth.store";
@@ -117,17 +118,41 @@ const Chat: React.FC<ChatProps> = ({
     const insets = useSafeAreaInsets();
     const user = useAuthStore((state) => state.user);
     const userId = user?.id ?? "";
+    const [searchQuery, setSearchQuery] = useState("");
     const [selectedParticipant, setSelectedParticipant] = useState<ConversationMember | null>(null);
     const listRef = useRef<FlatList<ThreadRow>>(null);
     const previousMessageCount = useRef(0);
 
-    const threadRows = useMemo(() => groupMessagesForTimeline(messages), [messages]);
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const filteredMessages = useMemo(() => {
+        if (!normalizedQuery) {
+            return messages;
+        }
+
+        return messages.filter((message) => {
+            const senderName = message.sender.fullName || "";
+            const senderEmail = message.sender.email || "";
+            const content = message.content || "";
+            const searchableText = [senderName, senderEmail, content].join(" ").toLowerCase();
+
+            return searchableText.includes(normalizedQuery);
+        });
+    }, [messages, normalizedQuery]);
+    const threadRows = useMemo(() => groupMessagesForTimeline(filteredMessages), [filteredMessages]);
     const canSend = conversation?.request.status === "ASSIGNED";
     const isThreadEmpty = threadRows.length === 0;
     const otherParticipant = useMemo(
         () => (conversation ? getOtherParticipant(conversation, userId) ?? null : null),
         [conversation, userId]
     );
+    const searchResultsLabel = useMemo(() => {
+        if (!normalizedQuery) {
+            return null;
+        }
+
+        const count = filteredMessages.length;
+        return `${count} ${count === 1 ? "message" : "messages"} found`;
+    }, [filteredMessages.length, normalizedQuery]);
 
     const findConversationMember = (senderId: string) =>
         conversation?.members.find((member) => member.id === senderId) ?? null;
@@ -243,6 +268,21 @@ const Chat: React.FC<ChatProps> = ({
                             </Row>
                         </Card>
                     ) : null}
+                    <View style={styles.searchBlock}>
+                        <SearchField
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholder="Search messages in this conversation"
+                            returnKeyType="search"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                        {searchResultsLabel ? (
+                            <Text style={[styles.searchMeta, { color: palette.textSecondary }]}>
+                                {searchResultsLabel}
+                            </Text>
+                        ) : null}
+                    </View>
                 </View>
 
                 <FlatList
@@ -266,12 +306,12 @@ const Chat: React.FC<ChatProps> = ({
                     onScroll={handleScroll}
                     scrollEventThrottle={16}
                     onLayout={() => {
-                        if (messages.length > 0) {
+                        if (filteredMessages.length > 0) {
                             scrollToBottom(false);
                         }
                     }}
                     onContentSizeChange={() => {
-                        if (messages.length > 0) {
+                        if (filteredMessages.length > 0) {
                             scrollToBottom(previousMessageCount.current > 1);
                         }
                     }}
@@ -286,7 +326,50 @@ const Chat: React.FC<ChatProps> = ({
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyWrap}>
-                            <ChatEmptyState />
+                            {normalizedQuery ? (
+                                <Card
+                                    style={[
+                                        styles.searchEmptyCard,
+                                        {
+                                            backgroundColor: palette.surface,
+                                            borderColor: palette.border,
+                                        },
+                                    ]}
+                                >
+                                    <Stack gap="sm" style={styles.searchEmptyStack}>
+                                        <View
+                                            style={[
+                                                styles.searchEmptyIconWrap,
+                                                { backgroundColor: palette.surfaceMuted },
+                                            ]}
+                                        >
+                                            <Ionicons
+                                                name="search-outline"
+                                                size={22}
+                                                color={palette.textSecondary}
+                                            />
+                                        </View>
+                                        <Text
+                                            style={[
+                                                styles.searchEmptyTitle,
+                                                { color: palette.textPrimary },
+                                            ]}
+                                        >
+                                            No matching messages
+                                        </Text>
+                                        <Text
+                                            style={[
+                                                styles.searchEmptyText,
+                                                { color: palette.textSecondary },
+                                            ]}
+                                        >
+                                            Try a different keyword or sender name.
+                                        </Text>
+                                    </Stack>
+                                </Card>
+                            ) : (
+                                <ChatEmptyState />
+                            )}
                         </View>
                     }
                     ListHeaderComponent={
@@ -312,8 +395,12 @@ const Chat: React.FC<ChatProps> = ({
 
                         const message = item.message;
                         const isOwn = message.senderId === userId;
-                        const previousMessage = item.messageIndex > 0 ? messages[item.messageIndex - 1] : null;
-                        const nextMessage = item.messageIndex < messages.length - 1 ? messages[item.messageIndex + 1] : null;
+                        const previousMessage =
+                            item.messageIndex > 0 ? filteredMessages[item.messageIndex - 1] : null;
+                        const nextMessage =
+                            item.messageIndex < filteredMessages.length - 1
+                                ? filteredMessages[item.messageIndex + 1]
+                                : null;
                         const groupedWithPrevious =
                             previousMessage?.senderId === message.senderId &&
                             previousMessage?.createdAt.slice(0, 10) === message.createdAt.slice(0, 10);
@@ -412,6 +499,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: theme.spacing.sm,
         paddingVertical: theme.spacing.xs,
     },
+    searchBlock: {
+        marginHorizontal: theme.spacing.md,
+        marginBottom: theme.spacing.sm,
+        gap: theme.spacing.xxs,
+    },
+    searchMeta: {
+        ...theme.typography.textStyle.caption,
+        paddingHorizontal: theme.spacing.xxs,
+    },
     feedbackText: {
         ...theme.typography.textStyle.bodySmall,
         flex: 1,
@@ -428,6 +524,31 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         minHeight: 280,
+    },
+    searchEmptyCard: {
+        borderWidth: 1,
+        borderRadius: theme.radius.xl,
+        paddingHorizontal: theme.spacing.lg,
+        paddingVertical: theme.spacing.xl,
+    },
+    searchEmptyStack: {
+        alignItems: "center",
+    },
+    searchEmptyIconWrap: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    searchEmptyTitle: {
+        ...theme.typography.textStyle.bodyMedium,
+        fontWeight: "700",
+        textAlign: "center",
+    },
+    searchEmptyText: {
+        ...theme.typography.textStyle.bodySmall,
+        textAlign: "center",
     },
     olderLoading: {
         flexDirection: "row",
