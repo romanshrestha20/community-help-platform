@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { Platform, StyleSheet, View } from "react-native";
 
@@ -8,6 +8,7 @@ import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { showInfoToast } from "@/utils/toast";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { useHelpRequest } from "../hooks/helpRequest.hook";
+import { useCategories } from "@/features/category/hooks/category.hook";
 import {
     CreateHelpRequestData,
     HelpRequest,
@@ -16,6 +17,7 @@ import {
 import { validateRequestDraftFields } from "../utils/requestValidation";
 import { RequestFormContent, RequestFormValues } from "./RequestFormContent";
 import { RequestFormTrigger } from "./RequestFormTrigger";
+import { resolveRequestCategoryId } from "../hooks/useCreateEditRequestScreen";
 
 const MAX_REQUEST_IMAGES = 5;
 
@@ -35,6 +37,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     compactTrigger = false,
 }) => {
     const { addHelpRequestImages } = useHelpRequest();
+    const { categories } = useCategories();
     const existingImages = initialData?.images ?? [];
     const locationPicker = useLocationPicker({
         initialValue: initialData?.location ?? null,
@@ -43,7 +46,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     const [values, setValues] = useState<RequestFormValues>({
         title: initialData?.title || "",
         description: initialData?.description || "",
-        category: initialData?.category || "FOOD",
+        categoryId: initialData ? resolveRequestCategoryId(initialData, categories) : "",
         budget: initialData?.budget,
         city: initialData?.city || initialData?.location?.city || "",
         country: initialData?.country || initialData?.location?.country || "",
@@ -64,6 +67,15 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     const triggerSubtitle = initialData
         ? "Refine the details and add more photos."
         : "Describe the need, add photos, and get help faster.";
+
+    useEffect(() => {
+        if (values.categoryId || !categories.length) return;
+
+        setValues((prev) => ({
+            ...prev,
+            categoryId: categories[0].id,
+        }));
+    }, [categories, values.categoryId]);
 
     const handleChangeField = <K extends keyof RequestFormValues>(
         field: K,
@@ -201,6 +213,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                     title={triggerTitle}
                     subtitle={triggerSubtitle}
                     values={values}
+                    categories={categories}
                     loading={loading}
                     validationError={validationError}
                     fieldErrors={fieldErrors}

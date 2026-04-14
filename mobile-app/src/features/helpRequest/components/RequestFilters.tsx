@@ -5,13 +5,14 @@ import { AppDropdown } from "@/components/ui/AppDropDown";
 import { AppButton } from "@/components/ui/AppButton";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { GlobalFilters } from "@/features/helpRequest/hooks/useGlobalFilters";
-import { HelpRequest, HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
+import { HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
 import { AppModal } from "@/components/ui/AppModal";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { useCategories } from "@/features/category/hooks/category.hook";
 
 interface Props {
   filters: GlobalFilters;
-  updateFilter: <K extends "status" | "category" | "sortBy" | "radiusKm">(
+  updateFilter: <K extends "status" | "categoryId" | "sortBy" | "radiusKm">(
     key: K,
     value: GlobalFilters[K]
   ) => void;
@@ -23,6 +24,7 @@ export const RequestFilters = ({ filters, updateFilter, resetFilters }: Props) =
   const isSmallScreen = width < 600; // Example breakpoint
   const [modalVisible, setModalVisible] = useState(false);
   const { palette } = useThemeContext();
+  const { categories } = useCategories();
 
   const Dropdowns = (
     <Stack gap="sm" style={styles.dropdownGroup}>
@@ -50,14 +52,14 @@ export const RequestFilters = ({ filters, updateFilter, resetFilters }: Props) =
       />
       <AppDropdown
         label="Category"
-        value={filters.category}
-        onSelect={(v) => updateFilter("category", v as "ALL" | HelpRequest["category"])}
+        value={filters.categoryId}
+        onSelect={(v) => updateFilter("categoryId", v as GlobalFilters["categoryId"])}
         options={[
           { label: "All", value: "ALL" },
-          { label: "Food", value: "FOOD" },
-          { label: "Medical", value: "MEDICAL" },
-          { label: "Education", value: "EDUCATION" },
-          { label: "Other", value: "OTHER" },
+          ...categories.map((category) => ({
+            label: category.name,
+            value: category.id,
+          })),
         ]}
       />
       <AppDropdown

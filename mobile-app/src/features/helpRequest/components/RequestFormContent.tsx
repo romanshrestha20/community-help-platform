@@ -14,16 +14,16 @@ import {
 import { RequestPhotoUploadSection } from "./RequestPhotoUploadSection";
 import { RequestFormHero } from "./RequestFormHero";
 import { RequestFormSection } from "./RequestFormSection";
+import { AppCategory } from "@/features/category/types/category.types";
 
 export type RequestFormValues = Omit<CreateHelpRequestData, "location">;
-export type RequestFormCategory = RequestFormValues["category"];
 export type RequestFormLocationPickerProps = React.ComponentProps<typeof LocationPickerField>;
 
 export type RequestFormContentProps = {
     title: string;
     subtitle: string;
     values: RequestFormValues;
-    categories?: RequestFormCategory[];
+    categories?: AppCategory[];
     loading?: boolean;
     validationError?: string | null;
     fieldErrors?: Partial<Record<"title" | "description" | "budget" | "location", string>>;
@@ -40,13 +40,11 @@ export type RequestFormContentProps = {
     locationPickerProps: RequestFormLocationPickerProps;
 };
 
-const DEFAULT_CATEGORIES: RequestFormCategory[] = ["FOOD", "MEDICAL", "EDUCATION", "OTHER"];
-
 export const RequestFormContent = ({
     title,
     subtitle,
     values,
-    categories = DEFAULT_CATEGORIES,
+    categories = [],
     loading = false,
     validationError,
     fieldErrors = {},
@@ -101,16 +99,18 @@ export const RequestFormContent = ({
                 <Stack gap="sm">
                     <View style={styles.groupHeader}>
                         <Text style={styles.groupTitle}>Category</Text>
-                        <Text style={styles.groupMeta}>Select one</Text>
+                        <Text style={styles.groupMeta}>
+                            {categories.length ? "Select one" : "Loading categories"}
+                        </Text>
                     </View>
 
                     <View style={styles.categoryButtons}>
                         {categories.map((category) => (
                             <AppButton
-                                key={category}
-                                title={category}
-                                onPress={() => onChangeField("category", category)}
-                                variant={values.category === category ? "primary" : "secondary"}
+                                key={category.id}
+                                title={category.name}
+                                onPress={() => onChangeField("categoryId", category.id)}
+                                variant={values.categoryId === category.id ? "primary" : "secondary"}
                                 fullWidth={false}
                             />
                         ))}

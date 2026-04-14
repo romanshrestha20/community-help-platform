@@ -10,7 +10,7 @@ import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { HelpRequest } from "../types/helpRequest.types";
 import {
   formatRequestBudget,
-  REQUEST_CATEGORY_LABELS,
+  getRequestCategoryLabel,
 } from "../utils/requestDisplay";
 import { getRelativePostedTime } from "../utils/requestTime";
 import { RequestStatusBadge } from "./RequestStatusBadge";
@@ -52,8 +52,7 @@ export const RequestDetailsHeader = ({ request }: Props) => {
     [request.description]
   );
 
-  const categoryLabel =
-    REQUEST_CATEGORY_LABELS[request.category] ?? request.category;
+  const categoryLabel = getRequestCategoryLabel(request);
 
   const locationLabel =
     request.location?.formattedAddress ||
