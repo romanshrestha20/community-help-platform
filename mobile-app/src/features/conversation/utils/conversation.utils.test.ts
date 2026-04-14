@@ -8,7 +8,6 @@ const baseConversation: Conversation = {
         id: "req-1",
         title: "Help needed",
         status: "ASSIGNED",
-        description: "desc",
         requesterId: "user-1",
         assignedHelperId: "user-2",
     },
