@@ -36,6 +36,12 @@ export const defaultTabsConfig: TabItem[] = [
     label: "Messages",
   },
   {
+    name: "favorites",
+    icon: "heart-o",
+    activeIcon: "heart",
+    label: "Saved",
+  },
+  {
     name: "notifications",
     icon: "bell-o",
     activeIcon: "bell",
