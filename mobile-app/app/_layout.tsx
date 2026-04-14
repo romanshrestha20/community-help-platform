@@ -19,6 +19,7 @@ import { toastConfig } from "@/utils/toastConfig";
 import { configureToast } from "@/utils/toast";
 import { enableScreens } from "react-native-screens";
 import { usePushNotifications } from "../src/features/notifications/hooks/usePushNotifications";
+import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
 
 // Temporary iOS Expo Go workaround: bypass native RNSScreen host views.
 enableScreens(false);
@@ -34,6 +35,7 @@ export default function Layout() {
   });
 
   const { login, logout, isAuthenticated } = useAuthStore();
+  const { loadFavoriteIds, clearFavorites } = useFavorites();
   const [isInitializing, setIsInitializing] = useState(true);
 
   usePushNotifications();
@@ -118,6 +120,17 @@ export default function Layout() {
     }
   }, [isAuthenticated, segments, isInitializing, router]);
 
+  useEffect(() => {
+    if (isInitializing) return;
+
+    if (!isAuthenticated) {
+      clearFavorites();
+      return;
+    }
+
+    void loadFavoriteIds();
+  }, [clearFavorites, isAuthenticated, isInitializing, loadFavoriteIds]);
+
   if (isInitializing || !fontsLoaded) {
     return (
       <View style={styles.loaderContainer}>
@@ -127,6 +140,7 @@ export default function Layout() {
   }
 
   return (
+
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Slot />
       <Toast config={toastConfig} />
