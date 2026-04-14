@@ -6,6 +6,8 @@ export const APP_ROUTES = {
     HOME_REQUESTS: "/home/requests",
     HOME_REQUEST_DETAILS: (id: string) => `/home/requests/${id}`,
     HOME_REQUEST_EDIT: (id: string) => `/home/requests/${id}/edit`,
+    FAVORITES: "/favorites",
+    FAVORITES_REQUEST_DETAILS: (id: string) => `/favorites/requests/${id}`,
     PROFILE: "/profile",
     PROFILE_REQUESTS: "/profile/requests",
     PROFILE_BIDS: "/profile/bids",
