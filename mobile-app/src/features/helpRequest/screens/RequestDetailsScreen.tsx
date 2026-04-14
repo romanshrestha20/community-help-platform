@@ -38,6 +38,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
     const {
         request,
+        bids,
         loading,
         error,
         isOwner,
@@ -107,6 +108,13 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     const handleCloseBidModal = useCallback(() => {
         setBidModalVisible(false);
     }, []);
+
+    const handleOpenBidChat = useCallback(
+        (bidRequestId: string) => {
+            router.push(`/messages/chat?requestId=${bidRequestId}` as never);
+        },
+        [router]
+    );
 
     if (!activeRequestId) {
         return (
@@ -221,6 +229,37 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 </Card>
             ) : null}
 
+            {isOwner ? (
+                <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
+                    <Stack gap="sm">
+                        <View style={[styles.sectionPill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+                            <Ionicons name="receipt-outline" size={14} color={palette.textSecondary} />
+                            <Text style={[styles.sectionPillText, { color: palette.textSecondary }]}>Incoming offers</Text>
+                        </View>
+
+                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Bidder Offers</Text>
+
+                        <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                            Review each offer, accept the best fit, or message the accepted bidder directly.
+                        </Text>
+
+                        <BidList
+                            bids={bids}
+                            title="Incoming bids"
+                            listPadding="none"
+                            emptyMessage="No bids yet for this request."
+                            canRespond
+                            canModify={false}
+                            actionLoadingByBidId={actionLoadingByBidId}
+                            onBidAccept={(bid) => acceptBid(bid.id)}
+                            onBidReject={(bid) => rejectBid(bid.id)}
+                            onBidMessage={(bid) => handleOpenBidChat(bid.helpRequestId)}
+                            onRetry={fetchDetails}
+                        />
+                    </Stack>
+                </Card>
+            ) : null}
+
             {!isOwner && myBid ? (
                 <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
                     <Stack gap="sm">
@@ -242,6 +281,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                             onBidAccept={(bid) => acceptBid(bid.id)}
                             onBidReject={(bid) => rejectBid(bid.id)}
                             onBidDelete={(bid) => deleteMyBid(bid.id)}
+                            onBidMessage={(bid) => handleOpenBidChat(bid.helpRequestId)}
                             onRetry={fetchDetails}
                         />
                     </Stack>
