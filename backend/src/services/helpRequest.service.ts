@@ -90,6 +90,16 @@ export const getHelpRequests = async (query: HelpRequestQuery) => {
             profile: {
               select: {
                 fullName: true,
+                avatarUrl: true,
+                gender: true,
+                address: {
+                  select: {
+                    city: true,
+                    state: true,
+                    country: true,
+                    formattedAddress: true,
+                  },
+                },
               },
             },
           },
@@ -119,6 +129,14 @@ export const getHelpRequests = async (query: HelpRequestQuery) => {
     state: r.location?.state ?? null,
     country: r.location?.country ?? null,
     requesterName: r.requester.profile?.fullName ?? null,
+    requesterAvatarUrl: r.requester.profile?.avatarUrl ?? null,
+    requesterGender: r.requester.profile?.gender ?? null,
+    requesterLocation:
+      r.requester.profile?.address?.formattedAddress ||
+      [r.requester.profile?.address?.city, r.requester.profile?.address?.country]
+        .filter(Boolean)
+        .join(", ") ||
+      null,
     images: Array.isArray(r.images)
       ? r.images.map((image) => ({
           id: image.id,
