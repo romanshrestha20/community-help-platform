@@ -159,6 +159,42 @@ export default function ProfileTabScreen() {
               <ProfileStatsRow rating={user?.rating ?? 0} helpCount={user?.helpCount ?? 0} />
             </View>
 
+            {user?.phone && !user?.isPhoneVerified ? (
+              <Card>
+                <Stack gap="sm">
+                  <View>
+                    <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                      Verify your phone
+                    </Text>
+                    <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                      Add extra account trust by confirming the phone number on your profile.
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    style={[
+                      styles.activityRow,
+                      {
+                        backgroundColor: palette.surface,
+                        borderColor: palette.border,
+                      },
+                    ]}
+                    onPress={() => router.push(APP_ROUTES.AUTH_VERIFY_PHONE)}
+                  >
+                    <View style={styles.activityTextWrap}>
+                      <Text style={[styles.activityTitle, { color: palette.textPrimary }]}>
+                        Phone verification pending
+                      </Text>
+                      <Text style={[styles.activitySubtitle, { color: palette.textSecondary }]}>
+                        Send a 6-digit code and confirm your number.
+                      </Text>
+                    </View>
+                    <Text style={[styles.linkText, { color: palette.primary }]}>Verify</Text>
+                  </Pressable>
+                </Stack>
+              </Card>
+            ) : null}
+
             <Card>
               <Stack gap="md">
                 <View>

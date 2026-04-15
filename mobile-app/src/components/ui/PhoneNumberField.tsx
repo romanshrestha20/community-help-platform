@@ -21,7 +21,10 @@ type Props = {
   error?: string | null;
   hint?: string | null;
   detectedLabel?: string | null;
-  onCountryChange: (input: { countryCode: string; callingCode: string }) => void;
+  onCountryChange: (
+    input: { countryCode: string; callingCode: string },
+    source: "auto" | "user"
+  ) => void;
   onNationalNumberChange: (value: string) => void;
 };
 
@@ -55,7 +58,7 @@ export const PhoneNumberField = ({
       onCountryChange({
         countryCode,
         callingCode: `+${resolvedCallingCode}`,
-      });
+      }, "auto");
     };
 
     void syncCallingCode();
@@ -69,7 +72,7 @@ export const PhoneNumberField = ({
     onCountryChange({
       countryCode: country.cca2,
       callingCode: `+${country.callingCode[0] ?? ""}`,
-    });
+    }, "user");
   };
 
   return (
