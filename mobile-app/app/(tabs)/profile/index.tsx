@@ -60,8 +60,7 @@ export default function ProfileTabScreen() {
         id: "notifications",
         title: "Notifications",
         subtitle: "Manage alerts and app updates",
-        onPress: () =>
-          Alert.alert("Coming soon", "Notifications settings will be added next."),
+        onPress: () => router.push(APP_ROUTES.PROFILE_NOTIFICATIONS),
       },
       {
         id: "privacy",
