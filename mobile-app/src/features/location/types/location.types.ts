@@ -7,6 +7,7 @@ export type AppLocation = {
   state?: string | null;
   postalCode?: string | null;
   country?: string | null;
+  countryCode?: string | null;
   formattedAddress?: string | null;
 };
 
@@ -18,6 +19,7 @@ export type LocationSuggestion = {
   city: string | null;
   state: string | null;
   country: string | null;
+  countryCode: string | null;
   latitude: number;
   longitude: number;
   formattedAddress: string | null;
