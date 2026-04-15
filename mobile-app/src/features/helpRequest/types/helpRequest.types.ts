@@ -20,6 +20,9 @@ export interface HelpRequest {
     location?: AppLocation | null;
 
     requesterName: string;
+    requesterAvatarUrl?: string | null;
+    requesterGender?: string | null;
+    requesterLocation?: string | null;
 
     images?: HelpRequestImage[];
 
