@@ -37,6 +37,8 @@ export const useUser = () => {
           email: nextUser.email,
           phone: nextUser.phone,
           isVerified: nextUser.isVerified,
+          isEmailVerified: nextUser.isEmailVerified,
+          isPhoneVerified: nextUser.isPhoneVerified,
           fullName: nextUser.fullName,
           avatarUrl: nextUser.avatarUrl ?? null,
           profile: state.user?.profile

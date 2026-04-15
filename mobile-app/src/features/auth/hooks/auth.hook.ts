@@ -2,8 +2,15 @@ import { useState } from "react";
 
 import {
   changePassword,
+  forgotPassword,
   login as loginApi,
   register as registerApi,
+  resendEmailVerification,
+  resetPassword,
+  sendEmailVerification,
+  sendPhoneCode,
+  verifyEmail,
+  verifyPhoneCode,
 } from "../api/auth.api";
 
 import { LoginDto, RegisterDto } from "../types/auth.types";
@@ -23,11 +30,18 @@ const getErrorMessage = (error: any, fallback: string) => {
 export const useAuth = () => {
   const login = useAuthStore((state) => state.login);
   const logout = useAuthStore((state) => state.logout);
+  const setUser = useAuthStore((state) => state.setUser);
 
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [loadingLogout, setLoadingLogout] = useState(false);
   const [loadingRegister, setLoadingRegister] = useState(false);
   const [loadingChangePassword, setLoadingChangePassword] = useState(false);
+  const [loadingForgotPassword, setLoadingForgotPassword] = useState(false);
+  const [loadingResetPassword, setLoadingResetPassword] = useState(false);
+  const [loadingSendEmailVerification, setLoadingSendEmailVerification] = useState(false);
+  const [loadingVerifyEmail, setLoadingVerifyEmail] = useState(false);
+  const [loadingSendPhoneCode, setLoadingSendPhoneCode] = useState(false);
+  const [loadingVerifyPhoneCode, setLoadingVerifyPhoneCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // ======================
@@ -143,12 +157,175 @@ export const useAuth = () => {
     }
   };
 
+  const handleForgotPassword = async (email: string) => {
+    setLoadingForgotPassword(true);
+    setError(null);
+
+    try {
+      const result = await forgotPassword({ email });
+
+      if (!result.success) {
+        setError(result.message || "Unable to send reset email");
+      }
+
+      return result;
+    } catch (err) {
+      const message = getErrorMessage(err, "Unable to send reset email");
+      setError(message);
+      return {
+        success: false,
+        message,
+      };
+    } finally {
+      setLoadingForgotPassword(false);
+    }
+  };
+
+  const handleResetPassword = async (token: string, newPassword: string) => {
+    setLoadingResetPassword(true);
+    setError(null);
+
+    try {
+      const result = await resetPassword({ token, newPassword });
+
+      if (!result.success) {
+        setError(result.message || "Password reset failed");
+      }
+
+      return result;
+    } catch (err) {
+      const message = getErrorMessage(err, "Password reset failed");
+      setError(message);
+      return {
+        success: false,
+        message,
+      };
+    } finally {
+      setLoadingResetPassword(false);
+    }
+  };
+
+  const handleSendEmailVerification = async (mode: "send" | "resend" = "send") => {
+    setLoadingSendEmailVerification(true);
+    setError(null);
+
+    try {
+      const result =
+        mode === "resend"
+          ? await resendEmailVerification()
+          : await sendEmailVerification();
+
+      if (!result.success) {
+        setError(result.message || "Unable to send verification email");
+      }
+
+      return result;
+    } catch (err) {
+      const message = getErrorMessage(err, "Unable to send verification email");
+      setError(message);
+      return {
+        success: false,
+        message,
+      };
+    } finally {
+      setLoadingSendEmailVerification(false);
+    }
+  };
+
+  const handleVerifyEmail = async (token: string) => {
+    setLoadingVerifyEmail(true);
+    setError(null);
+
+    try {
+      const result = await verifyEmail({ token });
+
+      if (!result.success) {
+        setError(result.message || "Email verification failed");
+        return result;
+      }
+
+      if (result.data) {
+        setUser(result.data);
+      }
+
+      return result;
+    } catch (err) {
+      const message = getErrorMessage(err, "Email verification failed");
+      setError(message);
+      return {
+        success: false,
+        message,
+      };
+    } finally {
+      setLoadingVerifyEmail(false);
+    }
+  };
+
+  const handleSendPhoneCode = async () => {
+    setLoadingSendPhoneCode(true);
+    setError(null);
+
+    try {
+      const result = await sendPhoneCode();
+
+      if (!result.success) {
+        setError(result.message || "Unable to send verification code");
+      }
+
+      return result;
+    } catch (err) {
+      const message = getErrorMessage(err, "Unable to send verification code");
+      setError(message);
+      return {
+        success: false,
+        message,
+      };
+    } finally {
+      setLoadingSendPhoneCode(false);
+    }
+  };
+
+  const handleVerifyPhoneCode = async (code: string) => {
+    setLoadingVerifyPhoneCode(true);
+    setError(null);
+
+    try {
+      const result = await verifyPhoneCode({ code });
+
+      if (!result.success) {
+        setError(result.message || "Phone verification failed");
+        return result;
+      }
+
+      if (result.data) {
+        setUser(result.data);
+      }
+
+      return result;
+    } catch (err) {
+      const message = getErrorMessage(err, "Phone verification failed");
+      setError(message);
+      return {
+        success: false,
+        message,
+      };
+    } finally {
+      setLoadingVerifyPhoneCode(false);
+    }
+  };
+
   return {
     // loading states
     loadingLogin,
     loadingLogout,
     loadingRegister,
     loadingChangePassword,
+    loadingForgotPassword,
+    loadingResetPassword,
+    loadingSendEmailVerification,
+    loadingVerifyEmail,
+    loadingSendPhoneCode,
+    loadingVerifyPhoneCode,
 
     // error
     error,
@@ -158,5 +335,11 @@ export const useAuth = () => {
     handleLogout,
     handleRegister,
     handleChangePassword,
+    handleForgotPassword,
+    handleResetPassword,
+    handleSendEmailVerification,
+    handleVerifyEmail,
+    handleSendPhoneCode,
+    handleVerifyPhoneCode,
   };
 };
