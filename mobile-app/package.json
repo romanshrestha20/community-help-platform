@@ -8,7 +8,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "postinstall": "node ./scripts/patch-country-picker-deps.js"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -37,8 +38,10 @@
     "expo-symbols": "~1.0.8",
     "expo-system-ui": "~6.0.9",
     "react": "19.1.0",
+    "react-async-hook": "^4.0.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-country-picker-modal": "^2.0.0",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-google-places-autocomplete": "^2.6.4",
     "react-native-maps": "1.20.1",
@@ -57,6 +60,11 @@
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2"
+  },
+  "overrides": {
+    "react-native-country-picker-modal": {
+      "react-async-hook": "4.0.0"
+    }
   },
   "private": true
 }
