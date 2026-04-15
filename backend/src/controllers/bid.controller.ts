@@ -46,6 +46,14 @@ const sendResponse = (res: Response, data: any = null, message = "") => {
   res.json({ success: true, data, message });
 };
 
+const HELPER_PROFILE_SELECT = {
+  fullName: true,
+  dateOfBirth: true,
+  rating: true,
+  totalReviews: true,
+  helpCount: true,
+} as const;
+
 // Format bid for consistent responses
 const formatBid = (bid: any) => ({
   id: bid.id,
@@ -57,6 +65,9 @@ const formatBid = (bid: any) => ({
   helperName: bid.helper?.profile?.fullName || bid.helper?.email || "Helper",
   helperEmail: bid.helper?.email || "",
   helperAge: calculateAge(bid.helper?.profile?.dateOfBirth),
+  helperRating: bid.helper?.profile?.rating ?? 0,
+  helperTotalReviews: bid.helper?.profile?.totalReviews ?? 0,
+  helperCompletedHelps: bid.helper?.profile?.helpCount ?? 0,
   createdAt: bid.createdAt,
   updatedAt: bid.updatedAt || bid.createdAt,
 });
@@ -92,7 +103,7 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
           select: {
             id: true,
             email: true,
-            profile: { select: { fullName: true, dateOfBirth: true } },
+            profile: { select: HELPER_PROFILE_SELECT },
           },
         },
       },
@@ -163,7 +174,7 @@ export const getBidsForHelpRequest = async (req: Request, res: Response, next: N
           select: {
             id: true,
             email: true,
-            profile: { select: { fullName: true, dateOfBirth: true } },
+            profile: { select: HELPER_PROFILE_SELECT },
           },
         },
       },
@@ -231,10 +242,7 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
             id: true,
             email: true,
             profile: {
-              select: {
-                fullName: true,
-                dateOfBirth: true,
-              },
+              select: HELPER_PROFILE_SELECT,
             },
           },
         },
@@ -351,10 +359,7 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
             id: true,
             email: true,
             profile: {
-              select: {
-                fullName: true,
-                dateOfBirth: true,
-              },
+              select: HELPER_PROFILE_SELECT,
             },
           },
         },
@@ -424,7 +429,7 @@ export const updateBid = async (req: Request, res: Response, next: NextFunction)
           select: {
             id: true,
             email: true,
-            profile: { select: { fullName: true, dateOfBirth: true } },
+            profile: { select: HELPER_PROFILE_SELECT },
           },
         },
       },
@@ -450,7 +455,13 @@ export const getBidById = async (req: Request, res: Response, next: NextFunction
       where: { id: bidId },
       include: {
         request: true,
-        helper: { select: { id: true, email: true, profile: { select: { fullName: true, dateOfBirth: true } } } },
+        helper: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: HELPER_PROFILE_SELECT },
+          },
+        },
       },
     });
 
