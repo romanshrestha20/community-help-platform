@@ -1,7 +1,12 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { jwtMock, notificationServiceMock, pushTokenServiceMock } = vi.hoisted(() => ({
+const {
+    jwtMock,
+    notificationServiceMock,
+    notificationPreferenceServiceMock,
+    pushTokenServiceMock,
+} = vi.hoisted(() => ({
     jwtMock: {
         verifyAccessToken: vi.fn(),
     },
@@ -10,7 +15,12 @@ const { jwtMock, notificationServiceMock, pushTokenServiceMock } = vi.hoisted(()
         getUnreadNotificationCount: vi.fn(),
         markAllNotificationsAsRead: vi.fn(),
         markNotificationAsRead: vi.fn(),
+        markNotificationAsUnread: vi.fn(),
         deleteNotification: vi.fn(),
+    },
+    notificationPreferenceServiceMock: {
+        getNotificationPreferencesForUser: vi.fn(),
+        updateNotificationPreferencesForUser: vi.fn(),
     },
     pushTokenServiceMock: {
         upsertPushTokenForUser: vi.fn(),
@@ -27,7 +37,15 @@ vi.mock("../../services/notification.service.js", () => ({
     getUnreadNotificationCount: notificationServiceMock.getUnreadNotificationCount,
     markAllNotificationsAsRead: notificationServiceMock.markAllNotificationsAsRead,
     markNotificationAsRead: notificationServiceMock.markNotificationAsRead,
+    markNotificationAsUnread: notificationServiceMock.markNotificationAsUnread,
     deleteNotification: notificationServiceMock.deleteNotification,
+}));
+
+vi.mock("../../services/notification-preference.service.js", () => ({
+    getNotificationPreferencesForUser:
+        notificationPreferenceServiceMock.getNotificationPreferencesForUser,
+    updateNotificationPreferencesForUser:
+        notificationPreferenceServiceMock.updateNotificationPreferencesForUser,
 }));
 
 vi.mock("../../services/push-token.service.js", () => ({
@@ -93,6 +111,57 @@ describe("notification routes integration", () => {
         );
     });
 
+    it("GET /api/notifications/preferences returns notification preferences", async () => {
+        notificationPreferenceServiceMock.getNotificationPreferencesForUser.mockResolvedValue({
+            pushEnabled: true,
+            messagesEnabled: true,
+            bidsEnabled: true,
+            requestUpdatesEnabled: true,
+            savedRequestsEnabled: false,
+        });
+
+        const res = await request(app)
+            .get("/api/notifications/preferences")
+            .set("Authorization", "Bearer valid-token");
+
+        expect(
+            notificationPreferenceServiceMock.getNotificationPreferencesForUser
+        ).toHaveBeenCalledWith("user-1");
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual(
+            expect.objectContaining({
+                success: true,
+                data: expect.objectContaining({ pushEnabled: true }),
+            })
+        );
+    });
+
+    it("PATCH /api/notifications/preferences updates notification preferences", async () => {
+        notificationPreferenceServiceMock.updateNotificationPreferencesForUser.mockResolvedValue({
+            pushEnabled: true,
+            messagesEnabled: false,
+            bidsEnabled: true,
+            requestUpdatesEnabled: true,
+            savedRequestsEnabled: false,
+        });
+
+        const res = await request(app)
+            .patch("/api/notifications/preferences")
+            .set("Authorization", "Bearer valid-token")
+            .send({ messagesEnabled: false });
+
+        expect(
+            notificationPreferenceServiceMock.updateNotificationPreferencesForUser
+        ).toHaveBeenCalledWith("user-1", { messagesEnabled: false });
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual(
+            expect.objectContaining({
+                success: true,
+                message: "Notification preferences updated",
+            })
+        );
+    });
+
     it("PATCH /api/notifications/read-all marks all as read", async () => {
         notificationServiceMock.markAllNotificationsAsRead.mockResolvedValue({ count: 2 });
 
@@ -126,6 +195,26 @@ describe("notification routes integration", () => {
             expect.objectContaining({
                 success: true,
                 message: "Notification marked as read",
+            })
+        );
+    });
+
+    it("PATCH /api/notifications/:id/unread marks one notification as unread", async () => {
+        notificationServiceMock.markNotificationAsUnread.mockResolvedValue({ count: 1 });
+
+        const res = await request(app)
+            .patch("/api/notifications/notif-1/unread")
+            .set("Authorization", "Bearer valid-token");
+
+        expect(notificationServiceMock.markNotificationAsUnread).toHaveBeenCalledWith(
+            "notif-1",
+            "user-1"
+        );
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual(
+            expect.objectContaining({
+                success: true,
+                message: "Notification marked as unread",
             })
         );
     });
