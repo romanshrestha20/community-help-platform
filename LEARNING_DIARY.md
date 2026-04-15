@@ -258,6 +258,106 @@ Key outcome:
 
 **Solution:**
 
+## Additional Successes (This Chat Continuation)
+
+### 16. Notification preferences: backend-backed delivery filtering
+
+- Added persistent notification preferences with category-level toggles and a global `pushEnabled` switch.
+- Wired mobile notification settings into the real push registration flow so disabling push removes/stops token registration and re-enabling restores it.
+- Extended backend notification handling so preferences can be stored and enforced before delivery instead of only being ignored in-app.
+- Added backend service/controller coverage around notification preference updates and push token behavior.
+
+Key outcome:
+
+- Users can now control notification categories more reliably, and disabled categories are blocked closer to the delivery source.
+
+### 17. Review and rating system tied to completed help requests
+
+- Improved the review data model to connect reviews to the completed request rather than relying on title/comment uniqueness.
+- Added backend CRUD for reviews with validation and request-based rules:
+  - review only after request completion
+  - reviewer must be the requester
+  - target must be the assigned helper
+  - one review per requester per completed request
+- Added helper rating aggregation and surfaced trust metrics such as rating, total reviews, and completed helps.
+- Added backend tests for review service and route behavior.
+
+Key outcome:
+
+- Reviews are now grounded in real completed jobs, which makes the trust system much harder to abuse and more useful to requesters.
+
+### 18. Review feature integrated into mobile UI
+
+- Built a modular mobile reviews feature with:
+  - review API/service/hooks
+  - star rating input
+  - review summary card
+  - review list and review card
+  - review composer modal
+- Wired review creation into completed request flow so a requester can leave a review after marking a request completed.
+- Added helper review summary and recent reviews into the bidder profile modal.
+
+Key outcome:
+
+- The app now has a real end-to-end feedback loop after a completed request, improving trust and post-job engagement.
+
+### 19. Bid trust signals and bidder profile redesign
+
+- Extended bid payloads from backend to include:
+  - `helperRating`
+  - `helperTotalReviews`
+  - `helperCompletedHelps`
+- Removed the need for extra summary fetches on bid cards by embedding trust metrics directly in bid responses.
+- Surfaced rating inline on bid cards so requesters can compare helpers faster.
+- Redesigned `BidderProfileModal` into a stronger trust-first layout with:
+  - profile hero/header
+  - quick facts
+  - highlighted bid amount
+  - trust summary
+  - recent reviews
+
+Key outcome:
+
+- Requesters can assess helper credibility much faster from both the list and profile layers.
+
+### 20. Bid list interaction improvements
+
+- Reworked bid card actions into swipe-to-action interactions.
+- Added coordination so only one bid card stays open at a time.
+- Strengthened swipe action feedback with clearer motion and visual emphasis.
+- Fixed My Bids screen rendering so the logged-in user's bids show up correctly.
+
+Key outcome:
+
+- Bid management now feels more mobile-native and less cluttered, while preserving a single clear active action state.
+
+### 21. Avatar and profile data propagation fixes
+
+- Extended backend request and bid payloads to include requester/helper profile fields such as avatar, gender, and location.
+- Updated mobile request, bid, and profile modal rendering to use uploaded avatars instead of local fallback initials wherever data exists.
+- Fixed favorites data flow to include requester avatar and location in saved request cards.
+- Standardized inbox conversation rows to use the shared avatar component.
+- Synced avatar/profile updates into auth state as well as profile state so home greeting overview updates immediately after avatar upload.
+
+Key outcome:
+
+- Uploaded profile photos now propagate more consistently across home, bids, saved requests, request details, and messaging instead of appearing only on profile screens.
+
+## Lessons Learned From This Phase
+
+- Trust features need strong business rules, not just UI components. Reviews only become meaningful when tied to actual completed requests.
+- If the same profile data appears across many screens, backend response shaping matters as much as frontend rendering.
+- Shared UI components like avatar renderers reduce inconsistency and make cross-screen fixes much faster.
+- State can drift when profile data is split between auth and feature stores; profile mutations should synchronize both when the UI depends on each.
+- Embedding trust summary fields in core payloads is often better than adding follow-up fetches for every card or modal.
+
+## Suggested Next Follow-ups
+
+1. Add an explicit `totalReviews` field to all frontend user/profile types where trust metrics are displayed.
+2. Add end-to-end UI tests for avatar propagation after upload and for review creation after request completion.
+3. Add pagination and empty-state polish for helper reviews on slower or low-review accounts.
+4. Consider surfacing the same rating summary in assigned-helper sections and conversation headers for consistency.
+
 - Created reusable `DatePickerField` component using native `@react-native-community/datetimepicker`
 - Component renders as a tappable field with calendar icon
 - Tapping opens native iOS date picker in modal with spinner style
