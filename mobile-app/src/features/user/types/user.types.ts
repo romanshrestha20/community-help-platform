@@ -31,6 +31,8 @@ export interface User {
   email: string;
   phone: string;
   isVerified: boolean;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
 
   fullName: string;
   bio?: string;
@@ -80,6 +82,9 @@ export interface GetUserProfileApiResponse {
   userId: string;
   email: string;
   phone: string | null;
+  isVerified?: boolean;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
   profile: UserProfile | null;
 }
 
@@ -87,6 +92,9 @@ export interface UpdateUserProfileApiResponse {
   status: "success";
   message: string;
   phone?: string | null;
+  isVerified?: boolean;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
   profile: UserProfile;
 }
 
@@ -94,6 +102,9 @@ export interface UploadAvatarApiResponse {
   status: "success";
   message: string;
   phone?: string | null;
+  isVerified?: boolean;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
   profile: UserProfile;
 }
 
@@ -101,6 +112,9 @@ export interface DeleteAvatarApiResponse {
   status: "success";
   message: string;
   phone?: string | null;
+  isVerified?: boolean;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
   profile: UserProfile;
 }
 
