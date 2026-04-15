@@ -4,7 +4,9 @@ import * as Notifications from "expo-notifications";
 import { create } from "zustand";
 
 import { getMyConversations } from "@/features/conversation/services/conversation.service";
-import { fetchUnreadCount } from "@/features/notifications/service/notification.service";
+import { fetchNotifications } from "@/features/notifications/service/notification.service";
+import { useNotificationSettingsStore } from "@/features/settings/store/notification-settings.store";
+import { filterNotificationsByPreferences } from "@/features/notifications/utils/notification-preferences";
 
 export interface BadgeCounts {
     messages: number;
@@ -26,6 +28,19 @@ const useBadgeCountStore = create<BadgeCountState>((set) => ({
 export const useBadgeCounts = (): BadgeCounts => {
     const messages = useBadgeCountStore((state) => state.messages);
     const notifications = useBadgeCountStore((state) => state.notifications);
+    const {
+        isHydrated,
+        pushEnabled,
+        messagesEnabled,
+        bidsEnabled,
+        requestUpdatesEnabled,
+        savedRequestsEnabled,
+        initializeNotificationSettings,
+    } = useNotificationSettingsStore();
+
+    useEffect(() => {
+        void initializeNotificationSettings();
+    }, [initializeNotificationSettings]);
 
     const refreshMessageCount = useCallback(async () => {
         try {
@@ -43,12 +58,34 @@ export const useBadgeCounts = (): BadgeCounts => {
 
     const refreshNotificationCount = useCallback(async () => {
         try {
-            const unreadCount = await fetchUnreadCount();
+            if (!isHydrated) {
+                return;
+            }
+
+            const items = await fetchNotifications();
+            const visibleItems = filterNotificationsByPreferences(items, {
+                pushEnabled,
+                messagesEnabled,
+                bidsEnabled,
+                requestUpdatesEnabled,
+                savedRequestsEnabled,
+            });
+            const unreadCount = visibleItems.filter(
+                (notification) => !notification.isRead
+            ).length;
+
             useBadgeCountStore.getState().setNotificationCount(unreadCount);
         } catch (error) {
             console.warn("Failed to refresh notification badge count:", error);
         }
-    }, []);
+    }, [
+        bidsEnabled,
+        isHydrated,
+        messagesEnabled,
+        pushEnabled,
+        requestUpdatesEnabled,
+        savedRequestsEnabled,
+    ]);
 
     useEffect(() => {
         let isActive = true;
