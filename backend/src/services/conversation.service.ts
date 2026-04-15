@@ -570,6 +570,7 @@ export const listUserConversations = async ({
                                 status: true,
                                 requesterId: true,
                                 assignedHelperId: true,
+
                             },
                         },
                         members: {
@@ -578,6 +579,7 @@ export const listUserConversations = async ({
                                     select: {
                                         id: true,
                                         email: true,
+
                                         profile: {
                                             select: {
                                                 fullName: true,
