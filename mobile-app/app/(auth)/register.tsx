@@ -212,9 +212,11 @@ export default function RegisterScreen() {
                   error={fieldErrors.phone ?? null}
                   hint={phoneRegionHint}
                   detectedLabel={phoneDetectedLabel}
-                  onCountryChange={({ countryCode, callingCode }) => {
+                  onCountryChange={({ countryCode, callingCode }, source) => {
                     clearFieldError("phone");
-                    setPhoneCountryTouched(true);
+                    if (source === "user") {
+                      setPhoneCountryTouched(true);
+                    }
                     setPhoneCountryCode(countryCode);
                     setPhoneCallingCode(callingCode);
                   }}

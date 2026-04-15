@@ -1,32 +1,30 @@
 import React, { useState } from "react";
 import {
-  Text,
-  StyleSheet,
-  View,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { useRouter } from "expo-router";
 
-import { Card, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppInput } from "@/components/ui/AppInput";
+import { Card, Stack, theme } from "@/design-system";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
+import { validateForgotPasswordFormFields } from "@/features/auth/utils/authValidation";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { APP_ROUTES } from "@/config/routes";
-import { validateLoginFormFields } from "@/features/auth/utils/authValidation";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 
-export default function LoginScreen() {
+export default function ForgotPasswordScreen() {
   const router = useRouter();
   const { palette } = useThemeContext();
-  const { loadingLogin, error, handleLogin } = useAuth();
-
+  const { handleForgotPassword, loadingForgotPassword, error } = useAuth();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const {
     validationError,
     setValidationError,
@@ -34,21 +32,29 @@ export default function LoginScreen() {
     setFieldErrors,
     clearFieldError,
     clearValidationError,
-  } = useFormValidation<"email" | "password">();
+  } = useFormValidation<"email">();
 
-  const isFormDisabled = loadingLogin;
+  const isFormDisabled = loadingForgotPassword;
 
-  const handleEmailLogin = async () => {
-    const validation = validateLoginFormFields({ email, password });
+  const handleSubmit = async () => {
+    const validation = validateForgotPasswordFormFields({ email });
 
     if (!validation.isValid) {
       setValidationError(validation.formError);
       setFieldErrors(validation.fieldErrors);
+      setSuccessMessage(null);
       return;
     }
 
     clearValidationError();
-    await handleLogin({ email, password });
+
+    const result = await handleForgotPassword(email);
+
+    if (result?.success) {
+      setSuccessMessage(result.message);
+    } else {
+      setSuccessMessage(null);
+    }
   };
 
   return (
@@ -59,8 +65,8 @@ export default function LoginScreen() {
       <View style={styles.container}>
         <View style={styles.authBlock}>
           <AppHeader
-            title="Sign In"
-            subtitle="Sign in to continue helping your community"
+            title="Forgot Password"
+            subtitle="Enter your email and we’ll send you a reset link."
             align="center"
             variant="large"
           />
@@ -89,52 +95,33 @@ export default function LoginScreen() {
                 editable={!isFormDisabled}
               />
 
-              <AppInput
-                label="Password"
-                placeholder="Enter password"
-                value={password}
-                error={fieldErrors.password ?? null}
-                onChangeText={(value) => {
-                  clearFieldError("password");
-                  setPassword(value);
-                }}
-                secureTextEntry
-                editable={!isFormDisabled}
-              />
-
-              <Pressable
-                onPress={() => router.push(APP_ROUTES.AUTH_FORGOT_PASSWORD)}
-                disabled={isFormDisabled}
-              >
-                <Text
-                  style={[
-                    styles.secondaryLinkText,
-                    { color: palette.primary },
-                  ]}
-                >
-                  Forgot password?
-                </Text>
-              </Pressable>
-
               {validationError || error ? (
                 <Text style={[styles.error, { color: palette.danger }]}>
                   {validationError || error}
                 </Text>
               ) : null}
 
+              {successMessage ? (
+                <Text style={[styles.success, { color: palette.success }]}>
+                  {successMessage}
+                </Text>
+              ) : null}
+
               <AppButton
-                title={loadingLogin ? "Signing in..." : "Sign In"}
-                onPress={handleEmailLogin}
-                loading={loadingLogin}
+                title={
+                  loadingForgotPassword ? "Sending link..." : "Send reset link"
+                }
+                onPress={handleSubmit}
+                loading={loadingForgotPassword}
                 disabled={isFormDisabled}
               />
 
-              <Pressable onPress={() => router.push(APP_ROUTES.AUTH_REGISTER)}>
+              <Pressable onPress={() => router.push(APP_ROUTES.AUTH_LOGIN)}>
                 <Text style={styles.linkText}>
                   <Text style={{ color: palette.textSecondary }}>
-                    Don&apos;t have an account?{" "}
+                    Remembered it?{" "}
                   </Text>
-                  <Text style={{ color: palette.primary }}>Register</Text>
+                  <Text style={{ color: palette.primary }}>Sign in</Text>
                 </Text>
               </Pressable>
             </Stack>
@@ -169,15 +156,14 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
   },
+  success: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+  },
   linkText: {
     textAlign: "center",
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
     marginTop: theme.spacing.xs,
-  },
-  secondaryLinkText: {
-    textAlign: "right",
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
   },
 });
