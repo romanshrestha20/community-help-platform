@@ -7,6 +7,9 @@ const { prismaMock } = vi.hoisted(() => ({
         userModel: {
             findUnique: vi.fn(),
         },
+        category: {
+            findFirst: vi.fn(),
+        },
         helpRequest: {
             create: vi.fn(),
             findMany: vi.fn(),
@@ -72,6 +75,27 @@ import {
 describe("request.controller", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        prismaMock.category.findFirst.mockImplementation(async ({ where }: any) => {
+            if (where?.id === "550e8400-e29b-41d4-a716-446655440010") {
+                return {
+                    id: "550e8400-e29b-41d4-a716-446655440010",
+                    name: "Food",
+                    slug: "food",
+                    icon: "basket-outline",
+                };
+            }
+
+            if (where?.id === "550e8400-e29b-41d4-a716-446655440011") {
+                return {
+                    id: "550e8400-e29b-41d4-a716-446655440011",
+                    name: "Medical",
+                    slug: "medical",
+                    icon: "medkit-outline",
+                };
+            }
+
+            return null;
+        });
         prismaMock.$transaction.mockImplementation(async (operations: Promise<unknown>[]) =>
             Promise.all(operations),
         );
@@ -95,7 +119,7 @@ describe("request.controller", () => {
             requesterId: "user-1",
             title: "Need groceries",
             description: "Help with groceries",
-            category: "FOOD",
+            category: { id: "550e8400-e29b-41d4-a716-446655440010", name: "Food", slug: "food", icon: "basket-outline" },
             budget: 50,
             isPaid: false,
             status: "OPEN",
@@ -112,7 +136,7 @@ describe("request.controller", () => {
             body: {
                 title: "Need groceries",
                 description: "Help with groceries",
-                category: "FOOD",
+                categoryId: "550e8400-e29b-41d4-a716-446655440010",
                 budget: 50,
                 location: { latitude: 27.7, longitude: 85.3 },
             },
@@ -125,7 +149,7 @@ describe("request.controller", () => {
         expect(prismaMock.helpRequest.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 data: expect.objectContaining({
-                    category: "FOOD",
+                    category: { connect: { id: "550e8400-e29b-41d4-a716-446655440010" } },
                     requester: { connect: { id: "user-1" } },
                     location: expect.objectContaining({
                         create: expect.objectContaining({ latitude: 27.7, longitude: 85.3 }),
@@ -145,7 +169,7 @@ describe("request.controller", () => {
             body: {
                 title: "Need groceries",
                 description: "Help with groceries",
-                category: "INVALID",
+                categoryId: "not-a-uuid",
                 location: { latitude: 27.7, longitude: 85.3 },
             },
         });
@@ -155,7 +179,7 @@ describe("request.controller", () => {
         await createHelpRequest(req, res, next);
 
         expect(next).toHaveBeenCalledWith(
-            expect.objectContaining({ message: "Invalid category", statusCode: 400 }),
+            expect.objectContaining({ message: "Category ID must be a valid UUID.", statusCode: 400 }),
         );
     });
 
@@ -373,7 +397,7 @@ describe("request.controller", () => {
             params: { id: "req-1" },
             body: {
                 title: "Updated title",
-                category: "FOOD",
+                categoryId: "550e8400-e29b-41d4-a716-446655440010",
                 location: { latitude: 1, longitude: 2, city: "Kathmandu" },
             },
         });
@@ -488,7 +512,7 @@ describe("request.controller", () => {
             id: "req-1",
             title: "Help needed",
             description: "Need help",
-            category: "FOOD",
+            category: { id: "550e8400-e29b-41d4-a716-446655440010", name: "Food", slug: "food", icon: "basket-outline" },
             budget: 100,
             isPaid: false,
             status: "OPEN",
@@ -509,7 +533,7 @@ describe("request.controller", () => {
             body: {
                 title: "Help needed",
                 description: "Need help",
-                category: "FOOD",
+                categoryId: "550e8400-e29b-41d4-a716-446655440010",
                 budget: 100,
                 location: { latitude: 27.7, longitude: 85.3 },
             },
@@ -565,7 +589,7 @@ describe("request.controller", () => {
             id: "req-1",
             title: "Help needed",
             description: "Need help with images",
-            category: "MEDICAL",
+            category: { id: "550e8400-e29b-41d4-a716-446655440011", name: "Medical", slug: "medical", icon: "medkit-outline" },
             budget: 500,
             isPaid: true,
             status: "OPEN",
@@ -582,7 +606,7 @@ describe("request.controller", () => {
             body: {
                 title: "Help needed",
                 description: "Need help with images",
-                category: "MEDICAL",
+                categoryId: "550e8400-e29b-41d4-a716-446655440011",
                 budget: 500,
                 isPaid: true,
                 location: { latitude: 27.7, longitude: 85.3 },
@@ -671,7 +695,7 @@ describe("request.controller", () => {
             body: {
                 title: "Help needed",
                 description: "Need help",
-                category: "FOOD",
+                categoryId: "550e8400-e29b-41d4-a716-446655440010",
                 location: { latitude: 27.7, longitude: 85.3 },
             },
         });

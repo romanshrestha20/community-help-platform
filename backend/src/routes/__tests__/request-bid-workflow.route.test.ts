@@ -135,6 +135,9 @@ const { prismaMock } = vi.hoisted(() => ({
         userModel: {
             findUnique: vi.fn(),
         },
+        category: {
+            findFirst: vi.fn(),
+        },
         helpRequest: {
             create: vi.fn(),
             findUnique: vi.fn(),
@@ -311,9 +314,23 @@ describe("request/bid notification workflow routes", () => {
             return null;
         });
 
+        prismaMock.category.findFirst.mockImplementation(async ({ where }: any) => {
+            if (where?.id === "550e8400-e29b-41d4-a716-446655440010" && where?.isActive === true) {
+                return {
+                    id: "550e8400-e29b-41d4-a716-446655440010",
+                    name: "Food",
+                    slug: "food",
+                    icon: "basket-outline",
+                };
+            }
+
+            return null;
+        });
+
         prismaMock.helpRequest.create.mockImplementation(async ({ data }: any) => {
             const id = `req-${++state.requestCounter}`;
             const createdAt = new Date();
+            const categoryId = data.category?.connect?.id;
             const location = data.location?.create
                 ? {
                     id: `loc-${state.requestCounter}`,
@@ -328,7 +345,14 @@ describe("request/bid notification workflow routes", () => {
                 requesterId: data.requester.connect.id,
                 title: data.title,
                 description: data.description,
-                category: data.category,
+                category: categoryId
+                    ? {
+                        id: categoryId,
+                        name: "Food",
+                        slug: "food",
+                        icon: "basket-outline",
+                    }
+                    : null,
                 budget: data.budget ?? null,
                 isPaid: Boolean(data.isPaid),
                 status: "OPEN",
@@ -362,7 +386,14 @@ describe("request/bid notification workflow routes", () => {
             }
             if (data?.title !== undefined) record.title = data.title;
             if (data?.description !== undefined) record.description = data.description;
-            if (data?.category !== undefined) record.category = data.category;
+            if (data?.category?.connect?.id) {
+                record.category = {
+                    id: data.category.connect.id,
+                    name: "Food",
+                    slug: "food",
+                    icon: "basket-outline",
+                };
+            }
             if (data?.budget !== undefined) record.budget = data.budget;
             if (data?.isPaid !== undefined) record.isPaid = data.isPaid;
             if (data?.serviceRadiusMeters !== undefined) record.serviceRadiusMeters = data.serviceRadiusMeters;
@@ -497,7 +528,7 @@ describe("request/bid notification workflow routes", () => {
             .send({
                 title,
                 description: `${title} description`,
-                category: "FOOD",
+                categoryId: "550e8400-e29b-41d4-a716-446655440010",
                 budget: 20,
                 location: {
                     latitude: 27.7,

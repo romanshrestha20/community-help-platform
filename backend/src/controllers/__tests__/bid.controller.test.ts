@@ -25,6 +25,12 @@ const { notificationServiceMock } = vi.hoisted(() => ({
     },
 }));
 
+const { conversationServiceMock } = vi.hoisted(() => ({
+    conversationServiceMock: {
+        ensureConversationForRequestInTransaction: vi.fn(),
+    },
+}));
+
 vi.mock("../../lib/prisma.js", () => ({
     prisma: prismaMock,
 }));
@@ -33,11 +39,20 @@ vi.mock("../../services/notification.service.js", () => ({
     createNotification: notificationServiceMock.createNotification,
 }));
 
+vi.mock("../../services/conversation.service.js", () => ({
+    ensureConversationForRequestInTransaction:
+        conversationServiceMock.ensureConversationForRequestInTransaction,
+}));
+
 import { deleteBid, placeBid, respondToBid } from "../bid.controller.js";
 
 describe("bid.controller", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        conversationServiceMock.ensureConversationForRequestInTransaction.mockResolvedValue({
+            conversation: { id: "conv-1" },
+            starterNote: "Bid accepted. You can now coordinate through chat.",
+        });
     });
 
     it("placeBid: validates amount", async () => {
@@ -47,7 +62,7 @@ describe("bid.controller", () => {
 
         await placeBid(req, res, next);
 
-        expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: "Invalid amount", statusCode: 400 }));
+        expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: "Bid amount must be greater than 0.", statusCode: 400 }));
     });
 
     it("placeBid: creates bid successfully", async () => {
@@ -137,6 +152,28 @@ describe("bid.controller", () => {
                 },
                 helpRequest: {
                     update: txHelpRequestUpdate,
+                    findUnique: vi.fn().mockResolvedValue({
+                        id: "req-1",
+                        requesterId: "requester-1",
+                        assignedHelperId: "helper-1",
+                    }),
+                },
+                conversation: {
+                    upsert: vi.fn().mockResolvedValue({ id: "conv-1" }),
+                    findUnique: vi.fn().mockResolvedValue({
+                        id: "conv-1",
+                        request: {
+                            id: "req-1",
+                            title: "Need help",
+                            status: "ASSIGNED",
+                            requesterId: "requester-1",
+                            assignedHelperId: "helper-1",
+                        },
+                        members: [],
+                    }),
+                },
+                conversationMember: {
+                    createMany: vi.fn().mockResolvedValue({ count: 2 }),
                 },
             };
             return fn(tx);
@@ -231,6 +268,28 @@ describe("bid.controller", () => {
                 },
                 helpRequest: {
                     update: vi.fn(),
+                    findUnique: vi.fn().mockResolvedValue({
+                        id: "req-1",
+                        requesterId: "requester-1",
+                        assignedHelperId: "helper-1",
+                    }),
+                },
+                conversation: {
+                    upsert: vi.fn().mockResolvedValue({ id: "conv-1" }),
+                    findUnique: vi.fn().mockResolvedValue({
+                        id: "conv-1",
+                        request: {
+                            id: "req-1",
+                            title: "Need help",
+                            status: "ASSIGNED",
+                            requesterId: "requester-1",
+                            assignedHelperId: "helper-1",
+                        },
+                        members: [],
+                    }),
+                },
+                conversationMember: {
+                    createMany: vi.fn().mockResolvedValue({ count: 2 }),
                 },
             };
             return fn(tx);
