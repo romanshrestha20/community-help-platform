@@ -30,6 +30,11 @@ const categoryIdSchema = z
   .trim()
   .uuid("Category ID must be a valid UUID.");
 
+const helpRequestIdSchema = z
+  .string()
+  .trim()
+  .uuid("Help request ID must be a valid UUID.");
+
 const requestStatusSchema = z.enum(["OPEN", "ASSIGNED", "COMPLETED", "CANCELLED"]);
 const bidStatusSchema = z.enum(["ACCEPTED", "REJECTED"]);
 
@@ -175,4 +180,34 @@ export const sendConversationMessageBodySchema = z.object({
     .trim()
     .min(1, "Message content is required.")
     .max(1000, "Message cannot exceed 1000 characters."),
+});
+
+export const createReviewBodySchema = z.object({
+  helpRequestId: helpRequestIdSchema,
+  rating: z
+    .coerce
+    .number()
+    .int("Rating must be a whole number.")
+    .min(1, "Rating must be between 1 and 5.")
+    .max(5, "Rating must be between 1 and 5."),
+  title: z
+    .string()
+    .trim()
+    .max(120, "Title cannot exceed 120 characters.")
+    .optional()
+    .transform((value) => value && value.length > 0 ? value : undefined),
+  comment: z
+    .string()
+    .trim()
+    .min(1, "Comment is required.")
+    .max(1000, "Comment cannot exceed 1000 characters."),
+});
+
+export const userIdParamSchema = z.object({
+  userId: z.string().trim().uuid("User ID must be a valid UUID."),
+});
+
+export const reviewsPaginationQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(50).optional(),
 });
