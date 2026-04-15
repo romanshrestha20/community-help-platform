@@ -3,6 +3,8 @@ import {
   registerUser,
   loginUser,
   changePassword,
+  forgotPassword,
+  resetPassword,
   refreshAccessToken,
 } from "../controllers/auth.controller.js";
 
@@ -22,6 +24,8 @@ const router = express.Router();
 // Auth
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 router.post("/refresh", refreshAccessToken);
 
 // Profile
