@@ -73,6 +73,7 @@ export const updateUserProfileService = async (
   try {
     const payload: Partial<UpdateUserProfilePayload> = {
       fullName: profileData.fullName,
+      phone: profileData.phone,
       bio: profileData.bio,
       dateOfBirth: profileData.dateOfBirth,
       gender: profileData.gender,

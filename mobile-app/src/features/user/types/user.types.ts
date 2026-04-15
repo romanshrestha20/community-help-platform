@@ -20,6 +20,7 @@ export interface Address {
   state?: string | null;
   postalCode?: string | null;
   country?: string | null;
+  countryCode?: string | null;
   formattedAddress?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -51,6 +52,7 @@ export interface UserResponse {
 
 export interface UpdateUserProfilePayload {
   fullName?: string;
+  phone?: string;
   bio?: string;
   dateOfBirth?: string;
   gender?: Gender;
@@ -84,18 +86,21 @@ export interface GetUserProfileApiResponse {
 export interface UpdateUserProfileApiResponse {
   status: "success";
   message: string;
+  phone?: string | null;
   profile: UserProfile;
 }
 
 export interface UploadAvatarApiResponse {
   status: "success";
   message: string;
+  phone?: string | null;
   profile: UserProfile;
 }
 
 export interface DeleteAvatarApiResponse {
   status: "success";
   message: string;
+  phone?: string | null;
   profile: UserProfile;
 }
 

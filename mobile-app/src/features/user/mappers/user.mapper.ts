@@ -60,7 +60,7 @@ export const mapProfileMutationResponseToUser = (
   return mapProfileToUser(response.profile, {
     id: currentUser?.id ?? response.profile.userId,
     email: currentUser?.email ?? "",
-    phone: currentUser?.phone ?? "",
+    phone: response.phone ?? currentUser?.phone ?? "",
     isVerified: currentUser?.isVerified ?? true,
   });
 };
