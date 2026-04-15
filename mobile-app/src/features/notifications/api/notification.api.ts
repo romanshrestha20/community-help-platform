@@ -1,5 +1,9 @@
 import apiClient from "@/api/api-client";
-import type { ApiResponse, AppNotification } from "../types/notification.types";
+import type {
+    ApiResponse,
+    AppNotification,
+    NotificationPreferencesDto,
+} from "../types/notification.types";
 
 const unwrapResponse = <T>(response: ApiResponse<T>): T => {
     if (!response.success) {
@@ -54,4 +58,24 @@ export const unregisterPushTokenApi = async (token: string): Promise<void> => {
     });
 
     unwrapResponse(response.data);
+};
+
+export const fetchNotificationPreferencesApi =
+    async (): Promise<NotificationPreferencesDto> => {
+        const response = await apiClient.get<ApiResponse<NotificationPreferencesDto>>(
+            "/notifications/preferences"
+        );
+
+        return unwrapResponse(response.data);
+    };
+
+export const updateNotificationPreferencesApi = async (
+    preferences: Partial<NotificationPreferencesDto>
+): Promise<NotificationPreferencesDto> => {
+    const response = await apiClient.patch<ApiResponse<NotificationPreferencesDto>>(
+        "/notifications/preferences",
+        preferences
+    );
+
+    return unwrapResponse(response.data);
 };
