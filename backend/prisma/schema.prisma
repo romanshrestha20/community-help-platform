@@ -78,6 +78,7 @@ model Profile {
   userType    UserType  @default(GENERAL)
   rating      Float     @default(0)
   helpCount   Int       @default(0)
+  totalReviews Int      @default(0)
 
   avatarUrl      String?
   avatarPublicId String?
@@ -219,6 +220,7 @@ model HelpRequest {
   images        Image[]
   notifications Notification[]
   favorites     Favorite[]
+  reviews       Review[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -380,6 +382,9 @@ model Review {
   targetUserId String
   targetUser   UserModel @relation("UserReviewsReceived", fields: [targetUserId], references: [id], onDelete: Cascade)
 
+  helpRequestId String
+  helpRequest   HelpRequest @relation(fields: [helpRequestId], references: [id], onDelete: Cascade)
+
   replies       ReviewReply[]
   likes         ReviewLike[]
   images        Image[]
@@ -388,9 +393,10 @@ model Review {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, title, comment])
+  @@unique([userId, helpRequestId])
   @@index([userId])
   @@index([targetUserId])
+  @@index([helpRequestId])
   @@index([createdAt])
   @@index([isApproved])
   @@map("reviews")
