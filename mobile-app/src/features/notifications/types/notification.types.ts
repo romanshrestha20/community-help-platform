@@ -16,6 +16,14 @@ export type ApiResponse<T> = {
     message?: string;
 };
 
+export type NotificationPreferencesDto = {
+    pushEnabled: boolean;
+    messagesEnabled: boolean;
+    bidsEnabled: boolean;
+    requestUpdatesEnabled: boolean;
+    savedRequestsEnabled: boolean;
+};
+
 export type AppNotification = {
     id: string;
     actorId?: string | null;
