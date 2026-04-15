@@ -11,6 +11,7 @@ import {
   uploadImageToCloudinary,
   deleteImageFromCloudinary,
 } from "../utils/cloudinary.js";
+import { normalizePhoneNumber } from "../utils/phone.js";
 
 export const getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
@@ -48,7 +49,7 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
 
 export const updateUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
-  const { fullName, bio, dateOfBirth, gender, userType } = req.body;
+  const { fullName, phone, bio, dateOfBirth, gender, userType } = req.body;
   const location = normalizeIncomingLocation(req.body as Record<string, unknown>);
   const hasLocationPayload = Object.prototype.hasOwnProperty.call(req.body, "location");
 
@@ -73,10 +74,18 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
     }
 
     let parsedDateOfBirth: Date | undefined;
+    let normalizedPhone: string | undefined;
     if (dateOfBirth !== undefined && dateOfBirth !== null) {
       parsedDateOfBirth = new Date(dateOfBirth);
       if (Number.isNaN(parsedDateOfBirth.getTime())) {
         return next(new AppError("Invalid dateOfBirth format. Use YYYY-MM-DD", 400));
+      }
+    }
+
+    if (phone !== undefined) {
+      normalizedPhone = normalizePhoneNumber(String(phone));
+      if (!normalizedPhone) {
+        return next(new AppError("Please enter a valid phone number", 400));
       }
     }
 
@@ -100,21 +109,46 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
       }
     }
 
-    const updatedProfile = await prisma.profile.update({
-      where: { userId },
-      data: updateData,
-      include: {
-        address: true,
-      },
-    });
+    const [updatedUser, updatedProfile] = await prisma.$transaction([
+      normalizedPhone !== undefined
+        ? prisma.userModel.update({
+          where: { id: userId },
+          data: {
+            phone: normalizedPhone,
+          },
+          select: {
+            phone: true,
+          },
+        })
+        : prisma.userModel.findUniqueOrThrow({
+          where: { id: userId },
+          select: {
+            phone: true,
+          },
+        }),
+      prisma.profile.update({
+        where: { userId },
+        data: updateData,
+        include: {
+          address: true,
+        },
+      }),
+    ]);
 
     res.status(200).json({
       status: "success",
       message: "Profile updated successfully",
+      phone: updatedUser.phone,
       profile: updatedProfile,
     });
   } catch (error) {
     console.error(error);
+
+    const prismaCode = (error as { code?: string })?.code;
+    if (prismaCode === "P2002") {
+      return next(new AppError("Email or phone already registered", 400));
+    }
+
     next(error);
   }
 };

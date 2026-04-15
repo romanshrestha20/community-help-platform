@@ -14,6 +14,7 @@ import {
   refreshTokenBodySchema,
   registerUserBodySchema,
 } from "../utils/validation-schemas.js";
+import { normalizePhoneNumber } from "../utils/phone.js";
 
 
 export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
@@ -31,6 +32,12 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       return next(new AppError("A valid location is required", 400));
     }
 
+    const normalizedPhone = normalizePhoneNumber(phone);
+
+    if (!normalizedPhone) {
+      return next(new AppError("Please enter a valid phone number", 400));
+    }
+
     const parsedDateOfBirth = new Date(dateOfBirth);
 
     if (Number.isNaN(parsedDateOfBirth.getTime())) {
@@ -39,7 +46,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 
     const existingUser = await prisma.userModel.findFirst({
       where: {
-        OR: [{ email }, { phone }],
+        OR: [{ email }, { phone: normalizedPhone }],
       },
     });
 
@@ -49,11 +56,11 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const newUser = await prisma.userModel.create({
+    const createdUser = await prisma.userModel.create({
       data: {
         email,
         passwordHash,
-        phone,
+        phone: normalizedPhone,
         profile: {
           create: {
             fullName,
@@ -65,30 +72,56 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
           },
         },
       },
-      include: {
+    });
+
+    const publicUser = await prisma.userModel.findUnique({
+      where: { id: createdUser.id },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
         profile: {
-          include: {
+          select: {
+            id: true,
+            userId: true,
+            fullName: true,
+            bio: true,
+            dateOfBirth: true,
+            gender: true,
+            userType: true,
+            rating: true,
+            helpCount: true,
+            totalReviews: true,
+            avatarUrl: true,
+            avatarPublicId: true,
+            searchRadiusMeters: true,
+            addressId: true,
             address: true,
+            createdAt: true,
+            updatedAt: true,
           },
         },
       },
     });
 
-    const token = accessToken({ userId: newUser.id });
-    const refreshToken = signRefreshToken({ userId: newUser.id });
+    const token = accessToken({ userId: createdUser.id });
+    const refreshToken = signRefreshToken({ userId: createdUser.id });
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
     await prisma.refreshToken.create({
-      data: { userId: newUser.id, token: refreshToken, expiresAt },
+      data: { userId: createdUser.id, token: refreshToken, expiresAt },
     });
 
     res.status(201).json({
       success: true,
       accessToken: token,
       refreshToken,
-      data: newUser,
+      data: publicUser,
       message: "User registered successfully",
     });
   } catch (error) {

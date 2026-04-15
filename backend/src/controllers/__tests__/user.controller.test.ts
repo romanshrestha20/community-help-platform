@@ -5,6 +5,8 @@ const { prismaMock } = vi.hoisted(() => ({
     prismaMock: {
         userModel: {
             findUnique: vi.fn(),
+            findUniqueOrThrow: vi.fn(),
+            update: vi.fn(),
             delete: vi.fn(),
         },
         deletedAccount: {
@@ -71,15 +73,19 @@ describe("user.controller", () => {
             userId: "user-1",
             addressId: null,
         });
-        prismaMock.profile.update.mockResolvedValue({
-            id: "profile-1",
-            fullName: "Roman",
-        });
+        prismaMock.$transaction.mockResolvedValue([
+            { phone: "+9779800000000" },
+            {
+                id: "profile-1",
+                fullName: "Roman",
+            },
+        ]);
 
         const req = makeReq({
             user: { userId: "user-1" },
             body: {
                 fullName: "Roman",
+                phone: "+9779800000000",
                 bio: "Volunteer",
                 gender: "MALE",
                 dateOfBirth: "2000-01-01",
@@ -93,12 +99,14 @@ describe("user.controller", () => {
         expect(prismaMock.profile.findUnique).toHaveBeenCalledWith(
             expect.objectContaining({ where: { userId: "user-1" } }),
         );
-        expect(prismaMock.profile.update).toHaveBeenCalledWith(
-            expect.objectContaining({ where: { userId: "user-1" } }),
-        );
+        expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith(
-            expect.objectContaining({ status: "success", message: "Profile updated successfully" }),
+            expect.objectContaining({
+                status: "success",
+                message: "Profile updated successfully",
+                phone: "+9779800000000",
+            }),
         );
     });
 
