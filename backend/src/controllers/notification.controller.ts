@@ -1,7 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import AppError from "../utils/appError.js";
 import { getZodErrorMessage } from "../utils/zod.js";
-import { pushTokenBodySchema } from "../utils/validation-schemas.js";
+import {
+    notificationPreferencesBodySchema,
+    pushTokenBodySchema,
+} from "../utils/validation-schemas.js";
 import {
     deleteNotification,
     getUnreadNotificationCount,
@@ -10,6 +13,10 @@ import {
     markNotificationAsRead,
     markNotificationAsUnread,
 } from "../services/notification.service.js";
+import {
+    getNotificationPreferencesForUser,
+    updateNotificationPreferencesForUser,
+} from "../services/notification-preference.service.js";
 import { deletePushTokenForUser, upsertPushTokenForUser } from "../services/push-token.service.js";
 
 
@@ -73,6 +80,52 @@ export const unreadNotificationCount = async (
         const count = await getUnreadNotificationCount(userId);
 
         handleResponse(res, { count });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getNotificationPreferences = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const userId = requireUserId(req);
+        if (!userId) {
+            return next(new AppError("Unauthorized", 401));
+        }
+
+        const preferences = await getNotificationPreferencesForUser(userId);
+
+        handleResponse(res, preferences);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateNotificationPreferences = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const userId = requireUserId(req);
+        if (!userId) {
+            return next(new AppError("Unauthorized", 401));
+        }
+
+        const parsedBody = notificationPreferencesBodySchema.safeParse(req.body);
+        if (!parsedBody.success) {
+            return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
+        }
+
+        const preferences = await updateNotificationPreferencesForUser(
+            userId,
+            parsedBody.data
+        );
+
+        handleResponse(res, preferences, "Notification preferences updated");
     } catch (error) {
         next(error);
     }
