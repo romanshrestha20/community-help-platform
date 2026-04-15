@@ -281,7 +281,7 @@ export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
             color={palette.textSecondary}
           />
           <Text style={[styles.sectionEyebrow, { color: palette.textSecondary }]}>
-            Helper's message
+            Helper&apos;s message
           </Text>
         </Row>
         <Text style={[styles.profileMessage, { color: palette.textPrimary }]}>
