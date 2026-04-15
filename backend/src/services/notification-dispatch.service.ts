@@ -1,6 +1,11 @@
 import { prisma } from "../lib/prisma.js";
 import { NotificationType } from "../../generated/prisma/client.js";
 import { getPushTokensForUser } from "./push-token.service.js";
+import {
+    filterNotificationTypesByPreferences,
+    getNotificationPreferencesForUser,
+    isNotificationTypeEnabled,
+} from "./notification-preference.service.js";
 import { sendExpoPushMessages, type ExpoPushMessage } from "./expo-push.service.js";
 
 type NotificationLike = {
@@ -48,18 +53,31 @@ const buildNotificationRoute = (notification: NotificationLike) => {
 };
 
 export const dispatchNotificationPush = async (notification: NotificationLike) => {
+    const preferences = await getNotificationPreferencesForUser(notification.userId);
+
+    if (!isNotificationTypeEnabled(notification.type, preferences)) {
+        return;
+    }
+
     const tokens = await getPushTokensForUser(notification.userId);
 
     if (tokens.length === 0) {
         return;
     }
 
-    const unreadCount = await prisma.notification.count({
+    const unreadNotifications = await prisma.notification.findMany({
         where: {
             userId: notification.userId,
             isRead: false,
         },
+        select: {
+            type: true,
+        },
     });
+    const unreadCount = filterNotificationTypesByPreferences(
+        unreadNotifications.map((item) => item.type),
+        preferences
+    ).length;
 
     const route = buildNotificationRoute(notification);
     const messages: ExpoPushMessage[] = tokens.map((tokenRecord) => ({
