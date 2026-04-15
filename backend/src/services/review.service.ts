@@ -1,4 +1,3 @@
-import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../lib/prisma.js";
 import AppError from "../utils/appError.js";
 import { createNotification } from "./notification.service.js";
@@ -40,7 +39,7 @@ const REVIEW_INCLUDE = {
             assignedHelperId: true,
         },
     },
-} satisfies Prisma.ReviewInclude;
+} as const;
 
 type CreateReviewInput = {
     reviewerId: string;
@@ -56,13 +55,21 @@ type ListUserReviewsInput = {
     limit?: number;
 };
 
+type UpdateReviewInput = {
+    reviewId: string;
+    reviewerId: string;
+    rating?: number;
+    title?: string;
+    comment?: string;
+};
+
 const REVIEW_SUMMARY_SELECT = {
     rating: true,
     helpCount: true,
     totalReviews: true,
-} satisfies Prisma.ProfileSelect;
+} as const;
 
-const formatReview = (review: Prisma.ReviewGetPayload<{ include: typeof REVIEW_INCLUDE }>) => ({
+const formatReview = (review: any) => ({
     id: review.id,
     rating: review.rating,
     title: review.title,
@@ -90,8 +97,21 @@ const formatReview = (review: Prisma.ReviewGetPayload<{ include: typeof REVIEW_I
     },
 });
 
+const findReviewOrThrow = async (reviewId: string) => {
+    const review = await prisma.review.findUnique({
+        where: { id: reviewId },
+        include: REVIEW_INCLUDE as any,
+    });
+
+    if (!review) {
+        throw new AppError("Review not found", 404);
+    }
+
+    return review;
+};
+
 const syncHelperReviewStats = async (
-    tx: Prisma.TransactionClient,
+    tx: any,
     helperId: string
 ) => {
     const [stats, profile] = await Promise.all([
@@ -160,17 +180,15 @@ export const createReviewForCompletedRequest = async ({
         throw new AppError("This request has no assigned helper to review", 400);
     }
 
-    const existingReview = await prisma.review.findUnique({
+    const duplicateReview = await prisma.review.findFirst({
         where: {
-            userId_helpRequestId: {
-                userId: reviewerId,
-                helpRequestId,
-            },
+            userId: reviewerId,
+            helpRequestId,
         },
         select: { id: true },
     });
 
-    if (existingReview) {
+    if (duplicateReview) {
         throw new AppError("You have already reviewed this helper for the request", 409);
     }
 
@@ -184,14 +202,14 @@ export const createReviewForCompletedRequest = async ({
                 title: title?.trim() || null,
                 comment: comment.trim(),
             },
-            include: REVIEW_INCLUDE,
+            include: REVIEW_INCLUDE as any,
         });
 
         await syncHelperReviewStats(tx, request.assignedHelperId!);
 
         return tx.review.findUnique({
             where: { id: createdReview.id },
-            include: REVIEW_INCLUDE,
+            include: REVIEW_INCLUDE as any,
         });
     });
 
@@ -228,14 +246,14 @@ export const listReviewsForUser = async ({
     const [profile, reviews, total] = await Promise.all([
         prisma.profile.findUnique({
             where: { userId },
-            select: REVIEW_SUMMARY_SELECT,
+            select: REVIEW_SUMMARY_SELECT as any,
         }),
         prisma.review.findMany({
             where: {
                 targetUserId: userId,
                 isApproved: true,
             },
-            include: REVIEW_INCLUDE,
+            include: REVIEW_INCLUDE as any,
             orderBy: {
                 createdAt: "desc",
             },
@@ -264,4 +282,88 @@ export const listReviewsForUser = async ({
             totalPages: Math.max(Math.ceil(total / safeLimit), 1),
         },
     };
+};
+
+export const getReviewById = async (reviewId: string) => {
+    const review = await findReviewOrThrow(reviewId);
+    return formatReview(review);
+};
+
+export const updateReviewById = async ({
+    reviewId,
+    reviewerId,
+    rating,
+    title,
+    comment,
+}: UpdateReviewInput) => {
+    const existingReview = await prisma.review.findUnique({
+        where: { id: reviewId },
+        include: REVIEW_INCLUDE as any,
+    });
+
+    if (!existingReview) {
+        throw new AppError("Review not found", 404);
+    }
+
+    if (existingReview.userId !== reviewerId) {
+        throw new AppError("Only the review author can update this review", 403);
+    }
+
+    const review = await prisma.$transaction(async (tx) => {
+        const updatedReview = await tx.review.update({
+            where: { id: reviewId },
+            data: {
+                ...(rating !== undefined ? { rating } : {}),
+                ...(title !== undefined ? { title: title.trim() || null } : {}),
+                ...(comment !== undefined ? { comment: comment.trim() } : {}),
+            },
+            include: REVIEW_INCLUDE as any,
+        });
+
+        await syncHelperReviewStats(tx, existingReview.targetUserId);
+
+        return tx.review.findUnique({
+            where: { id: reviewId },
+            include: REVIEW_INCLUDE as any,
+        });
+    });
+
+    if (!review) {
+        throw new AppError("Failed to update review", 500);
+    }
+
+    return formatReview(review);
+};
+
+export const deleteReviewById = async ({
+    reviewId,
+    reviewerId,
+}: {
+    reviewId: string;
+    reviewerId: string;
+}) => {
+    const existingReview = await prisma.review.findUnique({
+        where: { id: reviewId },
+        select: {
+            id: true,
+            userId: true,
+            targetUserId: true,
+        },
+    });
+
+    if (!existingReview) {
+        throw new AppError("Review not found", 404);
+    }
+
+    if (existingReview.userId !== reviewerId) {
+        throw new AppError("Only the review author can delete this review", 403);
+    }
+
+    await prisma.$transaction(async (tx) => {
+        await tx.review.delete({
+            where: { id: reviewId },
+        });
+
+        await syncHelperReviewStats(tx, existingReview.targetUserId);
+    });
 };
