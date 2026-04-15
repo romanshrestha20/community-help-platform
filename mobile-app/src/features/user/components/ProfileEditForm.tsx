@@ -11,8 +11,17 @@ import {
 
 import { Card, Row, Stack, theme } from "@/design-system";
 import { DatePickerField } from "@/components/ui/DatePickerField";
+import { PhoneNumberField } from "@/components/ui/PhoneNumberField";
+import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
+import {
+  combinePhoneNumber,
+  getCallingCodeForCountry,
+  getPhoneRegionHint,
+  resolvePhoneCountryCode,
+  splitPhoneNumber,
+} from "@/utils/phone";
 import { Gender, UpdateUserProfilePayload, User, UserType } from "../types/user.types";
 import { validateProfileUpdateFormFields } from "../utils/userValidation";
 
@@ -28,6 +37,10 @@ const userTypeOptions: UserType[] = [UserType.GENERAL, UserType.ELDERLY, UserTyp
 
 export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: Props) => {
   const { palette } = useThemeContext();
+  const locationPicker = useLocationPicker({
+    initialValue: user?.address ?? null,
+    autoUseCurrentLocationOnMount: !user?.address,
+  });
   const {
     validationError,
     setValidationError,
@@ -35,26 +48,96 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     setFieldErrors,
     clearFieldError,
     clearValidationError,
-  } = useFormValidation<"fullName" | "dateOfBirth" | "bio">();
+  } = useFormValidation<"fullName" | "phone" | "dateOfBirth" | "bio">();
 
   const [fullName, setFullName] = useState("");
+  const [phoneCountryCode, setPhoneCountryCode] = useState("NP");
+  const [phoneCallingCode, setPhoneCallingCode] = useState("");
+  const [phoneNationalNumber, setPhoneNationalNumber] = useState("");
+  const [phoneCountryTouched, setPhoneCountryTouched] = useState(false);
+  const [phoneCountryDetected, setPhoneCountryDetected] = useState(false);
   const [bio, setBio] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [gender, setGender] = useState<Gender | undefined>(undefined);
   const [userType, setUserType] = useState<UserType>(UserType.GENERAL);
 
   useEffect(() => {
+    let isCancelled = false;
+
+    const syncPhoneState = async () => {
+      const parsedPhone = await splitPhoneNumber(user?.phone);
+
+      if (isCancelled) {
+        return;
+      }
+
+      setPhoneCountryCode(parsedPhone.countryCode);
+      setPhoneCallingCode(`+${parsedPhone.callingCode.replace(/^\+/, "")}`);
+      setPhoneNationalNumber(parsedPhone.nationalNumber);
+      setPhoneCountryDetected(false);
+    };
+
     setFullName(user?.fullName ?? "");
     setBio(user?.bio ?? "");
     setDateOfBirth(user?.dateOfBirth ?? "");
     setGender(user?.gender);
     setUserType(user?.userType ?? UserType.GENERAL);
     clearValidationError();
+    void syncPhoneState();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [clearValidationError, user]);
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    const syncPhoneCountryFromLocation = async () => {
+      if (phoneCountryTouched || user?.phone) {
+        return;
+      }
+
+      const detectedCountryCode = await resolvePhoneCountryCode(
+        locationPicker.value?.countryCode ?? user?.address?.countryCode ?? null,
+        locationPicker.value?.country ?? user?.address?.country ?? null
+      );
+
+      if (!detectedCountryCode) {
+        return;
+      }
+
+      const resolvedCallingCode = await getCallingCodeForCountry(detectedCountryCode);
+
+      if (isCancelled || !resolvedCallingCode) {
+        return;
+      }
+
+      setPhoneCountryCode(detectedCountryCode);
+      setPhoneCallingCode(`+${resolvedCallingCode}`);
+      setPhoneCountryDetected(true);
+    };
+
+    void syncPhoneCountryFromLocation();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    locationPicker.value?.country,
+    locationPicker.value?.countryCode,
+    phoneCountryTouched,
+    user?.address?.country,
+    user?.address?.countryCode,
+    user?.phone,
+  ]);
+
   const handleSave = async () => {
+    const phone = combinePhoneNumber(phoneCallingCode, phoneNationalNumber);
+
     const validation = validateProfileUpdateFormFields({
       fullName,
+      phone,
       dateOfBirth,
       bio,
     });
@@ -69,6 +152,7 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
 
     await onSubmit({
       fullName: fullName.trim(),
+      phone,
       bio: bio.trim(),
       dateOfBirth: dateOfBirth.trim() || undefined,
       gender,
@@ -104,6 +188,31 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
               <Text style={[styles.errorText, { color: palette.danger }]}>{fieldErrors.fullName}</Text>
             ) : null}
           </Field>
+
+          <PhoneNumberField
+            label="Phone number"
+            countryCode={phoneCountryCode}
+            callingCode={phoneCallingCode}
+            nationalNumber={phoneNationalNumber}
+            error={fieldErrors.phone ?? null}
+            hint={getPhoneRegionHint(phoneCountryCode, phoneCallingCode)}
+            detectedLabel={
+              !phoneCountryTouched && phoneCountryDetected
+                ? "Detected from current location"
+                : null
+            }
+            onCountryChange={({ countryCode, callingCode }) => {
+              clearFieldError("phone");
+              setPhoneCountryTouched(true);
+              setPhoneCountryDetected(false);
+              setPhoneCountryCode(countryCode);
+              setPhoneCallingCode(callingCode);
+            }}
+            onNationalNumberChange={(value) => {
+              clearFieldError("phone");
+              setPhoneNationalNumber(value.replace(/\D/g, ""));
+            }}
+          />
 
           <Field label="Bio">
             <TextInput
