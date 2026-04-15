@@ -4,6 +4,11 @@ import {
   loginUser,
   changePassword,
   forgotPassword,
+  resendEmailVerification,
+  sendPhoneCode,
+  sendEmailVerification,
+  verifyEmail,
+  verifyPhoneCode,
   resetPassword,
   refreshAccessToken,
 } from "../controllers/auth.controller.js";
@@ -26,6 +31,11 @@ router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+router.post("/send-email-verification", authenticateUser, sendEmailVerification);
+router.post("/resend-email-verification", authenticateUser, resendEmailVerification);
+router.post("/verify-email", verifyEmail);
+router.post("/send-phone-code", authenticateUser, sendPhoneCode);
+router.post("/verify-phone-code", authenticateUser, verifyPhoneCode);
 router.post("/refresh", refreshAccessToken);
 
 // Profile
