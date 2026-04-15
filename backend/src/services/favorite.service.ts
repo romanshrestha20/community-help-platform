@@ -39,7 +39,25 @@ const REQUEST_INCLUDE = {
   },
   location: true,
   images: true,
-  requester: { select: { id: true, profile: { select: { fullName: true } } } },
+  requester: {
+    select: {
+      id: true,
+      profile: {
+        select: {
+          fullName: true,
+          avatarUrl: true,
+          address: {
+            select: {
+              city: true,
+              state: true,
+              country: true,
+              formattedAddress: true,
+            },
+          },
+        },
+      },
+    },
+  },
   _count: { select: { bids: true } },
 } satisfies Prisma.HelpRequestInclude;
 
@@ -65,40 +83,50 @@ const sanitizePagination = (page?: string | number, limit?: string | number) => 
 const formatHelpRequest = (
   request: Prisma.HelpRequestGetPayload<{ include: typeof REQUEST_INCLUDE }>,
   favoritedAt?: Date
-) => ({
-  id: request.id,
-  requesterId: request.requester.id,
-  title: request.title,
-  description: request.description,
-  category: request.category
-    ? {
-        id: request.category.id,
-        name: request.category.name,
-        slug: request.category.slug,
-        icon: request.category.icon,
-      }
-    : null,
-  budget: request.budget,
-  status: request.status,
-  isPaid: request.isPaid,
-  city: request.location?.city,
-  state: request.location?.state,
-  country: request.location?.country,
-  requesterName: request.requester.profile?.fullName,
-  images: Array.isArray(request.images)
-    ? request.images.map((image) => ({
-        id: image.id,
-        url: image.url,
-        type: image.type,
-        requestId: image.requestId,
-        createdAt: image.createdAt,
-        updatedAt: image.updatedAt,
-      }))
-    : [],
-  bidCount: request._count.bids,
-  createdAt: request.createdAt,
-  favoritedAt: favoritedAt ?? null,
-});
+) => {
+  const requesterLocation =
+    request.requester.profile?.address?.formattedAddress ??
+    ([request.requester.profile?.address?.city, request.requester.profile?.address?.state]
+      .filter(Boolean)
+      .join(", ") || null);
+
+  return {
+    id: request.id,
+    requesterId: request.requester.id,
+    title: request.title,
+    description: request.description,
+    category: request.category
+      ? {
+          id: request.category.id,
+          name: request.category.name,
+          slug: request.category.slug,
+          icon: request.category.icon,
+        }
+      : null,
+    budget: request.budget,
+    status: request.status,
+    isPaid: request.isPaid,
+    city: request.location?.city,
+    state: request.location?.state,
+    country: request.location?.country,
+    requesterName: request.requester.profile?.fullName,
+    requesterAvatarUrl: request.requester.profile?.avatarUrl ?? null,
+    requesterLocation,
+    images: Array.isArray(request.images)
+      ? request.images.map((image) => ({
+          id: image.id,
+          url: image.url,
+          type: image.type,
+          requestId: image.requestId,
+          createdAt: image.createdAt,
+          updatedAt: image.updatedAt,
+        }))
+      : [],
+    bidCount: request._count.bids,
+    createdAt: request.createdAt,
+    favoritedAt: favoritedAt ?? null,
+  };
+};
 
 const buildFavoriteOrderBy = (
   sortBy?: string,
@@ -231,6 +259,7 @@ export const getFavoriteHelpRequests = async (userId: string, query: FavoriteLis
       include: {
         request: {
           include: REQUEST_INCLUDE,
+          
         },
       },
     }),
@@ -269,6 +298,7 @@ export const getMyFavoriteRequestIds = async (userId: string) => {
     where: { userId },
     select: {
       requestId: true,
+      
     },
   });
 
