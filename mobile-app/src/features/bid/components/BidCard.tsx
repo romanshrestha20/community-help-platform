@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { Swipeable } from "react-native-gesture-handler";
 
 import { Card, Row, Stack, spacing, typography } from "@/design-system";
-import { AppButton } from "@/components/ui/AppButton";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { Bid } from "../types/bid.types";
 import { BidStatusBadge } from "./BidStatusBadge";
@@ -24,6 +24,9 @@ type Props = {
   onUpdate?: () => void;
   onDelete?: () => void;
   onMessage?: () => void;
+  isSwipeOpen?: boolean;
+  onSwipeOpen?: (bidId: string) => void;
+  onSwipeClose?: (bidId: string) => void;
 };
 
 const getInitials = (name?: string) => {
@@ -34,6 +37,16 @@ const getInitials = (name?: string) => {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+};
+
+type SwipeAction = {
+  key: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  backgroundColor: string;
+  textColor: string;
+  onPress: () => void;
+  disabled?: boolean;
 };
 
 export const BidCard = ({
@@ -50,156 +63,319 @@ export const BidCard = ({
   onUpdate,
   onDelete,
   onMessage,
+  isSwipeOpen = false,
+  onSwipeOpen,
+  onSwipeClose,
 }: Props) => {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const swipeableRef = useRef<Swipeable | null>(null);
   const { palette } = useThemeContext();
 
   const helperName = bid.helperName || "Community member";
   const initials = useMemo(() => getInitials(helperName), [helperName]);
+  const helperRating = bid.helperRating ?? 0;
+  const helperTotalReviews = bid.helperTotalReviews ?? 0;
+  const helperCompletedHelps = bid.helperCompletedHelps ?? 0;
+  const hasReviewSummary = helperTotalReviews > 0;
 
   const requesterActions = isRequestOwner || canRespond;
   const helperActions = !requesterActions && canModify;
+  const canAccept = requesterActions && bid.status === "PENDING" && Boolean(onAccept);
+  const canReject = requesterActions && bid.status === "PENDING" && Boolean(onReject);
+  const canEdit = helperActions && bid.status === "PENDING" && Boolean(onUpdate);
+  const canDelete = helperActions && bid.status === "PENDING" && Boolean(onDelete);
+  const canMessage = bid.status === "ACCEPTED" && Boolean(onMessage);
+
+  useEffect(() => {
+    if (!isSwipeOpen) {
+      swipeableRef.current?.close();
+    }
+  }, [isSwipeOpen]);
 
   const openProfileModal = () => {
     setProfileModalVisible(true);
     onViewProfile?.();
   };
 
-  return (
-    <>
-      <Pressable onPress={onPress} disabled={!onPress}>
-        {({ pressed }) => (
-          <Card
-            style={[
-              styles.card,
+  const swipeActions = useMemo<SwipeAction[]>(() => {
+    const actions: SwipeAction[] = [];
+
+    if (canAccept && onAccept) {
+      actions.push({
+        key: "accept",
+        label: "Accept",
+        icon: "checkmark-circle-outline",
+        backgroundColor: palette.success,
+        textColor: palette.textInverse,
+        onPress: onAccept,
+        disabled: disableRespondActions || loading,
+      });
+    }
+
+    if (canReject && onReject) {
+      actions.push({
+        key: "reject",
+        label: "Reject",
+        icon: "close-circle-outline",
+        backgroundColor: palette.surfaceMuted,
+        textColor: palette.textPrimary,
+        onPress: onReject,
+        disabled: disableRespondActions || loading,
+      });
+    }
+
+    if (canEdit && onUpdate) {
+      actions.push({
+        key: "edit",
+        label: "Edit",
+        icon: "create-outline",
+        backgroundColor: palette.surfaceMuted,
+        textColor: palette.textPrimary,
+        onPress: onUpdate,
+        disabled: loading,
+      });
+    }
+
+    if (canDelete && onDelete) {
+      actions.push({
+        key: "delete",
+        label: "Delete",
+        icon: "trash-outline",
+        backgroundColor: palette.danger,
+        textColor: palette.textInverse,
+        onPress: onDelete,
+        disabled: loading,
+      });
+    }
+
+    if (canMessage && onMessage) {
+      actions.push({
+        key: "message",
+        label: "Message",
+        icon: "chatbubble-outline",
+        backgroundColor: palette.primary,
+        textColor: palette.textInverse,
+        onPress: onMessage,
+        disabled: loading,
+      });
+    }
+
+    return actions;
+  }, [
+    canAccept,
+    canDelete,
+    canEdit,
+    canMessage,
+    canReject,
+    disableRespondActions,
+    loading,
+    onAccept,
+    onDelete,
+    onMessage,
+    onReject,
+    onUpdate,
+    palette.danger,
+    palette.primary,
+    palette.success,
+    palette.surfaceMuted,
+    palette.textInverse,
+    palette.textPrimary,
+  ]);
+
+  const renderRightActions = (
+    progress: Animated.AnimatedInterpolation<number>,
+    dragX: Animated.AnimatedInterpolation<number>
+  ) => {
+    if (swipeActions.length === 0) {
+      return <View />;
+    }
+
+    const translateX = dragX.interpolate({
+      inputRange: [-220, -40, 0],
+      outputRange: [0, 8, 18],
+      extrapolate: "clamp",
+    });
+    const scale = progress.interpolate({
+      inputRange: [0, 0.4, 1],
+      outputRange: [0.92, 0.98, 1],
+      extrapolate: "clamp",
+    });
+    const opacity = progress.interpolate({
+      inputRange: [0, 0.2, 1],
+      outputRange: [0.35, 0.7, 1],
+      extrapolate: "clamp",
+    });
+
+    return (
+      <Animated.View
+        style={[
+          styles.swipeActionsWrap,
+          {
+            opacity,
+            transform: [{ translateX }, { scale }],
+          },
+        ]}
+      >
+        {swipeActions.map((action) => (
+          <Pressable
+            key={action.key}
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
+            disabled={action.disabled}
+            onPress={() => {
+              swipeableRef.current?.close();
+              action.onPress();
+            }}
+            style={({ pressed }) => [
+              styles.swipeAction,
               {
-                borderColor: palette.border,
-                backgroundColor: palette.surface,
-                opacity: pressed ? 0.96 : 1,
+                backgroundColor: action.backgroundColor,
+                opacity: action.disabled ? 0.5 : pressed ? 0.82 : 1,
               },
             ]}
           >
-            <Stack gap="md">
-              {/* HEADER */}
-              <Row justify="space-between" align="flex-start">
-                <Row align="center" gap="sm" style={{ flex: 1 }}>
-                  <View
-                    style={[
-                      styles.avatar,
-                      {
-                        backgroundColor: palette.surfaceMuted,
-                        borderColor: palette.border,
-                      },
-                    ]}
+            <Ionicons name={action.icon} size={18} color={action.textColor} />
+            <Text style={[styles.swipeActionLabel, { color: action.textColor }]}>
+              {action.label}
+            </Text>
+          </Pressable>
+        ))}
+      </Animated.View>
+    );
+  };
+
+  const cardBody = (
+    <Pressable onPress={onPress} disabled={!onPress}>
+      {({ pressed }) => (
+        <Card
+          style={[
+            styles.card,
+            {
+              borderColor: palette.border,
+              backgroundColor: palette.surface,
+              opacity: pressed ? 0.96 : 1,
+            },
+          ]}
+        >
+          <Stack gap="md">
+            {/* HEADER */}
+            <Row justify="space-between" align="flex-start">
+              <Row align="center" gap="sm" style={{ flex: 1 }}>
+                <View
+                  style={[
+                    styles.avatar,
+                    {
+                      backgroundColor: palette.surfaceMuted,
+                      borderColor: palette.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.avatarText, { color: palette.primary }]}>
+                    {initials}
+                  </Text>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[styles.name, { color: palette.textPrimary }]}
+                    numberOfLines={1}
                   >
-                    <Text style={[styles.avatarText, { color: palette.primary }]}>
-                      {initials}
-                    </Text>
-                  </View>
-
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[styles.name, { color: palette.textPrimary }]}
-                      numberOfLines={1}
-                    >
-                      {helperName}
-                    </Text>
-
-                    {/* PRICE + TIME */}
-                    <Text
-                      style={[styles.meta, { color: palette.textSecondary }]}
-                    >
-                      <Text style={{ color: palette.primary, fontWeight: "700" }}>
-                        {formatBidAmount(bid.amount)}
-                      </Text>{" "}
-                      · {formatBidCreatedAt(bid.createdAt)}
-                    </Text>
-                  </View>
-                </Row>
-
-                <BidStatusBadge status={bid.status} />
-              </Row>
-
-              {/* MESSAGE */}
-              <Text
-                style={[styles.message, { color: palette.textPrimary }]}
-                numberOfLines={3}
-              >
-                {bid.message || "No message provided."}
-              </Text>
-
-              {/* ACTIONS */}
-              {requesterActions && bid.status === "PENDING" && (
-                <Row gap="sm">
-                  {onAccept && (
-                    <View style={styles.primaryAction}>
-                      <AppButton
-                        title="Accept"
-                        onPress={onAccept}
-                        loading={loading}
-                        disabled={disableRespondActions || loading}
-                      />
-                    </View>
-                  )}
-
-                  {onReject && (
-                    <View style={styles.secondaryAction}>
-                      <AppButton
-                        title="Reject"
-                        onPress={onReject}
-                        variant="secondary"
-                        loading={loading}
-                        disabled={disableRespondActions || loading}
-                      />
-                    </View>
-                  )}
-                </Row>
-              )}
-
-              {helperActions && bid.status === "PENDING" && (
-                <Row gap="sm">
-                  {onUpdate && (
-                    <View style={styles.secondaryAction}>
-                      <AppButton title="Edit" onPress={onUpdate} />
-                    </View>
-                  )}
-                  {onDelete && (
-                    <View style={styles.secondaryAction}>
-                      <AppButton title="Delete" variant="danger" onPress={onDelete} />
-                    </View>
-                  )}
-                </Row>
-              )}
-
-              {bid.status === "ACCEPTED" ? (
-                <Stack gap="sm">
-                  <Text style={[styles.acceptedLabel, { color: palette.success }]}>
-                    You accepted this offer
+                    {helperName}
                   </Text>
 
-                  {onMessage ? (
-                    <Row>
-                      <View style={styles.primaryAction}>
-                        <AppButton
-                          title="Message"
-                          onPress={onMessage}
-                          icon={
-                            <Ionicons
-                              name="chatbubble-outline"
-                              size={16}
-                              color={palette.textInverse}
-                            />
-                          }
-                        />
-                      </View>
-                    </Row>
-                  ) : null}
-                </Stack>
-              ) : null}
-            </Stack>
-          </Card>
-        )}
-      </Pressable>
+                  {hasReviewSummary ? (
+                    <Text
+                      style={[styles.reviewMeta, { color: palette.textSecondary }]}
+                      numberOfLines={1}
+                    >
+                      <Text style={{ color: palette.warning, fontWeight: "700" }}>
+                        {helperRating.toFixed(1)} ★
+                      </Text>{" "}
+                      ({helperTotalReviews} review
+                      {helperTotalReviews === 1 ? "" : "s"}) ·{" "}
+                      {helperCompletedHelps} completed help
+                      {helperCompletedHelps === 1 ? "" : "s"}
+                    </Text>
+                  ) : (
+                    <Text
+                      style={[styles.reviewMeta, { color: palette.textSecondary }]}
+                    >
+                      No reviews yet
+                    </Text>
+                  )}
+
+                  <Text
+                    style={[styles.meta, { color: palette.textSecondary }]}
+                  >
+                    <Text style={{ color: palette.primary, fontWeight: "700" }}>
+                      {formatBidAmount(bid.amount)}
+                    </Text>{" "}
+                    · {formatBidCreatedAt(bid.createdAt)}
+                  </Text>
+                </View>
+              </Row>
+
+              <BidStatusBadge status={bid.status} />
+            </Row>
+
+            <Text
+              style={[styles.message, { color: palette.textPrimary }]}
+              numberOfLines={3}
+            >
+              {bid.message || "No message provided."}
+            </Text>
+
+            <Row justify="space-between" align="center">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`View ${helperName}'s profile`}
+                onPress={openProfileModal}
+                style={({ pressed }) => [
+                  styles.profileLinkRow,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Ionicons
+                  name="person-circle-outline"
+                  size={16}
+                  color={palette.primary}
+                />
+                <Text style={[styles.profileLinkText, { color: palette.primary }]}>
+                  View profile
+                </Text>
+              </Pressable>
+
+
+            </Row>
+
+            {bid.status === "ACCEPTED" ? (
+              <Text style={[styles.acceptedLabel, { color: palette.success }]}>
+                You accepted this offer
+              </Text>
+            ) : null}
+          </Stack>
+        </Card>
+      )}
+    </Pressable>
+  );
+
+  return (
+    <>
+      {swipeActions.length > 0 ? (
+        <Swipeable
+          ref={swipeableRef}
+          overshootRight={false}
+          rightThreshold={24}
+          friction={1.8}
+          renderRightActions={renderRightActions}
+          onSwipeableWillOpen={() => onSwipeOpen?.(bid.id)}
+          onSwipeableClose={() => onSwipeClose?.(bid.id)}
+        >
+          {cardBody}
+        </Swipeable>
+      ) : (
+        cardBody
+      )}
 
       <BidderProfileModal
         visible={profileModalVisible}
@@ -236,18 +412,52 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: typography.fontSize.sm,
   },
+  reviewMeta: {
+    marginTop: 4,
+    fontSize: typography.fontSize.sm,
+  },
   message: {
     fontSize: typography.fontSize.md,
     lineHeight: 22,
   },
+  profileLinkRow: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: spacing.xs,
+  },
+  profileLinkText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: "700",
+  },
+  swipeHintText: {
+    fontSize: typography.fontSize.xs,
+    fontWeight: "600",
+  },
+  swipeActionsWrap: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    marginLeft: spacing.sm,
+    overflow: "hidden",
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  swipeAction: {
+    minWidth: 84,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    rowGap: spacing.xxs,
+  },
+  swipeActionLabel: {
+    fontSize: typography.fontSize.xs,
+    fontWeight: "700",
+  },
   acceptedLabel: {
     fontSize: typography.fontSize.sm,
     fontWeight: "600",
-  },
-  primaryAction: {
-    flex: 1.2,
-  },
-  secondaryAction: {
-    flex: 1,
   },
 });

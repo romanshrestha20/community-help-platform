@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { FlatList, StyleSheet, View, Text } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
@@ -51,6 +51,15 @@ export const BidList: React.FC<BidListProps> = ({
 }) => {
     const { palette } = useThemeContext();
     const containerStyle = listPadding === "none" ? styles.containerNoPadding : styles.container;
+    const [openBidId, setOpenBidId] = useState<string | null>(null);
+
+    const handleSwipeOpen = useCallback((bidId: string) => {
+        setOpenBidId((current) => (current === bidId ? current : bidId));
+    }, []);
+
+    const handleSwipeClose = useCallback((bidId: string) => {
+        setOpenBidId((current) => (current === bidId ? null : current));
+    }, []);
 
     const renderBid = ({ item }: { item: Bid }) => (
         <BidCard
@@ -67,6 +76,9 @@ export const BidList: React.FC<BidListProps> = ({
             canModify={canModify}
             loading={Boolean(actionLoadingByBidId[item.id])}
             disableRespondActions={disableRespondActions}
+            isSwipeOpen={openBidId === item.id}
+            onSwipeOpen={handleSwipeOpen}
+            onSwipeClose={handleSwipeClose}
         />
     );
 
