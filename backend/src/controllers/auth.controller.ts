@@ -161,6 +161,7 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
             rating: true,
             helpCount: true,
             totalReviews: true,
+            avatarUrl: true,
             addressId: true,
             address: true,
             createdAt: true,

@@ -72,6 +72,8 @@ const HELP_REQUEST_INCLUDE = {
       profile: {
         select: {
           fullName: true,
+          avatarUrl: true,
+          gender: true,
           address: true,
         },
       },
@@ -106,6 +108,17 @@ const formatHelpRequest = (r: any) => ({
   state: r.location?.state ?? null,
   country: r.location?.country ?? null,
   requesterName: r.requester?.profile?.fullName ?? null,
+  requesterAvatarUrl: r.requester?.profile?.avatarUrl ?? null,
+  requesterGender: r.requester?.profile?.gender ?? null,
+  requesterLocation:
+    r.requester?.profile?.address?.formattedAddress ||
+    [
+      r.requester?.profile?.address?.city,
+      r.requester?.profile?.address?.country,
+    ]
+      .filter(Boolean)
+      .join(", ") ||
+    null,
   images: Array.isArray(r.images) ? r.images.map(stripImagePublicId) : [],
   bidCount: r._count?.bids ?? 0,
   createdAt: r.createdAt,

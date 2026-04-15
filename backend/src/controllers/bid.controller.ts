@@ -49,9 +49,19 @@ const sendResponse = (res: Response, data: any = null, message = "") => {
 const HELPER_PROFILE_SELECT = {
   fullName: true,
   dateOfBirth: true,
+  gender: true,
+  avatarUrl: true,
   rating: true,
   totalReviews: true,
   helpCount: true,
+  address: {
+    select: {
+      city: true,
+      state: true,
+      country: true,
+      formattedAddress: true,
+    },
+  },
 } as const;
 
 // Format bid for consistent responses
@@ -65,6 +75,17 @@ const formatBid = (bid: any) => ({
   helperName: bid.helper?.profile?.fullName || bid.helper?.email || "Helper",
   helperEmail: bid.helper?.email || "",
   helperAge: calculateAge(bid.helper?.profile?.dateOfBirth),
+  helperGender: bid.helper?.profile?.gender ?? null,
+  helperAvatarUrl: bid.helper?.profile?.avatarUrl ?? null,
+  helperLocation:
+    bid.helper?.profile?.address?.formattedAddress ||
+    [
+      bid.helper?.profile?.address?.city,
+      bid.helper?.profile?.address?.country,
+    ]
+      .filter(Boolean)
+      .join(", ") ||
+    null,
   helperRating: bid.helper?.profile?.rating ?? 0,
   helperTotalReviews: bid.helper?.profile?.totalReviews ?? 0,
   helperCompletedHelps: bid.helper?.profile?.helpCount ?? 0,
