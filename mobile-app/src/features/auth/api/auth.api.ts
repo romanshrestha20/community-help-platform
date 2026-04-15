@@ -23,6 +23,7 @@ const normalizeAuthResponse = (payload: any): AuthResponse => {
     ? {
       ...rawUser,
       fullName: rawUser.fullName || rawUser?.profile?.fullName,
+      avatarUrl: rawUser.avatarUrl ?? rawUser?.profile?.avatarUrl ?? null,
     }
     : null;
 

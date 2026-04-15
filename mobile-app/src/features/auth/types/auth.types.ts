@@ -36,6 +36,7 @@ export interface UserProfile {
   userType: string;
   rating: number;
   helpCount: number;
+  avatarUrl?: string | null;
   searchRadiusMeters?: number | null;
   addressId?: string | null;
   address: AppLocation | null;
