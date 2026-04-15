@@ -5,6 +5,7 @@ import { Swipeable } from "react-native-gesture-handler";
 
 import { Card, Row, Stack, spacing, typography } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { Bid } from "../types/bid.types";
 import { BidStatusBadge } from "./BidStatusBadge";
 import { BidderProfileModal } from "./BidderProfileModal";
@@ -27,16 +28,6 @@ type Props = {
   isSwipeOpen?: boolean;
   onSwipeOpen?: (bidId: string) => void;
   onSwipeClose?: (bidId: string) => void;
-};
-
-const getInitials = (name?: string) => {
-  if (!name) return "U";
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 };
 
 type SwipeAction = {
@@ -72,7 +63,6 @@ export const BidCard = ({
   const { palette } = useThemeContext();
 
   const helperName = bid.helperName || "Community member";
-  const initials = useMemo(() => getInitials(helperName), [helperName]);
   const helperRating = bid.helperRating ?? 0;
   const helperTotalReviews = bid.helperTotalReviews ?? 0;
   const helperCompletedHelps = bid.helperCompletedHelps ?? 0;
@@ -261,19 +251,11 @@ export const BidCard = ({
             {/* HEADER */}
             <Row justify="space-between" align="flex-start">
               <Row align="center" gap="sm" style={{ flex: 1 }}>
-                <View
-                  style={[
-                    styles.avatar,
-                    {
-                      backgroundColor: palette.surfaceMuted,
-                      borderColor: palette.border,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.avatarText, { color: palette.primary }]}>
-                    {initials}
-                  </Text>
-                </View>
+                <ProfileAvatar
+                  uri={bid.helperAvatarUrl}
+                  fullName={helperName}
+                  size={42}
+                />
 
                 <View style={{ flex: 1 }}>
                   <Text
@@ -391,18 +373,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     padding: spacing.md,
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: "700",
   },
   name: {
     fontSize: typography.fontSize.md,
