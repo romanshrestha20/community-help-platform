@@ -16,13 +16,17 @@ const formatDateOnly = (value?: string | Date | null): string | undefined => {
 
 export const mapProfileToUser = (
   profile: UserProfile,
-  base?: Partial<Pick<User, "id" | "email" | "phone" | "isVerified">>
+  base?: Partial<
+    Pick<User, "id" | "email" | "phone" | "isVerified" | "isEmailVerified" | "isPhoneVerified">
+  >
 ): User => {
   return {
     id: base?.id ?? profile.userId,
     email: base?.email ?? "",
     phone: base?.phone ?? "",
     isVerified: base?.isVerified ?? true,
+    isEmailVerified: base?.isEmailVerified ?? true,
+    isPhoneVerified: base?.isPhoneVerified ?? false,
 
     fullName: profile.fullName ?? "",
     bio: profile.bio ?? "",
@@ -46,7 +50,9 @@ export const mapGetProfileResponseToUser = (
     id: response.userId,
     email: response.email ?? currentUser?.email ?? "",
     phone: response.phone ?? currentUser?.phone ?? "",
-    isVerified: currentUser?.isVerified ?? true,
+    isVerified: response.isVerified ?? currentUser?.isVerified ?? true,
+    isEmailVerified: response.isEmailVerified ?? currentUser?.isEmailVerified ?? true,
+    isPhoneVerified: response.isPhoneVerified ?? currentUser?.isPhoneVerified ?? false,
   });
 };
 
@@ -61,6 +67,8 @@ export const mapProfileMutationResponseToUser = (
     id: currentUser?.id ?? response.profile.userId,
     email: currentUser?.email ?? "",
     phone: response.phone ?? currentUser?.phone ?? "",
-    isVerified: currentUser?.isVerified ?? true,
+    isVerified: response.isVerified ?? currentUser?.isVerified ?? true,
+    isEmailVerified: response.isEmailVerified ?? currentUser?.isEmailVerified ?? true,
+    isPhoneVerified: response.isPhoneVerified ?? currentUser?.isPhoneVerified ?? false,
   });
 };
