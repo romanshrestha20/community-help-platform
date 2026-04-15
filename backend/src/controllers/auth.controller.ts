@@ -160,11 +160,12 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
             userType: true,
             rating: true,
             helpCount: true,
+            totalReviews: true,
             addressId: true,
             address: true,
             createdAt: true,
             updatedAt: true,
-          },
+          } as any,
         },
       },
     });
@@ -305,4 +306,3 @@ export const refreshAccessToken = async (req: Request, res: Response, next: Next
     return next(new AppError("Failed to refresh access token", 500));
   }
 }
-
