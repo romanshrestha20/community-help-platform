@@ -27,6 +27,7 @@ model UserModel {
 
   notificationsReceived Notification[] @relation("UserNotifications")
   notificationsActed    Notification[] @relation("ActorNotifications")
+  notificationPreference NotificationPreference?
 
   refreshTokens RefreshToken[]
   oauthAccounts OAuthAccount[]
@@ -145,6 +146,24 @@ model PushToken {
   @@index([userId])
   @@index([platform])
   @@map("push_tokens")
+}
+
+model NotificationPreference {
+  id String @id @default(uuid())
+
+  userId String @unique
+  user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  pushEnabled           Boolean @default(true)
+  messagesEnabled       Boolean @default(true)
+  bidsEnabled           Boolean @default(true)
+  requestUpdatesEnabled Boolean @default(true)
+  savedRequestsEnabled  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notification_preferences")
 }
 
 model Category {
