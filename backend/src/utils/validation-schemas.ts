@@ -203,8 +203,47 @@ export const createReviewBodySchema = z.object({
     .max(1000, "Comment cannot exceed 1000 characters."),
 });
 
+export const updateReviewBodySchema = z
+  .object({
+    rating: z
+      .coerce
+      .number()
+      .int("Rating must be a whole number.")
+      .min(1, "Rating must be between 1 and 5.")
+      .max(5, "Rating must be between 1 and 5.")
+      .optional(),
+    title: z
+      .string()
+      .trim()
+      .max(120, "Title cannot exceed 120 characters.")
+      .optional()
+      .transform((value) => value && value.length > 0 ? value : undefined),
+    comment: z
+      .string()
+      .trim()
+      .min(1, "Comment is required.")
+      .max(1000, "Comment cannot exceed 1000 characters.")
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.rating === undefined &&
+      data.title === undefined &&
+      data.comment === undefined
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least one review field is required",
+      });
+    }
+  });
+
 export const userIdParamSchema = z.object({
   userId: z.string().trim().uuid("User ID must be a valid UUID."),
+});
+
+export const reviewIdParamSchema = z.object({
+  reviewId: z.string().trim().min(1, "Review ID is required."),
 });
 
 export const reviewsPaginationQuerySchema = z.object({
