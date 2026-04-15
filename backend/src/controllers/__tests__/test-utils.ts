@@ -7,6 +7,7 @@ type ReqShape = {
     query?: Record<string, unknown>;
     headers?: Record<string, string>;
     user?: Record<string, unknown>;
+    ip?: string;
 };
 
 export const makeReq = (shape: ReqShape = {}): Request => {
@@ -16,6 +17,8 @@ export const makeReq = (shape: ReqShape = {}): Request => {
         query: shape.query ?? {},
         headers: shape.headers ?? {},
         user: shape.user,
+        ip: shape.ip ?? "127.0.0.1",
+        socket: { remoteAddress: shape.ip ?? "127.0.0.1" },
     } as unknown as Request;
 };
 
