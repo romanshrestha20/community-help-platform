@@ -1,6 +1,7 @@
 import type { AppNotification } from "../types/notification.types";
 import {
     deleteNotificationApi,
+    fetchNotificationPreferencesApi,
     fetchNotificationsApi,
     getUnreadCountApi,
     markAllAsReadApi,
@@ -8,7 +9,9 @@ import {
     markAsUnreadApi,
     registerPushTokenApi,
     unregisterPushTokenApi,
+    updateNotificationPreferencesApi,
 } from "../api/notification.api";
+import type { NotificationPreferencesDto } from "../types/notification.types";
 
 export const fetchNotifications = async (): Promise<AppNotification[]> => {
     return fetchNotificationsApi();
@@ -40,6 +43,17 @@ export const registerPushToken = async (token: string, platform: string): Promis
 
 export const unregisterPushToken = async (token: string): Promise<void> => {
     await unregisterPushTokenApi(token);
+};
+
+export const fetchNotificationPreferences =
+    async (): Promise<NotificationPreferencesDto> => {
+        return fetchNotificationPreferencesApi();
+    };
+
+export const updateNotificationPreferences = async (
+    preferences: Partial<NotificationPreferencesDto>
+): Promise<NotificationPreferencesDto> => {
+    return updateNotificationPreferencesApi(preferences);
 };
 
 export const fetchAllNotifications = fetchNotifications;
