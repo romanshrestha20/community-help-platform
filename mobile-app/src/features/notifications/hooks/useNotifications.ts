@@ -3,15 +3,16 @@ import { AppState } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { setNotificationBadgeCount } from "@/hooks/useBadgeCounts";
+import { useNotificationSettingsStore } from "@/features/settings/store/notification-settings.store";
 import type { AppNotification } from "../types/notification.types";
 import {
     deleteNotificationById,
     fetchNotifications,
-    fetchUnreadCount,
     markAllNotificationsAsRead,
     markNotificationAsRead,
     markNotificationAsUnread,
 } from "../service/notification.service";
+import { filterNotificationsByPreferences } from "../utils/notification-preferences";
 
 const sortNewestFirst = (items: AppNotification[]) => {
     return [...items].sort(
@@ -20,6 +21,15 @@ const sortNewestFirst = (items: AppNotification[]) => {
 };
 
 export const useNotifications = () => {
+    const {
+        isHydrated,
+        pushEnabled,
+        messagesEnabled,
+        bidsEnabled,
+        requestUpdatesEnabled,
+        savedRequestsEnabled,
+        initializeNotificationSettings,
+    } = useNotificationSettingsStore();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -31,21 +41,43 @@ export const useNotifications = () => {
         setNotificationBadgeCount(unreadCount);
     }, [unreadCount]);
 
+    useEffect(() => {
+        void initializeNotificationSettings();
+    }, [initializeNotificationSettings]);
+
     const getErrorMessage = (caughtError: unknown, fallback: string) => {
         return caughtError instanceof Error ? caughtError.message : fallback;
     };
 
+    const preferences = useMemo(
+        () => ({
+            pushEnabled,
+            messagesEnabled,
+            bidsEnabled,
+            requestUpdatesEnabled,
+            savedRequestsEnabled,
+        }),
+        [
+            pushEnabled,
+            messagesEnabled,
+            bidsEnabled,
+            requestUpdatesEnabled,
+            savedRequestsEnabled,
+        ]
+    );
+
     const loadNotifications = useCallback(async () => {
         setError(null);
 
-        const [items, count] = await Promise.all([
-            fetchNotifications(),
-            fetchUnreadCount(),
-        ]);
+        const items = await fetchNotifications();
+        const visibleItems = filterNotificationsByPreferences(items, preferences);
+        const visibleUnreadCount = visibleItems.filter(
+            (notification) => !notification.isRead
+        ).length;
 
-        setNotifications(sortNewestFirst(items));
-        setUnreadCount(count);
-    }, []);
+        setNotifications(sortNewestFirst(visibleItems));
+        setUnreadCount(visibleUnreadCount);
+    }, [preferences]);
 
     const reload = useCallback(async () => {
         setRefreshing(true);
@@ -57,6 +89,10 @@ export const useNotifications = () => {
     }, [loadNotifications]);
 
     useEffect(() => {
+        if (!isHydrated) {
+            return;
+        }
+
         let isMounted = true;
 
         const load = async () => {
@@ -81,10 +117,14 @@ export const useNotifications = () => {
         return () => {
             isMounted = false;
         };
-    }, [loadNotifications]);
+    }, [isHydrated, loadNotifications]);
 
     useFocusEffect(
         useCallback(() => {
+            if (!isHydrated) {
+                return undefined;
+            }
+
             const sync = () =>
                 loadNotifications().catch((caughtError) => {
                     setError(getErrorMessage(caughtError, "Could not load notifications"));
@@ -99,10 +139,14 @@ export const useNotifications = () => {
             return () => {
                 clearInterval(intervalId);
             };
-        }, [loadNotifications])
+        }, [isHydrated, loadNotifications])
     );
 
     useEffect(() => {
+        if (!isHydrated) {
+            return;
+        }
+
         const subscription = AppState.addEventListener("change", (nextState) => {
             if (nextState !== "active") {
                 return;
@@ -116,7 +160,7 @@ export const useNotifications = () => {
         return () => {
             subscription.remove();
         };
-    }, [loadNotifications]);
+    }, [isHydrated, loadNotifications]);
 
     const markRead = useCallback(async (notificationId: string) => {
         setActionLoadingId(notificationId);

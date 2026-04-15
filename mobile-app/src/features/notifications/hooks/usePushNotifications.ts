@@ -5,7 +5,9 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { useNotificationSettingsStore } from "@/features/settings/store/notification-settings.store";
 import { registerPushToken, unregisterPushToken } from "../service/notification.service";
+import { isNotificationTypeEnabled } from "../utils/notification-preferences";
 
 const getProjectId = () => {
     const constants = Constants as typeof Constants & {
@@ -45,18 +47,53 @@ const registerForPushNotificationsAsync = async () => {
 export const usePushNotifications = () => {
     const router = useRouter();
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const pushEnabled = useNotificationSettingsStore((state) => state.pushEnabled);
+    const isHydrated = useNotificationSettingsStore((state) => state.isHydrated);
+    const initializeNotificationSettings = useNotificationSettingsStore(
+        (state) => state.initializeNotificationSettings
+    );
+    const syncNotificationSettings = useNotificationSettingsStore(
+        (state) => state.syncNotificationSettings
+    );
     const lastRegisteredToken = useRef<string | null>(null);
-    const previousAuthState = useRef<boolean>(isAuthenticated);
+
+    useEffect(() => {
+        void initializeNotificationSettings();
+    }, [initializeNotificationSettings]);
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            return;
+        }
+
+        void syncNotificationSettings();
+    }, [isAuthenticated, syncNotificationSettings]);
 
     useEffect(() => {
         Notifications.setNotificationHandler({
-            handleNotification: async () => ({
-                shouldShowAlert: true,
-                shouldShowBanner: true,
-                shouldShowList: true,
-                shouldPlaySound: true,
-                shouldSetBadge: true,
-            }),
+            handleNotification: async (notification) => {
+                const state = useNotificationSettingsStore.getState();
+                const notificationType = notification.request.content.data?.type;
+                const isEnabled =
+                    typeof notificationType === "string" &&
+                    isHydratedNotificationType(notificationType)
+                        ? isNotificationTypeEnabled(notificationType, {
+                            pushEnabled: state.pushEnabled,
+                            messagesEnabled: state.messagesEnabled,
+                            bidsEnabled: state.bidsEnabled,
+                            requestUpdatesEnabled: state.requestUpdatesEnabled,
+                            savedRequestsEnabled: state.savedRequestsEnabled,
+                        })
+                        : state.pushEnabled;
+
+                return {
+                    shouldShowAlert: isEnabled,
+                    shouldShowBanner: isEnabled,
+                    shouldShowList: isEnabled,
+                    shouldPlaySound: isEnabled,
+                    shouldSetBadge: isEnabled,
+                };
+            },
         });
 
         if (Platform.OS === "android") {
@@ -89,15 +126,17 @@ export const usePushNotifications = () => {
     }, [router]);
 
     useEffect(() => {
-        if (!isAuthenticated || Platform.OS === "web") {
-            if (previousAuthState.current && lastRegisteredToken.current) {
+        if (Platform.OS === "web" || !isHydrated) {
+            return;
+        }
+
+        if (!isAuthenticated || !pushEnabled) {
+            if (lastRegisteredToken.current) {
                 void unregisterPushToken(lastRegisteredToken.current).catch((error) => {
                     console.warn("Failed to unregister push notifications:", error);
                 });
                 lastRegisteredToken.current = null;
             }
-
-            previousAuthState.current = isAuthenticated;
             return;
         }
 
@@ -115,6 +154,10 @@ export const usePushNotifications = () => {
                     return;
                 }
 
+                if (lastRegisteredToken.current) {
+                    await unregisterPushToken(lastRegisteredToken.current);
+                }
+
                 lastRegisteredToken.current = token;
                 await registerPushToken(token, Platform.OS);
             } catch (error) {
@@ -123,10 +166,26 @@ export const usePushNotifications = () => {
         };
 
         void registerToken();
-        previousAuthState.current = isAuthenticated;
 
         return () => {
             isCancelled = true;
         };
-    }, [isAuthenticated]);
+    }, [isAuthenticated, isHydrated, pushEnabled]);
+};
+
+const isHydratedNotificationType = (value: string): value is Parameters<
+    typeof isNotificationTypeEnabled
+>[0] => {
+    return (
+        value === "BID_RECEIVED" ||
+        value === "BID_ACCEPTED" ||
+        value === "BID_REJECTED" ||
+        value === "REQUEST_ASSIGNED" ||
+        value === "REQUEST_COMPLETED" ||
+        value === "REQUEST_CANCELLED" ||
+        value === "MESSAGE_RECEIVED" ||
+        value === "REVIEW_RECEIVED" ||
+        value === "REVIEW_REPLY_RECEIVED" ||
+        value === "SYSTEM"
+    );
 };
