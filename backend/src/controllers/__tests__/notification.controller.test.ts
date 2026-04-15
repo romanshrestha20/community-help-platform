@@ -6,8 +6,16 @@ const { notificationServiceMock } = vi.hoisted(() => ({
         getUserNotifications: vi.fn(),
         getUnreadNotificationCount: vi.fn(),
         markNotificationAsRead: vi.fn(),
+        markNotificationAsUnread: vi.fn(),
         markAllNotificationsAsRead: vi.fn(),
         deleteNotification: vi.fn(),
+    },
+}));
+
+const { notificationPreferenceServiceMock } = vi.hoisted(() => ({
+    notificationPreferenceServiceMock: {
+        getNotificationPreferencesForUser: vi.fn(),
+        updateNotificationPreferencesForUser: vi.fn(),
     },
 }));
 
@@ -22,8 +30,16 @@ vi.mock("../../services/notification.service.js", () => ({
     getUserNotifications: notificationServiceMock.getUserNotifications,
     getUnreadNotificationCount: notificationServiceMock.getUnreadNotificationCount,
     markNotificationAsRead: notificationServiceMock.markNotificationAsRead,
+    markNotificationAsUnread: notificationServiceMock.markNotificationAsUnread,
     markAllNotificationsAsRead: notificationServiceMock.markAllNotificationsAsRead,
     deleteNotification: notificationServiceMock.deleteNotification,
+}));
+
+vi.mock("../../services/notification-preference.service.js", () => ({
+    getNotificationPreferencesForUser:
+        notificationPreferenceServiceMock.getNotificationPreferencesForUser,
+    updateNotificationPreferencesForUser:
+        notificationPreferenceServiceMock.updateNotificationPreferencesForUser,
 }));
 
 vi.mock("../../services/push-token.service.js", () => ({
@@ -32,13 +48,16 @@ vi.mock("../../services/push-token.service.js", () => ({
 }));
 
 import {
+    getNotificationPreferences,
     listNotifications,
     readAllNotifications,
     readNotification,
     removeNotification,
     registerPushToken,
+    unreadNotification,
     unregisterPushToken,
     unreadNotificationCount,
+    updateNotificationPreferences,
 } from "../notification.controller.js";
 
 describe("notification.controller", () => {
@@ -96,6 +115,63 @@ describe("notification.controller", () => {
         expect(next).not.toHaveBeenCalled();
     });
 
+    it("getNotificationPreferences: returns preferences for authenticated user", async () => {
+        notificationPreferenceServiceMock.getNotificationPreferencesForUser.mockResolvedValue({
+            pushEnabled: true,
+            messagesEnabled: true,
+            bidsEnabled: true,
+            requestUpdatesEnabled: true,
+            savedRequestsEnabled: false,
+        });
+
+        const req = makeReq({ user: { userId: "user-1" } });
+        const res = makeRes();
+        const next = makeNext();
+
+        await getNotificationPreferences(req, res, next);
+
+        expect(
+            notificationPreferenceServiceMock.getNotificationPreferencesForUser
+        ).toHaveBeenCalledWith("user-1");
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                data: expect.objectContaining({ pushEnabled: true }),
+            })
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("updateNotificationPreferences: persists preference changes", async () => {
+        notificationPreferenceServiceMock.updateNotificationPreferencesForUser.mockResolvedValue({
+            pushEnabled: true,
+            messagesEnabled: false,
+            bidsEnabled: true,
+            requestUpdatesEnabled: true,
+            savedRequestsEnabled: false,
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            body: { messagesEnabled: false },
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await updateNotificationPreferences(req, res, next);
+
+        expect(
+            notificationPreferenceServiceMock.updateNotificationPreferencesForUser
+        ).toHaveBeenCalledWith("user-1", { messagesEnabled: false });
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                message: "Notification preferences updated",
+            })
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
     it("readNotification: rejects missing notification id", async () => {
         const req = makeReq({ user: { userId: "user-1" }, params: {} });
         const res = makeRes();
@@ -132,6 +208,31 @@ describe("notification.controller", () => {
             expect.objectContaining({
                 success: true,
                 message: "Notification marked as read",
+            })
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("unreadNotification: marks target notification as unread", async () => {
+        notificationServiceMock.markNotificationAsUnread.mockResolvedValue({ count: 1 });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            params: { id: "notif-1" },
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await unreadNotification(req, res, next);
+
+        expect(notificationServiceMock.markNotificationAsUnread).toHaveBeenCalledWith(
+            "notif-1",
+            "user-1"
+        );
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                message: "Notification marked as unread",
             })
         );
         expect(next).not.toHaveBeenCalled();
