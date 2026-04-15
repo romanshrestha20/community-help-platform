@@ -13,6 +13,7 @@ import { AvatarUploadInput, UpdateUserProfilePayload } from "../types/user.types
 
 export const useUser = () => {
   const logout = useAuthStore((state) => state.logout);
+  const authUser = useAuthStore((state) => state.user);
   const {
     user,
     loading,
@@ -23,6 +24,41 @@ export const useUser = () => {
     clearUser,
   } = useUserStore();
 
+  const syncAuthUser = useCallback(
+    (nextUser: typeof user) => {
+      if (!nextUser || !authUser) return;
+
+      useAuthStore.setState((state) => ({
+        ...state,
+        user: {
+          ...state.user,
+          ...authUser,
+          id: nextUser.id,
+          email: nextUser.email,
+          phone: nextUser.phone,
+          isVerified: nextUser.isVerified,
+          fullName: nextUser.fullName,
+          avatarUrl: nextUser.avatarUrl ?? null,
+          profile: state.user?.profile
+            ? {
+                ...state.user.profile,
+                fullName: nextUser.fullName,
+                bio: nextUser.bio ?? null,
+                dateOfBirth: nextUser.dateOfBirth ?? null,
+                gender: nextUser.gender ?? null,
+                userType: nextUser.userType,
+                rating: nextUser.rating,
+                helpCount: nextUser.helpCount,
+                avatarUrl: nextUser.avatarUrl ?? null,
+                address: nextUser.address ?? null,
+              }
+            : state.user?.profile ?? null,
+        },
+      }));
+    },
+    [authUser]
+  );
+
   const loadUserProfile = useCallback(async () => {
     if (user) return;
 
@@ -31,14 +67,15 @@ export const useUser = () => {
 
     const result = await fetchUserProfile(user);
 
-    if (result.success && result.data) {
-      setUser(result.data);
-    } else {
-      setError(result.message || "Failed to load profile");
-    }
+      if (result.success && result.data) {
+        setUser(result.data);
+        syncAuthUser(result.data);
+      } else {
+        setError(result.message || "Failed to load profile");
+      }
 
     setLoading(false);
-  }, [user, setUser, setLoading, setError]);
+  }, [user, setUser, setLoading, setError, syncAuthUser]);
 
   const handleUpdateProfile = useCallback(
     async (profileData: Partial<UpdateUserProfilePayload>) => {
@@ -49,6 +86,7 @@ export const useUser = () => {
 
       if (result.success && result.data) {
         setUser(result.data);
+        syncAuthUser(result.data);
       } else {
         setError(result.message || "Failed to update profile");
       }
@@ -56,7 +94,7 @@ export const useUser = () => {
       setLoading(false);
       return result.success;
     },
-    [user, setUser, setLoading, setError]
+    [user, setUser, setLoading, setError, syncAuthUser]
   );
 
   const handleUploadAvatar = useCallback(
@@ -68,6 +106,7 @@ export const useUser = () => {
 
       if (result.success && result.data) {
         setUser(result.data);
+        syncAuthUser(result.data);
       } else {
         setError(result.message || "Failed to upload avatar");
       }
@@ -75,7 +114,7 @@ export const useUser = () => {
       setLoading(false);
       return result.success;
     },
-    [user, setUser, setLoading, setError]
+    [user, setUser, setLoading, setError, syncAuthUser]
   );
 
   const handleDeleteAvatar = useCallback(async () => {
@@ -86,13 +125,14 @@ export const useUser = () => {
 
     if (result.success && result.data) {
       setUser(result.data);
+      syncAuthUser(result.data);
     } else {
       setError(result.message || "Failed to delete avatar");
     }
 
     setLoading(false);
     return result.success;
-  }, [user, setUser, setLoading, setError]);
+  }, [user, setUser, setLoading, setError, syncAuthUser]);
 
   const handleDeleteProfile = useCallback(async (password?: string) => {
     setLoading(true);
