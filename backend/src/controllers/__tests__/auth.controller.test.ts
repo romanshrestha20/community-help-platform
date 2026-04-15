@@ -1,13 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeNext, makeReq, makeRes } from "./test-utils.js";
 
-const { prismaMock, bcryptMock, jwtMock } = vi.hoisted(() => ({
+const {
+    prismaMock,
+    bcryptMock,
+    jwtMock,
+    authTokenServiceMock,
+    emailServiceMock,
+    rateLimitServiceMock,
+} = vi.hoisted(() => ({
     prismaMock: {
         userModel: {
             findFirst: vi.fn(),
             findUnique: vi.fn(),
             create: vi.fn(),
             update: vi.fn(),
+        },
+        passwordResetToken: {
+            update: vi.fn(),
+            deleteMany: vi.fn(),
         },
         deletedAccount: {
             findUnique: vi.fn(),
@@ -30,6 +41,16 @@ const { prismaMock, bcryptMock, jwtMock } = vi.hoisted(() => ({
         signRefreshToken: vi.fn(),
         verifyRefreshToken: vi.fn(),
     },
+    authTokenServiceMock: {
+        createPasswordResetToken: vi.fn(),
+        findActivePasswordResetTokenByRawToken: vi.fn(),
+    },
+    emailServiceMock: {
+        sendPasswordResetEmail: vi.fn(),
+    },
+    rateLimitServiceMock: {
+        assertRateLimit: vi.fn(),
+    },
 }));
 
 vi.mock("../../lib/prisma.js", () => ({
@@ -46,11 +67,26 @@ vi.mock("../../utils/jwt.js", () => ({
     verifyRefreshToken: jwtMock.verifyRefreshToken,
 }));
 
+vi.mock("../../services/auth-token.service.js", () => ({
+    createPasswordResetToken: authTokenServiceMock.createPasswordResetToken,
+    findActivePasswordResetTokenByRawToken: authTokenServiceMock.findActivePasswordResetTokenByRawToken,
+}));
+
+vi.mock("../../services/email.service.js", () => ({
+    sendPasswordResetEmail: emailServiceMock.sendPasswordResetEmail,
+}));
+
+vi.mock("../../services/auth-rate-limit.service.js", () => ({
+    assertRateLimit: rateLimitServiceMock.assertRateLimit,
+}));
+
 import {
     changePassword,
+    forgotPassword,
     loginUser,
     refreshAccessToken,
     registerUser,
+    resetPassword,
 } from "../auth.controller.js";
 
 describe("auth.controller", () => {
@@ -143,6 +179,61 @@ describe("auth.controller", () => {
         );
     });
 
+    it("forgotPassword: returns generic success when user does not exist", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue(null);
+
+        const req = makeReq({
+            body: { email: "missing@example.com" },
+            ip: "10.0.0.1",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await forgotPassword(req, res, next);
+
+        expect(rateLimitServiceMock.assertRateLimit).toHaveBeenCalledTimes(2);
+        expect(authTokenServiceMock.createPasswordResetToken).not.toHaveBeenCalled();
+        expect(emailServiceMock.sendPasswordResetEmail).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                message: "If an account exists for this email, we sent a password reset link.",
+            }),
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("forgotPassword: creates token and sends email when user exists", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-1",
+            email: "user@example.com",
+        });
+        authTokenServiceMock.createPasswordResetToken.mockResolvedValue({
+            rawToken: "raw-reset-token",
+            expiresAt: new Date("2026-04-15T10:00:00.000Z"),
+        });
+
+        const req = makeReq({
+            body: { email: "user@example.com" },
+            ip: "10.0.0.2",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await forgotPassword(req, res, next);
+
+        expect(authTokenServiceMock.createPasswordResetToken).toHaveBeenCalledWith("user-1");
+        expect(emailServiceMock.sendPasswordResetEmail).toHaveBeenCalledWith(
+            expect.objectContaining({
+                email: "user@example.com",
+                token: "raw-reset-token",
+            }),
+        );
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(next).not.toHaveBeenCalled();
+    });
+
     it("refreshAccessToken: rejects expired session", async () => {
         const expired = new Date(Date.now() - 1000);
         jwtMock.verifyRefreshToken.mockReturnValue({ userId: "user-1" });
@@ -158,6 +249,52 @@ describe("auth.controller", () => {
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({ message: "Session expired. Please login again.", statusCode: 401 }),
         );
+    });
+
+    it("resetPassword: rejects invalid token", async () => {
+        authTokenServiceMock.findActivePasswordResetTokenByRawToken.mockResolvedValue(null);
+
+        const req = makeReq({
+            body: { token: "bad-token", newPassword: "new-pass-123" },
+            ip: "10.0.0.3",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await resetPassword(req, res, next);
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({ message: "Reset link is invalid or has expired", statusCode: 400 }),
+        );
+    });
+
+    it("resetPassword: updates password, marks token used, and deletes refresh tokens", async () => {
+        authTokenServiceMock.findActivePasswordResetTokenByRawToken.mockResolvedValue({
+            id: "reset-1",
+            userId: "user-1",
+        });
+        bcryptMock.hash.mockResolvedValue("new-hash");
+        prismaMock.$transaction.mockResolvedValue([]);
+
+        const req = makeReq({
+            body: { token: "good-token", newPassword: "new-pass-123" },
+            ip: "10.0.0.4",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await resetPassword(req, res, next);
+
+        expect(authTokenServiceMock.findActivePasswordResetTokenByRawToken).toHaveBeenCalledWith("good-token");
+        expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                message: "Password reset successfully. Please log in again.",
+            }),
+        );
+        expect(next).not.toHaveBeenCalled();
     });
 
     it("changePassword: updates password and invalidates tokens", async () => {

@@ -10,11 +10,31 @@ import {
 import { getZodErrorMessage } from "../utils/zod.js";
 import {
   changePasswordBodySchema,
+  forgotPasswordBodySchema,
   loginBodySchema,
   refreshTokenBodySchema,
   registerUserBodySchema,
+  resetPasswordBodySchema,
 } from "../utils/validation-schemas.js";
 import { normalizePhoneNumber } from "../utils/phone.js";
+import { assertRateLimit } from "../services/auth-rate-limit.service.js";
+import {
+  createPasswordResetToken,
+  findActivePasswordResetTokenByRawToken,
+} from "../services/auth-token.service.js";
+import { sendPasswordResetEmail } from "../services/email.service.js";
+
+const PASSWORD_RESET_SUCCESS_MESSAGE =
+  "If an account exists for this email, we sent a password reset link.";
+
+const getRequestIp = (req: Request) => {
+  return (
+    req.ip ||
+    req.headers["x-forwarded-for"] ||
+    req.socket.remoteAddress ||
+    "unknown"
+  ).toString();
+};
 
 
 export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
@@ -140,6 +160,63 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
+export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsedBody = forgotPasswordBodySchema.safeParse(req.body);
+
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
+    }
+
+    const { email } = parsedBody.data;
+    const ipAddress = getRequestIp(req);
+
+    assertRateLimit({
+      bucket: "forgot-password:ip",
+      key: ipAddress,
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many password reset requests. Please try again later.",
+    });
+    assertRateLimit({
+      bucket: "forgot-password:email",
+      key: email,
+      limit: 3,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many password reset requests. Please try again later.",
+    });
+
+    const user = await prisma.userModel.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+      },
+    });
+
+    if (user) {
+      try {
+        const { rawToken, expiresAt } = await createPasswordResetToken(user.id);
+
+        await sendPasswordResetEmail({
+          email: user.email,
+          token: rawToken,
+          expiresAt,
+        });
+      } catch (error) {
+        console.error("Failed to create or send password reset email:", error);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: PASSWORD_RESET_SUCCESS_MESSAGE,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 export const loginUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -226,6 +303,77 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     });
   } catch (error) {
     console.error("Error in loginUser:", error);
+    next(error);
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsedBody = resetPasswordBodySchema.safeParse(req.body);
+
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
+    }
+
+    const { token, newPassword } = parsedBody.data;
+    const ipAddress = getRequestIp(req);
+
+    if (newPassword.length < 6) {
+      return next(new AppError("Password must be at least 6 characters", 400));
+    }
+
+    assertRateLimit({
+      bucket: "reset-password:ip",
+      key: ipAddress,
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many password reset attempts. Please try again later.",
+    });
+    assertRateLimit({
+      bucket: "reset-password:token",
+      key: token,
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many password reset attempts. Please request a new reset link.",
+    });
+
+    const resetToken = await findActivePasswordResetTokenByRawToken(token);
+
+    if (!resetToken) {
+      return next(new AppError("Reset link is invalid or has expired", 400));
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const usedAt = new Date();
+
+    await prisma.$transaction([
+      prisma.userModel.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash },
+      }),
+      prisma.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { usedAt },
+      }),
+      prisma.passwordResetToken.deleteMany({
+        where: {
+          userId: resetToken.userId,
+          usedAt: null,
+          id: {
+            not: resetToken.id,
+          },
+        },
+      }),
+      prisma.refreshToken.deleteMany({
+        where: { userId: resetToken.userId },
+      }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset successfully. Please log in again.",
+    });
+  } catch (error) {
     next(error);
   }
 };
