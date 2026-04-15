@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -9,11 +9,19 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppInput } from "@/components/ui/AppInput";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { FormContainer } from "@/components/ui/FormContainer";
+import { PhoneNumberField } from "@/components/ui/PhoneNumberField";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import LocationPickerField from "@/features/location/components/LocationPickerField";
 import { LocationSuggestion } from "@/features/location/types/location.types";
 import { validateRegisterFormFields } from "@/features/auth/utils/authValidation";
+import {
+  combinePhoneNumber,
+  getCallingCodeForCountry,
+  getDefaultPhoneCountryCode,
+  getPhoneRegionHint,
+  resolvePhoneCountryCode,
+} from "@/utils/phone";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 
 type Gender = "MALE" | "FEMALE" | "OTHER";
@@ -30,7 +38,10 @@ export default function RegisterScreen() {
   });
 
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phoneCountryCode, setPhoneCountryCode] = useState(getDefaultPhoneCountryCode());
+  const [phoneCallingCode, setPhoneCallingCode] = useState("");
+  const [phoneNationalNumber, setPhoneNationalNumber] = useState("");
+  const [phoneCountryTouched, setPhoneCountryTouched] = useState(false);
   const [fullName, setFullName] = useState("");
   const [gender, setGender] = useState<Gender>("MALE");
   const [dateOfBirth, setDateOfBirth] = useState("");
@@ -50,7 +61,40 @@ export default function RegisterScreen() {
     locationPicker.selectSuggestion(suggestion);
   };
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    const syncPhoneCountryFromLocation = async () => {
+      if (phoneCountryTouched) {
+        return;
+      }
+
+      const detectedCountryCode = await resolvePhoneCountryCode(
+        locationPicker.value?.countryCode,
+        locationPicker.value?.country
+      );
+
+      const nextCountryCode = detectedCountryCode ?? getDefaultPhoneCountryCode();
+      const nextCallingCode = await getCallingCodeForCountry(nextCountryCode);
+
+      if (isCancelled || !nextCallingCode) {
+        return;
+      }
+
+      setPhoneCountryCode(nextCountryCode);
+      setPhoneCallingCode(`+${nextCallingCode}`);
+    };
+
+    void syncPhoneCountryFromLocation();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [locationPicker.value?.country, locationPicker.value?.countryCode, phoneCountryTouched]);
+
   const onRegister = async () => {
+    const phone = combinePhoneNumber(phoneCallingCode, phoneNationalNumber);
+
     const validation = validateRegisterFormFields({
       fullName,
       email,
@@ -90,6 +134,12 @@ export default function RegisterScreen() {
   };
 
   const displayError = validationError || error;
+  const phoneRegionHint = getPhoneRegionHint(phoneCountryCode, phoneCallingCode);
+  const phoneDetectedLabel =
+    !phoneCountryTouched &&
+    (locationPicker.value?.countryCode || locationPicker.value?.country)
+      ? "Detected from current location"
+      : null;
 
   return (
     <FormContainer contentContainerStyle={styles.container}>
@@ -154,18 +204,24 @@ export default function RegisterScreen() {
                   textContentType="emailAddress"
                 />
 
-                <AppInput
+                <PhoneNumberField
                   label="Phone"
-                  placeholder="Phone number"
-                  value={phone}
+                  countryCode={phoneCountryCode}
+                  callingCode={phoneCallingCode}
+                  nationalNumber={phoneNationalNumber}
                   error={fieldErrors.phone ?? null}
-                  onChangeText={(value) => {
+                  hint={phoneRegionHint}
+                  detectedLabel={phoneDetectedLabel}
+                  onCountryChange={({ countryCode, callingCode }) => {
                     clearFieldError("phone");
-                    setPhone(value);
+                    setPhoneCountryTouched(true);
+                    setPhoneCountryCode(countryCode);
+                    setPhoneCallingCode(callingCode);
                   }}
-                  keyboardType="phone-pad"
-                  autoComplete="tel"
-                  textContentType="telephoneNumber"
+                  onNationalNumberChange={(value) => {
+                    clearFieldError("phone");
+                    setPhoneNationalNumber(value.replace(/\D/g, ""));
+                  }}
                 />
 
                 <AppInput
