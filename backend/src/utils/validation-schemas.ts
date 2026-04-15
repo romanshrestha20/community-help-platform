@@ -90,6 +90,14 @@ export const pushTokenBodySchema = z.object({
   platform: z.string().trim().optional().nullable(),
 });
 
+export const notificationPreferencesBodySchema = z.object({
+  pushEnabled: z.boolean().optional(),
+  messagesEnabled: z.boolean().optional(),
+  bidsEnabled: z.boolean().optional(),
+  requestUpdatesEnabled: z.boolean().optional(),
+  savedRequestsEnabled: z.boolean().optional(),
+});
+
 export const createHelpRequestBodySchema = z.object({
   title: z.string().trim().min(1, "Title is required."),
   description: z.string().trim().min(1, "Description is required."),
