@@ -183,7 +183,9 @@ describe("favorite.service", () => {
         where: expect.objectContaining({
           userId: "user-1",
           request: expect.objectContaining({
-            category: "FOOD",
+            category: expect.objectContaining({
+              slug: "food",
+            }),
           }),
         }),
       })
