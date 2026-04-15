@@ -1,3 +1,5 @@
+import { normalizePhoneInput } from "@/utils/phone";
+
 export const isBlank = (value: string | null | undefined) => !value || value.trim().length === 0;
 
 export const requireValue = (value: string | null | undefined, message: string) => {
@@ -41,10 +43,14 @@ export const validatePassword = (
 };
 
 export const validatePhoneNumber = (phone: string) => {
-  const normalized = phone.replace(/[^\d+]/g, "");
+  const normalized = normalizePhoneInput(phone);
 
   if (!normalized) {
     return "Phone number is required.";
+  }
+
+  if (/^\+?\d{7,15}$/.test(normalized) === false) {
+    return "Please enter a valid phone number.";
   }
 
   const digitCount = normalized.replace(/\D/g, "").length;

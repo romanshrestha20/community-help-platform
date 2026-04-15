@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { AppLocation } from "@/features/location/types/location.types";
 import { HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
+import { normalizePhoneInput } from "@/utils/phone";
 
 import { firstValidationError, validateDateOfBirth } from "./validators";
 
@@ -49,6 +50,7 @@ type ValidateBidDraftArgs = {
 
 type ValidateProfileUpdateArgs = {
     fullName: string;
+    phone?: string;
     dateOfBirth?: string;
     bio?: string;
 };
@@ -64,7 +66,7 @@ type RegisterField =
 type ChangePasswordField = "currentPassword" | "newPassword";
 type RequestField = "title" | "description" | "budget" | "location";
 type BidField = "helpRequestId" | "amount" | "message";
-type ProfileField = "fullName" | "dateOfBirth" | "bio";
+type ProfileField = "fullName" | "phone" | "dateOfBirth" | "bio";
 
 type ParseAmountResult = {
     amount?: number;
@@ -143,8 +145,8 @@ const phoneSchema = z
     .trim()
     .min(1, "Phone number is required.")
     .refine((value) => {
-        const normalized = value.replace(/[^\d+]/g, "");
-        return normalized.replace(/\D/g, "").length >= 7;
+        const normalized = normalizePhoneInput(value);
+        return /^\+?\d{7,15}$/.test(normalized);
     }, "Please enter a valid phone number.");
 
 const dateOfBirthSchema = (requiredMessage = "Date of birth is required.") =>
@@ -430,12 +432,14 @@ export const validateBidDraft = ({
 
 export const validateProfileUpdateFormFields = ({
     fullName,
+    phone,
     dateOfBirth,
     bio,
 }: ValidateProfileUpdateArgs): FormValidationResult<ProfileField> => {
     const result = z
         .object({
             fullName: profileFullNameSchema,
+            phone: phoneSchema.optional(),
             dateOfBirth: maybeDateOfBirthSchema,
             bio: profileBioSchema,
         })
@@ -450,15 +454,16 @@ export const validateProfileUpdateFormFields = ({
                 });
             }
         })
-        .safeParse({ fullName, dateOfBirth, bio });
+        .safeParse({ fullName, phone, dateOfBirth, bio });
 
     return toValidationResult<ProfileField>(result);
 };
 
 export const validateProfileUpdateForm = ({
     fullName,
+    phone,
     dateOfBirth,
     bio,
 }: ValidateProfileUpdateArgs) => {
-    return validateProfileUpdateFormFields({ fullName, dateOfBirth, bio }).formError;
+    return validateProfileUpdateFormFields({ fullName, phone, dateOfBirth, bio }).formError;
 };
