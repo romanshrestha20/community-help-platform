@@ -5,6 +5,7 @@ import { Card, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { formatCompactAddress } from "@/features/location/utils/address";
+import { formatPhoneNumberForDisplay, getPhoneRegionHint } from "@/utils/phone";
 import { User } from "../types/user.types";
 
 type Props = {
@@ -19,6 +20,7 @@ const formatLabel = (value?: string | null) => {
 
 export const ProfileInfoSection = ({ user, onEditProfile }: Props) => {
   const { palette } = useThemeContext();
+  const phoneRegionHint = getPhoneRegionHint();
 
   return (
     <Card>
@@ -30,7 +32,11 @@ export const ProfileInfoSection = ({ user, onEditProfile }: Props) => {
         <Stack gap="sm">
           <InfoItem label="Full name" value={formatLabel(user?.fullName)} />
           <InfoItem label="Email" value={formatLabel(user?.email)} />
-          <InfoItem label="Phone" value={formatLabel(user?.phone)} />
+          <InfoItem
+            label="Phone"
+            value={formatPhoneNumberForDisplay(user?.phone)}
+            caption={phoneRegionHint}
+          />
           <InfoItem label="Gender" value={formatLabel(user?.gender)} />
           <InfoItem label="User type" value={formatLabel(user?.userType)} />
           <InfoItem label="Date of birth" value={formatLabel(user?.dateOfBirth)} />
@@ -65,13 +71,24 @@ export const ProfileInfoSection = ({ user, onEditProfile }: Props) => {
   );
 };
 
-const InfoItem = ({ label, value }: { label: string; value: string }) => {
+const InfoItem = ({
+  label,
+  value,
+  caption,
+}: {
+  label: string;
+  value: string;
+  caption?: string;
+}) => {
   const { palette } = useThemeContext();
 
   return (
     <View style={[styles.item, { borderBottomColor: palette.border }]}>
       <Text style={[styles.label, { color: palette.textSecondary }]}>{label}</Text>
       <Text style={[styles.value, { color: palette.textPrimary }]}>{value}</Text>
+      {caption ? (
+        <Text style={[styles.caption, { color: palette.textSecondary }]}>{caption}</Text>
+      ) : null}
     </View>
   );
 };
@@ -96,6 +113,10 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
     fontWeight: theme.typography.fontWeight.medium,
+  },
+  caption: {
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: theme.typography.lineHeight.xs,
   },
   bodyText: {
     fontSize: theme.typography.fontSize.sm,
