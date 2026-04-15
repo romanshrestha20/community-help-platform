@@ -13,6 +13,8 @@ model UserModel {
   phone        String? @unique
   passwordHash String?
   isVerified   Boolean @default(false)
+  isEmailVerified Boolean @default(false)
+  isPhoneVerified Boolean @default(false)
 
   profile Profile?
 
@@ -30,6 +32,9 @@ model UserModel {
   notificationPreference NotificationPreference?
 
   refreshTokens RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  phoneVerificationCodes PhoneVerificationCode[]
   oauthAccounts OAuthAccount[]
   pushTokens    PushToken[]
 
@@ -132,6 +137,54 @@ model RefreshToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+model PhoneVerificationCode {
+  id        String   @id @default(uuid())
+  userId    String
+  phone     String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([phone])
+  @@index([expiresAt])
+  @@map("phone_verification_codes")
 }
 
 model PushToken {
