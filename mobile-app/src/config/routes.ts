@@ -16,5 +16,9 @@ export const APP_ROUTES = {
     PROFILE_REQUEST_EDIT: (id: string) => `/profile/requests/${id}/edit`,
     AUTH_LOGIN: "/(auth)/login",
     AUTH_REGISTER: "/(auth)/register",
+    AUTH_FORGOT_PASSWORD: "/(auth)/forgot-password",
+    AUTH_RESET_PASSWORD: "/(auth)/reset-password",
+    AUTH_VERIFY_EMAIL: "/(auth)/verify-email",
+    AUTH_VERIFY_PHONE: "/(auth)/verify-phone",
 
 } as const;

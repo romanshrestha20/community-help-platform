@@ -102,8 +102,16 @@ export default function Layout() {
   useEffect(() => {
     if (isInitializing) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
-    const isRootRoute = segments[0] === "index";
+    const routeSegments = segments as string[];
+    const inAuthGroup = routeSegments[0] === "(auth)";
+    const isRootRoute = routeSegments[0] === "index";
+    const authLeafRoute = routeSegments[1] ?? "";
+    const allowAuthenticatedAuthRoutes = new Set([
+      "forgot-password",
+      "reset-password",
+      "verify-email",
+      "verify-phone",
+    ]);
 
     if (isAuthenticated && isRootRoute) {
       router.replace("/(tabs)/home");
@@ -115,7 +123,11 @@ export default function Layout() {
       return;
     }
 
-    if (isAuthenticated && inAuthGroup) {
+    if (
+      isAuthenticated &&
+      inAuthGroup &&
+      !allowAuthenticatedAuthRoutes.has(authLeafRoute)
+    ) {
       router.replace("/(tabs)/home");
     }
   }, [isAuthenticated, segments, isInitializing, router]);
