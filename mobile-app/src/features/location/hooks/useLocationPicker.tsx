@@ -226,6 +226,7 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
         state: suggestion.state,
         postalCode: suggestion.postalCode,
         country: suggestion.country,
+        countryCode: suggestion.countryCode,
         formattedAddress: suggestion.formattedAddress,
       };
 
