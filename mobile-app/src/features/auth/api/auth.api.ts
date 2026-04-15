@@ -1,8 +1,13 @@
 import apiClient from "../../../api/api-client";
 import {
+  ForgotPasswordDto,
   LoginDto,
+  AuthMessageResponse,
   AuthResponse,
   RegisterDto,
+  ResetPasswordDto,
+  VerifyEmailDto,
+  VerifyPhoneCodeDto,
 } from "../types/auth.types";
 
 const normalizeAuthResponse = (payload: any): AuthResponse => {
@@ -13,6 +18,8 @@ const normalizeAuthResponse = (payload: any): AuthResponse => {
           email: payload.email,
           phone: payload.phone,
           isVerified: Boolean(payload?.isVerified ?? true),
+          isEmailVerified: Boolean(payload?.isEmailVerified ?? payload?.isVerified ?? true),
+          isPhoneVerified: Boolean(payload?.isPhoneVerified ?? false),
           profile: payload.profile ?? null,
         }
       : null;
@@ -48,6 +55,64 @@ export const register = async (
   credentials: RegisterDto
 ): Promise<AuthResponse> => {
   const response = await apiClient.post("/auth/register", credentials);
+  return normalizeAuthResponse(response.data);
+};
+
+export const forgotPassword = async (
+  payload: ForgotPasswordDto
+): Promise<AuthMessageResponse> => {
+  const response = await apiClient.post("/auth/forgot-password", payload);
+  return {
+    success: Boolean(response.data?.success),
+    message: response.data?.message || "",
+  };
+};
+
+export const resetPassword = async (
+  payload: ResetPasswordDto
+): Promise<AuthMessageResponse> => {
+  const response = await apiClient.post("/auth/reset-password", payload);
+  return {
+    success: Boolean(response.data?.success),
+    message: response.data?.message || "",
+  };
+};
+
+export const sendEmailVerification = async (): Promise<AuthMessageResponse> => {
+  const response = await apiClient.post("/auth/send-email-verification");
+  return {
+    success: Boolean(response.data?.success),
+    message: response.data?.message || "",
+  };
+};
+
+export const resendEmailVerification = async (): Promise<AuthMessageResponse> => {
+  const response = await apiClient.post("/auth/resend-email-verification");
+  return {
+    success: Boolean(response.data?.success),
+    message: response.data?.message || "",
+  };
+};
+
+export const verifyEmail = async (
+  payload: VerifyEmailDto
+): Promise<AuthResponse> => {
+  const response = await apiClient.post("/auth/verify-email", payload);
+  return normalizeAuthResponse(response.data);
+};
+
+export const sendPhoneCode = async (): Promise<AuthMessageResponse> => {
+  const response = await apiClient.post("/auth/send-phone-code");
+  return {
+    success: Boolean(response.data?.success),
+    message: response.data?.message || "",
+  };
+};
+
+export const verifyPhoneCode = async (
+  payload: VerifyPhoneCodeDto
+): Promise<AuthResponse> => {
+  const response = await apiClient.post("/auth/verify-phone-code", payload);
   return normalizeAuthResponse(response.data);
 };
 

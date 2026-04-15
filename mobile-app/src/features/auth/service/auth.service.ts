@@ -1,4 +1,9 @@
-import type { AuthResponse, LoginDto, RegisterDto } from "../types/auth.types";
+import type {
+  AuthMessageResponse,
+  AuthResponse,
+  LoginDto,
+  RegisterDto,
+} from "../types/auth.types";
 import * as authApi from "../api/auth.api";
 import { saveTokens, clearTokens } from "../../../utils/token";
 import { useAuthStore } from "../store/auth.store";
@@ -15,7 +20,11 @@ type AuthFailureResult = {
   message: string;
 };
 
-type AuthActionResult = AuthSuccessResult | AuthFailureResult | AuthResponse;
+type AuthActionResult =
+  | AuthSuccessResult
+  | AuthFailureResult
+  | AuthResponse
+  | AuthMessageResponse;
 
 const getErrorMessage = (error: any, fallback: string) =>
   error?.response?.data?.message ||
@@ -138,6 +147,77 @@ export const changePassword = async (
       message: getErrorMessage(
         error,
         "An error occurred while changing password"
+      ),
+    };
+  }
+};
+
+export const forgotPassword = async (
+  email: string
+): Promise<AuthActionResult> => {
+  try {
+    return await authApi.forgotPassword({ email });
+  } catch (error: any) {
+    console.error("Forgot password error:", error);
+
+    return {
+      success: false,
+      message: getErrorMessage(
+        error,
+        "An error occurred while sending the reset email"
+      ),
+    };
+  }
+};
+
+export const resetPassword = async (
+  token: string,
+  newPassword: string
+): Promise<AuthActionResult> => {
+  try {
+    return await authApi.resetPassword({ token, newPassword });
+  } catch (error: any) {
+    console.error("Reset password error:", error);
+
+    return {
+      success: false,
+      message: getErrorMessage(
+        error,
+        "An error occurred while resetting the password"
+      ),
+    };
+  }
+};
+
+export const sendPhoneCode = async (): Promise<AuthActionResult> => {
+  try {
+    return await authApi.sendPhoneCode();
+  } catch (error: any) {
+    console.error("Send phone code error:", error);
+
+    return {
+      success: false,
+      message: getErrorMessage(
+        error,
+        "An error occurred while sending the verification code"
+      ),
+    };
+  }
+};
+
+export const verifyPhoneCode = async (
+  code: string
+): Promise<AuthActionResult> => {
+  try {
+    return await authApi.verifyPhoneCode({ code });
+  } catch (error: any) {
+    console.error("Verify phone code error:", error);
+
+    return {
+      success: false,
+      message: getErrorMessage(
+        error,
+        "An error occurred while verifying the code"
       ),
     };
   }
