@@ -15,17 +15,38 @@ import {
   refreshTokenBodySchema,
   registerUserBodySchema,
   resetPasswordBodySchema,
+  verifyEmailBodySchema,
+  verifyPhoneCodeBodySchema,
 } from "../utils/validation-schemas.js";
 import { normalizePhoneNumber } from "../utils/phone.js";
 import { assertRateLimit } from "../services/auth-rate-limit.service.js";
 import {
+  createEmailVerificationToken,
+  createPhoneVerificationCode,
   createPasswordResetToken,
+  findActiveEmailVerificationTokenByRawToken,
+  findLatestActivePhoneVerificationCode,
   findActivePasswordResetTokenByRawToken,
 } from "../services/auth-token.service.js";
-import { sendPasswordResetEmail } from "../services/email.service.js";
+import {
+  sendEmailVerificationEmail,
+  sendPasswordResetEmail,
+} from "../services/email.service.js";
+import { sendPhoneVerificationCode } from "../services/sms.service.js";
+import { hashToken } from "../utils/token.js";
 
 const PASSWORD_RESET_SUCCESS_MESSAGE =
   "If an account exists for this email, we sent a password reset link.";
+const EMAIL_VERIFICATION_SENT_MESSAGE =
+  "Verification email sent. Please check your inbox.";
+const PHONE_VERIFICATION_SENT_MESSAGE =
+  "Verification code sent. Please check your phone.";
+const PHONE_VERIFICATION_MAX_ATTEMPTS = Number(
+  process.env.PHONE_VERIFICATION_MAX_ATTEMPTS || 5
+);
+const PHONE_VERIFICATION_RESEND_COOLDOWN_SECONDS = Number(
+  process.env.PHONE_VERIFICATION_RESEND_COOLDOWN_SECONDS || 60
+);
 
 const getRequestIp = (req: Request) => {
   return (
@@ -34,6 +55,40 @@ const getRequestIp = (req: Request) => {
     req.socket.remoteAddress ||
     "unknown"
   ).toString();
+};
+
+const queueEmailVerification = async ({
+  userId,
+  email,
+}: {
+  userId: string;
+  email: string;
+}) => {
+  const { rawToken, expiresAt } = await createEmailVerificationToken(userId);
+
+  await sendEmailVerificationEmail({
+    email,
+    token: rawToken,
+    expiresAt,
+  });
+};
+
+const queuePhoneVerification = async ({
+  userId,
+  phone,
+}: {
+  userId: string;
+  phone: string;
+}) => {
+  const { rawCode } = await createPhoneVerificationCode({
+    userId,
+    phone,
+  });
+
+  await sendPhoneVerificationCode({
+    phone,
+    code: rawCode,
+  });
 };
 
 
@@ -101,6 +156,8 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
         email: true,
         phone: true,
         isVerified: true,
+        isEmailVerified: true,
+        isPhoneVerified: true,
         createdAt: true,
         updatedAt: true,
         profile: {
@@ -137,12 +194,21 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       data: { userId: createdUser.id, token: refreshToken, expiresAt },
     });
 
+    try {
+      await queueEmailVerification({
+        userId: createdUser.id,
+        email,
+      });
+    } catch (error) {
+      console.error("Failed to send verification email on registration:", error);
+    }
+
     res.status(201).json({
       success: true,
       accessToken: token,
       refreshToken,
       data: publicUser,
-      message: "User registered successfully",
+      message: "User registered successfully. Please verify your email.",
     });
   } catch (error) {
     console.error("Error in registerUser:", error);
@@ -259,6 +325,8 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
         email: true,
         phone: true,
         isVerified: true,
+        isEmailVerified: true,
+        isPhoneVerified: true,
         profile: {
           select: {
             id: true,
@@ -372,6 +440,427 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     res.status(200).json({
       success: true,
       message: "Password reset successfully. Please log in again.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const sendEmailVerification = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?.userId;
+    const ipAddress = getRequestIp(req);
+
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    const user = await prisma.userModel.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        isEmailVerified: true,
+      },
+    });
+
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (user.isEmailVerified) {
+      return next(new AppError("Email is already verified", 400));
+    }
+
+    assertRateLimit({
+      bucket: "send-email-verification:ip",
+      key: ipAddress,
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many verification email requests. Please try again later.",
+    });
+    assertRateLimit({
+      bucket: "send-email-verification:user",
+      key: user.id,
+      limit: 3,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many verification email requests. Please try again later.",
+    });
+
+    await queueEmailVerification({
+      userId: user.id,
+      email: user.email,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: EMAIL_VERIFICATION_SENT_MESSAGE,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resendEmailVerification = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  return sendEmailVerification(req, res, next);
+};
+
+export const verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsedBody = verifyEmailBodySchema.safeParse(req.body);
+
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
+    }
+
+    const { token } = parsedBody.data;
+    const ipAddress = getRequestIp(req);
+
+    assertRateLimit({
+      bucket: "verify-email:ip",
+      key: ipAddress,
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many verification attempts. Please try again later.",
+    });
+    assertRateLimit({
+      bucket: "verify-email:token",
+      key: token,
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many verification attempts. Please request a new verification email.",
+    });
+
+    const verificationToken = await findActiveEmailVerificationTokenByRawToken(token);
+
+    if (!verificationToken) {
+      return next(new AppError("Verification link is invalid or has expired", 400));
+    }
+
+    const usedAt = new Date();
+
+    await prisma.$transaction([
+      prisma.userModel.update({
+        where: { id: verificationToken.userId },
+        data: {
+          isEmailVerified: true,
+          isVerified: true,
+        },
+      }),
+      prisma.emailVerificationToken.update({
+        where: { id: verificationToken.id },
+        data: { usedAt },
+      }),
+      prisma.emailVerificationToken.deleteMany({
+        where: {
+          userId: verificationToken.userId,
+          usedAt: null,
+          id: {
+            not: verificationToken.id,
+          },
+        },
+      }),
+    ]);
+
+    const verifiedUser = await prisma.userModel.findUnique({
+      where: { id: verificationToken.userId },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        isVerified: true,
+        isEmailVerified: true,
+        isPhoneVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        profile: {
+          select: {
+            id: true,
+            userId: true,
+            fullName: true,
+            bio: true,
+            dateOfBirth: true,
+            gender: true,
+            userType: true,
+            rating: true,
+            helpCount: true,
+            totalReviews: true,
+            avatarUrl: true,
+            addressId: true,
+            address: true,
+            createdAt: true,
+            updatedAt: true,
+          } as any,
+        },
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Email verified successfully.",
+      data: verifiedUser,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const sendPhoneCode = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    const ipAddress = getRequestIp(req);
+
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    const user = await prisma.userModel.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        phone: true,
+        isPhoneVerified: true,
+      },
+    });
+
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (!user.phone) {
+      return next(new AppError("Add a phone number before requesting a verification code", 400));
+    }
+
+    if (user.isPhoneVerified) {
+      return next(new AppError("Phone number is already verified", 400));
+    }
+
+    assertRateLimit({
+      bucket: "send-phone-code:ip",
+      key: ipAddress,
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many verification code requests. Please try again later.",
+    });
+    assertRateLimit({
+      bucket: "send-phone-code:user",
+      key: user.id,
+      limit: 3,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many verification code requests. Please try again later.",
+    });
+    assertRateLimit({
+      bucket: "send-phone-code:phone",
+      key: user.phone,
+      limit: 3,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many verification code requests. Please try again later.",
+    });
+
+    const latestCode = await prisma.phoneVerificationCode.findFirst({
+      where: {
+        userId: user.id,
+        phone: user.phone,
+        usedAt: null,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    if (latestCode) {
+      const resendAvailableAt =
+        latestCode.createdAt.getTime() +
+        PHONE_VERIFICATION_RESEND_COOLDOWN_SECONDS * 1000;
+
+      if (resendAvailableAt > Date.now()) {
+        return next(
+          new AppError(
+            "Please wait before requesting another verification code.",
+            429
+          )
+        );
+      }
+    }
+
+    await queuePhoneVerification({
+      userId: user.id,
+      phone: user.phone,
+    });
+
+
+    
+
+    res.status(200).json({
+      success: true,
+      message: PHONE_VERIFICATION_SENT_MESSAGE,
+    });
+  } catch (error) {
+    console.log("Error in sendPhoneCode:", error);
+    next(error);
+  }
+};
+
+export const verifyPhoneCode = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    const parsedBody = verifyPhoneCodeBodySchema.safeParse(req.body);
+    const ipAddress = getRequestIp(req);
+
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
+    }
+
+    const { code } = parsedBody.data;
+
+    const user = await prisma.userModel.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        isVerified: true,
+        isEmailVerified: true,
+        isPhoneVerified: true,
+        createdAt: true,
+        updatedAt: true,
+        profile: {
+          select: {
+            id: true,
+            userId: true,
+            fullName: true,
+            bio: true,
+            dateOfBirth: true,
+            gender: true,
+            userType: true,
+            rating: true,
+            helpCount: true,
+            totalReviews: true,
+            avatarUrl: true,
+            addressId: true,
+            address: true,
+            createdAt: true,
+            updatedAt: true,
+          } as any,
+        },
+      },
+    });
+
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (!user.phone) {
+      return next(new AppError("Add a phone number before verifying it", 400));
+    }
+
+    if (user.isPhoneVerified) {
+      return next(new AppError("Phone number is already verified", 400));
+    }
+
+    assertRateLimit({
+      bucket: "verify-phone-code:ip",
+      key: ipAddress,
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many verification attempts. Please try again later.",
+    });
+    assertRateLimit({
+      bucket: "verify-phone-code:user",
+      key: user.id,
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+      message: "Too many verification attempts. Please try again later.",
+    });
+
+    const latestCode = await findLatestActivePhoneVerificationCode({
+      userId: user.id,
+      phone: user.phone,
+    });
+
+    if (!latestCode) {
+      return next(new AppError("Verification code is invalid or has expired", 400));
+    }
+
+    if (latestCode.attempts >= PHONE_VERIFICATION_MAX_ATTEMPTS) {
+      return next(
+        new AppError(
+          "Too many incorrect attempts. Please request a new verification code.",
+          429
+        )
+      );
+    }
+
+    const incomingCodeHash = hashToken(code);
+
+    if (incomingCodeHash !== latestCode.codeHash) {
+      const nextAttempts = latestCode.attempts + 1;
+
+      await prisma.phoneVerificationCode.update({
+        where: { id: latestCode.id },
+        data: {
+          attempts: nextAttempts,
+        },
+      });
+
+      if (nextAttempts >= PHONE_VERIFICATION_MAX_ATTEMPTS) {
+        return next(
+          new AppError(
+            "Too many incorrect attempts. Please request a new verification code.",
+            429
+          )
+        );
+      }
+
+      return next(new AppError("Verification code is incorrect", 400));
+    }
+
+    const usedAt = new Date();
+
+    await prisma.$transaction([
+      prisma.userModel.update({
+        where: { id: user.id },
+        data: {
+          isPhoneVerified: true,
+          isVerified: true,
+        },
+      }),
+      prisma.phoneVerificationCode.update({
+        where: { id: latestCode.id },
+        data: { usedAt },
+      }),
+      prisma.phoneVerificationCode.deleteMany({
+        where: {
+          userId: user.id,
+          phone: user.phone,
+          usedAt: null,
+          id: {
+            not: latestCode.id,
+          },
+        },
+      }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Phone number verified successfully.",
+      data: {
+        ...user,
+        isVerified: true,
+        isPhoneVerified: true,
+      },
     });
   } catch (error) {
     next(error);

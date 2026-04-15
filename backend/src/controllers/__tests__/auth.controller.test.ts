@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { hashToken } from "../../utils/token.js";
 import { makeNext, makeReq, makeRes } from "./test-utils.js";
 
 const {
@@ -7,6 +8,7 @@ const {
     jwtMock,
     authTokenServiceMock,
     emailServiceMock,
+    smsServiceMock,
     rateLimitServiceMock,
 } = vi.hoisted(() => ({
     prismaMock: {
@@ -17,6 +19,15 @@ const {
             update: vi.fn(),
         },
         passwordResetToken: {
+            update: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        emailVerificationToken: {
+            update: vi.fn(),
+            deleteMany: vi.fn(),
+        },
+        phoneVerificationCode: {
+            findFirst: vi.fn(),
             update: vi.fn(),
             deleteMany: vi.fn(),
         },
@@ -44,9 +55,17 @@ const {
     authTokenServiceMock: {
         createPasswordResetToken: vi.fn(),
         findActivePasswordResetTokenByRawToken: vi.fn(),
+        createEmailVerificationToken: vi.fn(),
+        findActiveEmailVerificationTokenByRawToken: vi.fn(),
+        createPhoneVerificationCode: vi.fn(),
+        findLatestActivePhoneVerificationCode: vi.fn(),
     },
     emailServiceMock: {
         sendPasswordResetEmail: vi.fn(),
+        sendEmailVerificationEmail: vi.fn(),
+    },
+    smsServiceMock: {
+        sendPhoneVerificationCode: vi.fn(),
     },
     rateLimitServiceMock: {
         assertRateLimit: vi.fn(),
@@ -70,10 +89,19 @@ vi.mock("../../utils/jwt.js", () => ({
 vi.mock("../../services/auth-token.service.js", () => ({
     createPasswordResetToken: authTokenServiceMock.createPasswordResetToken,
     findActivePasswordResetTokenByRawToken: authTokenServiceMock.findActivePasswordResetTokenByRawToken,
+    createEmailVerificationToken: authTokenServiceMock.createEmailVerificationToken,
+    findActiveEmailVerificationTokenByRawToken: authTokenServiceMock.findActiveEmailVerificationTokenByRawToken,
+    createPhoneVerificationCode: authTokenServiceMock.createPhoneVerificationCode,
+    findLatestActivePhoneVerificationCode: authTokenServiceMock.findLatestActivePhoneVerificationCode,
 }));
 
 vi.mock("../../services/email.service.js", () => ({
     sendPasswordResetEmail: emailServiceMock.sendPasswordResetEmail,
+    sendEmailVerificationEmail: emailServiceMock.sendEmailVerificationEmail,
+}));
+
+vi.mock("../../services/sms.service.js", () => ({
+    sendPhoneVerificationCode: smsServiceMock.sendPhoneVerificationCode,
 }));
 
 vi.mock("../../services/auth-rate-limit.service.js", () => ({
@@ -85,8 +113,13 @@ import {
     forgotPassword,
     loginUser,
     refreshAccessToken,
+    resendEmailVerification,
     registerUser,
     resetPassword,
+    sendEmailVerification,
+    sendPhoneCode,
+    verifyEmail,
+    verifyPhoneCode,
 } from "../auth.controller.js";
 
 describe("auth.controller", () => {
@@ -113,6 +146,10 @@ describe("auth.controller", () => {
         prismaMock.userModel.create.mockResolvedValue({ id: "user-1", email: "user@example.com" });
         jwtMock.accessToken.mockReturnValue("access-token");
         jwtMock.signRefreshToken.mockReturnValue("refresh-token");
+        authTokenServiceMock.createEmailVerificationToken.mockResolvedValue({
+            rawToken: "verify-token",
+            expiresAt: new Date("2026-04-16T10:00:00.000Z"),
+        });
 
         const req = makeReq({
             body: {
@@ -135,6 +172,10 @@ describe("auth.controller", () => {
             expect.objectContaining({
                 data: expect.objectContaining({ userId: "user-1", token: "refresh-token" }),
             }),
+        );
+        expect(authTokenServiceMock.createEmailVerificationToken).toHaveBeenCalledWith("user-1");
+        expect(emailServiceMock.sendEmailVerificationEmail).toHaveBeenCalledWith(
+            expect.objectContaining({ email: "user@example.com" }),
         );
         expect(res.status).toHaveBeenCalledWith(201);
         expect(res.json).toHaveBeenCalledWith(
@@ -292,6 +333,224 @@ describe("auth.controller", () => {
             expect.objectContaining({
                 success: true,
                 message: "Password reset successfully. Please log in again.",
+            }),
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("sendEmailVerification: sends email for authenticated unverified user", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-1",
+            email: "user@example.com",
+            isEmailVerified: false,
+        });
+        authTokenServiceMock.createEmailVerificationToken.mockResolvedValue({
+            rawToken: "verify-token",
+            expiresAt: new Date("2026-04-16T10:00:00.000Z"),
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            ip: "10.0.0.5",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await sendEmailVerification(req, res, next);
+
+        expect(authTokenServiceMock.createEmailVerificationToken).toHaveBeenCalledWith("user-1");
+        expect(emailServiceMock.sendEmailVerificationEmail).toHaveBeenCalledWith(
+            expect.objectContaining({ email: "user@example.com", token: "verify-token" }),
+        );
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("resendEmailVerification: rejects already verified user", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-1",
+            email: "user@example.com",
+            isEmailVerified: true,
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            ip: "10.0.0.6",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await resendEmailVerification(req, res, next);
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({ message: "Email is already verified", statusCode: 400 }),
+        );
+    });
+
+    it("verifyEmail: rejects invalid verification token", async () => {
+        authTokenServiceMock.findActiveEmailVerificationTokenByRawToken.mockResolvedValue(null);
+
+        const req = makeReq({
+            body: { token: "bad-verify-token" },
+            ip: "10.0.0.7",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await verifyEmail(req, res, next);
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({ message: "Verification link is invalid or has expired", statusCode: 400 }),
+        );
+    });
+
+    it("verifyEmail: marks user verified and returns updated user", async () => {
+        authTokenServiceMock.findActiveEmailVerificationTokenByRawToken.mockResolvedValue({
+            id: "email-token-1",
+            userId: "user-1",
+        });
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-1",
+            email: "user@example.com",
+            phone: null,
+            isVerified: true,
+            isEmailVerified: true,
+            isPhoneVerified: false,
+            createdAt: "2026-04-15T00:00:00.000Z",
+            updatedAt: "2026-04-15T00:00:00.000Z",
+            profile: null,
+        });
+        prismaMock.$transaction.mockResolvedValue([]);
+
+        const req = makeReq({
+            body: { token: "good-verify-token" },
+            ip: "10.0.0.8",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await verifyEmail(req, res, next);
+
+        expect(authTokenServiceMock.findActiveEmailVerificationTokenByRawToken).toHaveBeenCalledWith("good-verify-token");
+        expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                message: "Email verified successfully.",
+                data: expect.objectContaining({ isEmailVerified: true }),
+            }),
+        );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("sendPhoneCode: sends verification code for authenticated user", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-1",
+            phone: "+15551234567",
+            isPhoneVerified: false,
+        });
+        prismaMock.phoneVerificationCode.findFirst.mockResolvedValue(null);
+        authTokenServiceMock.createPhoneVerificationCode.mockResolvedValue({
+            rawCode: "123456",
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            ip: "10.0.0.9",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await sendPhoneCode(req, res, next);
+
+        expect(authTokenServiceMock.createPhoneVerificationCode).toHaveBeenCalledWith({
+            userId: "user-1",
+            phone: "+15551234567",
+        });
+        expect(smsServiceMock.sendPhoneVerificationCode).toHaveBeenCalledWith({
+            phone: "+15551234567",
+            code: "123456",
+        });
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("verifyPhoneCode: rejects incorrect code", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-1",
+            email: "user@example.com",
+            phone: "+15551234567",
+            isVerified: false,
+            isEmailVerified: false,
+            isPhoneVerified: false,
+            createdAt: "2026-04-15T00:00:00.000Z",
+            updatedAt: "2026-04-15T00:00:00.000Z",
+            profile: null,
+        });
+        authTokenServiceMock.findLatestActivePhoneVerificationCode.mockResolvedValue({
+            id: "phone-code-1",
+            attempts: 0,
+            codeHash: hashToken("654321"),
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            body: { code: "123456" },
+            ip: "10.0.0.10",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await verifyPhoneCode(req, res, next);
+
+        expect(prismaMock.phoneVerificationCode.update).toHaveBeenCalledWith({
+            where: { id: "phone-code-1" },
+            data: { attempts: 1 },
+        });
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({ message: "Verification code is incorrect", statusCode: 400 }),
+        );
+    });
+
+    it("verifyPhoneCode: marks phone verified and returns updated user", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-1",
+            email: "user@example.com",
+            phone: "+15551234567",
+            isVerified: false,
+            isEmailVerified: false,
+            isPhoneVerified: false,
+            createdAt: "2026-04-15T00:00:00.000Z",
+            updatedAt: "2026-04-15T00:00:00.000Z",
+            profile: null,
+        });
+        authTokenServiceMock.findLatestActivePhoneVerificationCode.mockResolvedValue({
+            id: "phone-code-1",
+            userId: "user-1",
+            phone: "+15551234567",
+            attempts: 0,
+            codeHash: hashToken("123456"),
+        });
+        prismaMock.$transaction.mockResolvedValue([]);
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            body: { code: "123456" },
+            ip: "10.0.0.11",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await verifyPhoneCode(req, res, next);
+
+        expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                message: "Phone number verified successfully.",
+                data: expect.objectContaining({ isPhoneVerified: true }),
             }),
         );
         expect(next).not.toHaveBeenCalled();

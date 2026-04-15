@@ -40,6 +40,9 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
       userId: user.id,
       email: user.email,
       phone: user.phone,
+      isVerified: user.isVerified,
+      isEmailVerified: user.isEmailVerified,
+      isPhoneVerified: user.isPhoneVerified,
       profile: user.profile,
     });
   } catch (error) {
@@ -73,6 +76,19 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
       return next(new AppError("Profile not found", 404));
     }
 
+    const existingUser = await prisma.userModel.findUnique({
+      where: { id: userId },
+      select: {
+        phone: true,
+        isEmailVerified: true,
+        isPhoneVerified: true,
+      },
+    });
+
+    if (!existingUser) {
+      return next(new AppError("User not found", 404));
+    }
+
     let parsedDateOfBirth: Date | undefined;
     let normalizedPhone: string | undefined;
     if (dateOfBirth !== undefined && dateOfBirth !== null) {
@@ -83,11 +99,15 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
     }
 
     if (phone !== undefined) {
-      normalizedPhone = normalizePhoneNumber(String(phone));
-      if (!normalizedPhone) {
+      const parsedPhone = normalizePhoneNumber(String(phone));
+      if (!parsedPhone) {
         return next(new AppError("Please enter a valid phone number", 400));
       }
+      normalizedPhone = parsedPhone.toString();
     }
+
+    const shouldResetPhoneVerification =
+      normalizedPhone !== undefined && normalizedPhone !== existingUser.phone;
 
     const updateData: any = {};
 
@@ -115,15 +135,25 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
           where: { id: userId },
           data: {
             phone: normalizedPhone,
+            isPhoneVerified: shouldResetPhoneVerification ? false : undefined,
+            isVerified: shouldResetPhoneVerification
+              ? existingUser.isEmailVerified
+              : undefined,
           },
           select: {
             phone: true,
+            isVerified: true,
+            isEmailVerified: true,
+            isPhoneVerified: true,
           },
         })
         : prisma.userModel.findUniqueOrThrow({
           where: { id: userId },
           select: {
             phone: true,
+            isVerified: true,
+            isEmailVerified: true,
+            isPhoneVerified: true,
           },
         }),
       prisma.profile.update({
@@ -139,6 +169,9 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
       status: "success",
       message: "Profile updated successfully",
       phone: updatedUser.phone,
+      isVerified: updatedUser.isVerified,
+      isEmailVerified: updatedUser.isEmailVerified,
+      isPhoneVerified: updatedUser.isPhoneVerified,
       profile: updatedProfile,
     });
   } catch (error) {
