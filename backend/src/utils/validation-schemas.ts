@@ -91,6 +91,14 @@ export const resetPasswordBodySchema = z.object({
   newPassword: passwordSchema("New password is required."),
 });
 
+export const verifyEmailBodySchema = z.object({
+  token: z.string().trim().min(1, "Verification token is required."),
+});
+
+export const verifyPhoneCodeBodySchema = z.object({
+  code: z.string().trim().regex(/^\d{6}$/, "Verification code must be 6 digits."),
+});
+
 export const changePasswordBodySchema = z.object({
   currentPassword: passwordSchema("Current password is required."),
   newPassword: passwordSchema("New password is required."),
