@@ -14,6 +14,7 @@ import { Card, Row, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
+import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { HelpRequest } from "../types/helpRequest.types";
 import {
   formatRequestBudget,
@@ -165,6 +166,28 @@ export const RequestCard = ({
           >
             {description}
           </Text>
+
+          <Row align="center" gap="sm">
+            <ProfileAvatar
+              uri={request.requesterAvatarUrl}
+              fullName={request.requesterName}
+              size={34}
+            />
+            <View style={styles.posterMetaWrap}>
+              <Text
+                numberOfLines={1}
+                style={[styles.posterName, { color: palette.textPrimary }]}
+              >
+                {request.requesterName || "Community member"}
+              </Text>
+              <Text
+                numberOfLines={1}
+                style={[styles.posterSubline, { color: palette.textSecondary }]}
+              >
+                {request.requesterLocation || location}
+              </Text>
+            </View>
+          </Row>
 
           {imagePreviews.length > 0 ? (
             imagePreviews.length === 1 ? (
@@ -389,6 +412,18 @@ const styles = StyleSheet.create({
   description: {
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.md,
+  },
+  posterMetaWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  posterName: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  posterSubline: {
+    marginTop: theme.spacing.xxs,
+    fontSize: theme.typography.fontSize.xs,
   },
   imageRow: {
     flexDirection: "row",

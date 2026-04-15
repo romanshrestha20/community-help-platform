@@ -99,6 +99,7 @@ export const RequestDetailsHeader = ({ request }: Props) => {
 
         <Row gap="sm" align="center" style={styles.posterRow}>
           <ProfileAvatar
+            uri={request.requesterAvatarUrl}
             fullName={request.requesterName}
             size={46}
             onPress={() => setProfileModalVisible(true)}
@@ -152,9 +153,13 @@ export const RequestDetailsHeader = ({ request }: Props) => {
             onPress={() => setProfileModalVisible(false)}
           />
         )}
-      >
-        <View style={styles.profileAvatarWrap}>
-          <ProfileAvatar fullName={request.requesterName} size={76} />
+        >
+          <View style={styles.profileAvatarWrap}>
+          <ProfileAvatar
+            uri={request.requesterAvatarUrl}
+            fullName={request.requesterName}
+            size={76}
+          />
         </View>
 
         <Stack gap="xs">
@@ -170,7 +175,9 @@ export const RequestDetailsHeader = ({ request }: Props) => {
 
           <View style={styles.profileRow}>
             <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>Location</Text>
-            <Text style={[styles.profileValue, { color: palette.textPrimary }]}>{locationLabel}</Text>
+            <Text style={[styles.profileValue, { color: palette.textPrimary }]}>
+              {request.requesterLocation || locationLabel}
+            </Text>
           </View>
 
           <View style={styles.profileRow}>
