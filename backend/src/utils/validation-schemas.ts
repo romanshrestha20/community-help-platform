@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidPhoneNumberInput } from "./phone.js";
 
 const emailSchema = z
   .string()
@@ -13,7 +14,7 @@ const phoneSchema = z
   .string()
   .trim()
   .min(1, "Phone number is required.")
-  .refine((value) => value.replace(/[^\d+]/g, "").replace(/\D/g, "").length >= 7, {
+  .refine((value) => isValidPhoneNumberInput(value), {
     message: "Please enter a valid phone number.",
   });
 
