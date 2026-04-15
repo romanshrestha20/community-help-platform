@@ -66,7 +66,7 @@ describe("auth.controller", () => {
         await registerUser(req, res, next);
 
         expect(next).toHaveBeenCalledWith(
-            expect.objectContaining({ message: "Missing required fields", statusCode: 400 }),
+            expect.objectContaining({ message: "Invalid input: expected string, received undefined", statusCode: 400 }),
         );
     });
 
