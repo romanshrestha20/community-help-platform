@@ -201,10 +201,12 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
                 ? "Detected from current location"
                 : null
             }
-            onCountryChange={({ countryCode, callingCode }) => {
+            onCountryChange={({ countryCode, callingCode }, source) => {
               clearFieldError("phone");
-              setPhoneCountryTouched(true);
-              setPhoneCountryDetected(false);
+              if (source === "user") {
+                setPhoneCountryTouched(true);
+                setPhoneCountryDetected(false);
+              }
               setPhoneCountryCode(countryCode);
               setPhoneCallingCode(callingCode);
             }}

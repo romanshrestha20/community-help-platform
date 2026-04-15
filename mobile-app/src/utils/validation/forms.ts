@@ -33,6 +33,19 @@ type ChangePasswordValidationArgs = {
     newPassword: string;
 };
 
+type ForgotPasswordValidationArgs = {
+    email: string;
+};
+
+type ResetPasswordValidationArgs = {
+    newPassword: string;
+    confirmPassword: string;
+};
+
+type VerifyPhoneCodeValidationArgs = {
+    code: string;
+};
+
 type ValidateRequestDraftArgs = {
     title: string;
     description: string;
@@ -64,6 +77,9 @@ type RegisterField =
     | "dateOfBirth"
     | "location";
 type ChangePasswordField = "currentPassword" | "newPassword";
+type ForgotPasswordField = "email";
+type ResetPasswordField = "newPassword" | "confirmPassword";
+type VerifyPhoneCodeField = "code";
 type RequestField = "title" | "description" | "budget" | "location";
 type BidField = "helpRequestId" | "amount" | "message";
 type ProfileField = "fullName" | "phone" | "dateOfBirth" | "bio";
@@ -291,6 +307,67 @@ export const validateChangePasswordForm = ({
         currentPassword,
         newPassword,
     }).formError;
+};
+
+export const validateForgotPasswordFormFields = ({
+    email,
+}: ForgotPasswordValidationArgs): FormValidationResult<ForgotPasswordField> => {
+    const result = z.object({
+        email: emailSchema,
+    }).safeParse({ email });
+
+    return toValidationResult<ForgotPasswordField>(result);
+};
+
+export const validateForgotPasswordForm = ({ email }: ForgotPasswordValidationArgs) => {
+    return validateForgotPasswordFormFields({ email }).formError;
+};
+
+export const validateResetPasswordFormFields = ({
+    newPassword,
+    confirmPassword,
+}: ResetPasswordValidationArgs): FormValidationResult<ResetPasswordField> => {
+    const result = z
+        .object({
+            newPassword: passwordSchema({ requiredMessage: "New password is required." }),
+            confirmPassword: passwordSchema({ requiredMessage: "Please confirm your password." }),
+        })
+        .superRefine((data, ctx) => {
+            if (data.newPassword !== data.confirmPassword) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ["confirmPassword"],
+                    message: "Passwords do not match.",
+                });
+            }
+        })
+        .safeParse({ newPassword, confirmPassword });
+
+    return toValidationResult<ResetPasswordField>(result);
+};
+
+export const validateResetPasswordForm = ({
+    newPassword,
+    confirmPassword,
+}: ResetPasswordValidationArgs) => {
+    return validateResetPasswordFormFields({ newPassword, confirmPassword }).formError;
+};
+
+export const validateVerifyPhoneCodeFormFields = ({
+    code,
+}: VerifyPhoneCodeValidationArgs): FormValidationResult<VerifyPhoneCodeField> => {
+    const result = z.object({
+        code: z
+            .string()
+            .trim()
+            .regex(/^\d{6}$/, "Verification code must be 6 digits."),
+    }).safeParse({ code });
+
+    return toValidationResult<VerifyPhoneCodeField>(result);
+};
+
+export const validateVerifyPhoneCodeForm = ({ code }: VerifyPhoneCodeValidationArgs) => {
+    return validateVerifyPhoneCodeFormFields({ code }).formError;
 };
 
 export const validatePasswordConfirmation = (password: string) => {
