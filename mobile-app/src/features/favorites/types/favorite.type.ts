@@ -11,6 +11,8 @@ export type FavoriteRequest = {
   state?: string | null;
   country?: string | null;
   requesterName?: string | null;
+  requesterAvatarUrl?: string | null;
+  requesterLocation?: string | null;
   images: {
     id: string;
     url: string;

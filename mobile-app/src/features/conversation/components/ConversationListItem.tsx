@@ -1,9 +1,10 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 
 import { Conversation } from "../types/conversation.type";
 import { getLastMessagePreview, getOtherParticipant } from "../utils/conversation.utils";
@@ -27,7 +28,6 @@ const ConversationListItem: React.FC<ConversationListItemProps> = ({
     const { palette } = useThemeContext();
     const other = getOtherParticipant(conversation, userId);
     const displayName = other?.fullName || other?.email || "Conversation";
-    const avatarLetter = displayName.charAt(0).toUpperCase();
     const lastActivity = conversation.lastMessage?.createdAt || conversation.updatedAt;
 
     return (
@@ -41,15 +41,11 @@ const ConversationListItem: React.FC<ConversationListItemProps> = ({
                     },
                 ]}
             >
-                {other?.avatarUrl ? (
-                    <Image source={{ uri: other.avatarUrl }} style={styles.avatar} />
-                ) : (
-                    <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: palette.surfaceMuted }]}>
-                        <Text style={[styles.avatarLabel, { color: palette.textSecondary }]}>
-                            {avatarLetter}
-                        </Text>
-                    </View>
-                )}
+                <ProfileAvatar
+                    uri={other?.avatarUrl}
+                    fullName={displayName}
+                    size={48}
+                />
 
                 <View style={styles.content}>
                     <View style={styles.topRow}>
@@ -105,18 +101,6 @@ const styles = StyleSheet.create({
         borderRadius: theme.radius.lg,
         padding: theme.spacing.md,
         marginBottom: theme.spacing.sm,
-    },
-    avatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-    },
-    avatarFallback: {
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    avatarLabel: {
-        ...theme.typography.textStyle.bodyMedium,
     },
     content: {
         flex: 1,
