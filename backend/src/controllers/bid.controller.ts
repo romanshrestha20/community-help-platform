@@ -224,7 +224,12 @@ export const getMyBids = async (req: Request, res: Response, next: NextFunction)
           select: {
             id: true,
             email: true,
-            profile: { select: { fullName: true, dateOfBirth: true } },
+            profile: {
+              select: {
+                fullName: true, dateOfBirth: true,
+                avatarUrl: true,
+              }
+            },
           },
         },
       },
