@@ -5,6 +5,7 @@ import { AppCategory } from "@/features/category/types/category.types";
 export interface HelpRequest {
     id: string;
     requesterId?: string;
+    assignedHelperId?: string | null;
     title: string;
     description: string;
     categoryId?: string | null;
