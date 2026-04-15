@@ -82,6 +82,15 @@ export const loginBodySchema = z.object({
   password: passwordSchema(),
 });
 
+export const forgotPasswordBodySchema = z.object({
+  email: emailSchema,
+});
+
+export const resetPasswordBodySchema = z.object({
+  token: z.string().trim().min(1, "Reset token is required."),
+  newPassword: passwordSchema("New password is required."),
+});
+
 export const changePasswordBodySchema = z.object({
   currentPassword: passwordSchema("Current password is required."),
   newPassword: passwordSchema("New password is required."),
