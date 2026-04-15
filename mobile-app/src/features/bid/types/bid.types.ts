@@ -14,6 +14,9 @@ export interface Bid {
     helperName: string;
     helperEmail?: string;
     helperAge?: number;
+    helperRating?: number;
+    helperTotalReviews?: number;
+    helperCompletedHelps?: number;
     helperGender?: string;
     helperAvatarUrl?: string | null;
     helperLocation?: string;
@@ -42,4 +45,3 @@ export interface BidResponse {
     data: Bid;
     message?: string;
 }
-
