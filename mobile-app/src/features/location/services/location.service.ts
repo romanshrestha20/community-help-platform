@@ -120,6 +120,7 @@ export async function reverseGeocodeToLocation(
         state: first?.region ?? null,
         postalCode: first?.postalCode ?? null,
         country: first?.country ?? null,
+        countryCode: first?.isoCountryCode?.toUpperCase() ?? null,
         formattedAddress,
     };
 }
@@ -138,6 +139,7 @@ type NominatimReverseResponse = {
         region?: string;
         county?: string;
         country?: string;
+        country_code?: string;
     };
 };
 
@@ -180,6 +182,7 @@ const reverseGeocodeWithNominatim = async (
             state: pickFirst(address?.state, address?.region, address?.county),
             postalCode: pickFirst(address?.postcode),
             country: pickFirst(address?.country),
+            countryCode: address?.country_code?.trim().toUpperCase() ?? null,
             formattedAddress: pickFirst(payload.display_name),
         };
     } catch {
@@ -212,6 +215,10 @@ const toLocationSuggestion = (result: any): LocationSuggestion => {
     const city = pickFirst(address.city, address.town, address.village, address.municipality);
     const state = pickFirst(address.state, address.region, address.county);
     const country = pickFirst(address.country);
+    const countryCode =
+        typeof address.country_code === "string" && address.country_code.trim().length > 0
+            ? address.country_code.trim().toUpperCase()
+            : null;
     const latitude = Number(result?.lat);
     const longitude = Number(result?.lon);
     const formattedAddress = typeof result?.display_name === "string" && result.display_name.trim().length > 0
@@ -226,6 +233,7 @@ const toLocationSuggestion = (result: any): LocationSuggestion => {
         city,
         state,
         country,
+        countryCode,
         latitude,
         longitude,
         formattedAddress,
