@@ -35,6 +35,9 @@ export const FavoriteRequestsScreen = () => {
       <AppHeader
         title="Saved Requests"
         subtitle="Keep promising opportunities in one place."
+        align="left"
+        showBackButton
+        backButtonProps={{ fallback: APP_ROUTES.HOME }}
       />
 
       <Card style={styles.summaryCard}>

@@ -41,10 +41,14 @@ const normalizeFavoriteRequest = (request: FavoriteRequest | UnknownRecord): Hel
     (Array.isArray((request as UnknownRecord).requestImages) &&
       (request as UnknownRecord).requestImages) ||
     [];
+  const requesterLocation =
+    request.requesterLocation ?? ([request.city, request.state].filter(Boolean).join(", ") || null);
 
   return {
     ...request,
     requesterName: request.requesterName ?? "Community member",
+    requesterAvatarUrl: request.requesterAvatarUrl ?? null,
+    requesterLocation,
     images: imagesSource
       .map((image) => normalizeImage(image))
       .filter((image): image is HelpRequestImage => Boolean(image)),
