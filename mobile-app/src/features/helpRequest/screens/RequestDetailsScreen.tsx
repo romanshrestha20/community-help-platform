@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
@@ -13,8 +13,15 @@ import { RequestActionBar } from "@/features/helpRequest/components/RequestActio
 import { RequestDetailsHeader } from "@/features/helpRequest/components/RequestDetailHeader";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
 import { useRequestDetails } from "@/features/helpRequest/hooks/useRequestDetails";
+import type { HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
 import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
+import {
+    ReviewCard,
+    ReviewComposerModal,
+} from "@/features/reviews/components";
+import { useReviews } from "@/features/reviews/hooks/useReviews";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 import { showSuccessToast } from "@/utils/toast";
 import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
 import { goBackOrFallback } from "@/utils/navigation";
@@ -29,8 +36,10 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     const pathname = usePathname();
     const router = useRouter();
     const { palette } = useThemeContext();
+    const authUser = useAuthStore((state) => state.user);
     const [deleting, setDeleting] = useState(false);
     const [bidModalVisible, setBidModalVisible] = useState(false);
+    const [reviewModalVisible, setReviewModalVisible] = useState(false);
 
     const activeRequestId = requestId || params.id;
     const isProfileRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
@@ -54,6 +63,15 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         actionLoadingByBidId,
     } = useRequestDetails(activeRequestId || "");
     const { isFavorite, toggleFavorite, actionLoadingById } = useFavorites();
+    const {
+        createReview,
+        updateReview,
+        getCachedReviews,
+        getUserReviews,
+        loading: reviewActionLoading,
+        loadingByUserId,
+        error: reviewError,
+    } = useReviews();
 
     const requestListRoute = isProfileRoute
         ? APP_ROUTES.PROFILE_REQUESTS
@@ -68,6 +86,28 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     }, [myBid]);
     const favoriteLoading = activeRequestId ? Boolean(actionLoadingById[activeRequestId]) : false;
     const favorited = activeRequestId ? isFavorite(activeRequestId) : false;
+    const currentUserId = authUser?.id;
+    const requestIdValue = request?.id ?? "";
+    const helperId = request?.assignedHelperId ?? null;
+    const helperReviews = useMemo(
+        () => (helperId ? getCachedReviews(helperId) : []),
+        [getCachedReviews, helperId]
+    );
+    const existingReview = useMemo(() => {
+        if (!currentUserId) {
+            return null;
+        }
+
+        return (
+            helperReviews.find(
+                (review) =>
+                    review.helpRequest.id === requestIdValue &&
+                    review.reviewer.id === currentUserId
+            ) ?? null
+        );
+    }, [currentUserId, helperReviews, requestIdValue]);
+    const reviewLoading =
+        reviewActionLoading || (helperId ? Boolean(loadingByUserId[helperId]) : false);
 
     const handleBack = useCallback(() => {
         goBackOrFallback({
@@ -115,6 +155,49 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         },
         [router]
     );
+
+    const syncHelperReviews = useCallback(async () => {
+        if (!helperId) {
+            return null;
+        }
+
+        return getUserReviews(helperId, {
+            limit: 10,
+            forceRefresh: true,
+        });
+    }, [getUserReviews, helperId]);
+
+    const handleOpenReviewModal = useCallback(async () => {
+        await syncHelperReviews();
+        setReviewModalVisible(true);
+    }, [syncHelperReviews]);
+
+    const handleStatusUpdate = useCallback(async (status: HelpRequestStatus) => {
+        const updated = await setRequestStatus(status);
+
+        if (
+            updated &&
+            status === "COMPLETED" &&
+            (updated.assignedHelperId || helperId)
+        ) {
+            const reviewResult = await getUserReviews(updated.assignedHelperId || helperId!, {
+                limit: 10,
+                forceRefresh: true,
+            });
+
+            const alreadyReviewed = reviewResult?.reviews?.some(
+                (review) =>
+                    review.helpRequest.id === requestIdValue &&
+                    review.reviewer.id === currentUserId
+            );
+
+            if (!alreadyReviewed) {
+                setReviewModalVisible(true);
+            }
+        }
+
+        return updated;
+    }, [currentUserId, getUserReviews, helperId, requestIdValue, setRequestStatus]);
 
     if (!activeRequestId) {
         return (
@@ -216,9 +299,62 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                     loading={loading}
                     deleting={deleting}
                     onEdit={() => router.push(requestEditRoute(request.id))}
-                    onUpdateStatus={setRequestStatus}
+                    onUpdateStatus={handleStatusUpdate}
                     onDelete={handleDeleteRequest}
                 />
+            ) : null}
+
+            {isOwner && request.status === "COMPLETED" && helperId ? (
+                <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
+                    <Stack gap="sm">
+                        <View
+                            style={[
+                                styles.sectionPill,
+                                {
+                                    backgroundColor: palette.surfaceMuted,
+                                    borderColor: palette.border,
+                                },
+                            ]}
+                        >
+                            <Ionicons
+                                name="star-outline"
+                                size={14}
+                                color={palette.textSecondary}
+                            />
+                            <Text
+                                style={[
+                                    styles.sectionPillText,
+                                    { color: palette.textSecondary },
+                                ]}
+                            >
+                                Helper review
+                            </Text>
+                        </View>
+
+                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                            {existingReview ? "Your review" : "Rate your helper"}
+                        </Text>
+
+                        <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                            {existingReview
+                                ? "You can update the feedback you left for this completed request."
+                                : "Leave a rating and short comment now that the request is complete."}
+                        </Text>
+
+                        {existingReview ? (
+                            <ReviewCard review={existingReview} showRequestContext={false} />
+                        ) : null}
+
+                        <AppButton
+                            title={existingReview ? "Edit review" : "Leave review"}
+                            onPress={() => {
+                                void handleOpenReviewModal();
+                            }}
+                            loading={reviewLoading}
+                            disabled={reviewLoading}
+                        />
+                    </Stack>
+                </Card>
             ) : null}
 
             {actionError ? (
@@ -328,6 +464,30 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                     await submitBid(payload.amount, payload.message);
                     setBidModalVisible(false);
                     showSuccessToast("Bid submitted successfully");
+                }}
+            />
+
+            <ReviewComposerModal
+                visible={reviewModalVisible}
+                onClose={() => setReviewModalVisible(false)}
+                helpRequestId={request.id}
+                requestTitle={request.title}
+                helperName={
+                    bids.find((bid) => bid.helperId === helperId && bid.status === "ACCEPTED")
+                        ?.helperName
+                }
+                initialReview={existingReview}
+                loading={reviewLoading}
+                error={reviewError}
+                onSubmit={async (payload) => {
+                    if (existingReview) {
+                        await updateReview(existingReview.id, payload);
+                    } else {
+                        await createReview(payload as Parameters<typeof createReview>[0]);
+                    }
+
+                    await syncHelperReviews();
+                    setReviewModalVisible(false);
                 }}
             />
         </Screen>
