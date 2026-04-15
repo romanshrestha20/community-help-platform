@@ -7,7 +7,10 @@ const { jwtMock, reviewServiceMock } = vi.hoisted(() => ({
     },
     reviewServiceMock: {
         createReviewForCompletedRequest: vi.fn(),
+        deleteReviewById: vi.fn(),
+        getReviewById: vi.fn(),
         listReviewsForUser: vi.fn(),
+        updateReviewById: vi.fn(),
     },
 }));
 
@@ -17,7 +20,10 @@ vi.mock("../../utils/jwt.js", () => ({
 
 vi.mock("../../services/review.service.js", () => ({
     createReviewForCompletedRequest: reviewServiceMock.createReviewForCompletedRequest,
+    deleteReviewById: reviewServiceMock.deleteReviewById,
+    getReviewById: reviewServiceMock.getReviewById,
     listReviewsForUser: reviewServiceMock.listReviewsForUser,
+    updateReviewById: reviewServiceMock.updateReviewById,
 }));
 
 import app from "../../app.js";
@@ -30,7 +36,7 @@ describe("review routes integration", () => {
 
     it("POST /api/reviews requires authentication", async () => {
         const res = await request(app).post("/api/reviews").send({
-            helpRequestId: "11111111-1111-1111-1111-111111111111",
+            helpRequestId: "550e8400-e29b-41d4-a716-446655440000",
             rating: 5,
             comment: "Great help",
         });
@@ -49,7 +55,7 @@ describe("review routes integration", () => {
             .post("/api/reviews")
             .set("Authorization", "Bearer valid-token")
             .send({
-                helpRequestId: "11111111-1111-1111-1111-111111111111",
+                helpRequestId: "550e8400-e29b-41d4-a716-446655440000",
                 rating: 5,
                 title: "Great help",
                 comment: "Arrived on time",
@@ -87,11 +93,11 @@ describe("review routes integration", () => {
         });
 
         const res = await request(app).get(
-            "/api/users/11111111-1111-1111-1111-111111111111/reviews?page=1&limit=10"
+            "/api/users/550e8400-e29b-41d4-a716-446655440001/reviews?page=1&limit=10"
         );
 
         expect(reviewServiceMock.listReviewsForUser).toHaveBeenCalledWith({
-            userId: "11111111-1111-1111-1111-111111111111",
+            userId: "550e8400-e29b-41d4-a716-446655440001",
             page: 1,
             limit: 10,
         });
@@ -103,6 +109,66 @@ describe("review routes integration", () => {
                     summary: expect.objectContaining({ rating: 4.8 }),
                     reviews: [expect.objectContaining({ id: "review-1" })],
                 }),
+            })
+        );
+    });
+
+    it("GET /api/reviews/:reviewId returns a single review", async () => {
+        reviewServiceMock.getReviewById.mockResolvedValue({ id: "review-1" });
+
+        const res = await request(app).get("/api/reviews/review-1");
+
+        expect(reviewServiceMock.getReviewById).toHaveBeenCalledWith("review-1");
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual(
+            expect.objectContaining({
+                success: true,
+                data: expect.objectContaining({ id: "review-1" }),
+            })
+        );
+    });
+
+    it("PATCH /api/reviews/:reviewId updates a review", async () => {
+        reviewServiceMock.updateReviewById.mockResolvedValue({
+            id: "review-1",
+            rating: 4,
+        });
+
+        const res = await request(app)
+            .patch("/api/reviews/review-1")
+            .set("Authorization", "Bearer valid-token")
+            .send({ rating: 4 });
+
+        expect(reviewServiceMock.updateReviewById).toHaveBeenCalledWith({
+            reviewId: "review-1",
+            reviewerId: "user-1",
+            rating: 4,
+        });
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual(
+            expect.objectContaining({
+                success: true,
+                message: "Review updated successfully",
+            })
+        );
+    });
+
+    it("DELETE /api/reviews/:reviewId deletes a review", async () => {
+        reviewServiceMock.deleteReviewById.mockResolvedValue(undefined);
+
+        const res = await request(app)
+            .delete("/api/reviews/review-1")
+            .set("Authorization", "Bearer valid-token");
+
+        expect(reviewServiceMock.deleteReviewById).toHaveBeenCalledWith({
+            reviewId: "review-1",
+            reviewerId: "user-1",
+        });
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual(
+            expect.objectContaining({
+                success: true,
+                message: "Review deleted successfully",
             })
         );
     });
