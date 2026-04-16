@@ -14,6 +14,7 @@ import { AvatarUploadInput, UpdateUserProfilePayload } from "../types/user.types
 export const useUser = () => {
   const logout = useAuthStore((state) => state.logout);
   const authUser = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const {
     user,
     loading,
@@ -62,6 +63,11 @@ export const useUser = () => {
   );
 
   const loadUserProfile = useCallback(async () => {
+    if (!isAuthenticated || !authUser) {
+      clearUser();
+      return;
+    }
+
     if (user) return;
 
     setLoading(true);
@@ -77,7 +83,7 @@ export const useUser = () => {
       }
 
     setLoading(false);
-  }, [user, setUser, setLoading, setError, syncAuthUser]);
+  }, [authUser, clearUser, isAuthenticated, setError, setLoading, setUser, syncAuthUser, user]);
 
   const handleUpdateProfile = useCallback(
     async (profileData: Partial<UpdateUserProfilePayload>) => {
