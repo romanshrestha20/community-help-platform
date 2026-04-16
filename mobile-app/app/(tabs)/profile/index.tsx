@@ -77,7 +77,7 @@ export default function ProfileTabScreen() {
           Alert.alert("Coming soon", "Support section will be added next."),
       },
     ],
-    []
+    [router]
   );
 
   const activityShortcuts = useMemo(
@@ -283,9 +283,8 @@ export default function ProfileTabScreen() {
                 loading={loadingLogout}
                 onLogout={async () => {
                   try {
-                    await handleLogout();
                     setSessionModalVisible(false);
-                    showSuccessToast("Logged out successfully");
+                    await handleLogout();
                     router.replace(APP_ROUTES.AUTH_LOGIN);
                   } catch {
                     showErrorToast("Logout failed", "Please try again.");
