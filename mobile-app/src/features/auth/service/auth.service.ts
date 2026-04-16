@@ -128,7 +128,7 @@ export const changePassword = async (
   newPassword: string
 ): Promise<AuthActionResult> => {
   try {
-    const response: AuthResponse = await authApi.changePassword(
+    const response: AuthMessageResponse = await authApi.changePassword(
       currentPassword,
       newPassword
     );
@@ -222,3 +222,5 @@ export const verifyPhoneCode = async (
     };
   }
 };
+
+

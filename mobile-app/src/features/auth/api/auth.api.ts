@@ -12,8 +12,12 @@ import {
 } from "../types/auth.types";
 
 const normalizeAuthResponse = (payload: any): AuthResponse => {
-  const profileUser =
-    payload?.userId && payload?.email
+  const nested = payload?.data;
+
+  const userRaw =
+    nested?.user || // NEW STRUCTURE
+    nested ||       // fallback
+    (payload?.userId && payload?.email
       ? {
         id: payload.userId,
         email: payload.email,
@@ -23,16 +27,14 @@ const normalizeAuthResponse = (payload: any): AuthResponse => {
         isPhoneVerified: Boolean(payload?.isPhoneVerified ?? false),
         profile: payload.profile ?? null,
       }
-      : null;
+      : null);
 
-  const rawUser = payload?.data ?? profileUser;
-
-  const user = rawUser
+  const user = userRaw
     ? {
-      ...rawUser,
-      hasPassword: Boolean(rawUser.hasPassword),
-      fullName: rawUser.fullName || rawUser?.profile?.fullName,
-      avatarUrl: rawUser.avatarUrl ?? rawUser?.profile?.avatarUrl ?? null,
+      ...userRaw,
+      hasPassword: userRaw.hasPassword === true,
+      fullName: userRaw.fullName || userRaw?.profile?.fullName,
+      avatarUrl: userRaw.avatarUrl ?? userRaw?.profile?.avatarUrl ?? null,
     }
     : null;
 
@@ -40,9 +42,20 @@ const normalizeAuthResponse = (payload: any): AuthResponse => {
     success:
       typeof payload?.success === "boolean"
         ? payload.success
-        : Boolean(rawUser || payload?.status === "success"),
-    accessToken: payload?.accessToken || payload?.token || "",
-    refreshToken: payload?.refreshToken || "",
+        : Boolean(user),
+
+    // ✅ FIX: support nested tokens
+    accessToken:
+      nested?.accessToken ||
+      payload?.accessToken ||
+      payload?.token ||
+      "",
+
+    refreshToken:
+      nested?.refreshToken ||
+      payload?.refreshToken ||
+      "",
+
     data: user,
     message: payload?.message || "",
   };
@@ -128,12 +141,16 @@ export const verifyPhoneCode = async (
 export const changePassword = async (
   currentPassword: string,
   newPassword: string
-): Promise<AuthResponse> => {
+): Promise<AuthMessageResponse> => {
   const response = await apiClient.post("/auth/change-password", {
     currentPassword,
     newPassword,
   });
-  return normalizeAuthResponse(response.data);
+
+  return {
+    success: Boolean(response.data?.success),
+    message: response.data?.message || "",
+  };
 };
 
 export const addPassword = async (
