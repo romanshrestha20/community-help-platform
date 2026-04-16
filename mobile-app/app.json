@@ -47,7 +47,14 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.493723805050-q5m1v7047iakmo3b7uddd1gdvbh9l58a"
+        }
+      ]
     ],
     "extra": {
       "router": {},
