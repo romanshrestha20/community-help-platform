@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import {
+  addPassword,
   changePassword,
   forgotPassword,
   login as loginApi,
@@ -38,6 +39,7 @@ export const useAuth = () => {
   const [loadingRegister, setLoadingRegister] = useState(false);
   const [loadingGoogleLogin, setLoadingGoogleLogin] = useState(false);
   const [loadingChangePassword, setLoadingChangePassword] = useState(false);
+  const [loadingAddPassword, setLoadingAddPassword] = useState(false);
   const [loadingForgotPassword, setLoadingForgotPassword] = useState(false);
   const [loadingResetPassword, setLoadingResetPassword] = useState(false);
   const [loadingSendEmailVerification, setLoadingSendEmailVerification] = useState(false);
@@ -189,6 +191,40 @@ export const useAuth = () => {
       return result;
     } finally {
       setLoadingChangePassword(false);
+    }
+  };
+
+  const handleAddPassword = async (newPassword: string) => {
+    setLoadingAddPassword(true);
+    setError(null);
+
+    try {
+      const result = await addPassword(newPassword);
+
+      if (!result.success) {
+        setError(result.message || "Password setup failed");
+      } else {
+        useAuthStore.setState((state) => ({
+          ...state,
+          user: state.user
+            ? {
+                ...state.user,
+                hasPassword: true,
+              }
+            : state.user,
+        }));
+      }
+
+      return result;
+    } catch (err) {
+      const message = getErrorMessage(err, "Password setup failed");
+      setError(message);
+      return {
+        success: false,
+        message,
+      };
+    } finally {
+      setLoadingAddPassword(false);
     }
   };
 
@@ -356,6 +392,7 @@ export const useAuth = () => {
     loadingRegister,
     loadingGoogleLogin,
     loadingChangePassword,
+    loadingAddPassword,
     loadingForgotPassword,
     loadingResetPassword,
     loadingSendEmailVerification,
@@ -372,6 +409,7 @@ export const useAuth = () => {
     handleRegister,
     handleGoogleLogin,
     handleChangePassword,
+    handleAddPassword,
     handleForgotPassword,
     handleResetPassword,
     handleSendEmailVerification,

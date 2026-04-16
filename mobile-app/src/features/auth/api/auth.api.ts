@@ -30,6 +30,7 @@ const normalizeAuthResponse = (payload: any): AuthResponse => {
   const user = rawUser
     ? {
       ...rawUser,
+      hasPassword: Boolean(rawUser.hasPassword),
       fullName: rawUser.fullName || rawUser?.profile?.fullName,
       avatarUrl: rawUser.avatarUrl ?? rawUser?.profile?.avatarUrl ?? null,
     }
@@ -133,6 +134,18 @@ export const changePassword = async (
     newPassword,
   });
   return normalizeAuthResponse(response.data);
+};
+
+export const addPassword = async (
+  newPassword: string
+): Promise<AuthMessageResponse> => {
+  const response = await apiClient.post("/auth/add-password", {
+    newPassword,
+  });
+  return {
+    success: Boolean(response.data?.success),
+    message: response.data?.message || "",
+  };
 };
 
 export const getMe = async (): Promise<AuthResponse> => {
