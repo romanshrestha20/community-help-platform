@@ -10,6 +10,7 @@ export const APP_ROUTES = {
     FAVORITES_REQUEST_DETAILS: (id: string) => `/favorites/requests/${id}`,
     PROFILE: "/profile",
     PROFILE_NOTIFICATIONS: "/profile/notifications",
+    PROFILE_PRIVACY: "/profile/security",
     PROFILE_REQUESTS: "/profile/requests",
     PROFILE_BIDS: "/profile/bids",
     PROFILE_REQUEST_DETAILS: (id: string) => `/profile/requests/${id}`,
