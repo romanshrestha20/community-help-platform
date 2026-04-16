@@ -16,8 +16,8 @@ export const SessionCard = ({ loading = false, onLogout }: Props) => {
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
   const handleConfirmLogout = async () => {
-    await onLogout();
     setLogoutModalVisible(false);
+    await onLogout();
   };
 
   return (

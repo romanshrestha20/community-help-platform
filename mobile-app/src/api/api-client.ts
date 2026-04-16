@@ -114,10 +114,11 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config as RetryRequest;
+    const authState = useAuthStore.getState();
 
     if (originalRequest.url?.includes("/auth/refresh")) {
       await clearTokens();
-      useAuthStore.getState().logout();
+      authState.logout();
       return Promise.reject(error);
     }
 
@@ -127,6 +128,10 @@ apiClient.interceptors.response.use(
       originalRequest.url?.includes("/auth/refresh");
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      if (!authState.isAuthenticated) {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({
@@ -153,7 +158,7 @@ apiClient.interceptors.response.use(
         if (!refreshToken) {
           console.error("[API] Cannot refresh: no refresh token stored.");
           await clearTokens();
-          useAuthStore.getState().logout();
+          authState.logout();
           showToast("error", "Session expired", "Please log in again");
           return Promise.reject(new Error("No refresh token"));
         }
@@ -187,7 +192,7 @@ apiClient.interceptors.response.use(
         processQueue(err, null);
 
         await clearTokens();
-        useAuthStore.getState().logout();
+        authState.logout();
 
         showToast("error", "Session expired", "Please login again");
 
