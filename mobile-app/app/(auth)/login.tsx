@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Text,
   StyleSheet,
@@ -8,6 +8,10 @@ import {
   Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
+import Constants from "expo-constants";
+import * as AuthSession from "expo-auth-session";
+import * as GoogleAuth from "expo-auth-session/providers/google";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 import { Card, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
@@ -22,10 +26,12 @@ import { useFormValidation } from "@/utils/validation/useFormValidation";
 export default function LoginScreen() {
   const router = useRouter();
   const { palette } = useThemeContext();
-  const { loadingLogin, error, handleLogin } = useAuth();
+  const { loadingLogin, loadingGoogleLogin, error, handleLogin, handleGoogleLogin } =
+    useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const consumedGoogleTokenRef = useRef<string | null>(null);
 
   const {
     validationError,
@@ -36,7 +42,55 @@ export default function LoginScreen() {
     clearValidationError,
   } = useFormValidation<"email" | "password">();
 
-  const isFormDisabled = loadingLogin;
+  const webOrigin =
+    Platform.OS === "web" && typeof window !== "undefined"
+      ? window.location.origin
+      : process.env.EXPO_PUBLIC_GOOGLE_WEB_REDIRECT_URI || "http://localhost:8081";
+  const isExpoGo = Constants.executionEnvironment === "storeClient";
+
+  const redirectUri =
+    Platform.OS === "web"
+      ? `${webOrigin}/oauthredirect`.replace(/\/+oauthredirect$/, "/oauthredirect")
+      : AuthSession.makeRedirectUri({
+        scheme: "mobileapp",
+        path: "oauthredirect",
+      });
+
+  const [request, response, promptAsync] = GoogleAuth.useIdTokenAuthRequest({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    redirectUri,
+  });
+
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      return;
+    }
+
+    GoogleSignin.configure({
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
+      profileImageSize: 120,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (response?.type !== "success") {
+      return;
+    }
+
+    const idToken =
+      response.authentication?.idToken ||
+      (typeof response.params?.id_token === "string" ? response.params.id_token : null);
+
+    if (idToken && consumedGoogleTokenRef.current !== idToken) {
+      consumedGoogleTokenRef.current = idToken;
+      void handleGoogleLogin(idToken);
+    }
+  }, [handleGoogleLogin, response]);
+
+  const isFormDisabled = loadingLogin || loadingGoogleLogin;
 
   const handleEmailLogin = async () => {
     const validation = validateLoginFormFields({ email, password });
@@ -49,6 +103,44 @@ export default function LoginScreen() {
 
     clearValidationError();
     await handleLogin({ email, password });
+  };
+
+  const handleGooglePress = async () => {
+    clearValidationError();
+    consumedGoogleTokenRef.current = null;
+
+    if (Platform.OS === "web") {
+      await promptAsync();
+      return;
+    }
+
+    if (isExpoGo) {
+      return;
+    }
+
+    try {
+      if (Platform.OS === "android") {
+        await GoogleSignin.hasPlayServices({
+          showPlayServicesUpdateDialog: true,
+        });
+      }
+
+      const result = await GoogleSignin.signIn();
+
+      if (result.type !== "success") {
+        return;
+      }
+
+      const idToken = result.data.idToken;
+
+      if (!idToken) {
+        throw new Error("Google sign-in did not return an ID token.");
+      }
+
+      await handleGoogleLogin(idToken);
+    } catch (authError) {
+      console.error("Native Google sign-in error:", authError);
+    }
   };
 
   return (
@@ -129,6 +221,18 @@ export default function LoginScreen() {
                 disabled={isFormDisabled}
               />
 
+              <AppButton
+                title={loadingGoogleLogin ? "Connecting to Google..." : "Continue with Google"}
+                onPress={handleGooglePress}
+                disabled={(Platform.OS === "web" && !request) || isFormDisabled || isExpoGo}
+              />
+
+              {Platform.OS !== "web" && isExpoGo ? (
+                <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                  Google Sign-In requires an iOS or Android development build, not Expo Go.
+                </Text>
+              ) : null}
+
               <Pressable onPress={() => router.push(APP_ROUTES.AUTH_REGISTER)}>
                 <Text style={styles.linkText}>
                   <Text style={{ color: palette.textSecondary }}>
@@ -179,5 +283,10 @@ const styles = StyleSheet.create({
     textAlign: "right",
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
+  },
+  helperText: {
+    textAlign: "center",
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
   },
 });
