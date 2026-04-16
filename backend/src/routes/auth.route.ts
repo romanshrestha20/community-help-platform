@@ -3,6 +3,7 @@ import {
   registerUser,
   loginUser,
   changePassword,
+  addPassword,
   forgotPassword,
   resendEmailVerification,
   sendPhoneCode,
@@ -61,5 +62,6 @@ router.delete(
 
 // Password
 router.post("/change-password", authenticateUser, changePassword);
+router.post("/add-password", authenticateUser, addPassword);
 
 export default router;
