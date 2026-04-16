@@ -108,6 +108,10 @@ export const changePasswordBodySchema = z.object({
   newPassword: passwordSchema("New password is required."),
 });
 
+export const addPasswordBodySchema = z.object({
+  newPassword: passwordSchema("New password is required."),
+});
+
 export const refreshTokenBodySchema = z.object({
   refreshToken: z.string().trim().min(1, "Refresh token is required."),
 });
