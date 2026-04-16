@@ -10,11 +10,20 @@ const {
     emailServiceMock,
     smsServiceMock,
     rateLimitServiceMock,
+    googleServiceMock,
 } = vi.hoisted(() => ({
     prismaMock: {
         userModel: {
             findFirst: vi.fn(),
             findUnique: vi.fn(),
+            create: vi.fn(),
+            update: vi.fn(),
+        },
+        oAuthAccount: {
+            findUnique: vi.fn(),
+            create: vi.fn(),
+        },
+        profile: {
             create: vi.fn(),
             update: vi.fn(),
         },
@@ -33,6 +42,7 @@ const {
         },
         deletedAccount: {
             findUnique: vi.fn(),
+            delete: vi.fn(),
         },
         refreshToken: {
             create: vi.fn(),
@@ -66,9 +76,15 @@ const {
     },
     smsServiceMock: {
         sendPhoneVerificationCode: vi.fn(),
+        checkPhoneVerificationCode: vi.fn(),
+        isTwilioVerifyMode: vi.fn(),
     },
     rateLimitServiceMock: {
         assertRateLimit: vi.fn(),
+    },
+    googleServiceMock: {
+        isGoogleSignInConfigured: vi.fn(),
+        verifyGoogleIdToken: vi.fn(),
     },
 }));
 
@@ -102,15 +118,23 @@ vi.mock("../../services/email.service.js", () => ({
 
 vi.mock("../../services/sms.service.js", () => ({
     sendPhoneVerificationCode: smsServiceMock.sendPhoneVerificationCode,
+    checkPhoneVerificationCode: smsServiceMock.checkPhoneVerificationCode,
+    isTwilioVerifyMode: smsServiceMock.isTwilioVerifyMode,
 }));
 
 vi.mock("../../services/auth-rate-limit.service.js", () => ({
     assertRateLimit: rateLimitServiceMock.assertRateLimit,
 }));
 
+vi.mock("../../services/google.service.js", () => ({
+    isGoogleSignInConfigured: googleServiceMock.isGoogleSignInConfigured,
+    verifyGoogleIdToken: googleServiceMock.verifyGoogleIdToken,
+}));
+
 import {
     changePassword,
     forgotPassword,
+    loginWithGoogle,
     loginUser,
     refreshAccessToken,
     resendEmailVerification,
@@ -125,6 +149,8 @@ import {
 describe("auth.controller", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        smsServiceMock.isTwilioVerifyMode.mockReturnValue(false);
+        googleServiceMock.isGoogleSignInConfigured.mockReturnValue(true);
     });
 
     it("registerUser: rejects missing required fields", async () => {
@@ -218,6 +244,84 @@ describe("auth.controller", () => {
                 statusCode: 410,
             }),
         );
+    });
+
+    it("loginWithGoogle: recreates a deleted Google account", async () => {
+        googleServiceMock.verifyGoogleIdToken.mockResolvedValue({
+            sub: "google-sub-1",
+            email: "user@example.com",
+            email_verified: true,
+            name: "Google User",
+            picture: "https://example.com/avatar.png",
+        });
+        prismaMock.deletedAccount.findUnique.mockResolvedValueOnce({
+            id: "deleted-1",
+            email: "user@example.com",
+        });
+        prismaMock.oAuthAccount.findUnique.mockResolvedValueOnce(null);
+        prismaMock.userModel.findUnique
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({
+                id: "user-1",
+                email: "user@example.com",
+                phone: null,
+                isVerified: true,
+                isEmailVerified: true,
+                isPhoneVerified: false,
+                createdAt: "2026-04-15T00:00:00.000Z",
+                updatedAt: "2026-04-15T00:00:00.000Z",
+                profile: {
+                    id: "profile-1",
+                    userId: "user-1",
+                    fullName: "Google User",
+                    bio: null,
+                    dateOfBirth: null,
+                    gender: null,
+                    userType: "GENERAL",
+                    rating: 0,
+                    helpCount: 0,
+                    totalReviews: 0,
+                    avatarUrl: "https://example.com/avatar.png",
+                    avatarPublicId: null,
+                    searchRadiusMeters: 800,
+                    addressId: null,
+                    address: null,
+                    createdAt: "2026-04-15T00:00:00.000Z",
+                    updatedAt: "2026-04-15T00:00:00.000Z",
+                },
+            });
+        prismaMock.userModel.create.mockResolvedValueOnce({ id: "user-1" });
+        prismaMock.deletedAccount.delete.mockResolvedValueOnce({ id: "deleted-1" });
+        jwtMock.accessToken.mockReturnValue("access-token");
+        jwtMock.signRefreshToken.mockReturnValue("refresh-token");
+
+        const req = makeReq({ body: { idToken: "google-id-token" } });
+        const res = makeRes();
+        const next = makeNext();
+
+        await loginWithGoogle(req, res, next);
+
+        expect(prismaMock.userModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    email: "user@example.com",
+                    isEmailVerified: true,
+                }),
+            }),
+        );
+        expect(prismaMock.deletedAccount.delete).toHaveBeenCalledWith({
+            where: { email: "user@example.com" },
+        });
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                success: true,
+                message: "Google sign-in successful",
+                accessToken: "access-token",
+                refreshToken: "refresh-token",
+            }),
+        );
+        expect(next).not.toHaveBeenCalled();
     });
 
     it("forgotPassword: returns generic success when user does not exist", async () => {
@@ -553,6 +657,88 @@ describe("auth.controller", () => {
                 data: expect.objectContaining({ isPhoneVerified: true }),
             }),
         );
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("sendPhoneCode: applies cooldown in twilio verify mode", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-1",
+            phone: "+15551234567",
+            isPhoneVerified: false,
+        });
+        smsServiceMock.isTwilioVerifyMode.mockReturnValue(true);
+        rateLimitServiceMock.assertRateLimit
+            .mockImplementationOnce(() => undefined)
+            .mockImplementationOnce(() => undefined)
+            .mockImplementationOnce(() => undefined)
+            .mockImplementationOnce(() => {
+                throw new Error("cooldown");
+            });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            ip: "10.0.0.12",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await sendPhoneCode(req, res, next);
+
+        expect(rateLimitServiceMock.assertRateLimit).toHaveBeenNthCalledWith(
+            4,
+            expect.objectContaining({
+                bucket: "send-phone-code:cooldown",
+                key: "+15551234567",
+                limit: 1,
+            }),
+        );
+        expect(smsServiceMock.sendPhoneVerificationCode).not.toHaveBeenCalled();
+        expect(next).toHaveBeenCalledWith(expect.any(Error));
+    });
+
+    it("verifyPhoneCode: approves phone via twilio verify mode", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-1",
+            email: "user@example.com",
+            phone: "+15551234567",
+            isVerified: false,
+            isEmailVerified: false,
+            isPhoneVerified: false,
+            createdAt: "2026-04-15T00:00:00.000Z",
+            updatedAt: "2026-04-15T00:00:00.000Z",
+            profile: null,
+        });
+        prismaMock.userModel.update.mockResolvedValue({
+            id: "user-1",
+        });
+        smsServiceMock.isTwilioVerifyMode.mockReturnValue(true);
+        smsServiceMock.checkPhoneVerificationCode.mockResolvedValue({
+            status: "approved",
+            valid: true,
+        });
+
+        const req = makeReq({
+            user: { userId: "user-1" },
+            body: { code: "123456" },
+            ip: "10.0.0.13",
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await verifyPhoneCode(req, res, next);
+
+        expect(smsServiceMock.checkPhoneVerificationCode).toHaveBeenCalledWith({
+            phone: "+15551234567",
+            code: "123456",
+        });
+        expect(prismaMock.userModel.update).toHaveBeenCalledWith({
+            where: { id: "user-1" },
+            data: {
+                isPhoneVerified: true,
+                isVerified: true,
+            },
+        });
+        expect(res.status).toHaveBeenCalledWith(200);
         expect(next).not.toHaveBeenCalled();
     });
 
