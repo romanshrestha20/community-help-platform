@@ -9,26 +9,105 @@ type SendEmailInput = {
   text: string;
 };
 
-const gmailUser = process.env.GMAIL_USER?.trim() || "";
-const gmailPass = process.env.GMAIL_APP_PASSWORD?.trim() || "";
+type EmailConfigStatus = {
+  mode: string;
+  configured: boolean;
+  missing: string[];
+};
 
-// Create transporter once
-const transporter = process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS
-  ? nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT),
+const trimEnv = (value?: string) => value?.trim() || "";
+
+const getEmailDeliveryMode = () => {
+  return trimEnv(process.env.EMAIL_DELIVERY_MODE).toLowerCase() || "log";
+};
+
+const getEmailProviderConfig = () => {
+  const host = trimEnv(process.env.EMAIL_HOST);
+  const port = trimEnv(process.env.EMAIL_PORT);
+  const user = trimEnv(process.env.EMAIL_USER);
+  const pass = trimEnv(process.env.EMAIL_PASS);
+  const from = trimEnv(process.env.EMAIL_FROM) || user;
+
+  return {
+    host,
+    port,
+    user,
+    pass,
+    from,
+  };
+};
+
+const getMissingRequiredEmailEnv = () => {
+  const mode = getEmailDeliveryMode();
+
+  if (mode !== "nodemailer") {
+    return [];
+  }
+
+  const config = getEmailProviderConfig();
+  const missing: string[] = [];
+
+  if (!config.host) missing.push("EMAIL_HOST");
+  if (!config.port) missing.push("EMAIL_PORT");
+  if (!config.user) missing.push("EMAIL_USER");
+  if (!config.pass) missing.push("EMAIL_PASS");
+  if (!config.from) missing.push("EMAIL_FROM");
+
+  return missing;
+};
+
+const createTransporter = () => {
+  const config = getEmailProviderConfig();
+  const missing = getMissingRequiredEmailEnv();
+
+  if (missing.length > 0) {
+    throw new Error(
+      `EMAIL_DELIVERY_MODE=nodemailer requires: ${missing.join(", ")}`
+    );
+  }
+
+  return nodemailer.createTransport({
+    host: config.host,
+    port: Number(config.port),
+    secure: Number(config.port) === 465,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: config.user,
+      pass: config.pass,
     },
-  })
-  : null;
+  });
+};
 
-  
+export const getEmailServiceStatus = (): EmailConfigStatus => {
+  const mode = getEmailDeliveryMode();
+
+  if (mode === "log") {
+    return {
+      mode,
+      configured: true,
+      missing: [],
+    };
+  }
+
+  if (mode === "nodemailer") {
+    const missing = getMissingRequiredEmailEnv();
+    return {
+      mode,
+      configured: missing.length === 0,
+      missing,
+    };
+  }
+
+  return {
+    mode,
+    configured: false,
+    missing: ["EMAIL_DELIVERY_MODE"],
+  };
+};
+
 const getClientBaseUrl = () => {
   return (
-    process.env.MOBILE_DEEP_LINK_BASE_URL?.trim() ||
-    process.env.PUBLIC_APP_URL?.trim() ||
+    trimEnv(process.env.MOBILE_DEEP_LINK_BASE_URL) ||
+    trimEnv(process.env.PUBLIC_APP_URL) ||
     "communityhelp://"
   );
 };
@@ -50,8 +129,7 @@ export const sendEmail = async ({ to, subject, text }: SendEmailInput) => {
     throw new Error("Missing required parameters for sending email");
   }
 
-  const deliveryMode =
-    process.env.EMAIL_DELIVERY_MODE?.trim().toLowerCase() || "log";
+  const deliveryMode = getEmailDeliveryMode();
 
   if (deliveryMode === "log") {
     console.info("[email] delivering email via log transport", {
@@ -63,22 +141,23 @@ export const sendEmail = async ({ to, subject, text }: SendEmailInput) => {
   }
 
   if (deliveryMode === "nodemailer") {
-    if (!transporter) {
-      throw new Error("Nodemailer transporter not configured");
-    }
+    const transporter = createTransporter();
+    const { from } = getEmailProviderConfig();
 
     await transporter.sendMail({
-      from: `"Community Help" <${gmailUser}>`,
+      from: `"Community Help" <${from}>`,
       to,
       subject,
       text,
-      html: `<p>${text}</p>`, // optional but nice
+      html: `<p>${text.replace(/\n/g, "<br />")}</p>`,
     });
 
     return;
   }
 
-  throw new Error(`Unsupported EMAIL_DELIVERY_MODE: ${deliveryMode}`);
+  throw new Error(
+    `Unsupported EMAIL_DELIVERY_MODE: ${deliveryMode}. Use "log" or "nodemailer".`
+  );
 };
 
 export const sendPasswordResetEmail = async ({
