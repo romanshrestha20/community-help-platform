@@ -141,6 +141,30 @@ const publicUserSelect = {
   },
 } as const;
 
+const sendResponse = (
+  res: Response,
+  {
+    statusCode = 200,
+    data = null,
+    message = "",
+    meta = {},
+  }: {
+    statusCode?: number;
+    data?: unknown;
+    message?: string;
+    meta?: Record<string, unknown>;
+  } = {}
+) => {
+  return res.status(statusCode).json({
+    success: true,
+    message,
+    data,
+    meta,
+  });
+};
+
+
+
 const getPublicUserById = async (userId: string) => {
   const user = await prisma.userModel.findUnique({
     where: { id: userId },
@@ -235,41 +259,12 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
         },
       },
     });
+    const publicUser = await getPublicUserById(createdUser.id);
 
-    const publicUser = await prisma.userModel.findUnique({
-      where: { id: createdUser.id },
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        isVerified: true,
-        isEmailVerified: true,
-        isPhoneVerified: true,
-        createdAt: true,
-        updatedAt: true,
-        profile: {
-          select: {
-            id: true,
-            userId: true,
-            fullName: true,
-            bio: true,
-            dateOfBirth: true,
-            gender: true,
-            userType: true,
-            rating: true,
-            helpCount: true,
-            totalReviews: true,
-            avatarUrl: true,
-            avatarPublicId: true,
-            searchRadiusMeters: true,
-            addressId: true,
-            address: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-      },
-    });
+    if (!publicUser) {
+      return next(new AppError("User not found after registration", 500));
+    }
+
 
     const token = accessToken({ userId: createdUser.id });
     const refreshToken = signRefreshToken({ userId: createdUser.id });
@@ -290,12 +285,15 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       console.error("Failed to send verification email on registration:", error);
     }
 
-    res.status(201).json({
-      success: true,
-      accessToken: token,
-      refreshToken,
-      data: publicUser,
+
+    return sendResponse(res, {
+      statusCode: 201,
       message: "User registered successfully. Please verify your email.",
+      data: {
+        user: publicUser,
+        accessToken: token,
+        refreshToken,
+      },
     });
   } catch (error) {
     console.error("Error in registerUser:", error);
@@ -405,36 +403,11 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     if (!isValid) return next(new AppError("Invalid email or password", 401));
 
     // Return a public user payload (without passwordHash) aligned with mobile contract
-    const publicUser = await prisma.userModel.findUnique({
-      where: { id: user.id },
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        isVerified: true,
-        isEmailVerified: true,
-        isPhoneVerified: true,
-        profile: {
-          select: {
-            id: true,
-            userId: true,
-            fullName: true,
-            bio: true,
-            dateOfBirth: true,
-            gender: true,
-            userType: true,
-            rating: true,
-            helpCount: true,
-            totalReviews: true,
-            avatarUrl: true,
-            addressId: true,
-            address: true,
-            createdAt: true,
-            updatedAt: true,
-          } as any,
-        },
-      },
-    });
+    const publicUser = await getPublicUserById(user.id);
+
+    if (!publicUser) {
+      return next(new AppError("User not found", 404));
+    }
 
     await prisma.refreshToken.deleteMany({
       where: { userId: user.id },
@@ -449,12 +422,14 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       data: { userId: user.id, token: refresh, expiresAt },
     });
 
-    res.status(200).json({
-      success: true,
+    return sendResponse(res, {
+      statusCode: 200,
       message: "User logged in successfully",
-      data: publicUser,
-      accessToken: access,
-      refreshToken: refresh,
+      data: {
+        user: publicUser,
+        accessToken: access,
+        refreshToken: refresh,
+      },
     });
   } catch (error) {
     console.error("Error in loginUser:", error);
@@ -523,6 +498,7 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
         where: { userId: resetToken.userId },
       }),
     ]);
+
 
     res.status(200).json({
       success: true,
@@ -1284,12 +1260,14 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
 
     const { accessToken: token, refreshToken } = await createSessionForUser(userId);
 
-    res.status(200).json({
-      success: true,
-      message: "Google sign-in successful",
-      data: publicUser,
-      accessToken: token,
-      refreshToken,
+    return sendResponse(res, {
+      statusCode: 200,
+      message: "User logged in with Google successfully",
+      data: {
+        user: publicUser,
+        accessToken: token,
+        refreshToken,
+      },
     });
   } catch (error) {
     console.error("Error in loginWithGoogle:", error);
