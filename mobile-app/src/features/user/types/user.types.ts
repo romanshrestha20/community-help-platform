@@ -30,6 +30,7 @@ export interface User {
   id: string;
   email: string;
   phone: string;
+  hasPassword?: boolean;
   isVerified: boolean;
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
@@ -82,6 +83,7 @@ export interface GetUserProfileApiResponse {
   userId: string;
   email: string;
   phone: string | null;
+  hasPassword?: boolean;
   isVerified?: boolean;
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
