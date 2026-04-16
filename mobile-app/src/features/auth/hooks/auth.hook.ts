@@ -189,6 +189,14 @@ export const useAuth = () => {
       }
 
       return result;
+    } catch (err) {
+      const message = getErrorMessage(err, "Password change failed");
+      setError(message);
+
+      return {
+        success: false,
+        message,
+      };
     } finally {
       setLoadingChangePassword(false);
     }
@@ -208,9 +216,9 @@ export const useAuth = () => {
           ...state,
           user: state.user
             ? {
-                ...state.user,
-                hasPassword: true,
-              }
+              ...state.user,
+              hasPassword: true,
+            }
             : state.user,
         }));
       }

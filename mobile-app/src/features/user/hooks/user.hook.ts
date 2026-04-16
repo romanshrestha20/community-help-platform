@@ -37,6 +37,7 @@ export const useUser = () => {
           id: nextUser.id,
           email: nextUser.email,
           phone: nextUser.phone,
+          hasPassword: nextUser.hasPassword ?? state.user?.hasPassword ?? authUser?.hasPassword,
           isVerified: nextUser.isVerified,
           isEmailVerified: nextUser.isEmailVerified,
           isPhoneVerified: nextUser.isPhoneVerified,
@@ -73,7 +74,7 @@ export const useUser = () => {
     setLoading(true);
     setError(null);
 
-    const result = await fetchUserProfile(user);
+    const result = await fetchUserProfile(authUser);
 
       if (result.success && result.data) {
         setUser(result.data);
