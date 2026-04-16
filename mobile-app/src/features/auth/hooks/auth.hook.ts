@@ -4,6 +4,7 @@ import {
   changePassword,
   forgotPassword,
   login as loginApi,
+  loginWithGoogle as loginWithGoogleApi,
   register as registerApi,
   resendEmailVerification,
   resetPassword,
@@ -35,6 +36,7 @@ export const useAuth = () => {
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [loadingLogout, setLoadingLogout] = useState(false);
   const [loadingRegister, setLoadingRegister] = useState(false);
+  const [loadingGoogleLogin, setLoadingGoogleLogin] = useState(false);
   const [loadingChangePassword, setLoadingChangePassword] = useState(false);
   const [loadingForgotPassword, setLoadingForgotPassword] = useState(false);
   const [loadingResetPassword, setLoadingResetPassword] = useState(false);
@@ -81,6 +83,56 @@ export const useAuth = () => {
     }
   };
 
+  const completeAuth = async (result: {
+    success: boolean;
+    accessToken: string;
+    refreshToken: string;
+    data: any;
+    message: string;
+  }) => {
+    if (
+      !result.success ||
+      !result.accessToken ||
+      !result.refreshToken ||
+      !result.data
+    ) {
+      setError(result.message || "Authentication failed");
+      return result;
+    }
+
+    await saveTokens(result.accessToken, result.refreshToken);
+
+    login({
+      user: result.data,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
+
+    return result;
+  };
+
+  const handleGoogleLogin = async (idToken: string) => {
+    setLoadingGoogleLogin(true);
+    setError(null);
+
+    try {
+      const result = await loginWithGoogleApi({ idToken });
+      return await completeAuth(result);
+    } catch (err) {
+      const message = getErrorMessage(err, "Google sign-in failed");
+      setError(message);
+      return {
+        success: false,
+        accessToken: "",
+        refreshToken: "",
+        data: null,
+        message,
+      };
+    } finally {
+      setLoadingGoogleLogin(false);
+    }
+  };
+
   // ======================
   // REGISTER
   // ======================
@@ -91,25 +143,7 @@ export const useAuth = () => {
     try {
       const result = await registerApi(credentials);
 
-      if (
-        !result.success ||
-        !result.accessToken ||
-        !result.refreshToken ||
-        !result.data
-      ) {
-        setError(result.message || "Registration failed");
-        return result;
-      }
-
-      await saveTokens(result.accessToken, result.refreshToken);
-
-      login({
-        user: result.data,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      });
-
-      return result;
+      return await completeAuth(result);
     } catch (err) {
       setError("Registration failed");
       throw err;
@@ -290,7 +324,7 @@ export const useAuth = () => {
     setError(null);
 
     try {
-      const result = await verifyPhoneCode({ code });
+      const result = await verifyPhoneCode(code);
 
       if (!result.success) {
         setError(result.message || "Phone verification failed");
@@ -319,6 +353,7 @@ export const useAuth = () => {
     loadingLogin,
     loadingLogout,
     loadingRegister,
+    loadingGoogleLogin,
     loadingChangePassword,
     loadingForgotPassword,
     loadingResetPassword,
@@ -334,6 +369,7 @@ export const useAuth = () => {
     handleLogin,
     handleLogout,
     handleRegister,
+    handleGoogleLogin,
     handleChangePassword,
     handleForgotPassword,
     handleResetPassword,

@@ -1,6 +1,7 @@
 import apiClient from "../../../api/api-client";
 import {
   ForgotPasswordDto,
+  GoogleLoginDto,
   LoginDto,
   AuthMessageResponse,
   AuthResponse,
@@ -14,14 +15,14 @@ const normalizeAuthResponse = (payload: any): AuthResponse => {
   const profileUser =
     payload?.userId && payload?.email
       ? {
-          id: payload.userId,
-          email: payload.email,
-          phone: payload.phone,
-          isVerified: Boolean(payload?.isVerified ?? true),
-          isEmailVerified: Boolean(payload?.isEmailVerified ?? payload?.isVerified ?? true),
-          isPhoneVerified: Boolean(payload?.isPhoneVerified ?? false),
-          profile: payload.profile ?? null,
-        }
+        id: payload.userId,
+        email: payload.email,
+        phone: payload.phone,
+        isVerified: Boolean(payload?.isVerified ?? true),
+        isEmailVerified: Boolean(payload?.isEmailVerified ?? payload?.isVerified ?? true),
+        isPhoneVerified: Boolean(payload?.isPhoneVerified ?? false),
+        profile: payload.profile ?? null,
+      }
       : null;
 
   const rawUser = payload?.data ?? profileUser;
@@ -48,6 +49,13 @@ const normalizeAuthResponse = (payload: any): AuthResponse => {
 
 export const login = async (credentials: LoginDto): Promise<AuthResponse> => {
   const response = await apiClient.post("/auth/login", credentials);
+  return normalizeAuthResponse(response.data);
+};
+
+export const loginWithGoogle = async (
+  payload: GoogleLoginDto
+): Promise<AuthResponse> => {
+  const response = await apiClient.post("/auth/google", payload);
   return normalizeAuthResponse(response.data);
 };
 

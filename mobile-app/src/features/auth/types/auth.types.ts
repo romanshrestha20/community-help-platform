@@ -7,6 +7,10 @@ export interface LoginDto {
   password: string;
 }
 
+export interface GoogleLoginDto {
+  idToken: string;
+}
+
 export interface ForgotPasswordDto {
   email: string;
 }
