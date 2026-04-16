@@ -11,6 +11,7 @@ import {
   verifyPhoneCode,
   resetPassword,
   refreshAccessToken,
+  loginWithGoogle,
 } from "../controllers/auth.controller.js";
 
 import {
@@ -29,6 +30,7 @@ const router = express.Router();
 // Auth
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+router.post("/google", loginWithGoogle)
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 router.post("/send-email-verification", authenticateUser, sendEmailVerification);
