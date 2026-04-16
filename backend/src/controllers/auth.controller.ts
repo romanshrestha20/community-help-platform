@@ -10,6 +10,7 @@ import {
 import { getZodErrorMessage } from "../utils/zod.js";
 import {
   changePasswordBodySchema,
+  addPasswordBodySchema,
   forgotPasswordBodySchema,
   googleLoginBodySchema,
   loginBodySchema,
@@ -111,6 +112,7 @@ const publicUserSelect = {
   id: true,
   email: true,
   phone: true,
+  passwordHash: true,
   isVerified: true,
   isEmailVerified: true,
   isPhoneVerified: true,
@@ -140,10 +142,21 @@ const publicUserSelect = {
 } as const;
 
 const getPublicUserById = async (userId: string) => {
-  return prisma.userModel.findUnique({
+  const user = await prisma.userModel.findUnique({
     where: { id: userId },
     select: publicUserSelect,
   });
+
+  if (!user) {
+    return null;
+  }
+
+  const { passwordHash, ...publicUser } = user;
+
+  return {
+    ...publicUser,
+    hasPassword: Boolean(passwordHash),
+  };
 };
 
 const createSessionForUser = async (userId: string) => {
@@ -1039,6 +1052,52 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     });
   } catch (error) {
     console.error("Error in changePassword:", error);
+    next(error);
+  }
+};
+
+export const addPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    const parsedBody = addPasswordBodySchema.safeParse(req.body);
+
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
+    }
+
+    const { newPassword } = parsedBody.data;
+
+    if (newPassword.length < 6) {
+      return next(new AppError("Password must be at least 6 characters", 400));
+    }
+
+    const user = await prisma.userModel.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (user.passwordHash) {
+      return next(new AppError("Account already has a password", 400));
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await prisma.userModel.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Password added successfully",
+    });
+  } catch (error) {
+    console.error("Error in addPassword:", error);
     next(error);
   }
 };

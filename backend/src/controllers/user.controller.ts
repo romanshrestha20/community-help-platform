@@ -40,6 +40,7 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
       userId: user.id,
       email: user.email,
       phone: user.phone,
+      hasPassword: Boolean(user.passwordHash),
       isVerified: user.isVerified,
       isEmailVerified: user.isEmailVerified,
       isPhoneVerified: user.isPhoneVerified,
