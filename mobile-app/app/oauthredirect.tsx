@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+
 
 export default function OAuthRedirectScreen() {
   const router = useRouter();
