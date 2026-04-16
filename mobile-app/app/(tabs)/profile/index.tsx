@@ -13,8 +13,6 @@ import { useRouter } from "expo-router";
 import { Screen, Stack, Row, Card, theme } from "@/design-system";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useUser } from "@/features/user/hooks/user.hook";
-import { DangerZoneCard } from "@/features/user/components/DangerZoneCard";
-import { DeleteAccountModal } from "@/features/settings/components/DeleteAccountModal";
 import {
   ProfileAvatarPickerModal,
   ProfileEditForm,
@@ -27,7 +25,7 @@ import {
 
 import { ThemeModeCard } from "@/features/settings/components/ThemeModeCard";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
-import { showSuccessToast, showErrorToast } from "@/utils/toast";
+import { showErrorToast } from "@/utils/toast";
 import { APP_ROUTES } from "@/config/routes";
 
 export default function ProfileTabScreen() {
@@ -40,7 +38,6 @@ export default function ProfileTabScreen() {
     error,
     loadUserProfile,
     handleUpdateProfile,
-    handleDeleteProfile,
   } = useUser();
 
 
@@ -48,7 +45,6 @@ export default function ProfileTabScreen() {
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [sessionModalVisible, setSessionModalVisible] = useState(false);
-  const [deleteAccountModalVisible, setDeleteAccountModalVisible] = useState(false);
 
   useEffect(() => {
     loadUserProfile();
@@ -66,8 +62,7 @@ export default function ProfileTabScreen() {
         id: "privacy",
         title: "Privacy & security",
         subtitle: "Control your profile visibility and account safety",
-        onPress: () =>
-          Alert.alert("Coming soon", "Privacy settings will be added next."),
+        onPress: () => router.push(APP_ROUTES.PROFILE_PRIVACY),
       },
       {
         id: "support",
@@ -103,10 +98,6 @@ export default function ProfileTabScreen() {
     ],
     [router]
   );
-
-  const handleDeleteAccountPress = () => {
-    setDeleteAccountModalVisible(true);
-  };
 
   const handleTopLogoutPress = () => {
     if (loadingLogout) return;
@@ -232,25 +223,6 @@ export default function ProfileTabScreen() {
               <ThemeModeCard />
               <SettingsSectionCard title="Settings" items={settingsItems} />
             </Stack>
-
-            <DeleteAccountModal
-              visible={deleteAccountModalVisible}
-              loading={loading}
-              error={error}
-              onClose={() => setDeleteAccountModalVisible(false)}
-              onConfirm={async (password) => {
-                const success = await handleDeleteProfile(password);
-                if (success) {
-                  showSuccessToast("Account deleted successfully");
-                }
-                return success;
-              }}
-            />
-
-            <View style={styles.dangerWrap}>
-              <DangerZoneCard loading={loading} onDeleteAccount={handleDeleteAccountPress} />
-            </View>
-
 
             {error ? (
               <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
@@ -408,9 +380,6 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.bold,
-  },
-  dangerWrap: {
-    marginTop: theme.spacing.md,
   },
   errorText: {
     fontSize: theme.typography.fontSize.sm,
