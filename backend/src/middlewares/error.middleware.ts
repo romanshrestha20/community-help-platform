@@ -15,6 +15,10 @@ export const errorHandler = (
   const statusCode = isOperational ? err.statusCode : 500;
   const message = isOperational ? err.message : 'Internal server error';
 
+  if (!isOperational) {
+    console.error("Unhandled error:", err);
+  }
+
   res.status(statusCode).json({
     success: false,
     error: {
