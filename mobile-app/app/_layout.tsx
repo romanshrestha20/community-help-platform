@@ -20,6 +20,7 @@ import { configureToast } from "@/utils/toast";
 import { enableScreens } from "react-native-screens";
 import { usePushNotifications } from "../src/features/notifications/hooks/usePushNotifications";
 import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
+import * as WebBrowser from "expo-web-browser";
 
 // Temporary iOS Expo Go workaround: bypass native RNSScreen host views.
 enableScreens(false);
@@ -39,6 +40,14 @@ export default function Layout() {
   const [isInitializing, setIsInitializing] = useState(true);
 
   usePushNotifications();
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    WebBrowser.maybeCompleteAuthSession();
+  }, []);
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -105,6 +114,7 @@ export default function Layout() {
     const routeSegments = segments as string[];
     const inAuthGroup = routeSegments[0] === "(auth)";
     const isRootRoute = routeSegments[0] === "index";
+    const isOAuthRedirectRoute = routeSegments[0] === "oauthredirect";
     const authLeafRoute = routeSegments[1] ?? "";
     const allowAuthenticatedAuthRoutes = new Set([
       "forgot-password",
@@ -115,6 +125,10 @@ export default function Layout() {
 
     if (isAuthenticated && isRootRoute) {
       router.replace("/(tabs)/home");
+      return;
+    }
+
+    if (isOAuthRedirectRoute) {
       return;
     }
 
