@@ -20,6 +20,7 @@ export const useHomeData = () => {
     id?: string;
     profile?: { address?: AppLocation | null } | null;
   } | null;
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { getMyHelpRequests } = useHelpRequest();
   const { getBidsByHelpRequestId, getMyBids, deleteBid } = useBid();
 
@@ -67,6 +68,14 @@ export const useHomeData = () => {
 
   const loadHomeData = useCallback(
     async (filters?: HomeFilters) => {
+      if (!isAuthenticated) {
+        setRequests([]);
+        setRecentBids([]);
+        setMyBids([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const allRequests = (await getMyHelpRequests()) ?? [];
@@ -152,7 +161,7 @@ export const useHomeData = () => {
         setLoading(false);
       }
     },
-    [currentUserId, currentUserLocation, getMyHelpRequests, getBidsByHelpRequestId, getMyBids]
+    [currentUserId, currentUserLocation, getMyHelpRequests, getBidsByHelpRequestId, getMyBids, isAuthenticated]
   );
 
   const addNewRequest = useCallback(

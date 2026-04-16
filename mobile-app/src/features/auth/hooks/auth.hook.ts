@@ -157,6 +157,7 @@ export const useAuth = () => {
   // ======================
   const handleLogout = async () => {
     setLoadingLogout(true);
+    setError(null);
 
     try {
       await clearTokens();

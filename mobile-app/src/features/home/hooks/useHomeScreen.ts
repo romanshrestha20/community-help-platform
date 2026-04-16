@@ -11,6 +11,7 @@ import { showErrorToast, showSuccessToast, showToast } from "@/utils/toast";
 
 export const useHomeScreen = () => {
     const user = useAuthStore((state) => state.user);
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
     const currentUserId = user?.id || user?.profile?.userId;
     const { filters, updateFilter, resetFilters } = useGlobalFilters();
     const { requests, recentBids, myBids, loadHomeData, addNewRequest, deleteBid } = useHomeData();
@@ -99,8 +100,12 @@ export const useHomeScreen = () => {
     );
 
     useEffect(() => {
+        if (!isAuthenticated) {
+            return;
+        }
+
         loadHomeData();
-    }, [loadHomeData]);
+    }, [isAuthenticated, loadHomeData]);
 
     const handleCreateRequest = async (data: CreateHelpRequestData) => {
         setCreateRequestError(null);
