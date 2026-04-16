@@ -82,6 +82,10 @@ export const loginBodySchema = z.object({
   password: passwordSchema(),
 });
 
+export const googleLoginBodySchema = z.object({
+  idToken: z.string().trim().min(1, "Google ID token is required."),
+});
+
 export const forgotPasswordBodySchema = z.object({
   email: emailSchema,
 });
