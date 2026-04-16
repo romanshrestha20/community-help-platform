@@ -3,6 +3,8 @@ import { prisma } from './lib/prisma.js';
 import http from "http";
 import { initSocketServer } from "./lib/socket.js";
 import { registerSocketHandlers } from "./sockets/registerSocketHandlers.js";
+import { getEmailServiceStatus } from "./services/email.service.js";
+import { getSmsServiceStatus } from "./services/sms.service.js";
 
 
 
@@ -24,6 +26,20 @@ registerSocketHandlers(io);
 
 const PORT = Number(process.env.PORT) || 5001;
 const HOST = process.env.HOST || '0.0.0.0';
+
+const emailStatus = getEmailServiceStatus();
+if (!emailStatus.configured) {
+  console.warn(
+    `[email] ${emailStatus.mode} mode is not fully configured. Missing: ${emailStatus.missing.join(", ")}`
+  );
+}
+
+const smsStatus = getSmsServiceStatus();
+if (!smsStatus.configured) {
+  console.warn(
+    `[sms] ${smsStatus.mode} mode is not fully configured. Missing: ${smsStatus.missing.join(", ")}`
+  );
+}
 
 httpServer.listen(PORT, HOST, () => {
   const publicHost = HOST === '0.0.0.0' ? 'localhost' : HOST;
