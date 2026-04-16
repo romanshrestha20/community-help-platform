@@ -6,6 +6,7 @@ import {
   User,
   UserResponse,
 } from "../types/user.types";
+import { User as AuthUser } from "@/features/auth/types/auth.types";
 import {
   mapGetProfileResponseToUser,
   mapProfileMutationResponseToUser,
@@ -38,7 +39,12 @@ const buildAvatarFormData = async (file: AvatarUploadInput): Promise<FormData> =
 };
 
 export const fetchUserProfile = async (
-  currentUser?: User | null
+  currentUser?: Pick<
+    User,
+    "id" | "email" | "phone" | "hasPassword" | "isVerified" | "isEmailVerified" | "isPhoneVerified"
+  > |
+    AuthUser |
+    null
 ): Promise<UserResponse> => {
   try {
     const data = await userApi.getUserProfile();

@@ -6,6 +6,13 @@ import {
   User,
   UserProfile,
 } from "../types/user.types";
+import { User as AuthUser } from "@/features/auth/types/auth.types";
+
+type UserIdentityBase = Pick<
+  User,
+  "id" | "email" | "phone" | "hasPassword" | "isVerified" | "isEmailVerified" | "isPhoneVerified"
+> |
+  AuthUser;
 
 const formatDateOnly = (value?: string | Date | null): string | undefined => {
   if (!value) return undefined;
@@ -43,7 +50,7 @@ export const mapProfileToUser = (
 
 export const mapGetProfileResponseToUser = (
   response: GetUserProfileApiResponse,
-  currentUser?: User | null
+  currentUser?: UserIdentityBase | null
 ): User | null => {
   if (!response.profile) return null;
 
