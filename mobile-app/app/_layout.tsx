@@ -20,7 +20,6 @@ import { configureToast } from "@/utils/toast";
 import { enableScreens } from "react-native-screens";
 import { usePushNotifications } from "../src/features/notifications/hooks/usePushNotifications";
 import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
-import * as WebBrowser from "expo-web-browser";
 
 // Temporary iOS Expo Go workaround: bypass native RNSScreen host views.
 enableScreens(false);
@@ -46,7 +45,13 @@ export default function Layout() {
       return;
     }
 
-    WebBrowser.maybeCompleteAuthSession();
+    void import("expo-web-browser")
+      .then((WebBrowser) => {
+        WebBrowser.maybeCompleteAuthSession?.();
+      })
+      .catch(() => {
+        // Ignore when the native web browser module is not present in the current build.
+      });
   }, []);
 
   useEffect(() => {
