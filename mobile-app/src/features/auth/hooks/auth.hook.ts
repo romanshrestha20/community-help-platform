@@ -369,7 +369,7 @@ export const useAuth = () => {
     setError(null);
 
     try {
-      const result = await verifyPhoneCode(code);
+      const result = await verifyPhoneCode({ code });
 
       if (!result.success) {
         setError(result.message || "Phone verification failed");
