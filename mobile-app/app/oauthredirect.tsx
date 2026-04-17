@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
@@ -16,7 +15,13 @@ export default function OAuthRedirectScreen() {
       return;
     }
 
-    WebBrowser.maybeCompleteAuthSession();
+    void import("expo-web-browser")
+      .then((WebBrowser) => {
+        WebBrowser.maybeCompleteAuthSession?.();
+      })
+      .catch(() => {
+        // Ignore when the native web browser module is not present in the current build.
+      });
 
     const timeout = window.setTimeout(() => {
       router.replace("/(auth)/login");
