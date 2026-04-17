@@ -1,5 +1,3 @@
-import bcrypt from "bcrypt";
-import { randomUUID } from "crypto";
 import { prisma } from "../lib/prisma.js";
 
 export interface OAuthUser {
@@ -8,6 +6,7 @@ export interface OAuthUser {
     email: string;
     firstName?: string;
     lastName?: string;
+    avatarUrl?: string;
 }
 
 const buildFullName = (oauthUser: OAuthUser): string => {
@@ -34,23 +33,50 @@ export const findOrCreateOAuthUser = async (oauthUser: OAuthUser) => {
     }
 
     let user = await prisma.userModel.findUnique({ where: { email: oauthUser.email } });
+    const fullName = buildFullName(oauthUser);
 
     if (!user) {
-        const passwordHash = await bcrypt.hash(randomUUID(), 10);
-        const syntheticPhone = `oauth-${oauthUser.provider.toLowerCase()}-${Date.now()}-${randomUUID().slice(0, 8)}`;
-        const fullName = buildFullName(oauthUser);
-
         user = await prisma.userModel.create({
             data: {
                 email: oauthUser.email,
-                phone: syntheticPhone,
-                passwordHash,
-                isVerified: true,
+                isEmailVerified: true,
                 profile: {
                     create: {
                         fullName,
+                        avatarUrl: oauthUser.avatarUrl ?? null,
                     },
                 },
+            },
+        });
+    } else {
+        const existingProfile = await prisma.profile.findUnique({
+            where: { userId: user.id },
+            select: {
+                id: true,
+            },
+        });
+
+        if (!existingProfile) {
+            await prisma.profile.create({
+                data: {
+                    userId: user.id,
+                    fullName,
+                    avatarUrl: oauthUser.avatarUrl ?? null,
+                },
+            });
+        } else if (oauthUser.avatarUrl) {
+            await prisma.profile.update({
+                where: { userId: user.id },
+                data: {
+                    avatarUrl: oauthUser.avatarUrl,
+                },
+            });
+        }
+
+        user = await prisma.userModel.update({
+            where: { id: user.id },
+            data: {
+                isEmailVerified: true,
             },
         });
     }

@@ -316,9 +316,15 @@ describe("auth.controller", () => {
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({
                 success: true,
-                message: "Google sign-in successful",
-                accessToken: "access-token",
-                refreshToken: "refresh-token",
+                message: "User logged in with Google successfully",
+                data: expect.objectContaining({
+                    accessToken: "access-token",
+                    refreshToken: "refresh-token",
+                    user: expect.objectContaining({
+                        id: "user-1",
+                        email: "user@example.com",
+                    }),
+                }),
             }),
         );
         expect(next).not.toHaveBeenCalled();
