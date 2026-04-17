@@ -24,19 +24,20 @@ export const RequestFormTrigger = ({ title, subtitle, compact = false, onPress }
                 style={[
                     styles.compactCard,
                     {
-                        backgroundColor: palette.surfaceMuted,
-                        borderColor: palette.border,
+                        backgroundColor: palette.primary,
+                        borderColor: palette.primary,
+                        shadowColor: palette.primary,
                     },
                 ]}
                 activeOpacity={0.82}
             >
-                <View style={[styles.compactIcon, { backgroundColor: palette.primary }]}>
+                <View style={[styles.compactIcon, { backgroundColor: "rgba(255,255,255,0.16)" }]}>
                     <Ionicons name="add" size={18} color={palette.textInverse} />
                 </View>
                 <View style={styles.compactCopy}>
-                    <Text style={[styles.compactTitle, { color: palette.textPrimary }]}>{title}</Text>
+                    <Text style={[styles.compactTitle, { color: palette.textInverse }]}>{title}</Text>
                     {subtitle ? (
-                        <Text style={[styles.compactSubtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
+                        <Text style={[styles.compactSubtitle, { color: "rgba(255,255,255,0.78)" }]}>{subtitle}</Text>
                     ) : null}
                 </View>
             </TouchableOpacity>
@@ -117,18 +118,25 @@ const styles = StyleSheet.create({
     },
     compactCard: {
         alignSelf: "flex-start",
-        minHeight: 56,
-        borderRadius: theme.radius.lg,
+        minHeight: 42,
+        borderRadius: theme.radius.fill,
         flexDirection: "row",
         alignItems: "center",
-        gap: spacing.sm,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.xs,
+        gap: spacing.xs,
+        paddingHorizontal: spacing.sm + 2,
+        paddingVertical: 6,
         borderWidth: 1,
+        shadowOffset: {
+            width: 0,
+            height: 10,
+        },
+        shadowOpacity: 0.18,
+        shadowRadius: 20,
+        elevation: 4,
     },
     compactIcon: {
-        width: 34,
-        height: 34,
+        width: 26,
+        height: 26,
         borderRadius: theme.radius.fill,
         alignItems: "center",
         justifyContent: "center",
@@ -137,7 +145,7 @@ const styles = StyleSheet.create({
         flexShrink: 1,
     },
     compactTitle: {
-        fontSize: typography.fontSize.sm,
+        fontSize: 13,
         fontWeight: typography.fontWeight.bold,
     },
     compactSubtitle: {
