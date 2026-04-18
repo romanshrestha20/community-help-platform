@@ -40,6 +40,7 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
   const locationPicker = useLocationPicker({
     initialValue: user?.address ?? null,
     autoUseCurrentLocationOnMount: !user?.address,
+    storageKey: null,
   });
   const {
     validationError,
