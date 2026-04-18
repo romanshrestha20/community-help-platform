@@ -137,7 +137,7 @@ export default function Layout() {
       return;
     }
 
-    if (!isAuthenticated && !inAuthGroup) {
+    if (!isAuthenticated && !inAuthGroup && !isRootRoute) {
       router.replace("/(auth)/login");
       return;
     }
