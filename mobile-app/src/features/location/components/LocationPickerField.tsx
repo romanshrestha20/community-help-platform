@@ -14,7 +14,35 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppInput } from "@/components/ui/AppInput";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { AppLocation, LocationSuggestion } from "../types/location.types";
-import { formatCompactAddress, shortenPlainAddress } from "../utils/address";
+import { formatCompactAddress } from "../utils/address";
+
+const formatSuggestionTitle = (suggestion: LocationSuggestion) => {
+  const streetFromFormatted = suggestion.formattedAddress
+    ?.split(",")
+    .map((segment) => segment.trim())
+    .filter(Boolean)[0];
+  const street = streetFromFormatted || suggestion.label || suggestion.addressLine1 || "";
+  const locality = [suggestion.postalCode, suggestion.city]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(", ");
+
+  return [street, locality].filter(Boolean).join(", ");
+};
+
+const formatSuggestionSubtitle = (suggestion: LocationSuggestion) => {
+  const segments =
+    suggestion.formattedAddress
+      ?.split(",")
+      .map((segment) => segment.trim())
+      .filter(Boolean) ?? [];
+
+  if (segments.length <= 1) {
+    return "";
+  }
+
+  return segments.slice(1).join(", ");
+};
 
 type Props = {
   value: AppLocation | null;
@@ -64,10 +92,19 @@ export default function LocationPickerField({
   );
   const hasSelectedLocation = useMemo(() => hasUsableLocation(value), [value]);
   const showSuggestions = showStreetSearch && streetQuery.trim().length >= 2;
+  const isSearchingAddress = showSuggestions && !hasSelectedLocation;
   const showNoMatches =
     showSuggestions && !suggestionsLoading && suggestions.length === 0 && !hasSelectedLocation;
   const showSuggestionDropdown =
     showSuggestions && (suggestionsLoading || suggestions.length > 0 || showNoMatches);
+  const selectedAddressLabel = isSearchingAddress ? "Search results" : hasSelectedLocation ? "Selected address" : "Location";
+  const selectedAddressValue = isSearchingAddress
+    ? suggestionsLoading
+      ? "Searching for matching addresses..."
+      : suggestions.length > 0
+        ? "Select an address from the list"
+        : "No matching addresses found"
+    : formattedAddress;
   const selectedBackground = hasSelectedLocation
     ? (palette.successSoft ?? palette.surfaceMuted)
     : palette.surface;
@@ -172,14 +209,9 @@ export default function LocationPickerField({
 
                     <View style={styles.suggestionTextBlock}>
                       {(() => {
-                        const suggestionTitle = formatCompactAddress(
-                          item,
-                          item.label || "Address unavailable"
-                        );
-                        const suggestionSubtitle = shortenPlainAddress(
-                          item.formattedAddress,
-                          ""
-                        );
+                        const suggestionTitle =
+                          formatSuggestionTitle(item) || "Address unavailable";
+                        const suggestionSubtitle = formatSuggestionSubtitle(item);
                         const showSubtitle =
                           suggestionSubtitle.length > 0 && suggestionSubtitle !== suggestionTitle;
 
@@ -267,7 +299,7 @@ export default function LocationPickerField({
               <Text
                 style={[styles.selectedAddressLabel, { color: palette.textSecondary }]}
               >
-                {hasSelectedLocation ? "Selected address" : "Location"}
+                {selectedAddressLabel}
               </Text>
               <Text
                 style={[
@@ -279,7 +311,7 @@ export default function LocationPickerField({
                   },
                 ]}
               >
-                {formattedAddress}
+                {selectedAddressValue}
               </Text>
             </View>
           </View>

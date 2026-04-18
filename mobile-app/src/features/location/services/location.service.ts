@@ -195,10 +195,38 @@ const pickFirst = (...values: (string | null | undefined)[]) => {
     return value ? value.trim() : null;
 };
 
+const buildStreetAddress = (address?: {
+    house_number?: string;
+    road?: string;
+    pedestrian?: string;
+    footway?: string;
+    path?: string;
+    street?: string;
+    name?: string;
+} | null) => {
+    if (!address) return null;
+
+    const streetName = pickFirst(
+        address.road,
+        address.pedestrian,
+        address.footway,
+        address.path,
+        address.street,
+        address.name
+    );
+
+
+    if (streetName) {
+        return streetName.trim();
+    }
+
+    return null;
+};
+
 const formatSuggestionLabel = (addressLine1: string | null, postalCode: string | null, city: string | null) => {
     const locationSuffix = [postalCode, city].filter(Boolean).join(" ");
     if (addressLine1 && locationSuffix) {
-        return `${addressLine1} — ${locationSuffix}`;
+        return `${addressLine1} — ${locationSuffix} `;
     }
 
     if (addressLine1) {
@@ -210,7 +238,7 @@ const formatSuggestionLabel = (addressLine1: string | null, postalCode: string |
 
 const toLocationSuggestion = (result: any): LocationSuggestion => {
     const address = result?.address ?? {};
-    const addressLine1 = pickFirst(address.house_number, address.road, address.pedestrian, address.footway, address.path, address.street);
+    const addressLine1 = buildStreetAddress(address);
     const postalCode = pickFirst(address.postcode);
     const city = pickFirst(address.city, address.town, address.village, address.municipality);
     const state = pickFirst(address.state, address.region, address.county);
@@ -226,7 +254,7 @@ const toLocationSuggestion = (result: any): LocationSuggestion => {
         : formatSuggestionLabel(addressLine1, postalCode, city);
 
     return {
-        id: String(result?.place_id ?? `${latitude}:${longitude}:${formattedAddress}`),
+        id: String(result?.place_id ?? `${latitude}:${longitude}:${formattedAddress} `),
         label: formatSuggestionLabel(addressLine1, postalCode, city),
         addressLine1,
         postalCode,

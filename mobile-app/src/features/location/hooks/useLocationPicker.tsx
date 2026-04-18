@@ -13,12 +13,14 @@ const LOCATION_STORAGE_KEY = "location_picker_value";
 type UseLocationPickerOptions = {
   initialValue?: AppLocation | null;
   autoUseCurrentLocationOnMount?: boolean;
+  storageKey?: string | null;
 };
 
 export function useLocationPicker(options?: UseLocationPickerOptions | null) {
   const {
     initialValue = null,
     autoUseCurrentLocationOnMount = true,
+    storageKey = LOCATION_STORAGE_KEY,
   } = options ?? {};
 
   const [value, setValueState] = useState<AppLocation | null>(initialValue);
@@ -35,17 +37,21 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
   const hasAutoInitializedRef = useRef(false);
 
   const persistLocation = useCallback(async (location: AppLocation | null) => {
+    if (!storageKey) {
+      return;
+    }
+
     try {
       if (!location) {
-        await AsyncStorage.removeItem(LOCATION_STORAGE_KEY);
+        await AsyncStorage.removeItem(storageKey);
         return;
       }
 
-      await AsyncStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(location));
+      await AsyncStorage.setItem(storageKey, JSON.stringify(location));
     } catch {
       // ignore storage failure
     }
-  }, []);
+  }, [storageKey]);
 
   const applyLocation = useCallback(
     async (location: AppLocation | null, query?: string) => {
@@ -66,8 +72,20 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
     let isMounted = true;
 
     const hydrateLocation = async () => {
+      if (!storageKey) {
+        if (initialValue) {
+          setValueState(initialValue);
+          skipNextSearchRef.current = true;
+          setStreetQueryState(
+            initialValue.formattedAddress || initialValue.addressLine1 || ""
+          );
+        }
+        setHydrating(false);
+        return;
+      }
+
       try {
-        const raw = await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
+        const raw = await AsyncStorage.getItem(storageKey);
 
         if (!isMounted) return;
 
@@ -108,7 +126,7 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
     return () => {
       isMounted = false;
     };
-  }, [initialValue]);
+  }, [initialValue, storageKey]);
 
   useEffect(() => {
     if (hydrating) return;
@@ -116,7 +134,15 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
 
     hasAutoInitializedRef.current = true;
 
-    if (autoUseCurrentLocationOnMount) {
+    const hasExistingLocation = Boolean(
+      value?.formattedAddress ||
+      value?.addressLine1 ||
+      value?.city ||
+      value?.country
+    );
+    const hasExistingQuery = streetQuery.trim().length > 0;
+
+    if (autoUseCurrentLocationOnMount && !hasExistingLocation && !hasExistingQuery) {
       void (async () => {
         try {
           setLoading(true);
@@ -136,7 +162,7 @@ export function useLocationPicker(options?: UseLocationPickerOptions | null) {
         }
       })();
     }
-  }, [applyLocation, autoUseCurrentLocationOnMount, hydrating, value]);
+  }, [applyLocation, autoUseCurrentLocationOnMount, hydrating, streetQuery, value]);
 
   useEffect(() => {
     const query = streetQuery.trim();
