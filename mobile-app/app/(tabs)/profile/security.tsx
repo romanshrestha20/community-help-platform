@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -109,7 +109,13 @@ export default function PrivacySecurityScreen() {
     error: authError,
   } = useAuth();
 
-  const { user, loading: loadingProfile, error: profileError, handleDeleteProfile } = useUser();
+  const {
+    user,
+    loading: loadingProfile,
+    error: profileError,
+    handleDeleteProfile,
+    loadUserProfile,
+  } = useUser();
 
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
   const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
@@ -131,6 +137,10 @@ export default function PrivacySecurityScreen() {
   const hasPhoneNumber = Boolean(displayUser?.phone);
   const hasVerifiedPhone = displayUser?.isPhoneVerified === true;
   const combinedError = authError || profileError;
+
+  useEffect(() => {
+    void loadUserProfile();
+  }, [loadUserProfile]);
 
   const signInSummary = useMemo(() => {
     if (!displayUser?.email) {
@@ -256,14 +266,27 @@ export default function PrivacySecurityScreen() {
             </Text>
 
             <SecurityRow
-              title={hasPasswordSignIn ? "Change password" : "Add password"}
+              title="Add password"
+              subtitle={
+                hasPasswordSignIn
+                  ? "This account already has a password."
+                  : "Create a password so this account can also use email/password sign-in."
+              }
+              actionLabel="Add"
+              onPress={!hasPasswordSignIn ? () => setChangePasswordVisible(true) : undefined}
+              disabled={hasPasswordSignIn}
+            />
+
+            <SecurityRow
+              title="Change password"
               subtitle={
                 hasPasswordSignIn
                   ? "Update your current password and require a fresh sign-in."
-                  : "Create a password so this account can also use email/password sign-in."
+                  : "Add a password first to enable password changes."
               }
-              actionLabel={hasPasswordSignIn ? "Change" : "Add"}
-              onPress={() => setChangePasswordVisible(true)}
+              actionLabel="Change"
+              onPress={hasPasswordSignIn ? () => setChangePasswordVisible(true) : undefined}
+              disabled={!hasPasswordSignIn}
             />
 
             <SecurityRow
