@@ -86,6 +86,7 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
 
     const locationPicker = useLocationPicker({
         autoUseCurrentLocationOnMount: false,
+        storageKey: null,
     });
     const { setValue: setLocationValue } = locationPicker;
 
