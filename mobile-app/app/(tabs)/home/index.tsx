@@ -15,7 +15,6 @@ import { useHomeScreen } from "@/features/home/hooks";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { APP_ROUTES } from "@/config/routes";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
-import { useCategories } from "@/features/category/hooks/category.hook";
 
 type ActionTileProps = {
   title: string;
@@ -144,7 +143,6 @@ export default function Home() {
   const { palette } = useThemeContext();
   const user = useAuthStore((state) => state.user);
   const { value: userLocation } = useLocationPicker({ autoUseCurrentLocationOnMount: true });
-  const { categories } = useCategories();
 
   const {
     filters,
@@ -165,12 +163,6 @@ export default function Home() {
     handleRemoveBid,
   } = useHomeScreen();
 
-  const medicalCategory = categories.find(
-    (category) => category.name.trim().toLowerCase() === "medical"
-  );
-  const isMedicalActive = Boolean(
-    medicalCategory && filters.categoryId === medicalCategory.id
-  );
   const isNearbyActive = filters.radiusKm !== "ANY";
 
   return (
