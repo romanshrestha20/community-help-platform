@@ -35,6 +35,7 @@ export default function RegisterScreen() {
 
   const locationPicker = useLocationPicker({
     autoUseCurrentLocationOnMount: true,
+    storageKey: null,
   });
 
   const [email, setEmail] = useState("");
