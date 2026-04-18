@@ -41,6 +41,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     const existingImages = initialData?.images ?? [];
     const locationPicker = useLocationPicker({
         initialValue: initialData?.location ?? null,
+        storageKey: null,
     });
 
     const [values, setValues] = useState<RequestFormValues>({

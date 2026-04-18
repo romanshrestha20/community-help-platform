@@ -14,7 +14,6 @@ import { Card, Row, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
-import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { HelpRequest } from "../types/helpRequest.types";
 import {
   formatRequestBudget,
@@ -59,6 +58,7 @@ export const RequestCard = ({
   const extraImageCount = Math.max((request.images?.length ?? 0) - imagePreviews.length, 0);
   const favoriteLoading = Boolean(actionLoadingById[request.id]);
   const favorited = isFavorite(request.id);
+
   const previewImages = useMemo<PreviewImageItem[]>(
     () =>
       (request.images ?? [])
@@ -89,6 +89,7 @@ export const RequestCard = ({
   const budget = formatRequestBudget(request);
   const categoryLabel = getRequestCategoryLabel(request);
   const bidCount = request.bidCount ?? 0;
+  const isUnpaid = !request.isPaid;
 
   const handlePrimaryAction = (event?: GestureResponderEvent) => {
     event?.stopPropagation();
@@ -129,36 +130,70 @@ export const RequestCard = ({
           styles.card,
           {
             backgroundColor: palette.surface,
-            borderColor: palette.border,
+            borderColor: "transparent",
+            shadowColor: "#142312",
           },
         ]}
       >
-        <Stack gap="md">
-          <Row justify="space-between" align="flex-start">
-            <View style={styles.headerContent}>
+        <Stack gap="sm">
+          <Row justify="space-between" align="flex-start" gap="sm">
+            <View style={styles.titleWrap}>
               <Text
                 numberOfLines={2}
                 style={[styles.title, { color: palette.textPrimary }]}
               >
                 {title}
               </Text>
-
-              <View style={[styles.categoryPill, { backgroundColor: palette.surfaceMuted }]}>
-                <Text style={[styles.categoryText, { color: palette.textSecondary }]}>
-                  {categoryLabel}
-                </Text>
-              </View>
             </View>
 
             <RequestStatusBadge status={request.status} />
           </Row>
 
-          <Row justify="space-between" align="center">
-            <Text style={[styles.budget, { color: palette.primary }]}>{budget}</Text>
-            <Text style={[styles.bidCount, { color: palette.textSecondary }]}>
-              {bidCount} bid{bidCount === 1 ? "" : "s"}
-            </Text>
+          <Row align="center" gap="xs" style={styles.pillRow}>
+            <View
+              style={[
+                styles.categoryPill,
+                { backgroundColor: palette.surfaceMuted },
+              ]}
+            >
+              <Text style={[styles.categoryText, { color: palette.textSecondary }]}>
+                {categoryLabel}
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.metaPill,
+                { backgroundColor: palette.surfaceMuted },
+              ]}
+            >
+              <Text style={[styles.metaPillText, { color: palette.textSecondary }]}>
+                {bidCount} bid{bidCount === 1 ? "" : "s"}
+              </Text>
+            </View>
+
+            {distance ? (
+              <View
+                style={[
+                  styles.metaPill,
+                  { backgroundColor: `${palette.primary}14` },
+                ]}
+              >
+                <Text style={[styles.metaPillText, { color: palette.primary }]}>
+                  {distance} away
+                </Text>
+              </View>
+            ) : null}
           </Row>
+
+          <Text
+            style={[
+              styles.budget,
+              { color: palette.primary },
+            ]}
+          >
+            {isUnpaid ? budget.toUpperCase() : budget}
+          </Text>
 
           <Text
             numberOfLines={2}
@@ -167,27 +202,8 @@ export const RequestCard = ({
             {description}
           </Text>
 
-          <Row align="center" gap="sm">
-            <ProfileAvatar
-              uri={request.requesterAvatarUrl}
-              fullName={request.requesterName}
-              size={34}
-            />
-            <View style={styles.posterMetaWrap}>
-              <Text
-                numberOfLines={1}
-                style={[styles.posterName, { color: palette.textPrimary }]}
-              >
-                {request.requesterName || "Community member"}
-              </Text>
-              <Text
-                numberOfLines={1}
-                style={[styles.posterSubline, { color: palette.textSecondary }]}
-              >
-                {request.requesterLocation || location}
-              </Text>
-            </View>
-          </Row>
+
+
 
           {imagePreviews.length > 0 ? (
             imagePreviews.length === 1 ? (
@@ -259,7 +275,6 @@ export const RequestCard = ({
                           style={[styles.collageSecondaryImage, { backgroundColor: palette.surfaceMuted }]}
                           resizeMode="cover"
                         />
-
                         {showOverflowBadge ? (
                           <View
                             style={[
@@ -278,9 +293,29 @@ export const RequestCard = ({
             )
           ) : null}
 
+          {/* <Row align="center" gap="sm">
+            <ProfileAvatar
+              uri={request.requesterAvatarUrl}
+              fullName={request.requesterName}
+              size={38}
+            />
+            <View style={styles.posterMetaWrap}>
+              <Text
+                numberOfLines={1}
+                style={[styles.posterName, { color: palette.textPrimary }]}
+              >
+                {request.requesterName || "Community member"}
+              </Text>
+            </View>
+
+          </Row> */}
           <View style={styles.metaList}>
             <Row align="center" gap="xs">
-              <Ionicons name="location-outline" size={16} color={palette.textSecondary} />
+              <Ionicons
+                name="location-outline"
+                size={15}
+                color={palette.textSecondary}
+              />
               <Text
                 numberOfLines={1}
                 style={[styles.metaText, styles.metaFlex, { color: palette.textSecondary }]}
@@ -289,28 +324,20 @@ export const RequestCard = ({
               </Text>
             </Row>
 
-            <Row align="center" gap="md">
-              {distance ? (
-                <Row align="center" gap="xs">
-                  <Ionicons name="navigate-outline" size={16} color={palette.primary} />
-                  <Text style={[styles.metaText, { color: palette.primary }]}>
-                    {distance}
-                  </Text>
-                </Row>
-              ) : null}
-
-              <Row align="center" gap="xs">
-                <Ionicons name="time-outline" size={16} color={palette.textSecondary} />
-                <Text style={[styles.metaText, { color: palette.textSecondary }]}>
-                  {createdAt}
-                </Text>
-              </Row>
+            <Row align="center" gap="xs">
+              <Ionicons
+                name="time-outline"
+                size={15}
+                color={palette.textSecondary}
+              />
+              <Text style={[styles.metaText, { color: palette.textSecondary }]}>
+                {createdAt}
+              </Text>
             </Row>
           </View>
 
           {(primaryActionLabel || secondaryActionLabel) && (
             <Row gap="sm" style={styles.actionRow}>
-
               {secondaryActionLabel ? (
                 <AppButton
                   title={secondaryActionLabel}
@@ -321,7 +348,6 @@ export const RequestCard = ({
                 />
               ) : null}
 
-
               {primaryActionLabel ? (
                 <AppButton
                   title={primaryActionLabel}
@@ -331,6 +357,7 @@ export const RequestCard = ({
                   disabled={primaryActionDisabled}
                 />
               ) : null}
+
               <AppButton
                 title={favorited ? "Saved" : "Save"}
                 onPress={handleFavoriteToggle}
@@ -348,7 +375,6 @@ export const RequestCard = ({
                   ) : undefined
                 }
               />
-
             </Row>
           )}
 
@@ -372,53 +398,56 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   pressed: {
-    opacity: 0.96,
-    transform: [{ scale: 0.995 }],
+    opacity: 0.98,
+    transform: [{ scale: 0.97 }],
   },
   card: {
-    borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
+    borderWidth: 0,
+    borderRadius: 20,
+    padding: 14,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
   },
-  headerContent: {
+  titleWrap: {
     flex: 1,
     paddingRight: theme.spacing.sm,
-    gap: theme.spacing.xs,
   },
   title: {
     fontSize: theme.typography.fontSize.lg,
     lineHeight: theme.typography.lineHeight.lg,
     fontWeight: theme.typography.fontWeight.bold,
   },
+  pillRow: {
+    flexWrap: "wrap",
+  },
   categoryPill: {
     alignSelf: "flex-start",
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: theme.radius.fill,
   },
   categoryText: {
-    fontSize: theme.typography.fontSize.xs,
+    fontSize: 11,
     fontWeight: theme.typography.fontWeight.medium,
   },
   budget: {
     fontSize: theme.typography.fontSize.lg,
-    lineHeight: theme.typography.lineHeight.lg,
+    lineHeight: 26,
     fontWeight: theme.typography.fontWeight.bold,
-  },
-  bidCount: {
-    fontSize: theme.typography.fontSize.sm,
-    lineHeight: theme.typography.lineHeight.sm,
+    letterSpacing: 0.3,
   },
   description: {
-    fontSize: theme.typography.fontSize.sm,
-    lineHeight: theme.typography.lineHeight.md,
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: 20,
   },
   posterMetaWrap: {
     flex: 1,
     minWidth: 0,
   },
   posterName: {
-    fontSize: theme.typography.fontSize.sm,
+    fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
   },
   posterSubline: {
@@ -432,16 +461,20 @@ const styles = StyleSheet.create({
   imageCollage: {
     flexDirection: "row",
     gap: theme.spacing.xs,
-    height: 188,
+    height: 156,
   },
   singleImageWrapper: {
-    borderRadius: theme.radius.lg,
+    borderRadius: 18,
     overflow: "hidden",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
   },
   singleImage: {
     width: "100%",
-    height: 208,
-    borderRadius: theme.radius.lg,
+    height: 172,
+    borderRadius: 18,
   },
   imageWrapper: {
     position: "relative",
@@ -461,7 +494,7 @@ const styles = StyleSheet.create({
   },
   collageSecondaryColumn: {
     flex: 0.9,
-    gap: theme.spacing.xs,
+    gap: 6,
   },
   collageSecondary: {
     flex: 1,
@@ -476,7 +509,7 @@ const styles = StyleSheet.create({
   },
   thumbnail: {
     width: "100%",
-    height: 138,
+    height: 116,
     borderRadius: theme.radius.md,
   },
   imageOverlay: {
@@ -491,14 +524,25 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold,
   },
   metaList: {
-    gap: theme.spacing.sm,
+    gap: 6,
   },
   metaFlex: {
     flex: 1,
   },
   metaText: {
-    fontSize: theme.typography.fontSize.sm,
-    lineHeight: theme.typography.lineHeight.sm,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  metaPill: {
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  metaPillText: {
+    fontSize: 11,
+    fontWeight: "700",
   },
   actionRow: {
     flexWrap: "wrap",
