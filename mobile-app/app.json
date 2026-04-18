@@ -3,11 +3,13 @@
   "slug": "community-support",
   "version": "1.0.0",
   "orientation": "portrait",
-  
   "android": {
     "package": "com.romann_shrr.mobileapp"
   },
   "ios": {
     "bundleIdentifier": "com.romann-shrr.mobileapp"
-  }
+  },
+  "plugins": [
+    "@react-native-community/datetimepicker"
+  ]
 }
