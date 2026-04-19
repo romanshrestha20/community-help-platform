@@ -8,6 +8,7 @@ import { AppInput } from "@/components/ui/AppInput";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Card, Row, Screen, ScreenView, Stack, theme } from "@/design-system";
 import LocationPickerField from "@/features/location/components/LocationPickerField";
+import { useLocationPickerScreenStore } from "@/features/location/store/locationPickerScreen.store";
 import { RequestPhotoUploadSection } from "@/features/helpRequest/components/RequestPhotoUploadSection";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useCreateEditRequestScreen } from "@/features/helpRequest/hooks/useCreateEditRequestScreen";
@@ -30,6 +31,11 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
     const router = useRouter();
     const { palette } = useThemeContext();
     const { categories } = useCategories();
+    const confirmedMapLocation = useLocationPickerScreenStore((state) => state.confirmedLocation);
+    const setDraftMapLocation = useLocationPickerScreenStore((state) => state.setDraftLocation);
+    const consumeConfirmedLocation = useLocationPickerScreenStore(
+        (state) => state.consumeConfirmedLocation
+    );
     const [selectedImages, setSelectedImages] = useState<RequestImageUploadInput[]>([]);
     const isProfileRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
     const requestListRoute = isProfileRoute
@@ -58,6 +64,17 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
         if (form.categoryId || !categories.length) return;
         updateField("categoryId", categories[0].id);
     }, [categories, form.categoryId, updateField]);
+
+    useEffect(() => {
+        if (!confirmedMapLocation) return;
+
+        void (async () => {
+            const nextLocation = consumeConfirmedLocation();
+            if (!nextLocation) return;
+            clearFieldError("location");
+            await locationPicker.setValue(nextLocation);
+        })();
+    }, [clearFieldError, confirmedMapLocation, consumeConfirmedLocation, locationPicker]);
 
     const handleBack = () => {
         goBackOrFallback({
@@ -259,6 +276,17 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                     >
                         <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Location</Text>
                         <Text style={[styles.sectionDescription, { color: palette.textSecondary }]}>Set where help is needed so nearby people can find your request.</Text>
+
+                        <AppButton
+                            title="Choose on map"
+                            onPress={() => {
+                                setDraftMapLocation(locationPicker.value);
+                                router.push(APP_ROUTES.LOCATION_PICKER);
+                            }}
+                            variant="secondary"
+                            fullWidth={false}
+                            disabled={saving}
+                        />
 
                         <LocationPickerField
                             value={locationPicker.value}

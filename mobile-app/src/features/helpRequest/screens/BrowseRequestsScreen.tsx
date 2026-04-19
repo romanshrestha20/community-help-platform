@@ -18,49 +18,18 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { RequestList } from "@/features/helpRequest/components/RequestList";
 import {
   GlobalFilters,
-  useGlobalFilters,
+  applyRequestSort,
 } from "@/features/helpRequest/hooks/useGlobalFilters";
 import { useRequestList } from "@/features/helpRequest/hooks/useRequestList";
+import { useRequestSearch } from "@/features/helpRequest/hooks/useRequestSearch";
 import {
-  HelpRequest,
   HelpRequestStatus,
 } from "@/features/helpRequest/types/helpRequest.types";
 import { APP_ROUTES } from "@/config/routes";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { useCategories } from "@/features/category/hooks/category.hook";
-
-const applyFilters = (
-  requests: HelpRequest[],
-  filters: ReturnType<typeof useGlobalFilters>["filters"]
-) => {
-  let next = [...requests];
-
-  if (filters.status !== "ALL") {
-    next = next.filter((request) => request.status === filters.status);
-  }
-
-  if (filters.categoryId !== "ALL") {
-    next = next.filter((request) => request.categoryId === filters.categoryId);
-  }
-
-  if (filters.sortBy === "NEWEST") {
-    next.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }
-
-  if (filters.sortBy === "OLDEST") {
-    next.sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-  }
-
-  if (filters.sortBy === "MOST_BIDS") {
-    next.sort((a, b) => b.bidCount - a.bidCount);
-  }
-
-  return next;
-};
+import { RequestMapView } from "@/features/map/components/RequestMapView";
+import { MapRequestFilters } from "@/features/map/types/map.types";
 
 type ChipProps = {
   active?: boolean;
@@ -91,6 +60,82 @@ const FilterChip = ({ active = false, label, onPress }: ChipProps) => {
         {label}
       </Text>
     </Pressable>
+  );
+};
+
+const ViewModeToggle = ({
+  value,
+  onChange,
+}: {
+  value: "list" | "map";
+  onChange: (value: "list" | "map") => void;
+}) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <View
+      style={[
+        styles.viewToggleWrap,
+        {
+          backgroundColor: "#F3F6F2",
+          borderColor: palette.border,
+        },
+      ]}
+    >
+      <Pressable
+        onPress={() => onChange("list")}
+        style={[
+          styles.viewToggleButton,
+          {
+            backgroundColor: value === "list" ? palette.surface : "transparent",
+          },
+        ]}
+      >
+        <Ionicons
+          name="list-outline"
+          size={16}
+          color={value === "list" ? palette.textPrimary : palette.textSecondary}
+        />
+        <Text
+          style={[
+            styles.viewToggleText,
+            {
+              color:
+                value === "list" ? palette.textPrimary : palette.textSecondary,
+            },
+          ]}
+        >
+          List
+        </Text>
+      </Pressable>
+
+      <Pressable
+        onPress={() => onChange("map")}
+        style={[
+          styles.viewToggleButton,
+          {
+            backgroundColor: value === "map" ? palette.surface : "transparent",
+          },
+        ]}
+      >
+        <Ionicons
+          name="map-outline"
+          size={16}
+          color={value === "map" ? palette.textPrimary : palette.textSecondary}
+        />
+        <Text
+          style={[
+            styles.viewToggleText,
+            {
+              color:
+                value === "map" ? palette.textPrimary : palette.textSecondary,
+            },
+          ]}
+        >
+          Map
+        </Text>
+      </Pressable>
+    </View>
   );
 };
 
@@ -186,20 +231,41 @@ const FiltersModal = ({
 export const BrowseRequestsScreen = () => {
   const router = useRouter();
   const { palette } = useThemeContext();
-  const { filters, updateFilter, resetFilters } = useGlobalFilters();
-  const { requests, refreshing, refreshRequests } = useRequestList({
-    scope: "browse",
-  });
+  const {
+    filters,
+    updateFilter,
+    resetFilters,
+    searchQuery,
+    setSearchQuery,
+    resetSearch,
+    buildParams,
+  } = useRequestSearch();
   const { categories } = useCategories();
-  const [searchQuery, setSearchQuery] = useState("");
   const [filtersVisible, setFiltersVisible] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+
   const { value: userLocation } = useLocationPicker({
     autoUseCurrentLocationOnMount: true,
+  });
+
+  const requestParams = useMemo(
+    () =>
+      buildParams({
+        latitude: userLocation?.latitude,
+        longitude: userLocation?.longitude,
+      }),
+    [buildParams, userLocation?.latitude, userLocation?.longitude]
+  );
+
+  const { requests, refreshing, refreshRequests } = useRequestList({
+    scope: "browse",
+    params: requestParams,
   });
 
   const medicalCategory = categories.find(
     (category) => category.name.trim().toLowerCase() === "medical"
   );
+
   const isNearbyActive = filters.radiusKm !== "ANY";
   const isMedicalActive = Boolean(
     medicalCategory && filters.categoryId === medicalCategory.id
@@ -207,31 +273,30 @@ export const BrowseRequestsScreen = () => {
   const allActive = filters.categoryId === "ALL" && filters.radiusKm === "ANY";
 
   const filteredRequests = useMemo(() => {
-    const base = applyFilters(requests, filters);
-    const query = searchQuery.trim().toLowerCase();
+    return applyRequestSort(requests, filters.sortBy);
+  }, [filters.sortBy, requests]);
 
-    if (!query) return base;
-
-    return base.filter((request) => {
-      const haystack = [
-        request.title,
-        request.description,
-        request.category?.name ?? "",
-        request.category?.slug ?? "",
-        request.requesterName,
-        request.city ?? "",
-        request.country ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(query);
-    });
-  }, [filters, requests, searchQuery]);
+  const mapFilters = useMemo<MapRequestFilters>(
+    () => ({
+      latitude: userLocation?.latitude,
+      longitude: userLocation?.longitude,
+      categoryId: filters.categoryId === "ALL" ? null : filters.categoryId,
+      status: filters.status,
+      search: searchQuery.trim() || undefined,
+      radiusKm: filters.radiusKm === "ANY" ? undefined : Number(filters.radiusKm),
+    }),
+    [
+      filters.categoryId,
+      filters.radiusKm,
+      filters.status,
+      searchQuery,
+      userLocation?.latitude,
+      userLocation?.longitude,
+    ]
+  );
 
   const handleResetAll = () => {
-    setSearchQuery("");
-    resetFilters();
+    resetSearch();
   };
 
   return (
@@ -256,9 +321,7 @@ export const BrowseRequestsScreen = () => {
                 Browse Requests
               </Text>
             </View>
-            <Text
-              style={[styles.headerSubtitle, { color: "#6B7A6B" }]}
-            >
+            <Text style={[styles.headerSubtitle, { color: "#6B7A6B" }]}>
               Find nearby requests from other community members.
             </Text>
           </View>
@@ -323,6 +386,8 @@ export const BrowseRequestsScreen = () => {
         </View>
 
         <View style={styles.secondaryActionsRow}>
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
+
           <Pressable
             onPress={() => setFiltersVisible(true)}
             style={({ pressed }) => [
@@ -364,24 +429,37 @@ export const BrowseRequestsScreen = () => {
         </View>
       </View>
 
-      <View style={styles.listContainer}>
-        <RequestList
-          requests={filteredRequests}
-          userLocation={userLocation}
-          onPressItem={(item) => router.push(APP_ROUTES.HOME_REQUEST_DETAILS(item.id))}
-          refreshing={refreshing}
-          onRefresh={refreshRequests}
-          emptyTitle={
-            searchQuery ? "No requests match your search" : "No requests match your filters"
-          }
-          emptyDescription={
-            searchQuery
-              ? "Try a different search keyword or reset filters."
-              : "Try widening your radius or resetting filters."
-          }
-          emptyActionLabel="Reset"
-          onPressEmptyAction={handleResetAll}
-        />
+      <View style={styles.contentContainer}>
+        {viewMode === "list" ? (
+          <RequestList
+            requests={filteredRequests}
+            userLocation={userLocation}
+            onPressItem={(item) =>
+              router.push(APP_ROUTES.HOME_REQUEST_DETAILS(item.id))
+            }
+            refreshing={refreshing}
+            onRefresh={refreshRequests}
+            emptyTitle={
+              searchQuery
+                ? "No requests match your search"
+                : "No requests match your filters"
+            }
+            emptyDescription={
+              searchQuery
+                ? "Try a different search keyword or reset filters."
+                : "Try widening your radius or resetting filters."
+            }
+            emptyActionLabel="Reset"
+            onPressEmptyAction={handleResetAll}
+          />
+        ) : (
+          <RequestMapView
+            filters={mapFilters}
+            onOpenRequest={(requestId) =>
+              router.push(APP_ROUTES.HOME_REQUEST_DETAILS(requestId))
+            }
+          />
+        )}
       </View>
 
       <FiltersModal
@@ -471,7 +549,8 @@ const styles = StyleSheet.create({
   secondaryActionsRow: {
     flexDirection: "row",
     alignItems: "center",
-    columnGap: 18,
+    justifyContent: "space-between",
+    columnGap: 12,
   },
   secondaryAction: {
     flexDirection: "row",
@@ -482,7 +561,26 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
   },
-  listContainer: {
+  viewToggleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: theme.radius.fill,
+    padding: 4,
+    borderWidth: 1,
+  },
+  viewToggleButton: {
+    minHeight: 34,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.fill,
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 6,
+  },
+  viewToggleText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  contentContainer: {
     flex: 1,
   },
   modalContent: {
