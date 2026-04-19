@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
-    Pressable,
     StyleSheet,
     Text,
     View,
@@ -20,6 +19,7 @@ import {
     MapRequestFilters,
     MapRequestItem,
     type MapBounds,
+    type Coordinates,
 } from "@/features/map/types/map.types";
 import { getBoundsFromRegion } from "@/features/map/utils/mapRegion";
 
@@ -50,10 +50,10 @@ export const RequestMapView: React.FC<Props> = ({
 }) => {
     const { palette } = useThemeContext();
     const mapRef = useRef<MapView | null>(null);
+    const boundsUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [selectedRequest, setSelectedRequest] = useState<MapRequestItem | null>(null);
-    const [activeRegion, setActiveRegion] = useState<Region | null>(null);
-    const [pendingRegion, setPendingRegion] = useState<Region | null>(null);
     const [appliedBounds, setAppliedBounds] = useState<MapBounds | null>(null);
+    const [viewportCenter, setViewportCenter] = useState<Coordinates | null>(null);
 
     const {
         location,
@@ -66,11 +66,11 @@ export const RequestMapView: React.FC<Props> = ({
     const mergedFilters = useMemo<MapRequestFilters>(() => {
         return {
             ...filters,
-            latitude: appliedBounds ? undefined : filters.latitude ?? location?.latitude,
-            longitude: appliedBounds ? undefined : filters.longitude ?? location?.longitude,
+            latitude: viewportCenter?.latitude ?? filters.latitude ?? location?.latitude,
+            longitude: viewportCenter?.longitude ?? filters.longitude ?? location?.longitude,
             bounds: appliedBounds,
         };
-    }, [appliedBounds, filters, location?.latitude, location?.longitude]);
+    }, [appliedBounds, filters, location?.latitude, location?.longitude, viewportCenter]);
 
     const {
         requests,
@@ -95,6 +95,28 @@ export const RequestMapView: React.FC<Props> = ({
         setAppliedBounds(filters.bounds ?? null);
     }, [filters.bounds]);
 
+    useEffect(() => {
+        if (filters.latitude != null && filters.longitude != null) {
+            setViewportCenter({
+                latitude: filters.latitude,
+                longitude: filters.longitude,
+            });
+        } else if (location?.latitude != null && location?.longitude != null) {
+            setViewportCenter({
+                latitude: location.latitude,
+                longitude: location.longitude,
+            });
+        }
+    }, [filters.latitude, filters.longitude, location?.latitude, location?.longitude]);
+
+    useEffect(() => {
+        return () => {
+            if (boundsUpdateTimeoutRef.current) {
+                clearTimeout(boundsUpdateTimeoutRef.current);
+            }
+        };
+    }, []);
+
     const handleRecenter = async () => {
         if (!mapRef.current || !location) return;
 
@@ -106,9 +128,11 @@ export const RequestMapView: React.FC<Props> = ({
         };
 
         mapRef.current.animateToRegion(nextRegion, 450);
-        setPendingRegion(null);
-        setActiveRegion(nextRegion);
-        setAppliedBounds(null);
+        setViewportCenter({
+            latitude: nextRegion.latitude,
+            longitude: nextRegion.longitude,
+        });
+        setAppliedBounds(getBoundsFromRegion(nextRegion));
 
         await reloadRequests();
     };
@@ -118,19 +142,7 @@ export const RequestMapView: React.FC<Props> = ({
         await reloadRequests();
     };
 
-    const handleSearchArea = async () => {
-        if (!pendingRegion) return;
-
-        setActiveRegion(pendingRegion);
-        setAppliedBounds(getBoundsFromRegion(pendingRegion));
-        setPendingRegion(null);
-    };
-
     const screenError = locationError ?? requestsError ?? null;
-    const shouldShowSearchAreaButton = regionChangedEnough(
-        activeRegion,
-        pendingRegion
-    );
 
     if (locationLoading) {
         return (
@@ -177,11 +189,31 @@ export const RequestMapView: React.FC<Props> = ({
                 onPressMap={() => setSelectedRequest(null)}
                 onRegionChangeComplete={(region, isGesture) => {
                     if (isGesture === false) return;
+                    const currentRegion = appliedBounds
+                        ? {
+                              latitude:
+                                  (appliedBounds.minLatitude + appliedBounds.maxLatitude) / 2,
+                              longitude:
+                                  (appliedBounds.minLongitude + appliedBounds.maxLongitude) / 2,
+                              latitudeDelta:
+                                  appliedBounds.maxLatitude - appliedBounds.minLatitude,
+                              longitudeDelta:
+                                  appliedBounds.maxLongitude - appliedBounds.minLongitude,
+                          }
+                        : null;
 
-                    setPendingRegion(region);
+                    if (!currentRegion || regionChangedEnough(currentRegion, region)) {
+                        if (boundsUpdateTimeoutRef.current) {
+                            clearTimeout(boundsUpdateTimeoutRef.current);
+                        }
 
-                    if (!activeRegion) {
-                        setActiveRegion(region);
+                        boundsUpdateTimeoutRef.current = setTimeout(() => {
+                            setViewportCenter({
+                                latitude: region.latitude,
+                                longitude: region.longitude,
+                            });
+                            setAppliedBounds(getBoundsFromRegion(region));
+                        }, 280);
                     }
                 }}
             />
@@ -190,28 +222,6 @@ export const RequestMapView: React.FC<Props> = ({
                 mappedCount={requests.length}
                 onPressRecenter={handleRecenter}
             />
-
-            {shouldShowSearchAreaButton ? (
-                <Pressable
-                    onPress={handleSearchArea}
-                    style={[
-                        styles.searchAreaButton,
-                        {
-                            backgroundColor: palette.surface,
-                            borderColor: palette.border,
-                        },
-                    ]}
-                >
-                    <Text
-                        style={[
-                            styles.searchAreaButtonText,
-                            { color: palette.textPrimary },
-                        ]}
-                    >
-                        Search this area
-                    </Text>
-                </Pressable>
-            ) : null}
 
             {requestsLoading ? (
                 <View
@@ -287,20 +297,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 10,
         elevation: 3,
-    },
-    searchAreaButton: {
-        position: "absolute",
-        top: theme.spacing.md,
-        alignSelf: "center",
-        borderWidth: 1,
-        borderRadius: theme.radius.fill,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        elevation: 3,
-    },
-    searchAreaButtonText: {
-        fontSize: 13,
-        fontWeight: "700",
     },
     loadingBadgeText: {
         fontSize: 13,

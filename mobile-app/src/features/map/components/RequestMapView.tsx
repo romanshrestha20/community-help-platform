@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Card, Stack, theme } from "@/design-system";
@@ -8,6 +8,7 @@ import { useCurrentLocation } from "@/features/map/hooks/useCurrentLocation";
 import { useRequestMap } from "@/features/map/hooks/useRequestMap";
 import {
   MapBounds,
+  Coordinates,
   MapRequestFilters,
   MapRequestItem,
 } from "@/features/map/types/map.types";
@@ -40,10 +41,10 @@ export const RequestMapView: React.FC<Props> = ({
   onOpenRequest,
 }) => {
   const { palette } = useThemeContext();
+  const boundsUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<MapRequestItem | null>(null);
-  const [pendingBounds, setPendingBounds] = useState<MapBounds | null>(null);
   const [appliedBounds, setAppliedBounds] = useState<MapBounds | null>(null);
-  const [baselineBounds, setBaselineBounds] = useState<MapBounds | null>(null);
+  const [viewportCenter, setViewportCenter] = useState<Coordinates | null>(null);
   const [centerSignal, setCenterSignal] = useState(0);
 
   const {
@@ -57,11 +58,11 @@ export const RequestMapView: React.FC<Props> = ({
   const mergedFilters = useMemo<MapRequestFilters>(
     () => ({
       ...filters,
-      latitude: appliedBounds ? undefined : filters.latitude ?? location?.latitude,
-      longitude: appliedBounds ? undefined : filters.longitude ?? location?.longitude,
+      latitude: viewportCenter?.latitude ?? filters.latitude ?? location?.latitude,
+      longitude: viewportCenter?.longitude ?? filters.longitude ?? location?.longitude,
       bounds: appliedBounds,
     }),
-    [appliedBounds, filters, location?.latitude, location?.longitude]
+    [appliedBounds, filters, location?.latitude, location?.longitude, viewportCenter]
   );
 
   const {
@@ -88,16 +89,36 @@ export const RequestMapView: React.FC<Props> = ({
   }, [filters.bounds]);
 
   useEffect(() => {
-    if (filters.bounds) {
-      setBaselineBounds(filters.bounds);
+    if (filters.latitude != null && filters.longitude != null) {
+      setViewportCenter({
+        latitude: filters.latitude,
+        longitude: filters.longitude,
+      });
+    } else if (location?.latitude != null && location?.longitude != null) {
+      setViewportCenter({
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
     }
-  }, [filters.bounds]);
+  }, [filters.latitude, filters.longitude, location?.latitude, location?.longitude]);
+
+  useEffect(() => {
+    return () => {
+      if (boundsUpdateTimeoutRef.current) {
+        clearTimeout(boundsUpdateTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleRecenter = async () => {
     setSelectedRequest(null);
-    setPendingBounds(null);
     setAppliedBounds(null);
-    setBaselineBounds(null);
+    if (location?.latitude != null && location?.longitude != null) {
+      setViewportCenter({
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
+    }
     setCenterSignal((value) => value + 1);
     await reloadLocation();
   };
@@ -107,19 +128,7 @@ export const RequestMapView: React.FC<Props> = ({
     await reloadRequests();
   };
 
-  const handleSearchArea = async () => {
-    if (!pendingBounds) return;
-    setAppliedBounds(pendingBounds);
-    setBaselineBounds(pendingBounds);
-    setPendingBounds(null);
-  };
-
   const screenError = locationError ?? requestsError ?? null;
-  const comparisonBounds = appliedBounds ?? baselineBounds;
-  const shouldShowSearchAreaButton = boundsChangedEnough(
-    comparisonBounds,
-    pendingBounds
-  );
 
   if (locationLoading && !location) {
     return (
@@ -175,8 +184,19 @@ export const RequestMapView: React.FC<Props> = ({
         onSelectRequest={setSelectedRequest}
         onPressMap={() => setSelectedRequest(null)}
         onBoundsChange={(bounds) => {
-          setPendingBounds(bounds);
-          setBaselineBounds((current) => current ?? bounds);
+          if (!appliedBounds || boundsChangedEnough(appliedBounds, bounds)) {
+            if (boundsUpdateTimeoutRef.current) {
+              clearTimeout(boundsUpdateTimeoutRef.current);
+            }
+
+            boundsUpdateTimeoutRef.current = setTimeout(() => {
+              setViewportCenter({
+                latitude: (bounds.minLatitude + bounds.maxLatitude) / 2,
+                longitude: (bounds.minLongitude + bounds.maxLongitude) / 2,
+              });
+              setAppliedBounds(bounds);
+            }, 280);
+          }
         }}
         centerSignal={centerSignal}
       />
@@ -185,28 +205,6 @@ export const RequestMapView: React.FC<Props> = ({
         mappedCount={requests.length}
         onPressRecenter={handleRecenter}
       />
-
-      {shouldShowSearchAreaButton ? (
-        <Pressable
-          onPress={handleSearchArea}
-          style={[
-            styles.searchAreaButton,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.searchAreaButtonText,
-              { color: palette.textPrimary },
-            ]}
-          >
-            Search this area
-          </Text>
-        </Pressable>
-      ) : null}
 
       {requestsLoading ? (
         <View
@@ -363,24 +361,6 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     fontSize: 14,
-    fontWeight: "700",
-  },
-  searchAreaButton: {
-    position: "absolute",
-    top: theme.spacing.xl,
-    alignSelf: "center",
-    borderWidth: 1,
-    borderRadius: theme.radius.fill,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    shadowColor: "#122013",
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
-  },
-  searchAreaButtonText: {
-    fontSize: 13,
     fontWeight: "700",
   },
   loadingBadge: {
