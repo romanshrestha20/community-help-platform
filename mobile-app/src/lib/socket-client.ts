@@ -94,10 +94,7 @@ const emitAck = <T>(targetSocket: Socket, event: string, payload?: unknown) =>
 export const connectSocket = async () => {
   const targetSocket = ensureSocketInstance();
   const token = await getAccessToken();
-  console.log("[socket-client] connect requested", {
-    hasToken: Boolean(token),
-    connected: targetSocket.connected,
-  });
+
 
   if (!token) {
     throw new Error("Missing access token for socket connection");
