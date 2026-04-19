@@ -31,6 +31,7 @@ export interface HelpRequest {
 
     bidCount: number;
     favoritedAt?: string | null;
+    distanceKm?: number | null;
 }
 
 export interface HelpRequestImage {

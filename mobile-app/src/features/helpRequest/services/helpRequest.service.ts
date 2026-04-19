@@ -69,6 +69,8 @@ const normalizeRequest = (request: UnknownRecord): HelpRequest => {
 
     return {
         ...request,
+        distanceKm:
+            typeof request.distanceKm === "number" ? request.distanceKm : null,
         categoryId:
             typeof request.categoryId === "string"
                 ? request.categoryId
