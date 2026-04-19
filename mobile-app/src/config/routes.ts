@@ -4,6 +4,7 @@
 export const APP_ROUTES = {
     HOME: "/home",
     HOME_REQUESTS: "/home/requests",
+    HOME_REQUESTS_MAP: "/home/requests/map",
     HOME_REQUEST_DETAILS: (id: string) => `/home/requests/${id}`,
     HOME_REQUEST_EDIT: (id: string) => `/home/requests/${id}/edit`,
     FAVORITES: "/favorites",
@@ -21,5 +22,5 @@ export const APP_ROUTES = {
     AUTH_RESET_PASSWORD: "/(auth)/reset-password",
     AUTH_VERIFY_EMAIL: "/(auth)/verify-email",
     AUTH_VERIFY_PHONE: "/(auth)/verify-phone",
-
+    LOCATION_PICKER: "/location/picker",
 } as const;
