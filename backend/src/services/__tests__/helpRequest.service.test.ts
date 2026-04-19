@@ -5,6 +5,10 @@ const { prismaMock } = vi.hoisted(() => ({
     helpRequest: {
       findMany: vi.fn(),
     },
+    userModel: {
+      findUnique: vi.fn(),
+    },
+    $queryRaw: vi.fn(),
   },
 }));
 
@@ -12,7 +16,11 @@ vi.mock("../../lib/prisma.js", () => ({
   prisma: prismaMock,
 }));
 
-import { buildFilters, getHelpRequests } from "../helpRequest.service.js";
+import {
+  buildFilters,
+  getHelpRequests,
+  getNearbyHelpRequests,
+} from "../helpRequest.service.js";
 
 describe("helpRequest.service", () => {
   beforeEach(() => {
@@ -152,5 +160,104 @@ describe("helpRequest.service", () => {
       })
     );
     expect((result.requests[0].distanceKm as number)).toBeLessThanOrEqual(10);
+  });
+
+  it("getNearbyHelpRequests: uses user profile fallback location and radius", async () => {
+    prismaMock.userModel.findUnique.mockResolvedValue({
+      id: "user-1",
+      profile: {
+        searchRadiusMeters: 5000,
+        address: {
+          latitude: 60.1699,
+          longitude: 24.9384,
+        },
+      },
+    });
+
+    prismaMock.$queryRaw
+      .mockResolvedValueOnce([
+        {
+          id: "req-1",
+          requesterId: "user-2",
+          title: "Need groceries picked up",
+          description: "Nearby request",
+          budget: 25,
+          status: "OPEN",
+          isPaid: true,
+          serviceRadiusMeters: 1200,
+          createdAt: new Date("2026-04-19T08:00:00.000Z"),
+          updatedAt: new Date("2026-04-19T08:00:00.000Z"),
+          categoryId: "cat-1",
+          categoryName: "Errands",
+          categorySlug: "errands",
+          categoryIcon: "basket-outline",
+          locationId: "loc-1",
+          latitude: 60.17,
+          longitude: 24.94,
+          addressLine1: "Forum",
+          addressLine2: null,
+          city: "Helsinki",
+          state: "Uusimaa",
+          postalCode: "00100",
+          country: "Finland",
+          formattedAddress: "Forum, Helsinki",
+          requesterName: "Maria",
+          requesterAvatarUrl: null,
+          requesterGender: null,
+          requesterLocation: "Helsinki, Finland",
+          bidCount: 2n,
+          isFavorited: false,
+          distanceMeters: 1240.44,
+        },
+      ])
+      .mockResolvedValueOnce([{ count: 1n }]);
+
+    const result = await getNearbyHelpRequests({
+      userId: "user-1",
+      page: 1,
+      limit: 20,
+    });
+
+    expect(prismaMock.userModel.findUnique).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      select: {
+        id: true,
+        profile: {
+          select: {
+            searchRadiusMeters: true,
+            address: {
+              select: {
+                latitude: true,
+                longitude: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(prismaMock.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(result.meta).toEqual({
+      total: 1,
+      page: 1,
+      totalPages: 1,
+    });
+    expect(result.searchMeta).toEqual({
+      latitude: 60.1699,
+      longitude: 24.9384,
+      radiusKm: 5,
+      categoryId: null,
+      category: null,
+      search: null,
+    });
+    expect(result.requests[0]).toEqual(
+      expect.objectContaining({
+        id: "req-1",
+        requesterId: "user-2",
+        categoryId: "cat-1",
+        bidCount: 2,
+        isFavorited: false,
+        distanceKm: 1.2,
+      })
+    );
   });
 });

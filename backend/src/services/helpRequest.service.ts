@@ -1,5 +1,6 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../lib/prisma.js";
+import AppError from "../utils/appError.js";
 
 const validStatuses = ["OPEN", "ASSIGNED", "COMPLETED", "CANCELLED"] as const;
 const allowedSortFields = ["createdAt", "updatedAt", "budget", "title", "status"] as const;
@@ -23,6 +24,52 @@ type HelpRequestQuery = {
   maxLatitude?: string | number;
   minLongitude?: string | number;
   maxLongitude?: string | number;
+};
+
+type NearbyHelpRequestQuery = {
+  userId: string;
+  latitude?: string | number;
+  longitude?: string | number;
+  radiusKm?: string | number;
+  category?: string;
+  categoryId?: string;
+  search?: string;
+  page?: string | number;
+  limit?: string | number;
+};
+
+type NearbyHelpRequestRow = {
+  id: string;
+  requesterId: string;
+  title: string;
+  description: string;
+  budget: number | null;
+  status: string;
+  isPaid: boolean;
+  serviceRadiusMeters: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  categoryId: string;
+  categoryName: string;
+  categorySlug: string;
+  categoryIcon: string | null;
+  locationId: string;
+  latitude: number;
+  longitude: number;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+  formattedAddress: string | null;
+  requesterName: string | null;
+  requesterAvatarUrl: string | null;
+  requesterGender: string | null;
+  requesterLocation: string | null;
+  bidCount: bigint | number;
+  isFavorited: boolean;
+  distanceMeters: number;
 };
 
 const parseFiniteNumber = (value: unknown) => {
@@ -345,6 +392,245 @@ export const getHelpRequests = async (query: HelpRequestQuery) => {
       total,
       page,
       totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+export const getNearbyHelpRequests = async (query: NearbyHelpRequestQuery) => {
+  const userId = String(query.userId || "").trim();
+
+  if (!userId) {
+    throw new AppError("Unauthorized", 401);
+  }
+
+  const page = Math.max(Number.parseInt(String(query.page ?? 1), 10) || 1, 1);
+  const limit = Math.min(Number.parseInt(String(query.limit ?? 20), 10) || 20, 50);
+  const offset = (page - 1) * limit;
+
+  const currentUser = await prisma.userModel.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      profile: {
+        select: {
+          searchRadiusMeters: true,
+          address: {
+            select: {
+              latitude: true,
+              longitude: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!currentUser) {
+    throw new AppError("User not found.", 404);
+  }
+
+  const fallbackLatitude = currentUser.profile?.address?.latitude ?? null;
+  const fallbackLongitude = currentUser.profile?.address?.longitude ?? null;
+  const fallbackRadiusKm =
+    currentUser.profile?.searchRadiusMeters != null
+      ? currentUser.profile.searchRadiusMeters / 1000
+      : 0.8;
+
+  const latitude = parseFiniteNumber(query.latitude) ?? fallbackLatitude;
+  const longitude = parseFiniteNumber(query.longitude) ?? fallbackLongitude;
+  const radiusKm = parseFiniteNumber(query.radiusKm) ?? fallbackRadiusKm;
+
+  if (latitude == null || longitude == null) {
+    throw new AppError("User location is required to search nearby requests.", 400);
+  }
+
+  const categoryId =
+    typeof query.categoryId === "string" && query.categoryId.trim()
+      ? query.categoryId.trim()
+      : null;
+  const categorySlug =
+    typeof query.category === "string" && query.category.trim()
+      ? query.category.trim().toLowerCase()
+      : null;
+  const normalizedSearch =
+    typeof query.search === "string" && query.search.trim()
+      ? query.search.trim()
+      : null;
+  const radiusMeters = Math.max(radiusKm, 0) * 1000;
+
+  const categoryIdSql = categoryId
+    ? Prisma.sql`AND hr."categoryId" = ${categoryId}`
+    : Prisma.empty;
+  const categorySlugSql = !categoryId && categorySlug
+    ? Prisma.sql`AND c.slug = ${categorySlug}`
+    : Prisma.empty;
+  const searchSql = normalizedSearch
+    ? Prisma.sql`
+        AND (
+          hr.title ILIKE ${`%${normalizedSearch}%`}
+          OR hr.description ILIKE ${`%${normalizedSearch}%`}
+          OR c.name ILIKE ${`%${normalizedSearch}%`}
+          OR c.slug ILIKE ${`%${normalizedSearch}%`}
+          OR COALESCE(l.city, '') ILIKE ${`%${normalizedSearch}%`}
+          OR COALESCE(l.country, '') ILIKE ${`%${normalizedSearch}%`}
+          OR COALESCE(l."formattedAddress", '') ILIKE ${`%${normalizedSearch}%`}
+          OR COALESCE(l."addressLine1", '') ILIKE ${`%${normalizedSearch}%`}
+        )
+      `
+    : Prisma.empty;
+
+  const rows = await prisma.$queryRaw<NearbyHelpRequestRow[]>(Prisma.sql`
+    SELECT
+      hr.id,
+      hr."requesterId" AS "requesterId",
+      hr.title,
+      hr.description,
+      hr.budget,
+      hr.status::text AS status,
+      hr."isPaid" AS "isPaid",
+      hr."serviceRadiusMeters" AS "serviceRadiusMeters",
+      hr."createdAt" AS "createdAt",
+      hr."updatedAt" AS "updatedAt",
+      c.id AS "categoryId",
+      c.name AS "categoryName",
+      c.slug AS "categorySlug",
+      c.icon AS "categoryIcon",
+      l.id AS "locationId",
+      l.latitude,
+      l.longitude,
+      l."addressLine1",
+      l."addressLine2",
+      l.city,
+      l.state,
+      l."postalCode",
+      l.country,
+      l."formattedAddress",
+      p."fullName" AS "requesterName",
+      p."avatarUrl" AS "requesterAvatarUrl",
+      p.gender::text AS "requesterGender",
+      COALESCE(
+        rp_addr."formattedAddress",
+        NULLIF(CONCAT_WS(', ', rp_addr.city, rp_addr.country), '')
+      ) AS "requesterLocation",
+      COUNT(DISTINCT b.id)::bigint AS "bidCount",
+      EXISTS (
+        SELECT 1
+        FROM favorites f
+        WHERE f."userId" = ${userId}
+          AND f."requestId" = hr.id
+      ) AS "isFavorited",
+      earth_distance(
+        ll_to_earth(${latitude}, ${longitude}),
+        ll_to_earth(l.latitude, l.longitude)
+      ) AS "distanceMeters"
+    FROM "help_requests" hr
+    INNER JOIN "locations" l
+      ON l.id = hr."locationId"
+    INNER JOIN "categories" c
+      ON c.id = hr."categoryId"
+    INNER JOIN "users" u
+      ON u.id = hr."requesterId"
+    LEFT JOIN "profiles" p
+      ON p."userId" = u.id
+    LEFT JOIN "locations" rp_addr
+      ON rp_addr.id = p."addressId"
+    LEFT JOIN "bids" b
+      ON b."requestId" = hr.id
+    WHERE hr.status = 'OPEN'::"RequestStatus"
+      AND hr."locationId" IS NOT NULL
+      AND hr."requesterId" <> ${userId}
+      AND earth_distance(
+        ll_to_earth(${latitude}, ${longitude}),
+        ll_to_earth(l.latitude, l.longitude)
+      ) <= ${radiusMeters}
+      ${categoryIdSql}
+      ${categorySlugSql}
+      ${searchSql}
+    GROUP BY
+      hr.id,
+      c.id,
+      l.id,
+      p.id,
+      rp_addr.id
+    ORDER BY "distanceMeters" ASC, hr."createdAt" DESC
+    LIMIT ${limit}
+    OFFSET ${offset};
+  `);
+
+  const totalResult = await prisma.$queryRaw<Array<{ count: bigint | number }>>(Prisma.sql`
+    SELECT COUNT(*)::bigint AS count
+    FROM "help_requests" hr
+    INNER JOIN "locations" l
+      ON l.id = hr."locationId"
+    INNER JOIN "categories" c
+      ON c.id = hr."categoryId"
+    WHERE hr.status = 'OPEN'::"RequestStatus"
+      AND hr."locationId" IS NOT NULL
+      AND hr."requesterId" <> ${userId}
+      AND earth_distance(
+        ll_to_earth(${latitude}, ${longitude}),
+        ll_to_earth(l.latitude, l.longitude)
+      ) <= ${radiusMeters}
+      ${categoryIdSql}
+      ${categorySlugSql}
+      ${searchSql};
+  `);
+
+  return {
+    requests: rows.map((row) => ({
+      id: row.id,
+      requesterId: row.requesterId,
+      title: row.title,
+      description: row.description,
+      categoryId: row.categoryId,
+      category: {
+        id: row.categoryId,
+        name: row.categoryName,
+        slug: row.categorySlug,
+        icon: row.categoryIcon,
+      },
+      budget: row.budget,
+      status: row.status,
+      isPaid: row.isPaid,
+      serviceRadiusMeters: row.serviceRadiusMeters ?? null,
+      location: {
+        id: row.locationId,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        addressLine1: row.addressLine1,
+        addressLine2: row.addressLine2,
+        city: row.city,
+        state: row.state,
+        postalCode: row.postalCode,
+        country: row.country,
+        formattedAddress: row.formattedAddress,
+      },
+      city: row.city,
+      state: row.state,
+      country: row.country,
+      requesterName: row.requesterName ?? null,
+      requesterAvatarUrl: row.requesterAvatarUrl ?? null,
+      requesterGender: row.requesterGender ?? null,
+      requesterLocation: row.requesterLocation ?? null,
+      images: [],
+      bidCount: Number(row.bidCount ?? 0),
+      isFavorited: row.isFavorited,
+      distanceKm: Number((Number(row.distanceMeters) / 1000).toFixed(1)),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    })),
+    meta: {
+      total: Number(totalResult[0]?.count ?? 0),
+      page,
+      totalPages: Math.ceil(Number(totalResult[0]?.count ?? 0) / limit),
+    },
+    searchMeta: {
+      latitude,
+      longitude,
+      radiusKm,
+      categoryId,
+      category: categorySlug,
+      search: normalizedSearch,
     },
   };
 };
