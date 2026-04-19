@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getAllHelpRequests,
+  getNearbyRequests,
   createHelpRequest,
   getHelpRequestById,
   deleteHelpRequest,
@@ -17,6 +18,7 @@ const router = express.Router();
 
 // Public
 router.get("/", getAllHelpRequests);
+router.get("/nearby", authenticateUser, getNearbyRequests);
 router.get("/:id", getHelpRequestById);
 
 // Protected
