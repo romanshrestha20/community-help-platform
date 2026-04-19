@@ -9,5 +9,13 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src", "generated"]
+  "include": ["src", "generated"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/**/*.test.ts",
+    "src/**/__tests__/**",
+    "vitest.config.ts",
+    "prisma/seed.ts"
+  ]
 }
