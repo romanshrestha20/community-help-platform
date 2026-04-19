@@ -119,6 +119,9 @@ export const addRequestImagesApi = (requestId: string, images: RequestImageUploa
 export const getAllRequestsApi = (filters?: Record<string, any>) => {
     return apiClient.get("/requests", { params: filters ?? {} });
 };
+export const getNearbyRequestsApi = (filters?: Record<string, any>) => {
+    return apiClient.get("/requests/nearby", { params: filters ?? {} });
+};
 export const getRequestByIdApi = (id: string) =>
     apiClient.get(`/requests/${id}`);
 
