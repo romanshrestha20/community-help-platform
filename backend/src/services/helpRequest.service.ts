@@ -106,6 +106,28 @@ const calculateDistanceKm = (
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
+const isNearbySqlUnavailableError = (error: unknown) => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as {
+    code?: string;
+    message?: string;
+    meta?: { message?: string };
+  };
+
+  const message = `${candidate.message ?? ""} ${candidate.meta?.message ?? ""}`.toLowerCase();
+
+  return (
+    candidate.code === "42883" ||
+    message.includes("earth_distance") ||
+    message.includes("ll_to_earth") ||
+    message.includes("cube") ||
+    message.includes("earthdistance")
+  );
+};
+
 export const buildFilters = (query: HelpRequestQuery): Prisma.HelpRequestWhereInput => {
   const {
     category,
@@ -458,171 +480,35 @@ export const getNearbyHelpRequests = async (query: NearbyHelpRequestQuery) => {
       : null;
   const radiusMeters = Math.max(radiusKm, 0) * 1000;
 
-  const categoryIdSql = categoryId
-    ? Prisma.sql`AND hr."categoryId" = ${categoryId}`
-    : Prisma.empty;
-  const categorySlugSql = !categoryId && categorySlug
-    ? Prisma.sql`AND c.slug = ${categorySlug}`
-    : Prisma.empty;
-  const searchSql = normalizedSearch
-    ? Prisma.sql`
-        AND (
-          hr.title ILIKE ${`%${normalizedSearch}%`}
-          OR hr.description ILIKE ${`%${normalizedSearch}%`}
-          OR c.name ILIKE ${`%${normalizedSearch}%`}
-          OR c.slug ILIKE ${`%${normalizedSearch}%`}
-          OR COALESCE(l.city, '') ILIKE ${`%${normalizedSearch}%`}
-          OR COALESCE(l.country, '') ILIKE ${`%${normalizedSearch}%`}
-          OR COALESCE(l."formattedAddress", '') ILIKE ${`%${normalizedSearch}%`}
-          OR COALESCE(l."addressLine1", '') ILIKE ${`%${normalizedSearch}%`}
-        )
-      `
-    : Prisma.empty;
+  const fallback = await getHelpRequests({
+    page: 1,
+    limit: 200,
+    status: "OPEN",
+    latitude,
+    longitude,
+    radiusKm,
+    categoryId: categoryId ?? undefined,
+    category: categoryId ? undefined : categorySlug ?? undefined,
+    search: normalizedSearch ?? undefined,
+  });
 
-  const rows = await prisma.$queryRaw<NearbyHelpRequestRow[]>(Prisma.sql`
-    SELECT
-      hr.id,
-      hr."requesterId" AS "requesterId",
-      hr.title,
-      hr.description,
-      hr.budget,
-      hr.status::text AS status,
-      hr."isPaid" AS "isPaid",
-      hr."serviceRadiusMeters" AS "serviceRadiusMeters",
-      hr."createdAt" AS "createdAt",
-      hr."updatedAt" AS "updatedAt",
-      c.id AS "categoryId",
-      c.name AS "categoryName",
-      c.slug AS "categorySlug",
-      c.icon AS "categoryIcon",
-      l.id AS "locationId",
-      l.latitude,
-      l.longitude,
-      l."addressLine1",
-      l."addressLine2",
-      l.city,
-      l.state,
-      l."postalCode",
-      l.country,
-      l."formattedAddress",
-      p."fullName" AS "requesterName",
-      p."avatarUrl" AS "requesterAvatarUrl",
-      p.gender::text AS "requesterGender",
-      COALESCE(
-        rp_addr."formattedAddress",
-        NULLIF(CONCAT_WS(', ', rp_addr.city, rp_addr.country), '')
-      ) AS "requesterLocation",
-      COUNT(DISTINCT b.id)::bigint AS "bidCount",
-      EXISTS (
-        SELECT 1
-        FROM favorites f
-        WHERE f."userId" = ${userId}
-          AND f."requestId" = hr.id
-      ) AS "isFavorited",
-      earth_distance(
-        ll_to_earth(${latitude}, ${longitude}),
-        ll_to_earth(l.latitude, l.longitude)
-      ) AS "distanceMeters"
-    FROM "help_requests" hr
-    INNER JOIN "locations" l
-      ON l.id = hr."locationId"
-    INNER JOIN "categories" c
-      ON c.id = hr."categoryId"
-    INNER JOIN "users" u
-      ON u.id = hr."requesterId"
-    LEFT JOIN "profiles" p
-      ON p."userId" = u.id
-    LEFT JOIN "locations" rp_addr
-      ON rp_addr.id = p."addressId"
-    LEFT JOIN "bids" b
-      ON b."requestId" = hr.id
-    WHERE hr.status = 'OPEN'::"RequestStatus"
-      AND hr."locationId" IS NOT NULL
-      AND hr."requesterId" <> ${userId}
-      AND earth_distance(
-        ll_to_earth(${latitude}, ${longitude}),
-        ll_to_earth(l.latitude, l.longitude)
-      ) <= ${radiusMeters}
-      ${categoryIdSql}
-      ${categorySlugSql}
-      ${searchSql}
-    GROUP BY
-      hr.id,
-      c.id,
-      l.id,
-      p.id,
-      rp_addr.id
-    ORDER BY "distanceMeters" ASC, hr."createdAt" DESC
-    LIMIT ${limit}
-    OFFSET ${offset};
-  `);
+  const filteredRequests = fallback.requests
+    .filter((request) => request.requesterId !== userId)
+    .sort((left, right) => {
+      if (left.distanceKm == null && right.distanceKm == null) return 0;
+      if (left.distanceKm == null) return 1;
+      if (right.distanceKm == null) return -1;
+      return left.distanceKm - right.distanceKm;
+    });
 
-  const totalResult = await prisma.$queryRaw<Array<{ count: bigint | number }>>(Prisma.sql`
-    SELECT COUNT(*)::bigint AS count
-    FROM "help_requests" hr
-    INNER JOIN "locations" l
-      ON l.id = hr."locationId"
-    INNER JOIN "categories" c
-      ON c.id = hr."categoryId"
-    WHERE hr.status = 'OPEN'::"RequestStatus"
-      AND hr."locationId" IS NOT NULL
-      AND hr."requesterId" <> ${userId}
-      AND earth_distance(
-        ll_to_earth(${latitude}, ${longitude}),
-        ll_to_earth(l.latitude, l.longitude)
-      ) <= ${radiusMeters}
-      ${categoryIdSql}
-      ${categorySlugSql}
-      ${searchSql};
-  `);
+  const pagedRequests = filteredRequests.slice(offset, offset + limit);
 
   return {
-    requests: rows.map((row) => ({
-      id: row.id,
-      requesterId: row.requesterId,
-      title: row.title,
-      description: row.description,
-      categoryId: row.categoryId,
-      category: {
-        id: row.categoryId,
-        name: row.categoryName,
-        slug: row.categorySlug,
-        icon: row.categoryIcon,
-      },
-      budget: row.budget,
-      status: row.status,
-      isPaid: row.isPaid,
-      serviceRadiusMeters: row.serviceRadiusMeters ?? null,
-      location: {
-        id: row.locationId,
-        latitude: row.latitude,
-        longitude: row.longitude,
-        addressLine1: row.addressLine1,
-        addressLine2: row.addressLine2,
-        city: row.city,
-        state: row.state,
-        postalCode: row.postalCode,
-        country: row.country,
-        formattedAddress: row.formattedAddress,
-      },
-      city: row.city,
-      state: row.state,
-      country: row.country,
-      requesterName: row.requesterName ?? null,
-      requesterAvatarUrl: row.requesterAvatarUrl ?? null,
-      requesterGender: row.requesterGender ?? null,
-      requesterLocation: row.requesterLocation ?? null,
-      images: [],
-      bidCount: Number(row.bidCount ?? 0),
-      isFavorited: row.isFavorited,
-      distanceKm: Number((Number(row.distanceMeters) / 1000).toFixed(1)),
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    })),
+    requests: pagedRequests,
     meta: {
-      total: Number(totalResult[0]?.count ?? 0),
+      total: filteredRequests.length,
       page,
-      totalPages: Math.ceil(Number(totalResult[0]?.count ?? 0) / limit),
+      totalPages: Math.ceil(filteredRequests.length / limit),
     },
     searchMeta: {
       latitude,
