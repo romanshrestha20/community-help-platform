@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppInput } from "@/components/ui/AppInput";
-import { Card, Stack, colors, spacing, typography, theme } from "@/design-system";
+import { Stack, colors, spacing, typography } from "@/design-system";
 import LocationPickerField from "@/features/location/components/LocationPickerField";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import {
@@ -37,6 +37,7 @@ export type RequestFormContentProps = {
         field: K,
         value: RequestFormValues[K]
     ) => void;
+    onOpenMapPicker?: () => void;
     locationPickerProps: RequestFormLocationPickerProps;
 };
 
@@ -55,6 +56,7 @@ export const RequestFormContent = ({
     onPickImages,
     onRemoveImage,
     onChangeField,
+    onOpenMapPicker,
     locationPickerProps,
 }: RequestFormContentProps) => {
     const { palette } = useThemeContext();
@@ -134,6 +136,13 @@ export const RequestFormContent = ({
                 title="Location"
                 description="Pick where the help is needed so nearby helpers can find it."
             >
+                {onOpenMapPicker ? (
+                    <AppButton
+                        title="Choose on map"
+                        onPress={onOpenMapPicker}
+                        variant="secondary"
+                    />
+                ) : null}
                 <LocationPickerField {...locationPickerProps} />
             </RequestFormSection>
 
