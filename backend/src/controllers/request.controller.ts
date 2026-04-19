@@ -1,7 +1,10 @@
 import { prisma } from "../lib/prisma.js";
 import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.js";
-import { getHelpRequests } from "../services/helpRequest.service.js";
+import {
+  getHelpRequests,
+  getNearbyHelpRequests,
+} from "../services/helpRequest.service.js";
 import {
   normalizeIncomingLocation,
   toLocationCreateInput,
@@ -53,6 +56,10 @@ const normalizeParamId = (value: string | string[] | undefined): string | null =
   }
 
   return null;
+};
+
+const getQueryString = (value: unknown): string | undefined => {
+  return typeof value === "string" ? value : undefined;
 };
 
 const HELP_REQUEST_INCLUDE = {
@@ -294,6 +301,40 @@ export const getAllHelpRequests = async (
   } catch (err) {
     console.error(err);
     next(new AppError("Failed to fetch requests", 500));
+  }
+};
+
+export const getNearbyRequests = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    const result = await getNearbyHelpRequests({
+      userId,
+      latitude: getQueryString(req.query.latitude) ?? getQueryString(req.query.lat),
+      longitude: getQueryString(req.query.longitude) ?? getQueryString(req.query.lng),
+      radiusKm: getQueryString(req.query.radiusKm),
+      category: getQueryString(req.query.category),
+      categoryId: getQueryString(req.query.categoryId),
+      search: getQueryString(req.query.search),
+      page: getQueryString(req.query.page),
+      limit: getQueryString(req.query.limit),
+    });
+
+    sendResponse(res, result.requests, "", {
+      ...result.meta,
+      searchMeta: result.searchMeta,
+    });
+  } catch (err) {
+    console.error(err);
+    next(err instanceof AppError ? err : new AppError("Failed to fetch nearby requests", 500));
   }
 };
 
