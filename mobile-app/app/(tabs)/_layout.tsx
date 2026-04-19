@@ -47,6 +47,7 @@ export default function TabsLayout() {
       )}
     >
       <Tabs.Screen name="home" options={{ title: "Home" }} />
+      <Tabs.Screen name="requests" options={{ title: "My Requests" }} />
       <Tabs.Screen name="messages" options={{ title: "Messages" }} />
       <Tabs.Screen name="favorites" options={{ title: "Saved" }} />
       <Tabs.Screen name="notifications" options={{ title: "Notifications" }} />
