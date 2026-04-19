@@ -14,6 +14,7 @@ import { Card, Row, Stack, theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
+import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { HelpRequest } from "../types/helpRequest.types";
 import {
   formatRequestBudget,
@@ -293,7 +294,7 @@ export const RequestCard = ({
             )
           ) : null}
 
-          {/* <Row align="center" gap="sm">
+          <Row align="center" gap="sm">
             <ProfileAvatar
               uri={request.requesterAvatarUrl}
               fullName={request.requesterName}
@@ -306,9 +307,22 @@ export const RequestCard = ({
               >
                 {request.requesterName || "Community member"}
               </Text>
+              {typeof (request as HelpRequest & { requesterRating?: number }).requesterRating === "number" ? (
+                <Row align="center" gap="xs">
+                  <Ionicons name="star" size={12} color={palette.accent} />
+                  <Text
+                    style={[styles.posterSubline, { color: palette.textSecondary }]}
+                  >
+                    {(request as HelpRequest & { requesterRating: number }).requesterRating.toFixed(1)}
+                  </Text>
+                </Row>
+              ) : (
+                <Text style={[styles.posterSubline, { color: palette.textSecondary }]}>
+                  Community member
+                </Text>
+              )}
             </View>
-
-          </Row> */}
+          </Row>
           <View style={styles.metaList}>
             <Row align="center" gap="xs">
               <Ionicons
