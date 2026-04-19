@@ -1,2 +1,9 @@
 export { GreetingOverview } from "./GreetingOverview";
 export { HomeHeader } from "./HomeHeader";
+export { HomeGreetingHero } from "./HomeGreetingHero";
+export { HomeFilterChip } from "./HomeFilterChip";
+export { HomeSearchBarRow } from "./HomeSearchBarRow";
+export { HomeUrgentBanner } from "./HomeUrgentBanner";
+export { HomeCompactRequestCard } from "./HomeCompactRequestCard";
+export { HomeActionButton } from "./HomeActionButton";
+export { HomeEmptyState } from "./HomeEmptyState";
