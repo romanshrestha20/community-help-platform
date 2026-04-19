@@ -39,6 +39,7 @@
     "expo-symbols": "~1.0.8",
     "expo-system-ui": "~6.0.9",
     "expo-web-browser": "~15.0.10",
+    "luxon": "^3.7.2",
     "react": "19.1.0",
     "react-async-hook": "^4.0.0",
     "react-dom": "19.1.0",
@@ -60,6 +61,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@types/luxon": "^3.7.1",
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
