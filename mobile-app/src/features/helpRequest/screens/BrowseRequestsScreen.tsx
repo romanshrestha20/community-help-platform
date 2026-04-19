@@ -260,6 +260,10 @@ export const BrowseRequestsScreen = () => {
   const { requests, refreshing, refreshRequests } = useRequestList({
     scope: "browse",
     params: requestParams,
+    useNearbyEndpoint:
+      filters.radiusKm !== "ANY" &&
+      userLocation?.latitude != null &&
+      userLocation?.longitude != null,
   });
 
   const medicalCategory = categories.find(
