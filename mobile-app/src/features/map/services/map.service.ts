@@ -1,4 +1,7 @@
-import { getAllHelpRequests } from "@/features/helpRequest/services/helpRequest.service";
+import {
+  getAllHelpRequests,
+  getNearbyHelpRequests,
+} from "@/features/helpRequest/services/helpRequest.service";
 import { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
 import {
   MapRequestFilters,
@@ -75,15 +78,15 @@ export const getNearbyRequests = async (
 ): Promise<MapRequestItem[]> => {
   const params: Record<string, string | number> = {};
 
+  if (filters.latitude != null) params.latitude = filters.latitude;
+  if (filters.longitude != null) params.longitude = filters.longitude;
+  if (filters.radiusKm != null) params.radiusKm = filters.radiusKm;
+
   if (filters.bounds) {
     params.minLatitude = filters.bounds.minLatitude;
     params.maxLatitude = filters.bounds.maxLatitude;
     params.minLongitude = filters.bounds.minLongitude;
     params.maxLongitude = filters.bounds.maxLongitude;
-  } else {
-    if (filters.latitude != null) params.latitude = filters.latitude;
-    if (filters.longitude != null) params.longitude = filters.longitude;
-    if (filters.radiusKm != null) params.radiusKm = filters.radiusKm;
   }
 
   if (filters.categoryId) {
@@ -98,7 +101,13 @@ export const getNearbyRequests = async (
     params.search = filters.search.trim();
   }
 
-  const requests = await getAllHelpRequests(params);
+  const requests =
+    !filters.bounds &&
+    filters.latitude != null &&
+    filters.longitude != null &&
+    filters.radiusKm != null
+      ? await getNearbyHelpRequests(params)
+      : await getAllHelpRequests(params);
   const withCoordinates = requests.filter(hasCoordinates);
 
   const filteredByBounds = filters.bounds
@@ -138,7 +147,6 @@ export const getNearbyRequests = async (
       }
 
       if (
-        !filters.bounds &&
         filters.radiusKm != null &&
         request.distanceKm != null &&
         request.distanceKm > filters.radiusKm
