@@ -334,7 +334,7 @@ export const RequestMap = ({
       regionToZoom(initialRegion),
       { animate: true }
     );
-  }, [centerSignal, initialRegion]);
+  }, [centerSignal]);
 
   useEffect(() => {
     return () => {
