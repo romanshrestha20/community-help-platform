@@ -3,14 +3,16 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "main": "dist/server.js",
-  "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "test": "vitest",
-    "test:run": "vitest run"
-  },
+  "main": "dist/server.ts",
+"scripts": {
+  "dev": "tsx watch src/server.ts",
+  "build": "tsc",
+  "start": "node dist/src/server.js",
+  "test": "vitest",
+  "test:run": "vitest run",
+  "prisma:generate": "prisma generate",
+  "prisma:migrate:deploy": "prisma migrate deploy"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
