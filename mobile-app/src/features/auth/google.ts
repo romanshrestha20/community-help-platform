@@ -36,10 +36,15 @@ const getReverseClientIdScheme = (clientId?: string) => {
     return null;
   }
 
-  return clientId.replace(".apps.googleusercontent.com", "").replace(
-    /^([^.]+)\.(.+)$/,
-    "com.googleusercontent.apps.$1-$2"
-  );
+  const normalizedClientId = clientId
+    .trim()
+    .replace(/\.apps\.googleusercontent\.com$/, "");
+
+  if (!normalizedClientId) {
+    return null;
+  }
+
+  return `com.googleusercontent.apps.${normalizedClientId.replace(/\./g, "-")}`;
 };
 
 const resolveGoogleRedirectUri = () => {
@@ -144,10 +149,30 @@ export function useGoogleAuth() {
       };
     }
 
-    const idToken =
+    let idToken =
       result.params?.id_token ||
       result.authentication?.idToken ||
       null;
+
+    if (!idToken && result.params?.code && request?.codeVerifier) {
+      try {
+        const tokenResponse = await AuthSession.exchangeCodeAsync(
+          {
+            clientId: platformClientId!,
+            code: result.params.code,
+            redirectUri,
+            extraParams: {
+              code_verifier: request.codeVerifier,
+            },
+          },
+          Google.discovery
+        );
+
+        idToken = tokenResponse.idToken ?? null;
+      } catch (error) {
+        console.warn("Google code exchange failed:", error);
+      }
+    }
 
     if (!idToken) {
       return {
