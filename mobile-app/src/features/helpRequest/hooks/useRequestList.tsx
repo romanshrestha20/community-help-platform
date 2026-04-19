@@ -10,6 +10,7 @@ type UseRequestListOptions = {
     params?: Record<string, any>;
     scope?: Scope;
     autoFetch?: boolean;
+    useNearbyEndpoint?: boolean;
 };
 
 const resolveRequesterId = (request: HelpRequest) => {
@@ -21,15 +22,18 @@ export const useRequestList = ({
     params,
     scope = "mine",
     autoFetch = true,
+    useNearbyEndpoint = false,
 }: UseRequestListOptions = {}) => {
     const user = useAuthStore((state) => state.user);
     const currentUserId = user?.id || user?.profile?.userId;
-    const { loading, error, getMyHelpRequests } = useHelpRequest();
+    const { loading, error, getMyHelpRequests, getNearbyHelpRequests } = useHelpRequest();
     const [requests, setRequests] = useState<HelpRequest[]>([]);
     const [refreshing, setRefreshing] = useState(false);
 
     const fetchRequests = useCallback(async () => {
-        const result = await getMyHelpRequests(params);
+        const result = useNearbyEndpoint
+            ? await getNearbyHelpRequests(params)
+            : await getMyHelpRequests(params);
         if (result) {
             const scoped = result.filter((request) => {
                 const requesterId = resolveRequesterId(request);
@@ -45,7 +49,7 @@ export const useRequestList = ({
 
             setRequests(scoped);
         }
-    }, [currentUserId, getMyHelpRequests, params, scope]);
+    }, [currentUserId, getMyHelpRequests, getNearbyHelpRequests, params, scope, useNearbyEndpoint]);
 
     const refreshRequests = useCallback(async () => {
         setRefreshing(true);

@@ -28,6 +28,10 @@ export const useHelpRequest = () => {
         return run(() => helpRequestService.getAllHelpRequests(params));
     }, [run]);
 
+    const getNearbyHelpRequests = useCallback((params?: Record<string, any>) => {
+        return run(() => helpRequestService.getNearbyHelpRequests(params));
+    }, [run]);
+
     const updateHelpRequest = useCallback((id: string, data: UpdateHelpRequestData) => {
         return run(() => helpRequestService.updateHelpRequest(id, data));
     }, [run]);
@@ -47,6 +51,7 @@ export const useHelpRequest = () => {
         addHelpRequestImages,
         getHelpRequestById,
         getMyHelpRequests,
+        getNearbyHelpRequests,
         updateHelpRequest,
         updateHelpRequestStatus,
         deleteHelpRequest
