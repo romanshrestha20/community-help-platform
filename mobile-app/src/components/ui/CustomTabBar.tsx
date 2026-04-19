@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 
 import { theme } from "@/design-system";
 import {
@@ -33,46 +33,57 @@ const createStyles = (
   StyleSheet.create({
     container: {
       flexDirection: "row",
-      backgroundColor: colors.backgroundColor,
-      borderTopColor: "transparent",
-      borderTopWidth: 0,
-      height: TAB_BAR_CONSTANTS.HEIGHT + 12,
+      backgroundColor:
+        palette === lightColors ? "rgba(255,255,255,0.92)" : "rgba(36,39,36,0.94)",
+      borderColor: palette.border,
+      borderWidth: 1,
+      height: TAB_BAR_CONSTANTS.HEIGHT + 16,
       paddingBottom:
         Platform.OS === "ios" ? 20 : TAB_BAR_CONSTANTS.PADDING_BOTTOM,
-      paddingHorizontal: theme.spacing.sm,
-      marginHorizontal: theme.spacing.md,
-      marginBottom: Platform.OS === "ios" ? 8 : 10,
-      borderRadius: 28,
+      paddingTop: 7,
+      paddingHorizontal: 6,
+      marginHorizontal: 0,
       shadowColor: "#122013",
-      shadowOpacity: 0.08,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 6,
+      shadowOpacity: palette === lightColors ? 0.09 : 0.2,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 12,
     },
     tabButton: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.radius.fill,
+      paddingVertical: 5,
+      paddingHorizontal: 2,
+      borderRadius: 999,
     },
     tabButtonActive: {
-      backgroundColor: `${colors.primaryColor}18`,
+      backgroundColor:
+        palette === lightColors ? colors.primaryColor : `${colors.primaryColor}1f`,
     },
     iconWrapper: {
       position: "relative",
-      marginBottom: theme.spacing.xxs,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 1,
+    },
+    iconWrapperActive: {
+      backgroundColor:
+        palette === lightColors ? "rgba(255,255,255,0.16)" : `${colors.primaryColor}10`,
     },
     label: {
-      fontSize: TAB_BAR_CONSTANTS.LABEL_FONT_SIZE,
-      fontWeight: TAB_BAR_CONSTANTS.LABEL_FONT_WEIGHT,
-      marginTop: 2,
+      fontSize: 9,
+      fontWeight: "500",
+      letterSpacing: 0,
     },
     labelActive: {
-      color: colors.primaryColor,
+      color: palette === lightColors ? palette.textInverse : colors.primaryColor,
     },
     labelInactive: {
-      color: colors.secondaryColor,
+      color: palette === lightColors ? "#6B7A6B" : colors.secondaryColor,
     },
     badge: {
       position: "absolute",
@@ -100,11 +111,10 @@ const createStyles = (
 export const CustomTabBar: React.FC<CustomTabBarProps> = ({
   tabs = defaultTabsConfig,
   colorScheme,
-  state,
   descriptors,
-  navigation,
 }) => {
   const systemColorScheme = useColorScheme();
+  const pathname = usePathname();
   const resolvedColorScheme =
     colorScheme ?? resolveColorScheme("system", systemColorScheme);
 
@@ -115,17 +125,13 @@ export const CustomTabBar: React.FC<CustomTabBarProps> = ({
   return (
     <View style={styles.container}>
       {tabs.map((tab) => {
-        const route = state.routes.find((item) => item.name === tab.name);
-
-        if (!route) return null;
-
-        const routeIndex = state.routes.findIndex(
-          (item) => item.key === route.key
-        );
-        const isFocused = state.index === routeIndex;
+        const isFocused =
+          pathname === tab.href || pathname.startsWith(`${tab.href}/`);
         const iconName = isFocused && tab.activeIcon ? tab.activeIcon : tab.icon;
-
-        const options = descriptors[route.key]?.options;
+        const descriptor = Object.values(descriptors).find(
+          (item) => item.route.name === tab.name
+        );
+        const options = descriptor?.options;
         const label =
           typeof options?.tabBarLabel === "string"
             ? options.tabBarLabel
@@ -134,40 +140,36 @@ export const CustomTabBar: React.FC<CustomTabBarProps> = ({
               : tab.label;
 
         const handlePress = () => {
-          const event = navigation.emit({
-            type: "tabPress",
-            target: route.key,
-            canPreventDefault: true,
-          });
-
-          if (event.defaultPrevented) {
-            return;
-          }
-
-          // Always route to the tab root path so reselecting a focused tab resets nested paths.
-          router.replace(`/${route.name}` as `/${string}`);
-        };
-
-        const handleLongPress = () => {
-          navigation.emit({
-            type: "tabLongPress",
-            target: route.key,
-          });
+          router.replace(tab.href as `/${string}`);
         };
 
         return (
           <TouchableOpacity
-            key={route.key}
+            key={tab.name}
             style={[styles.tabButton, isFocused && styles.tabButtonActive]}
             onPress={handlePress}
-            onLongPress={handleLongPress}
             activeOpacity={0.7}
           >
-            <View style={styles.iconWrapper}>
+            <View
+              style={[
+                styles.iconWrapper,
+                isFocused ? styles.iconWrapperActive : null,
+              ]}
+            >
               <FontAwesome
                 name={iconName}
-                size={tab.name === "notifications" && !!tab.badge ? TAB_BAR_CONSTANTS.ICON_SIZE + 1 : TAB_BAR_CONSTANTS.ICON_SIZE}
-                color={isFocused ? colors.primaryColor : colors.secondaryColor}
+                size={
+                  tab.name === "notifications" && !!tab.badge
+                    ? TAB_BAR_CONSTANTS.ICON_SIZE + 1
+                    : TAB_BAR_CONSTANTS.ICON_SIZE
+                }
+                color={
+                  isFocused
+                    ? palette === lightColors
+                      ? palette.textInverse
+                      : colors.primaryColor
+                    : colors.secondaryColor
+                }
               />
 
               {!!tab.badge && tab.badge > 0 && (
