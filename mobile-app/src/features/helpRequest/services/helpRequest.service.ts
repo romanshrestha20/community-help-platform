@@ -112,6 +112,14 @@ export const getAllHelpRequests = async (
     return payload.map((request) => normalizeRequest(request));
 };
 
+export const getNearbyHelpRequests = async (
+    params?: Record<string, any>
+): Promise<HelpRequest[]> => {
+    const response = await helpRequestApi.getNearbyRequestsApi(params);
+    const payload = handleResponse<HelpRequest[]>(response.data) as UnknownRecord[];
+    return payload.map((request) => normalizeRequest(request));
+};
+
 export const getHelpRequestById = async (id: string): Promise<HelpRequest> => {
     const response = await helpRequestApi.getRequestByIdApi(id);
     const payload = handleResponse<HelpRequest>(response.data) as UnknownRecord;
