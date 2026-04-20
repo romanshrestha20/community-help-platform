@@ -14,14 +14,14 @@ type ExpoConfigWithScheme = {
 
 type GoogleSignInResult =
   | {
-      success: true;
-      idToken: string;
-    }
+    success: true;
+    idToken: string;
+  }
   | {
-      success: false;
-      message: string;
-      cancelled?: boolean;
-    };
+    success: false;
+    message: string;
+    cancelled?: boolean;
+  };
 
 const constants = Constants as unknown as ExpoConfigWithScheme;
 const configuredScheme = constants.expoConfig?.scheme;
