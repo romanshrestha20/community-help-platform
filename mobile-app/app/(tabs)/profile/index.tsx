@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 
+import { AppButton } from "@/components/ui/AppButton";
+import { AppModal } from "@/components/ui/AppModal";
 import { Screen, Stack, Row, Card, theme } from "@/design-system";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useUser } from "@/features/user/hooks/user.hook";
@@ -19,7 +21,6 @@ import {
   ProfileHeaderCard,
   ProfileInfoSection,
   ProfileStatsRow,
-  SessionCard,
   SettingsSectionCard,
 } from "@/features/user/components/";
 
@@ -40,11 +41,9 @@ export default function ProfileTabScreen() {
     handleUpdateProfile,
   } = useUser();
 
-
-
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [sessionModalVisible, setSessionModalVisible] = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
   useEffect(() => {
     loadUserProfile();
@@ -93,7 +92,8 @@ export default function ProfileTabScreen() {
         id: "history",
         title: "Activity History",
         subtitle: "See completed and cancelled requests and bid outcomes.",
-        onPress: () => Alert.alert("Coming soon", "Activity history will be available soon."),
+        onPress: () =>
+          Alert.alert("Coming soon", "Activity history will be available soon."),
       },
     ],
     [router]
@@ -101,7 +101,24 @@ export default function ProfileTabScreen() {
 
   const handleTopLogoutPress = () => {
     if (loadingLogout) return;
-    setSessionModalVisible(true);
+    setLogoutModalVisible(true);
+  };
+
+  const handleConfirmLogout = async () => {
+    if (loadingLogout) return;
+
+    setLogoutModalVisible(false);
+
+    requestAnimationFrame(() => {
+      setTimeout(async () => {
+        try {
+          await handleLogout();
+          router.replace(APP_ROUTES.AUTH_LOGIN);
+        } catch {
+          showErrorToast("Logout failed", "Please try again.");
+        }
+      }, 120);
+    });
   };
 
   return (
@@ -109,7 +126,9 @@ export default function ProfileTabScreen() {
       <Stack gap="md">
         <Row justify="space-between" align="center">
           <View style={styles.titleWrap}>
-            <Text style={[styles.screenTitle, { color: palette.textPrimary }]}>Profile</Text>
+            <Text style={[styles.screenTitle, { color: palette.textPrimary }]}>
+              Profile
+            </Text>
             <Text style={[styles.screenSubtitle, { color: palette.textSecondary }]}>
               Manage your account, activity, and settings
             </Text>
@@ -147,7 +166,10 @@ export default function ProfileTabScreen() {
                 onDeletePress={() => setAvatarModalVisible(true)}
               />
 
-              <ProfileStatsRow rating={user?.rating ?? 0} helpCount={user?.helpCount ?? 0} />
+              <ProfileStatsRow
+                rating={user?.rating ?? 0}
+                helpCount={user?.helpCount ?? 0}
+              />
             </View>
 
             {user?.phone && !user?.isPhoneVerified ? (
@@ -189,8 +211,12 @@ export default function ProfileTabScreen() {
             <Card>
               <Stack gap="md">
                 <View>
-                  <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>My Activity</Text>
-                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Quick links to your active requests, bids, and history.</Text>
+                  <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                    My Activity
+                  </Text>
+                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                    Quick links to your active requests, bids, and history.
+                  </Text>
                 </View>
 
                 <Stack gap="sm">
@@ -207,10 +233,16 @@ export default function ProfileTabScreen() {
                       onPress={shortcut.onPress}
                     >
                       <View style={styles.activityTextWrap}>
-                        <Text style={[styles.activityTitle, { color: palette.textPrimary }]}>{shortcut.title}</Text>
-                        <Text style={[styles.activitySubtitle, { color: palette.textSecondary }]}>{shortcut.subtitle}</Text>
+                        <Text style={[styles.activityTitle, { color: palette.textPrimary }]}>
+                          {shortcut.title}
+                        </Text>
+                        <Text style={[styles.activitySubtitle, { color: palette.textSecondary }]}>
+                          {shortcut.subtitle}
+                        </Text>
                       </View>
-                      <Text style={[styles.linkText, { color: palette.primary }]}>Open</Text>
+                      <Text style={[styles.linkText, { color: palette.primary }]}>
+                        Open
+                      </Text>
                     </Pressable>
                   ))}
                 </Stack>
@@ -218,14 +250,19 @@ export default function ProfileTabScreen() {
             </Card>
 
             <Stack gap="sm" style={styles.settingsGroup}>
-              <ProfileInfoSection user={user} onEditProfile={() => setEditModalVisible(true)} />
+              <ProfileInfoSection
+                user={user}
+                onEditProfile={() => setEditModalVisible(true)}
+              />
 
               <ThemeModeCard />
               <SettingsSectionCard title="Settings" items={settingsItems} />
             </Stack>
 
             {error ? (
-              <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
+              <Text style={[styles.errorText, { color: palette.danger }]}>
+                {error}
+              </Text>
             ) : null}
           </Stack>
         )}
@@ -235,37 +272,41 @@ export default function ProfileTabScreen() {
           onClose={() => setAvatarModalVisible(false)}
         />
 
-        <Modal
-          visible={sessionModalVisible}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setSessionModalVisible(false)}
-        >
-          <Screen withTabBarSpacing={false}>
-            <Stack gap="md">
-              <Row justify="space-between" align="center" style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: palette.textPrimary }]}>Session</Text>
-
-                <Pressable onPress={() => setSessionModalVisible(false)}>
-                  <Text style={[styles.closeText, { color: palette.textSecondary }]}>Close</Text>
-                </Pressable>
-              </Row>
-
-              <SessionCard
-                loading={loadingLogout}
-                onLogout={async () => {
-                  try {
-                    setSessionModalVisible(false);
-                    await handleLogout();
-                    router.replace(APP_ROUTES.AUTH_LOGIN);
-                  } catch {
-                    showErrorToast("Logout failed", "Please try again.");
-                  }
-                }}
+        <AppModal
+          visible={logoutModalVisible}
+          title="Log out"
+          onClose={() => {
+            if (loadingLogout) return;
+            setLogoutModalVisible(false);
+          }}
+          dismissOnBackdrop={!loadingLogout}
+          showCloseButton={false}
+          scrollable={false}
+          actions={
+            <View style={styles.logoutActions}>
+              <AppButton
+                title="Cancel"
+                variant="ghost"
+                fullWidth={false}
+                onPress={() => setLogoutModalVisible(false)}
+                disabled={loadingLogout}
               />
-            </Stack>
-          </Screen>
-        </Modal>
+
+              <AppButton
+                title="Log out"
+                variant="danger"
+                fullWidth={false}
+                onPress={handleConfirmLogout}
+                loading={loadingLogout}
+                disabled={loadingLogout}
+              />
+            </View>
+          }
+        >
+          <Text style={[styles.logoutModalText, { color: palette.textSecondary }]}>
+            Are you sure you want to log out from this device?
+          </Text>
+        </AppModal>
 
         <Modal
           visible={editModalVisible}
@@ -281,7 +322,9 @@ export default function ProfileTabScreen() {
                 </Text>
 
                 <Pressable onPress={() => setEditModalVisible(false)}>
-                  <Text style={[styles.closeText, { color: palette.textSecondary }]}>Close</Text>
+                  <Text style={[styles.closeText, { color: palette.textSecondary }]}>
+                    Close
+                  </Text>
                 </Pressable>
               </Row>
 
@@ -297,7 +340,6 @@ export default function ProfileTabScreen() {
                 }}
                 onCancel={() => setEditModalVisible(false)}
               />
-
             </Stack>
           </Screen>
         </Modal>
@@ -395,5 +437,14 @@ const styles = StyleSheet.create({
   closeText: {
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.bold,
+  },
+  logoutActions: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    width: "100%",
+  },
+  logoutModalText: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.md,
   },
 });
