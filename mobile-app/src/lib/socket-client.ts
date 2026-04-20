@@ -26,40 +26,44 @@ const SOCKET_ACK_TIMEOUT_MS = 4000;
 const SOCKET_CONNECT_TIMEOUT_MS = 5000;
 
 const resolveSocketBaseUrl = () => {
-  const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+  const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+
   if (envBaseUrl) {
     return envBaseUrl.replace(/\/api\/?$/, "");
   }
 
-  if (Platform.OS === "web") {
-    const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
-    return `http://${host}:5001`;
+  if (__DEV__) {
+    if (Platform.OS === "web") {
+      const host =
+        typeof window !== "undefined" ? window.location.hostname : "localhost";
+      return `http://${host}:5001`;
+    }
+
+    const constants = Constants as unknown as {
+      expoConfig?: { hostUri?: string };
+      expoGoConfig?: { debuggerHost?: string };
+      manifest?: { debuggerHost?: string };
+      manifest2?: { extra?: { expoClient?: { hostUri?: string } } };
+    };
+
+    const hostFromExpo = [
+      constants.expoConfig?.hostUri,
+      constants.expoGoConfig?.debuggerHost,
+      constants.manifest?.debuggerHost,
+      constants.manifest2?.extra?.expoClient?.hostUri,
+    ]
+      .find((value) => typeof value === "string" && value.length > 0)
+      ?.split(":")[0];
+
+    if (hostFromExpo) {
+      return `http://${hostFromExpo}:5001`;
+    }
+
+    if (Platform.OS === "ios") return "http://localhost:5001";
+    if (Platform.OS === "android") return "http://10.0.2.2:5001";
   }
 
-  const constants = Constants as unknown as {
-    expoConfig?: { hostUri?: string };
-    expoGoConfig?: { debuggerHost?: string };
-    manifest?: { debuggerHost?: string };
-    manifest2?: { extra?: { expoClient?: { hostUri?: string } } };
-  };
-
-  const hostFromExpo = [
-    constants.expoConfig?.hostUri,
-    constants.expoGoConfig?.debuggerHost,
-    constants.manifest?.debuggerHost,
-    constants.manifest2?.extra?.expoClient?.hostUri,
-  ]
-    .find((value) => typeof value === "string" && value.length > 0)
-    ?.split(":")[0];
-
-  if (hostFromExpo) {
-    return `http://${hostFromExpo}:5001`;
-  }
-
-  if (Platform.OS === "ios") return "http://localhost:5001";
-  if (Platform.OS === "android") return "http://10.0.2.2:5001";
-
-  return "http://localhost:5001";
+  return "https://community-help-platform.onrender.com";
 };
 
 const SOCKET_BASE_URL = resolveSocketBaseUrl();
@@ -70,6 +74,9 @@ const ensureSocketInstance = () => {
     socket = io(SOCKET_BASE_URL, {
       autoConnect: false,
       transports: ["websocket"],
+      timeout: SOCKET_CONNECT_TIMEOUT_MS,
+      withCredentials: true,
+      auth: {},
     });
   }
 
@@ -94,7 +101,6 @@ const emitAck = <T>(targetSocket: Socket, event: string, payload?: unknown) =>
 export const connectSocket = async () => {
   const targetSocket = ensureSocketInstance();
   const token = await getAccessToken();
-
 
   if (!token) {
     throw new Error("Missing access token for socket connection");
@@ -142,10 +148,7 @@ export const connectSocket = async () => {
 };
 
 export const disconnectSocket = () => {
-  if (!socket) {
-    return;
-  }
-
+  if (!socket) return;
   socket.disconnect();
   socket = null;
 };
@@ -160,14 +163,22 @@ export const reconnectSocketWithFreshToken = async () => {
   }
 
   socket.auth = { token };
-  socket.disconnect();
+
+  if (socket.connected) {
+    socket.disconnect();
+  }
+
   socket.connect();
 };
 
 export const joinConversationRoom = async (conversationId: string) => {
   const targetSocket = await connectSocket();
   console.log("[socket-client] joining conversation", { conversationId });
-  const response = await emitAck(targetSocket, "conversation:join", { conversationId });
+
+  const response = await emitAck(targetSocket, "conversation:join", {
+    conversationId,
+  });
+
   console.log("[socket-client] join ack", { conversationId, response });
 
   if (!response.ok) {
@@ -177,7 +188,9 @@ export const joinConversationRoom = async (conversationId: string) => {
 
 export const leaveConversationRoom = async (conversationId: string) => {
   const targetSocket = await connectSocket();
-  const response = await emitAck(targetSocket, "conversation:leave", { conversationId });
+  const response = await emitAck(targetSocket, "conversation:leave", {
+    conversationId,
+  });
 
   if (!response.ok) {
     throw new Error(response.error || "Failed to leave conversation");
@@ -189,14 +202,21 @@ export const sendSocketMessage = async <TMessage>(
   content: string
 ) => {
   const targetSocket = await connectSocket();
+
   console.log("[socket-client] message:send emit", {
     conversationId,
     contentLength: content.trim().length,
   });
-  const response = await emitAck<{ message: TMessage }>(targetSocket, "message:send", {
-    conversationId,
-    content,
-  });
+
+  const response = await emitAck<{ message: TMessage }>(
+    targetSocket,
+    "message:send",
+    {
+      conversationId,
+      content,
+    }
+  );
+
   console.log("[socket-client] message:send ack", {
     conversationId,
     response,
@@ -211,8 +231,13 @@ export const sendSocketMessage = async <TMessage>(
 
 export const markSocketConversationRead = async (conversationId: string) => {
   const targetSocket = await connectSocket();
+
   console.log("[socket-client] message:read emit", { conversationId });
-  const response = await emitAck(targetSocket, "message:read", { conversationId });
+
+  const response = await emitAck(targetSocket, "message:read", {
+    conversationId,
+  });
+
   console.log("[socket-client] message:read ack", { conversationId, response });
 
   if (!response.ok) {
