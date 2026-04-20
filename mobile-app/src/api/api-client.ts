@@ -14,38 +14,44 @@ import { reconnectSocketWithFreshToken } from "@/lib/socket-client";
 type RetryRequest = AxiosRequestConfig & { _retry?: boolean };
 
 const resolveApiBaseUrl = () => {
-  const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
-  if (envBaseUrl) return envBaseUrl;
+  const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 
-  if (Platform.OS === "web") {
-    const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
-    return `http://${host}:5001/api`;
+  console.log("[API] Resolving base URL. Env var:", envBaseUrl);
+
+  if (envBaseUrl) {
+    return envBaseUrl;
   }
 
-  const constants = Constants as unknown as {
-    expoConfig?: { hostUri?: string };
-    expoGoConfig?: { debuggerHost?: string };
-    manifest?: { debuggerHost?: string };
-    manifest2?: { extra?: { expoClient?: { hostUri?: string } } };
-  };
+  if (__DEV__) {
+    if (Platform.OS === "web") {
+      return `https://community-help-platform.onrender.com/api`;
+    }
 
-  const hostFromExpo = [
-    constants.expoConfig?.hostUri,
-    constants.expoGoConfig?.debuggerHost,
-    constants.manifest?.debuggerHost,
-    constants.manifest2?.extra?.expoClient?.hostUri,
-  ]
-    .find((value) => typeof value === "string" && value.length > 0)
-    ?.split(":")[0];
+    const constants = Constants as unknown as {
+      expoConfig?: { hostUri?: string };
+      expoGoConfig?: { debuggerHost?: string };
+      manifest?: { debuggerHost?: string };
+      manifest2?: { extra?: { expoClient?: { hostUri?: string } } };
+    };
 
-  if (hostFromExpo) {
-    return `http://${hostFromExpo}:5001/api`;
+    const hostFromExpo = [
+      constants.expoConfig?.hostUri,
+      constants.expoGoConfig?.debuggerHost,
+      constants.manifest?.debuggerHost,
+      constants.manifest2?.extra?.expoClient?.hostUri,
+    ]
+      .find((value) => typeof value === "string" && value.length > 0)
+      ?.split(":")[0];
+
+    if (hostFromExpo) {
+      return `http://${hostFromExpo}:5001/api`;
+    }
+
+    if (Platform.OS === "ios") return "http://localhost:5001/api";
+    if (Platform.OS === "android") return "http://10.0.2.2:5001/api";
   }
 
-  if (Platform.OS === "ios") return "http://localhost:5001/api";
-  if (Platform.OS === "android") return "http://10.0.2.2:5001/api";
-
-  return "http://localhost:5001/api";
+  return "https://community-help-platform.onrender.com/api";
 };
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -150,23 +156,13 @@ apiClient.interceptors.response.use(
 
       try {
         const refreshToken = await getRefreshToken();
-        console.log(
-          "[API] Got 401, checking refresh token...",
-          refreshToken ? "Found" : "NOT FOUND"
-        );
 
         if (!refreshToken) {
-          console.error("[API] Cannot refresh: no refresh token stored.");
           await clearTokens();
           authState.logout();
           showToast("error", "Session expired", "Please log in again");
           return Promise.reject(new Error("No refresh token"));
         }
-
-        console.log(
-          "[API] Calling refresh endpoint with token:",
-          refreshToken.slice(0, 20)
-        );
 
         const res = await apiClient.post("/auth/refresh", {
           refreshToken,
@@ -214,7 +210,7 @@ apiClient.interceptors.response.use(
       showToast("error", "Error", message);
       console.warn("API Error:", message);
     } else if (error.request) {
-      showToast("error", "Network Error");
+      showToast("error", "Network Error", "Could not reach the server");
       console.warn("Network error");
     } else {
       console.warn("Request error:", error.message);
