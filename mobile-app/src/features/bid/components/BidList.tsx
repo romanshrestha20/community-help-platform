@@ -11,6 +11,7 @@ import { Bid } from "../types/bid.types";
 interface BidListProps {
     bids: Bid[];
     title?: string;
+    showHeader?: boolean;
     listPadding?: "default" | "none";
     emptyMessage?: string;
     loading?: boolean;
@@ -32,6 +33,7 @@ interface BidListProps {
 export const BidList: React.FC<BidListProps> = ({
     bids,
     title = "Bids",
+    showHeader = true,
     listPadding = "default",
     emptyMessage = "No bids yet",
     loading = false,
@@ -118,18 +120,21 @@ export const BidList: React.FC<BidListProps> = ({
 
     return (
         <View style={containerStyle}>
-            <View style={[styles.titlePill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-                <Ionicons name="receipt-outline" size={14} color={palette.textSecondary} />
-                <Text
-                    style={[
-                        styles.bodyText,
-                        styles.titleText,
-                        { color: palette.textSecondary, fontWeight: typography.fontWeight.semibold },
-                    ]}
-                >
-                    {title} ({bids.length})
-                </Text>
-            </View>
+            {showHeader ? (
+                <View style={[styles.titlePill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+                    <Ionicons name="receipt-outline" size={14} color={palette.textSecondary} />
+                    <Text
+                        style={[
+                            styles.bodyText,
+                            styles.titleText,
+                            { color: palette.textSecondary, fontWeight: typography.fontWeight.semibold },
+                        ]}
+                    >
+                        {title} ({bids.length})
+                    </Text>
+                </View>
+            ) : null}
+
             <FlatList
                 data={bids}
                 renderItem={renderBid}

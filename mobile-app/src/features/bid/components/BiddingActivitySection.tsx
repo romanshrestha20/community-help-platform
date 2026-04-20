@@ -20,20 +20,44 @@ export const BiddingActivitySection: React.FC<BiddingActivitySectionProps> = ({
         <Card style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Bidding Activity</Text>
-                <Text style={[styles.sectionCount, { color: palette.textSecondary, borderColor: palette.border }]}>{incomingHelperBids.length + myBiddingActivity.length}</Text>
+                <Text
+                    style={[
+                        styles.sectionCount,
+                        { color: palette.textSecondary, borderColor: palette.border },
+                    ]}
+                >
+                    {incomingHelperBids.length + myBiddingActivity.length}
+                </Text>
             </View>
-            <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>Clear split between helper and requester bid flow</Text>
+
+            <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                Clear split between helper and requester bid flow
+            </Text>
 
             <View style={styles.activityBlock}>
-                <Text style={[styles.activityLabel, { color: palette.textSecondary }]}>Helpers bidding on your requests</Text>
-                <BidList bids={incomingHelperBids} emptyMessage="No helper bids on your requests yet" />
+                <Text style={[styles.activityLabel, { color: palette.textSecondary }]}>
+                    Helpers bidding on your requests
+                </Text>
+                <BidList
+                    bids={incomingHelperBids}
+                    listPadding="none"
+                    showHeader={false}
+                    emptyMessage="No helper bids on your requests yet"
+                />
             </View>
 
             <View style={[styles.activityDivider, { borderBottomColor: palette.border }]} />
 
             <View style={styles.activityBlock}>
-                <Text style={[styles.activityLabel, { color: palette.textSecondary }]}>Your bids as helper</Text>
-                <BidList bids={myBiddingActivity} emptyMessage="No helper bids available in this feed yet" />
+                <Text style={[styles.activityLabel, { color: palette.textSecondary }]}>
+                    Your bids as helper
+                </Text>
+                <BidList
+                    bids={myBiddingActivity}
+                    listPadding="none"
+                    showHeader={false}
+                    emptyMessage="No helper bids available in this feed yet"
+                />
             </View>
         </Card>
     );

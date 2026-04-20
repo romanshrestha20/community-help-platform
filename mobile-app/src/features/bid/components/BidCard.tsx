@@ -10,6 +10,7 @@ import { Bid } from "../types/bid.types";
 import { BidStatusBadge } from "./BidStatusBadge";
 import { BidderProfileModal } from "./BidderProfileModal";
 import { formatBidAmount, formatBidCreatedAt } from "../utils/bidDisplay";
+import { EditBidModal } from "./EditBidModal";
 
 type Props = {
   bid: Bid;
@@ -124,6 +125,7 @@ export const BidCard = ({
         onPress: onUpdate,
         disabled: loading,
       });
+
     }
 
     if (canDelete && onDelete) {
@@ -364,6 +366,8 @@ export const BidCard = ({
         bid={bid}
         onClose={() => setProfileModalVisible(false)}
       />
+
+
     </>
   );
 };
