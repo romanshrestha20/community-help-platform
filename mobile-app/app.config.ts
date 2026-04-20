@@ -12,8 +12,8 @@ const config: ExpoConfig = {
     config: {
       ...(googleMapsApiKey
         ? {
-            googleMapsApiKey,
-          }
+          googleMapsApiKey,
+        }
         : {}),
     },
   },
@@ -22,11 +22,16 @@ const config: ExpoConfig = {
     config: {
       ...(googleMapsApiKey
         ? {
-            googleMaps: {
-              apiKey: googleMapsApiKey,
-            },
-          }
+          googleMaps: {
+            apiKey: googleMapsApiKey,
+          },
+        }
         : {}),
+    },
+  },
+  extra: {
+    eas: {
+      projectId: "f24e21a6-ad96-4e1a-9421-8c4a0049d288",
     },
   },
   plugins: [
