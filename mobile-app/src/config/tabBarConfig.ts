@@ -33,7 +33,7 @@ export const defaultTabsConfig: TabItem[] = [
   },
   {
     name: "requests",
-    href: "/requests",
+    href: "/profile/requests",
     icon: "list-ul",
     label: "My Requests",
   },
