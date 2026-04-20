@@ -72,8 +72,24 @@ export const useBid = () => {
     }, [run]);
 
 
-    const updateBid = useCallback((id: string, data: UpdateBidData) => {
-        return run(() => bidService.updateBid(id, data));
+    const updateBid = useCallback(async (id: string, data: UpdateBidData) => {
+        const updated = await run(() => bidService.updateBid(id, data));
+
+        if (updated) {
+            setBidsByRequestId((prev) => {
+                const next: Record<string, Bid[]> = {};
+
+                for (const [requestId, bids] of Object.entries(prev)) {
+                    next[requestId] = bids.map((bid) =>
+                        bid.id === id ? { ...bid, ...updated } : bid
+                    );
+                }
+
+                return next;
+            });
+        }
+
+        return updated;
     }, [run]);
 
     const respondToBid = useCallback(async (id: string, data: RespondBidStatus, helpRequestId?: string) => {
@@ -132,8 +148,20 @@ export const useBid = () => {
         return respondToBid(id, "REJECTED", helpRequestId);
     }, [respondToBid]);
 
-    const deleteBid = useCallback((id: string) => {
-        return run(() => bidService.deleteBid(id));
+    const deleteBid = useCallback(async (id: string) => {
+        const result = await run(() => bidService.deleteBid(id));
+
+        setBidsByRequestId((prev) => {
+            const next: Record<string, Bid[]> = {};
+
+            for (const [requestId, bids] of Object.entries(prev)) {
+                next[requestId] = bids.filter((bid) => bid.id !== id);
+            }
+
+            return next;
+        });
+
+        return result;
     }, [run]);
 
     const hasAcceptedBid = useCallback((helpRequestId: string) => {
