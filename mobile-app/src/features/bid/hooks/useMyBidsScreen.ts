@@ -16,8 +16,19 @@ export const useMyBidsScreen = () => {
 
     const fetchBids = useCallback(async () => {
         setError(null);
-        const loaded = await getMyBids();
-        setBids(loaded ?? []);
+
+        try {
+            const loaded = await getMyBids();
+            const safeBids = loaded ?? [];
+            setBids(safeBids);
+            return safeBids;
+        } catch (caughtError) {
+            const message =
+                caughtError instanceof Error ? caughtError.message : "Could not load bids";
+            setError(message);
+            setBids([]);
+            return [];
+        }
     }, [getMyBids]);
 
     const refreshBids = useCallback(async () => {
