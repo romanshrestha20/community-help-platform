@@ -10,7 +10,6 @@ import { Bid } from "../types/bid.types";
 import { BidStatusBadge } from "./BidStatusBadge";
 import { BidderProfileModal } from "./BidderProfileModal";
 import { formatBidAmount, formatBidCreatedAt } from "../utils/bidDisplay";
-import { EditBidModal } from "./EditBidModal";
 
 type Props = {
   bid: Bid;
@@ -334,7 +333,7 @@ export const BidCard = ({
 
             {bid.status === "ACCEPTED" ? (
               <Text style={[styles.acceptedLabel, { color: palette.success }]}>
-                You accepted this offer
+                {requesterActions ? "You accepted this offer" : "Your offer was accepted"}
               </Text>
             ) : null}
           </Stack>
