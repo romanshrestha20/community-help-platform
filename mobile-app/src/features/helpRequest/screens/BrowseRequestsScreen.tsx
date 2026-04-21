@@ -30,6 +30,9 @@ import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { useCategories } from "@/features/category/hooks/category.hook";
 import { RequestMapView } from "@/features/map/components/RequestMapView";
 import { MapRequestFilters } from "@/features/map/types/map.types";
+import { BidRequestModal } from "@/features/bid/components/BidRequestModal";
+import { useBidRequestFlow } from "@/features/bid/hooks";
+import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
 
 type ChipProps = {
   active?: boolean;
@@ -243,6 +246,17 @@ export const BrowseRequestsScreen = () => {
   const { categories } = useCategories();
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const {
+    bidModalVisible,
+    selectedRequest,
+    submittingBid,
+    bidError,
+    openBidModal,
+    closeBidModal,
+    handleSubmitBid,
+  } = useBidRequestFlow({
+    onSuccess: () => refreshRequests(),
+  });
 
   const { value: userLocation } = useLocationPicker({
     autoUseCurrentLocationOnMount: true,
@@ -441,6 +455,11 @@ export const BrowseRequestsScreen = () => {
             onPressItem={(item) =>
               router.push(APP_ROUTES.HOME_REQUEST_DETAILS(item.id))
             }
+            onBidItem={openBidModal}
+            isBidActionDisabled={(item) => !isRequestOpenForBidding(item.status)}
+            showFavoriteAction
+            favoriteActionLabel="Favorite"
+            bidActionLabel="Submit Bid"
             refreshing={refreshing}
             onRefresh={refreshRequests}
             emptyTitle={
@@ -472,6 +491,15 @@ export const BrowseRequestsScreen = () => {
         filters={filters}
         updateFilter={updateFilter}
         resetFilters={resetFilters}
+      />
+
+      <BidRequestModal
+        visible={bidModalVisible}
+        selectedRequest={selectedRequest}
+        onClose={closeBidModal}
+        onSubmit={handleSubmitBid}
+        loading={submittingBid}
+        error={bidError}
       />
     </ScreenView>
   );

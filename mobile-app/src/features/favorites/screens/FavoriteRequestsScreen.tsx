@@ -9,12 +9,28 @@ import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { APP_ROUTES } from "@/config/routes";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
+import { useAuthStore } from "@/features/auth/store/auth.store";
+import { BidRequestModal } from "@/features/bid/components/BidRequestModal";
+import { useBidRequestFlow } from "@/features/bid/hooks";
+import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
 
 export const FavoriteRequestsScreen = () => {
   const router = useRouter();
   const { palette } = useThemeContext();
+  const currentUserId = useAuthStore((state) => state.user?.id || state.user?.profile?.userId);
   const { value: userLocation } = useLocationPicker({ autoUseCurrentLocationOnMount: true });
   const { favoriteRequests, meta, listLoading, error, loadFavoriteRequests } = useFavorites();
+  const {
+    bidModalVisible,
+    selectedRequest,
+    submittingBid,
+    bidError,
+    openBidModal,
+    closeBidModal,
+    handleSubmitBid,
+  } = useBidRequestFlow({
+    onSuccess: () => loadFavoriteRequests(),
+  });
 
   useEffect(() => {
     void loadFavoriteRequests();
@@ -106,6 +122,13 @@ export const FavoriteRequestsScreen = () => {
           requests={favoriteRequests}
           userLocation={userLocation}
           onPressItem={(item) => router.push(APP_ROUTES.FAVORITES_REQUEST_DETAILS(item.id))}
+          onBidItem={openBidModal}
+          isBidActionDisabled={(item) =>
+            !isRequestOpenForBidding(item.status) || item.requesterId === currentUserId
+          }
+          showFavoriteAction
+          favoriteActionLabel="Favorite"
+          bidActionLabel="Submit Bid"
           refreshing={listLoading}
           onRefresh={() => {
             void loadFavoriteRequests();
@@ -117,6 +140,15 @@ export const FavoriteRequestsScreen = () => {
           }
         />
       </View>
+
+      <BidRequestModal
+        visible={bidModalVisible}
+        selectedRequest={selectedRequest}
+        onClose={closeBidModal}
+        onSubmit={handleSubmitBid}
+        loading={submittingBid}
+        error={bidError}
+      />
     </ScreenView>
   );
 };
