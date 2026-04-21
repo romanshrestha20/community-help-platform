@@ -22,5 +22,6 @@ export const APP_ROUTES = {
     AUTH_RESET_PASSWORD: "/(auth)/reset-password",
     AUTH_VERIFY_EMAIL: "/(auth)/verify-email",
     AUTH_VERIFY_PHONE: "/(auth)/verify-phone",
+    AUTH_WELCOME: "/(auth)/welcome",
     LOCATION_PICKER: "/location/picker",
 } as const;
