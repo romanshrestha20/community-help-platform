@@ -4,6 +4,7 @@ export { BidCard } from "./BidCard";
 export { BidList } from "./BidList";
 export { BidRequestDetail, BidDetail } from "./BidRequestDetail";
 export { BidRequestModal } from "./BidRequestModal";
+export { EditBidModal } from "./EditBidModal";
 export { BiddingActivitySection } from "./BiddingActivitySection";
 export { BidComposerCard } from "./BidComposerCard";
 export { BidEmptyState } from "./BidEmptyState";
