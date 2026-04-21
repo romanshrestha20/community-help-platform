@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
@@ -8,6 +8,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { Card, Screen, Stack, theme } from "@/design-system";
 import { BidRequestModal } from "@/features/bid/components/BidRequestModal";
 import { BidList } from "@/features/bid/components/BidList";
+import { EditBidModal } from "@/features/bid/components/EditBidModal";
 import { RequestPhotoUploadSection } from "@/features/helpRequest/components/RequestPhotoUploadSection";
 import { RequestActionBar } from "@/features/helpRequest/components/RequestActionBar";
 import { RequestDetailsHeader } from "@/features/helpRequest/components/RequestDetailHeader";
@@ -26,6 +27,7 @@ import { showSuccessToast } from "@/utils/toast";
 import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
 import { goBackOrFallback } from "@/utils/navigation";
 import { APP_ROUTES } from "@/config/routes";
+import type { Bid } from "@/features/bid/types/bid.types";
 
 type Props = {
     requestId?: string;
@@ -40,6 +42,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     const [deleting, setDeleting] = useState(false);
     const [bidModalVisible, setBidModalVisible] = useState(false);
     const [reviewModalVisible, setReviewModalVisible] = useState(false);
+    const [editingBid, setEditingBid] = useState<Bid | null>(null);
+    const [savingBid, setSavingBid] = useState(false);
 
     const activeRequestId = requestId || params.id;
     const isProfileRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
@@ -56,6 +60,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         acceptBid,
         rejectBid,
         submitBid,
+        updateMyBid,
         deleteMyBid,
         setRequestStatus,
         removeRequest,
@@ -154,6 +159,47 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
             router.push(`/messages/chat?requestId=${bidRequestId}` as never);
         },
         [router]
+    );
+
+    const handleOpenEditBidModal = useCallback((bid: Bid) => {
+        setEditingBid(bid);
+    }, []);
+
+    const handleCloseEditBidModal = useCallback(() => {
+        if (savingBid) {
+            return;
+        }
+
+        setEditingBid(null);
+    }, [savingBid]);
+
+    const handleSubmitEditBid = useCallback(
+        async (payload: { amount?: number; message?: string }) => {
+            if (!editingBid) {
+                return;
+            }
+
+            const amount =
+                typeof payload.amount === "number" ? payload.amount : editingBid.amount;
+            const message =
+                typeof payload.message === "string"
+                    ? payload.message
+                    : editingBid.message ?? "";
+
+            setSavingBid(true);
+            try {
+                const updated = await updateMyBid(editingBid.id, amount, message);
+                if (!updated) {
+                    return;
+                }
+
+                setEditingBid(null);
+                showSuccessToast("Bid updated successfully");
+            } finally {
+                setSavingBid(false);
+            }
+        },
+        [editingBid, updateMyBid]
     );
 
     const syncHelperReviews = useCallback(async () => {
@@ -414,8 +460,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                             canRespond={false}
                             canModify
                             actionLoadingByBidId={actionLoadingByBidId}
-                            onBidAccept={(bid) => acceptBid(bid.id)}
-                            onBidReject={(bid) => rejectBid(bid.id)}
+                            onBidUpdate={handleOpenEditBidModal}
                             onBidDelete={(bid) => deleteMyBid(bid.id)}
                             onBidMessage={(bid) => handleOpenBidChat(bid.helpRequestId)}
                             onRetry={fetchDetails}
@@ -461,7 +506,11 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                         return;
                     }
 
-                    await submitBid(payload.amount, payload.message);
+                    const created = await submitBid(payload.amount, payload.message);
+                    if (!created) {
+                        return;
+                    }
+
                     setBidModalVisible(false);
                     showSuccessToast("Bid submitted successfully");
                 }}
@@ -489,6 +538,14 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                     await syncHelperReviews();
                     setReviewModalVisible(false);
                 }}
+            />
+
+            <EditBidModal
+                visible={Boolean(editingBid)}
+                bid={editingBid}
+                loading={savingBid}
+                onClose={handleCloseEditBidModal}
+                onSubmit={handleSubmitEditBid}
             />
         </Screen>
     );
