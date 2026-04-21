@@ -36,6 +36,12 @@ type Props = {
   secondaryActionDisabled?: boolean;
   onPrimaryAction?: () => void;
   onSecondaryAction?: () => void;
+  showFavoriteAction?: boolean;
+  favoriteActionLabel?: string;
+  showBidAction?: boolean;
+  bidActionLabel?: string;
+  bidActionDisabled?: boolean;
+  onBidAction?: () => void;
   footer?: React.ReactNode;
 };
 
@@ -49,6 +55,12 @@ export const RequestCard = ({
   secondaryActionDisabled,
   onPrimaryAction,
   onSecondaryAction,
+  showFavoriteAction = false,
+  favoriteActionLabel = "Save",
+  showBidAction = false,
+  bidActionLabel = "Submit Bid",
+  bidActionDisabled = false,
+  onBidAction,
   footer,
 }: Props) => {
   const { palette } = useThemeContext();
@@ -105,6 +117,11 @@ export const RequestCard = ({
   const handleFavoriteToggle = (event?: GestureResponderEvent) => {
     event?.stopPropagation();
     void toggleFavorite(request);
+  };
+
+  const handleBidAction = (event?: GestureResponderEvent) => {
+    event?.stopPropagation();
+    onBidAction?.();
   };
 
   const openPreview = (index: number) => {
@@ -371,24 +388,47 @@ export const RequestCard = ({
                   disabled={primaryActionDisabled}
                 />
               ) : null}
+            </Row>
+          )}
 
-              <AppButton
-                title={favorited ? "Saved" : "Save"}
-                onPress={handleFavoriteToggle}
-                variant="secondary"
-                fullWidth={false}
-                disabled={favoriteLoading}
-                loading={favoriteLoading}
-                icon={
-                  !favoriteLoading ? (
+          {(showBidAction || showFavoriteAction) && (
+            <Row gap="sm" justify="flex-end" style={styles.quickActionRow}>
+              {showBidAction ? (
+                <AppButton
+                  title={bidActionLabel}
+                  onPress={handleBidAction}
+                  variant="primary"
+                  fullWidth={false}
+                  disabled={bidActionDisabled}
+                  icon={
                     <Ionicons
-                      name={favorited ? "heart" : "heart-outline"}
+                      name="cash-outline"
                       size={16}
-                      color={palette.textPrimary}
+                      color={palette.textInverse}
                     />
-                  ) : undefined
-                }
-              />
+                  }
+                />
+              ) : null}
+
+              {showFavoriteAction ? (
+                <AppButton
+                  title={favorited ? "Saved" : favoriteActionLabel}
+                  onPress={handleFavoriteToggle}
+                  variant="secondary"
+                  fullWidth={false}
+                  disabled={favoriteLoading}
+                  loading={favoriteLoading}
+                  icon={
+                    !favoriteLoading ? (
+                      <Ionicons
+                        name={favorited ? "heart" : "heart-outline"}
+                        size={16}
+                        color={palette.textPrimary}
+                      />
+                    ) : undefined
+                  }
+                />
+              ) : null}
             </Row>
           )}
 
@@ -560,6 +600,10 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexWrap: "wrap",
+  },
+  quickActionRow: {
+    flexWrap: "wrap",
+    marginTop: theme.spacing.xxs,
   },
   footer: {
     marginTop: theme.spacing.xxs,
