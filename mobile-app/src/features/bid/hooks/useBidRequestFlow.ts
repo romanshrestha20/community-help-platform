@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { HelpRequest } from "@/features/helpRequest/components";
-import { showErrorToast, showSuccessToast, showToast } from "@/utils/toast";
+import { showErrorToast, showSuccessToast } from "@/utils/toast";
 import { useBid } from "./bid.hook";
 
 interface UseBidRequestFlowOptions {
@@ -39,16 +39,10 @@ export const useBidRequestFlow = ({ onSuccess }: UseBidRequestFlowOptions = {}) 
                 message,
             });
 
-            if (bidError?.includes("Already bid")) {
-                showToast("info", "Bid Already Submitted", "You have already submitted a bid for this request.");
-                return;
-            }
-
             if (!created) {
-                showErrorToast("Failed to submit bid. Please try again.");
+                showErrorToast("Error", "Failed to submit bid. Please try again.");
                 return;
             }
-            // if bid already exists, show info toast instead of success
 
             showSuccessToast("Bid submitted successfully");
             closeBidModal();
