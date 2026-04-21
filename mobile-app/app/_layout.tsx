@@ -126,6 +126,7 @@ export default function Layout() {
       "reset-password",
       "verify-email",
       "verify-phone",
+      "welcome",
     ]);
 
     if (isAuthenticated && isRootRoute) {
