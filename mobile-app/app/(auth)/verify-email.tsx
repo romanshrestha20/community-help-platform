@@ -1,18 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
-import { AppHeader } from "@/components/ui/AppHeader";
-import { Card, Stack, theme } from "@/design-system";
+import { Stack } from "@/design-system";
+import {
+  AuthBanner,
+  AuthCard,
+  AuthFooterLink,
+  AuthHero,
+  AuthScreen,
+} from "@/features/auth/components";
 import { APP_ROUTES } from "@/config/routes";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useAuthStore } from "@/features/auth/store/auth.store";
@@ -82,125 +80,61 @@ export default function VerifyEmailScreen() {
     isAuthenticated && currentUser && !currentUser.isEmailVerified;
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.screen, { backgroundColor: palette.background }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View style={styles.container}>
-        <View style={styles.authBlock}>
-          <AppHeader
-            title="Verify Email"
-            subtitle="Confirm your email address to finish setting up your account."
-            align="center"
-            variant="large"
+    <AuthScreen>
+      <AuthHero
+        icon="mail-outline"
+        eyebrow="Secure your account"
+        title={status === "success" ? "Email verified" : "Verify your email"}
+        subtitle="Confirm your email address to finish setting up your account and unlock the rest of the flow."
+      />
+
+      <AuthCard>
+        <Stack gap="md">
+          {loadingVerifyEmail ? (
+            <View style={{ alignItems: "center", paddingVertical: 8 }}>
+              <ActivityIndicator color={palette.primary} />
+            </View>
+          ) : null}
+
+          <AuthBanner tone={status === "success" ? "success" : status === "error" ? "error" : "info"}>
+            {error || message}
+          </AuthBanner>
+
+          {status === "success" ? (
+            <AppButton
+              title="Continue"
+              onPress={() => {
+                if (isAuthenticated) {
+                  router.replace("/(tabs)/home");
+                  return;
+                }
+
+                router.replace(APP_ROUTES.AUTH_LOGIN);
+              }}
+            />
+          ) : null}
+
+          {status !== "success" && canResendVerification ? (
+            <AppButton
+              title={
+                loadingSendEmailVerification
+                  ? "Sending email..."
+                  : "Resend verification email"
+              }
+              onPress={handleResend}
+              loading={loadingSendEmailVerification}
+              disabled={loadingSendEmailVerification}
+              variant="secondary"
+            />
+          ) : null}
+
+          <AuthFooterLink
+            prefix="Need to leave this flow?"
+            actionLabel="Back to sign in"
+            onPress={() => router.replace(APP_ROUTES.AUTH_LOGIN)}
           />
-
-          <Card
-            style={[
-              styles.card,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-              },
-            ]}
-          >
-            <Stack gap="md">
-              {loadingVerifyEmail ? (
-                <View style={styles.loader}>
-                  <ActivityIndicator color={palette.primary} />
-                </View>
-              ) : null}
-
-              <Text
-                style={[
-                  styles.message,
-                  {
-                    color:
-                      status === "success"
-                        ? palette.success
-                        : status === "error"
-                          ? palette.danger
-                          : palette.textPrimary,
-                  },
-                ]}
-              >
-                {error || message}
-              </Text>
-
-              {status === "success" ? (
-                <AppButton
-                  title="Continue"
-                  onPress={() => {
-                    if (isAuthenticated) {
-                      router.replace("/(tabs)/home");
-                      return;
-                    }
-
-                    router.replace(APP_ROUTES.AUTH_LOGIN);
-                  }}
-                />
-              ) : null}
-
-              {status !== "success" && canResendVerification ? (
-                <AppButton
-                  title={
-                    loadingSendEmailVerification
-                      ? "Sending email..."
-                      : "Resend verification email"
-                  }
-                  onPress={handleResend}
-                  loading={loadingSendEmailVerification}
-                  disabled={loadingSendEmailVerification}
-                />
-              ) : null}
-
-              <Pressable onPress={() => router.replace(APP_ROUTES.AUTH_LOGIN)}>
-                <Text style={styles.linkText}>
-                  <Text style={{ color: palette.textSecondary }}>Back to </Text>
-                  <Text style={{ color: palette.primary }}>Sign in</Text>
-                </Text>
-              </Pressable>
-            </Stack>
-          </Card>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+        </Stack>
+      </AuthCard>
+    </AuthScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.lg,
-    justifyContent: "center",
-  },
-  authBlock: {
-    width: "100%",
-    gap: theme.spacing.lg,
-  },
-  card: {
-    width: "100%",
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.lg,
-    borderWidth: 1,
-  },
-  loader: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  message: {
-    fontSize: theme.typography.fontSize.sm,
-    lineHeight: theme.typography.lineHeight.md,
-    textAlign: "center",
-  },
-  linkText: {
-    textAlign: "center",
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
-    marginTop: theme.spacing.xs,
-  },
-});
