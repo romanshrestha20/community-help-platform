@@ -271,7 +271,7 @@ export const BrowseRequestsScreen = () => {
     [buildParams, userLocation?.latitude, userLocation?.longitude]
   );
 
-  const { requests, refreshing, refreshRequests } = useRequestList({
+  const { requests, loading, refreshing, refreshRequests } = useRequestList({
     scope: "browse",
     params: requestParams,
     useNearbyEndpoint:
@@ -451,6 +451,7 @@ export const BrowseRequestsScreen = () => {
         {viewMode === "list" ? (
           <RequestList
             requests={filteredRequests}
+            loading={loading}
             userLocation={userLocation}
             onPressItem={(item) =>
               router.push(APP_ROUTES.HOME_REQUEST_DETAILS(item.id))

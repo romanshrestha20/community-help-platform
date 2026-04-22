@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Card, Row, ScreenView, Stack, theme } from "@/design-system";
 import { RequestCard } from "@/features/helpRequest/components/RequestCard";
+import { RequestCardSkeleton } from "@/features/helpRequest/components/RequestCardSkeleton";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
 import { RequestForm } from "@/features/helpRequest/components/RequestForm";
 import { useHelpRequest } from "@/features/helpRequest/hooks/helpRequest.hook";
@@ -166,13 +167,21 @@ export const MyRequestsScreen = () => {
                     </View>
                 }
                 ListEmptyComponent={
-                    <RequestEmptyState
-                        title={loading ? "Loading your requests" : "No requests yet"}
-                        description={
-                            error ||
-                            "Requests you create will appear here so you can manage status and bids."
-                        }
-                    />
+                    loading ? (
+                        <View style={styles.skeletonWrap}>
+                            {Array.from({ length: 3 }).map((_, index) => (
+                                <RequestCardSkeleton key={`my-request-skeleton-${index}`} />
+                            ))}
+                        </View>
+                    ) : (
+                        <RequestEmptyState
+                            title="No requests yet"
+                            description={
+                                error ||
+                                "Requests you create will appear here so you can manage status and bids."
+                            }
+                        />
+                    )
                 }
                 ListFooterComponent={
                     <Text style={[styles.caption, { color: palette.textSecondary }]}>
@@ -247,6 +256,9 @@ const styles = StyleSheet.create({
     caption: {
         marginTop: theme.spacing.sm,
         fontSize: theme.typography.fontSize.xs,
+    },
+    skeletonWrap: {
+        gap: theme.spacing.sm,
     },
 });
 

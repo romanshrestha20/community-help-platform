@@ -29,9 +29,10 @@ export const FavoriteRequestsScreen = () => {
     closeBidModal,
     handleSubmitBid,
   } = useBidRequestFlow({
-    onSuccess: () => loadFavoriteRequests(),
+    onSuccess: async () => {
+      await loadFavoriteRequests();
+    },
   });
-
   useEffect(() => {
     void loadFavoriteRequests();
   }, [loadFavoriteRequests]);
@@ -120,6 +121,7 @@ export const FavoriteRequestsScreen = () => {
       <View style={styles.listWrap}>
         <RequestList
           requests={favoriteRequests}
+          loading={listLoading}
           userLocation={userLocation}
           onPressItem={(item) => router.push(APP_ROUTES.FAVORITES_REQUEST_DETAILS(item.id))}
           onBidItem={openBidModal}

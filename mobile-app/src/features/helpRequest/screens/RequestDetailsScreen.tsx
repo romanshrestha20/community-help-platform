@@ -5,13 +5,14 @@ import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppButton } from "@/components/ui/AppButton";
-import { Card, Screen, Stack, theme } from "@/design-system";
+import { Card, Row, Screen, Stack, theme } from "@/design-system";
 import { BidRequestModal } from "@/features/bid/components/BidRequestModal";
 import { BidList } from "@/features/bid/components/BidList";
 import { EditBidModal } from "@/features/bid/components/EditBidModal";
 import { RequestPhotoUploadSection } from "@/features/helpRequest/components/RequestPhotoUploadSection";
 import { RequestActionBar } from "@/features/helpRequest/components/RequestActionBar";
 import { RequestDetailsHeader } from "@/features/helpRequest/components/RequestDetailHeader";
+import { RequestDetailsSkeleton } from "@/features/helpRequest/components/RequestDetailsSkeleton";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
 import { useRequestDetails } from "@/features/helpRequest/hooks/useRequestDetails";
 import type { HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
@@ -86,9 +87,6 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     const requestEditRoute = (id: string) =>
         isOwner ? APP_ROUTES.PROFILE_REQUEST_EDIT(id) : APP_ROUTES.HOME_REQUEST_EDIT(id);
 
-    const helperVisibleBids = useMemo(() => {
-        return myBid ? [myBid] : [];
-    }, [myBid]);
     const favoriteLoading = activeRequestId ? Boolean(actionLoadingById[activeRequestId]) : false;
     const favorited = activeRequestId ? isFavorite(activeRequestId) : false;
     const currentUserId = authUser?.id;
@@ -113,6 +111,17 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     }, [currentUserId, helperReviews, requestIdValue]);
     const reviewLoading =
         reviewActionLoading || (helperId ? Boolean(loadingByUserId[helperId]) : false);
+    const acceptedBid = useMemo(
+        () => bids.find((bid) => bid.status === "ACCEPTED") ?? null,
+        [bids]
+    );
+    const isCompletedOwnerView = isOwner && request?.status === "COMPLETED";
+    const showOwnerBidList = Boolean(isOwner && request && request.status !== "COMPLETED");
+    const showOwnerActionBar = Boolean(isOwner && request && request.status !== "COMPLETED");
+    const showHelperSubmitState = Boolean(
+        !isOwner && request && isRequestOpenForBidding(request.status) && !myBid
+    );
+    const showHelperBidState = Boolean(!isOwner && myBid);
 
     const handleBack = useCallback(() => {
         goBackOrFallback({
@@ -258,11 +267,17 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
     if (!request && loading) {
         return (
-            <Screen centered>
-                <RequestEmptyState
-                    title="Loading request"
-                    description="Fetching details and bids for this request."
+            <Screen>
+                <AppHeader
+                    title="Request Details"
+                    subtitle="Review status, bids, and next actions."
+                    showBackButton
+                    backButtonProps={{
+                        fallback: requestListRoute,
+                        variant: "secondary",
+                    }}
                 />
+                <RequestDetailsSkeleton />
             </Screen>
         );
     }
@@ -280,6 +295,129 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         );
     }
 
+    const favoriteAction = (
+        <AppButton
+            title={favorited ? "Saved" : "Save"}
+            variant={favorited ? "secondary" : "ghost"}
+            loading={favoriteLoading}
+            onPress={() => {
+                void toggleFavorite(request);
+            }}
+            icon={
+                <Ionicons
+                    name={favorited ? "heart" : "heart-outline"}
+                    size={16}
+                    color={favorited ? palette.textPrimary : palette.textPrimary}
+                />
+            }
+        />
+    );
+
+    const headerActionContent = showHelperSubmitState ? (
+        <Stack gap="sm">
+            {favoriteAction}
+            <View
+                style={[
+                    styles.helperActionPanel,
+                    {
+                        backgroundColor: palette.primarySoft ?? palette.surfaceMuted,
+                        borderColor: palette.primary,
+                    },
+                ]}
+            >
+                <Text style={[styles.helperActionEyebrow, { color: palette.primary }]}>
+                    Ready to help
+                </Text>
+                <Text style={[styles.helperActionTitle, { color: palette.textPrimary }]}>
+                    Submit your offer
+                </Text>
+                <Text style={[styles.helperActionCopy, { color: palette.textSecondary }]}>
+                    Send your price and a short message without leaving this request.
+                </Text>
+                <AppButton
+                    title="Submit offer"
+                    onPress={handleOpenBidModal}
+                    loading={loading}
+                    disabled={loading}
+                />
+            </View>
+        </Stack>
+    ) : showHelperBidState && myBid ? (
+        <Stack gap="sm">
+            {favoriteAction}
+            <View
+                style={[
+                    styles.helperActionPanel,
+                    {
+                        backgroundColor: palette.successSoft ?? palette.surfaceMuted,
+                        borderColor: palette.success,
+                    },
+                ]}
+            >
+                <Row gap="xs" align="center">
+                    <Ionicons name="checkmark-circle-outline" size={16} color={palette.success} />
+                    <Text style={[styles.helperActionEyebrow, { color: palette.success }]}>
+                        Your bid
+                    </Text>
+                </Row>
+                <Text style={[styles.myBidAmount, { color: palette.textPrimary }]}>
+                    €{myBid.amount.toFixed(2)}
+                </Text>
+                <Text style={[styles.helperActionCopy, { color: palette.textSecondary }]}>
+                    {myBid.message || "Waiting for the requester to respond to your offer."}
+                </Text>
+                <View style={styles.inlineActionRow}>
+                    <View style={styles.inlineActionCell}>
+                        <AppButton
+                            title="Edit bid"
+                            variant="secondary"
+                            onPress={() => handleOpenEditBidModal(myBid)}
+                            disabled={Boolean(actionLoadingByBidId[myBid.id])}
+                        />
+                    </View>
+                    <View style={styles.inlineActionCell}>
+                        <AppButton
+                            title="Withdraw"
+                            variant="ghost"
+                            onPress={() => deleteMyBid(myBid.id)}
+                            disabled={Boolean(actionLoadingByBidId[myBid.id])}
+                        />
+                    </View>
+                </View>
+            </View>
+        </Stack>
+    ) : (
+        <View style={styles.favoriteDock}>{favoriteAction}</View>
+    );
+
+    const headerStateLabel = isCompletedOwnerView
+        ? "Closure"
+        : isOwner
+            ? "Owner view"
+            : showHelperBidState
+                ? "Waiting"
+                : "Opportunity";
+    const headerStateTitle = isCompletedOwnerView
+        ? `Completed${acceptedBid?.helperName ? ` by ${acceptedBid.helperName}` : ""}`
+        : isOwner
+            ? request.status === "OPEN"
+                ? "Review incoming offers and choose your helper"
+                : "Track the accepted helper and move the request forward"
+            : showHelperBidState
+                ? "Your offer is in"
+                : "This request is open for offers";
+    const headerStateDescription = isCompletedOwnerView
+        ? existingReview
+            ? "The job is done. Review details stay here in case you want to update your feedback."
+            : "The job is done. Leave a review now to close the loop and strengthen trust."
+        : isOwner
+            ? request.status === "OPEN"
+                ? "Bid amounts and helper credibility are the main signals that matter now."
+                : "You already chose a helper. Messaging and completion are the next meaningful actions."
+            : showHelperBidState
+                ? "Stay calm here. You can edit or withdraw while the bid is still pending."
+                : "Scan the work, save it if needed, or place an offer while bidding stays open.";
+
     return (
         <Screen>
 
@@ -294,97 +432,60 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 }}
             />
 
-            <RequestDetailsHeader request={request} />
+            <RequestDetailsHeader
+                request={request}
+                isOwner={isOwner}
+                actionContent={headerActionContent}
+                stateLabel={headerStateLabel}
+                stateTitle={headerStateTitle}
+                stateDescription={headerStateDescription}
+            />
 
-            <Card style={[styles.favoriteCard, { borderColor: palette.border }]}>
-                <Stack gap="sm">
-                    <View style={[styles.sectionPill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-                        <Ionicons name="heart-outline" size={14} color={palette.textSecondary} />
-                        <Text style={[styles.sectionPillText, { color: palette.textSecondary }]}>Saved requests</Text>
-                    </View>
-
-                    <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-                        {favorited ? "Saved for later" : "Save this request"}
-                    </Text>
-
-                    <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                        Keep this request in your saved list so you can come back to it quickly.
-                    </Text>
-
-                    <AppButton
-                        title={favorited ? "Saved" : "Save request"}
-                        variant={favorited ? "secondary" : "primary"}
-                        loading={favoriteLoading}
-                        onPress={() => {
-                            void toggleFavorite(request);
-                        }}
-                        icon={
-                            <Ionicons
-                                name={favorited ? "heart" : "heart-outline"}
-                                size={16}
-                                color={favorited ? palette.textPrimary : palette.textInverse}
-                            />
-                        }
-                    />
-                </Stack>
-            </Card>
-
-            {request.images?.length ? (
-                <RequestPhotoUploadSection
-                    title="Uploaded photos"
-                    description="Photos attached to this request."
-                    existingImages={request.images}
-                    selectedImages={[]}
-                    readOnly
-                />
-            ) : null}
-
-            {isOwner ? (
-                <RequestActionBar
-                    request={request}
-                    loading={loading}
-                    deleting={deleting}
-                    onEdit={() => router.push(requestEditRoute(request.id))}
-                    onUpdateStatus={handleStatusUpdate}
-                    onDelete={handleDeleteRequest}
-                />
-            ) : null}
-
-            {isOwner && request.status === "COMPLETED" && helperId ? (
-                <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
+            {isCompletedOwnerView && helperId ? (
+                <Card
+                    style={[
+                        styles.reviewFocusCard,
+                        {
+                            backgroundColor: palette.warningSoft ?? palette.surfaceMuted,
+                            borderColor: palette.warning,
+                        },
+                    ]}
+                >
                     <Stack gap="sm">
                         <View
                             style={[
                                 styles.sectionPill,
                                 {
-                                    backgroundColor: palette.surfaceMuted,
-                                    borderColor: palette.border,
+                                    backgroundColor: palette.surface,
+                                    borderColor: palette.warning,
                                 },
                             ]}
                         >
                             <Ionicons
                                 name="star-outline"
                                 size={14}
-                                color={palette.textSecondary}
+                                color={palette.warning}
                             />
                             <Text
                                 style={[
                                     styles.sectionPillText,
-                                    { color: palette.textSecondary },
+                                    { color: palette.warning },
                                 ]}
                             >
-                                Helper review
+                                Review helper
                             </Text>
                         </View>
 
-                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-                            {existingReview ? "Your review" : "Rate your helper"}
+                        <Text style={[styles.reviewFocusTitle, { color: palette.textPrimary }]}>
+                            {existingReview
+                                ? "Your feedback is the final step"
+                                : "Rate your helper now that the job is done"}
                         </Text>
 
                         <Text style={[styles.helperText, { color: palette.textSecondary }]}>
                             {existingReview
-                                ? "You can update the feedback you left for this completed request."
-                                : "Leave a rating and short comment now that the request is complete."}
+                                ? "You already left a review. Update it here if the final outcome changed."
+                                : "Close the request with a rating and short comment so future members can trust this helper."}
                         </Text>
 
                         {existingReview ? (
@@ -403,6 +504,27 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 </Card>
             ) : null}
 
+            {request.images?.length ? (
+                <RequestPhotoUploadSection
+                    title="Uploaded photos"
+                    description="Photos attached to this request."
+                    existingImages={request.images}
+                    selectedImages={[]}
+                    readOnly
+                />
+            ) : null}
+
+            {showOwnerActionBar ? (
+                <RequestActionBar
+                    request={request}
+                    loading={loading}
+                    deleting={deleting}
+                    onEdit={() => router.push(requestEditRoute(request.id))}
+                    onUpdateStatus={handleStatusUpdate}
+                    onDelete={handleDeleteRequest}
+                />
+            ) : null}
+
             {actionError ? (
                 <Card style={[styles.alertCard, { backgroundColor: palette.dangerSoft, borderColor: palette.danger }]}>
                     <Text style={[styles.errorText, { color: palette.danger }]}>
@@ -411,7 +533,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 </Card>
             ) : null}
 
-            {isOwner ? (
+            {showOwnerBidList ? (
                 <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
                     <Stack gap="sm">
                         <View style={[styles.sectionPill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
@@ -438,56 +560,6 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                             onBidMessage={(bid) => handleOpenBidChat(bid.helpRequestId)}
                             onRetry={fetchDetails}
                         />
-                    </Stack>
-                </Card>
-            ) : null}
-
-            {!isOwner && myBid ? (
-                <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
-                    <Stack gap="sm">
-                        <View style={[styles.sectionPill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-                            <Ionicons name="document-text-outline" size={14} color={palette.textSecondary} />
-                            <Text style={[styles.sectionPillText, { color: palette.textSecondary }]}>Bid overview</Text>
-                        </View>
-
-                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Your Bid</Text>
-
-                        <BidList
-                            bids={helperVisibleBids}
-                            title="My bid"
-                            listPadding="none"
-                            emptyMessage=""
-                            canRespond={false}
-                            canModify
-                            actionLoadingByBidId={actionLoadingByBidId}
-                            onBidUpdate={handleOpenEditBidModal}
-                            onBidDelete={(bid) => deleteMyBid(bid.id)}
-                            onBidMessage={(bid) => handleOpenBidChat(bid.helpRequestId)}
-                            onRetry={fetchDetails}
-                        />
-                    </Stack>
-                </Card>
-            ) : null}
-
-            {!isOwner && isRequestOpenForBidding(request.status) && !myBid ? (
-                <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
-                    <Stack gap="sm">
-                        <View style={[styles.sectionPill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-                            <Ionicons name="cash-outline" size={14} color={palette.textSecondary} />
-                            <Text style={[styles.sectionPillText, { color: palette.textSecondary }]}>Take this request</Text>
-                        </View>
-
-                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Place Your Bid</Text>
-
-                        <AppButton
-                            title="Submit Offer"
-                            onPress={handleOpenBidModal}
-                            loading={loading}
-                            disabled={loading}
-                        />
-                        <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                            Send your offer amount and a short message.
-                        </Text>
                     </Stack>
                 </Card>
             ) : null}
@@ -555,7 +627,7 @@ const styles = StyleSheet.create({
     sectionCard: {
         borderRadius: 16,
     },
-    favoriteCard: {
+    reviewFocusCard: {
         borderRadius: 16,
     },
     alertCard: {
@@ -584,6 +656,46 @@ const styles = StyleSheet.create({
     helperText: {
         fontSize: theme.typography.fontSize.sm,
         lineHeight: 20,
+    },
+    reviewFocusTitle: {
+        fontSize: theme.typography.fontSize.xl,
+        fontWeight: theme.typography.fontWeight.bold,
+        lineHeight: 30,
+    },
+    helperActionPanel: {
+        borderWidth: 1,
+        borderRadius: 16,
+        padding: theme.spacing.md,
+        gap: theme.spacing.sm,
+    },
+    helperActionEyebrow: {
+        fontSize: theme.typography.fontSize.xs,
+        fontWeight: theme.typography.fontWeight.semibold,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+    },
+    helperActionTitle: {
+        fontSize: theme.typography.fontSize.lg,
+        fontWeight: theme.typography.fontWeight.bold,
+    },
+    helperActionCopy: {
+        fontSize: theme.typography.fontSize.sm,
+        lineHeight: 20,
+    },
+    myBidAmount: {
+        fontSize: 28,
+        fontWeight: "800",
+        lineHeight: 32,
+    },
+    inlineActionRow: {
+        flexDirection: "row",
+        gap: theme.spacing.sm,
+    },
+    inlineActionCell: {
+        flex: 1,
+    },
+    favoriteDock: {
+        alignItems: "stretch",
     },
     errorText: {
         fontSize: theme.typography.fontSize.sm,
