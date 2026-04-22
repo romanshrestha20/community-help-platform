@@ -1,66 +1,65 @@
 import { useState } from "react";
-import { HelpRequest } from "@/features/helpRequest/components";
+import type { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
 import { showErrorToast, showSuccessToast } from "@/utils/toast";
 import { useBid } from "./bid.hook";
 
 interface UseBidRequestFlowOptions {
-    onSuccess?: () => Promise<void> | void;
+  onSuccess?: () => Promise<void> | void;
 }
 
 export const useBidRequestFlow = ({ onSuccess }: UseBidRequestFlowOptions = {}) => {
-    const { createBid, error: bidError } = useBid();
-    const [bidModalVisible, setBidModalVisible] = useState(false);
-    const [selectedRequest, setSelectedRequest] = useState<HelpRequest | null>(null);
-    const [submittingBid, setSubmittingBid] = useState(false);
+  const { createBid, error: bidError } = useBid();
+  const [bidModalVisible, setBidModalVisible] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<HelpRequest | null>(null);
+  const [submittingBid, setSubmittingBid] = useState(false);
 
-    const openBidModal = (request: HelpRequest) => {
-        setSelectedRequest(request);
-        setBidModalVisible(true);
-    };
+  const openBidModal = (request: HelpRequest) => {
+    setSelectedRequest(request);
+    setBidModalVisible(true);
+  };
 
-    const closeBidModal = () => {
-        setBidModalVisible(false);
-        setSelectedRequest(null);
-    };
+  const closeBidModal = () => {
+    setBidModalVisible(false);
+    setSelectedRequest(null);
+  };
 
-    const handleSubmitBid = async (data: { amount?: number; message?: string }) => {
-        if (!selectedRequest?.id) {
-            return;
-        }
+  const handleSubmitBid = async (data: { amount?: number; message?: string }) => {
+    if (!selectedRequest?.id) {
+      return;
+    }
 
-        const amount = Number(data.amount);
-        const message = String(data.message || "").trim();
+    const amount = Number(data.amount);
+    const message = String(data.message || "").trim();
 
-        setSubmittingBid(true);
-        try {
-            const created = await createBid({
-                helpRequestId: selectedRequest.id,
-                amount,
-                message,
-            });
+    setSubmittingBid(true);
+    try {
+      const created = await createBid({
+        helpRequestId: selectedRequest.id,
+        amount,
+        message,
+      });
 
-            if (!created) {
-                showErrorToast("Error", "Failed to submit bid. Please try again.");
-                return;
-            }
+      if (!created) {
+        showErrorToast("Error", "Failed to submit bid. Please try again.");
+        return;
+      }
 
-            showSuccessToast("Bid submitted successfully");
-            closeBidModal();
-        } finally {
-            setSubmittingBid(false);
-        }
+      showSuccessToast("Bid submitted successfully");
+      closeBidModal();
+    } finally {
+      setSubmittingBid(false);
+    }
 
-        // Keep submit action responsive; refresh follow-up data in background.
-        void Promise.resolve(onSuccess?.());
-    };
+    void Promise.resolve(onSuccess?.());
+  };
 
-    return {
-        bidModalVisible,
-        selectedRequest,
-        submittingBid,
-        bidError,
-        openBidModal,
-        closeBidModal,
-        handleSubmitBid,
-    };
+  return {
+    bidModalVisible,
+    selectedRequest,
+    submittingBid,
+    bidError,
+    openBidModal,
+    closeBidModal,
+    handleSubmitBid,
+  };
 };
