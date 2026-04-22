@@ -5,11 +5,14 @@ import { theme } from "@/design-system";
 
 import { HelpRequest } from "../types/helpRequest.types";
 import { RequestCard } from "./RequestCard";
+import { RequestCardSkeleton } from "./RequestCardSkeleton";
 import { RequestEmptyState } from "./RequestEmptyState";
 import { AppLocation } from "@/features/location/types/location.types";
 
 type Props = {
     requests: HelpRequest[];
+    loading?: boolean;
+    skeletonCount?: number;
     userLocation?: AppLocation | null;
     onPressItem?: (item: HelpRequest) => void;
     onBidItem?: (item: HelpRequest) => void;
@@ -27,6 +30,8 @@ type Props = {
 
 export const RequestList = ({
     requests,
+    loading = false,
+    skeletonCount = 4,
     userLocation,
     onPressItem,
     onBidItem,
@@ -41,6 +46,18 @@ export const RequestList = ({
     emptyActionLabel,
     onPressEmptyAction,
 }: Props) => {
+    if (loading && requests.length === 0) {
+        return (
+            <FlatList
+                data={Array.from({ length: skeletonCount }, (_, index) => `request-skeleton-${index}`)}
+                keyExtractor={(item) => item}
+                renderItem={() => <RequestCardSkeleton />}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+            />
+        );
+    }
+
     return (
         <FlatList
             data={requests}

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -14,10 +14,14 @@ import {
 } from "../utils/requestDisplay";
 import { getRelativePostedTime } from "../utils/requestTime";
 import { RequestStatusBadge } from "./RequestStatusBadge";
-import { useRequestDetails } from "../hooks/useRequestDetails";
 
 type Props = {
   request: HelpRequest;
+  isOwner?: boolean;
+  actionContent?: React.ReactNode;
+  stateLabel?: string;
+  stateTitle?: string;
+  stateDescription?: string;
 };
 
 const getDescriptionBullets = (description: string): string[] => {
@@ -38,10 +42,17 @@ const getDescriptionBullets = (description: string): string[] => {
   return parts;
 };
 
-export const RequestDetailsHeader = ({ request }: Props) => {
+export const RequestDetailsHeader = ({
+  request,
+  isOwner = false,
+  actionContent,
+  stateLabel,
+  stateTitle,
+  stateDescription,
+}: Props) => {
   const { palette } = useThemeContext();
   const [profileModalVisible, setProfileModalVisible] = useState(false);
-  const { isOwner } = useRequestDetails(request.id);
+
   const postedTime = useMemo(
     () => getRelativePostedTime(request.createdAt),
     [request.createdAt]
@@ -74,69 +85,217 @@ export const RequestDetailsHeader = ({ request }: Props) => {
 
   const budgetLabel = useMemo(() => formatRequestBudget(request), [request]);
 
+  const showBottomZone = Boolean(stateTitle || actionContent);
+
   return (
     <Card style={styles.card}>
       <Stack gap="md">
-        <Row justify="space-between" align="center">
-          <View style={[styles.categoryPill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-            <Text style={[styles.categoryPillLabel, { color: palette.textSecondary }]}>{categoryLabel}</Text>
+        <Row justify="space-between" align="center" style={styles.topRow}>
+          <View
+            style={[
+              styles.categoryPill,
+              {
+                backgroundColor: palette.surfaceMuted,
+                borderColor: palette.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.categoryPillLabel,
+                { color: palette.textSecondary },
+              ]}
+            >
+              {categoryLabel}
+            </Text>
           </View>
+
           <RequestStatusBadge status={request.status} />
         </Row>
 
-        <Text style={[styles.title, { color: palette.textPrimary }]}>{request.title}</Text>
+        <Text style={[styles.title, { color: palette.textPrimary }]}>
+          {request.title}
+        </Text>
 
-        <View style={[styles.budgetPanel, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-          <Text style={[styles.budgetEyebrow, { color: palette.textSecondary }]}>Estimated budget</Text>
-          <Text style={[styles.price, { color: palette.primary }]}>{budgetLabel}</Text>
-          <Row justify="space-between" align="center" style={styles.bidRow}>
-            {isOwner && request.status === "OPEN" && (<Text style={[styles.bidSummary, { color: palette.textPrimary }]}>{bidSummary}</Text>)}
-            <Text style={[styles.bidSecondary, { color: palette.textSecondary }]}>{bidSecondary}</Text>
-          </Row>
+        <View
+          style={[
+            styles.budgetPanel,
+            {
+              backgroundColor: palette.surfaceMuted,
+              borderColor: palette.border,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.budgetEyebrow, { color: palette.textSecondary }]}
+          >
+            Estimated budget
+          </Text>
+
+          <Text style={[styles.price, { color: palette.primary }]}>
+            {budgetLabel}
+          </Text>
+
+          <View style={styles.bidRow}>
+            {isOwner && request.status === "OPEN" ? (
+              <Text style={[styles.bidSummary, { color: palette.textPrimary }]}>
+                {bidSummary}
+              </Text>
+            ) : (
+              <View />
+            )}
+
+            <Text style={[styles.bidSecondary, { color: palette.textSecondary }]}>
+              {bidSecondary}
+            </Text>
+          </View>
         </View>
 
         <View style={[styles.divider, { backgroundColor: palette.border }]} />
 
-        <Row gap="sm" align="center" style={styles.posterRow}>
+        <Pressable
+          onPress={() => setProfileModalVisible(true)}
+          style={({ pressed }) => [
+            styles.posterRow,
+            { opacity: pressed ? 0.82 : 1 },
+          ]}
+        >
           <ProfileAvatar
             uri={request.requesterAvatarUrl}
             fullName={request.requesterName}
-            size={46}
-            onPress={() => setProfileModalVisible(true)}
+            size={48}
           />
+
           <View style={styles.posterCopy}>
-            <Text style={[styles.posterName, { color: palette.textPrimary }]}>Posted by {request.requesterName}</Text>
-            <Text style={[styles.posterMeta, { color: palette.textSecondary }]}>Community member</Text>
+            <Text style={[styles.posterName, { color: palette.textPrimary }]}>
+              Posted by {request.requesterName}
+            </Text>
+            <Text style={[styles.posterMeta, { color: palette.textSecondary }]}>
+              Community member
+            </Text>
           </View>
-        </Row>
 
-        <Stack gap="sm">
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={palette.textSecondary}
+          />
+        </Pressable>
 
+        <View style={styles.metaBlock}>
+          <Row gap="xs" align="center" style={styles.metaRow}>
+            <Ionicons
+              name="location-outline"
+              size={14}
+              color={palette.textSecondary}
+            />
+            <Text style={[styles.metaText, { color: palette.textSecondary }]}>
+              {locationLabel}
+            </Text>
+          </Row>
 
-          <View>
-            <Row gap="xs" align="center">
-              <Ionicons name="location-outline" size={14} color={palette.textSecondary} />
-              <Text style={[styles.metaText, { color: palette.textSecondary }]}>{locationLabel}</Text>
-            </Row>
-            <Row gap="xs" align="center">
-              <Ionicons name="time-outline" size={14} color={palette.textSecondary} />
-              <Text style={[styles.metaText, { color: palette.textSecondary }]}>Posted {postedTime}</Text>
-            </Row>
-          </View>
-        </Stack>
+          <Row gap="xs" align="center" style={styles.metaRow}>
+            <Ionicons
+              name="time-outline"
+              size={14}
+              color={palette.textSecondary}
+            />
+            <Text style={[styles.metaText, { color: palette.textSecondary }]}>
+              Posted {postedTime}
+            </Text>
+          </Row>
+        </View>
 
-        <View style={[styles.descriptionPanel, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-          <Text style={[styles.sectionLabel, { color: palette.textPrimary }]}>What needs to be done</Text>
+        <View
+          style={[
+            styles.descriptionPanel,
+            {
+              backgroundColor: palette.surfaceMuted,
+              borderColor: palette.border,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionLabel, { color: palette.textPrimary }]}>
+            What needs to be done
+          </Text>
 
           <Stack gap="xs" style={styles.descriptionList}>
             {descriptionBullets.map((line, index) => (
-              <Row key={`${line}-${index}`} gap="xs" align="flex-start" style={styles.descriptionRow}>
-                <View style={[styles.bulletDot, { backgroundColor: palette.primary }]} />
-                <Text style={[styles.descriptionItem, { color: palette.textSecondary }]}>{line}</Text>
+              <Row
+                key={`${line}-${index}`}
+                gap="xs"
+                align="flex-start"
+                style={styles.descriptionRow}
+              >
+                <View
+                  style={[
+                    styles.bulletDot,
+                    { backgroundColor: palette.primary },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.descriptionItem,
+                    { color: palette.textSecondary },
+                  ]}
+                >
+                  {line}
+                </Text>
               </Row>
             ))}
           </Stack>
         </View>
+
+        {showBottomZone ? (
+          <View style={styles.bottomZone}>
+            {stateTitle ? (
+              <View
+                style={[
+                  styles.statePanel,
+                  {
+                    backgroundColor: palette.surfaceSecondary,
+                    borderColor: palette.border,
+                  },
+                ]}
+              >
+                {stateLabel ? (
+                  <Text style={[styles.stateLabel, { color: palette.primary }]}>
+                    {stateLabel}
+                  </Text>
+                ) : null}
+
+                <Text style={[styles.stateTitle, { color: palette.textPrimary }]}>
+                  {stateTitle}
+                </Text>
+
+                {stateDescription ? (
+                  <Text
+                    style={[
+                      styles.stateDescription,
+                      { color: palette.textSecondary },
+                    ]}
+                  >
+                    {stateDescription}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
+            {actionContent ? (
+              <View
+                style={[
+                  styles.actionDock,
+                  {
+                    backgroundColor: palette.surface,
+                    borderColor: palette.border,
+                  },
+                ]}
+              >
+                {actionContent}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </Stack>
 
       <AppModal
@@ -145,16 +304,16 @@ export const RequestDetailsHeader = ({ request }: Props) => {
         onClose={() => setProfileModalVisible(false)}
         showCloseButton
         scrollable
-        actions={(
+        actions={
           <AppButton
             title="Done"
             variant="ghost"
             fullWidth={false}
             onPress={() => setProfileModalVisible(false)}
           />
-        )}
-        >
-          <View style={styles.profileAvatarWrap}>
+        }
+      >
+        <View style={styles.profileAvatarWrap}>
           <ProfileAvatar
             uri={request.requesterAvatarUrl}
             fullName={request.requesterName}
@@ -162,27 +321,41 @@ export const RequestDetailsHeader = ({ request }: Props) => {
           />
         </View>
 
-        <Stack gap="xs">
+        <Stack gap="sm">
           <View style={styles.profileRow}>
-            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>Name</Text>
-            <Text style={[styles.profileValue, { color: palette.textPrimary }]}>{request.requesterName}</Text>
+            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>
+              Name
+            </Text>
+            <Text style={[styles.profileValue, { color: palette.textPrimary }]}>
+              {request.requesterName}
+            </Text>
           </View>
 
           <View style={styles.profileRow}>
-            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>Role</Text>
-            <Text style={[styles.profileValue, { color: palette.textPrimary }]}>Community member</Text>
+            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>
+              Role
+            </Text>
+            <Text style={[styles.profileValue, { color: palette.textPrimary }]}>
+              Community member
+            </Text>
           </View>
 
           <View style={styles.profileRow}>
-            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>Location</Text>
+            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>
+              Location
+            </Text>
             <Text style={[styles.profileValue, { color: palette.textPrimary }]}>
               {request.requesterLocation || locationLabel}
             </Text>
           </View>
 
           <View style={styles.profileRow}>
-            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>Request posted</Text>
-            <Text style={[styles.profileValue, { color: palette.textPrimary }]}>{postedTime}</Text>
+            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>
+              Request posted
+            </Text>
+            <Text style={[styles.profileValue, { color: palette.textPrimary }]}>
+              {postedTime}
+            </Text>
           </View>
         </Stack>
       </AppModal>
@@ -201,12 +374,19 @@ const BULLET_OFFSET_TOP = theme.spacing.xs - 1;
 const styles = StyleSheet.create({
   card: {
     overflow: "hidden",
+    padding: theme.spacing.md,
   },
+
+  topRow: {
+    alignItems: "center",
+  },
+
   categoryPill: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: CHIP_PADDING_Y,
     borderRadius: theme.radius.fill,
     borderWidth: 1,
+    maxWidth: "72%",
   },
   categoryPillLabel: {
     fontSize: 12,
@@ -214,16 +394,19 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
+
   title: {
     fontSize: 24,
     lineHeight: 31,
     fontWeight: "800",
+    marginTop: 2,
   },
+
   budgetPanel: {
     borderRadius: PANEL_RADIUS,
     borderWidth: 1,
     paddingHorizontal: PANEL_PADDING_X,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
     rowGap: theme.spacing.xxs,
   },
   budgetEyebrow: {
@@ -235,10 +418,16 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 34,
     fontWeight: "800",
-    lineHeight: 38,
+    lineHeight: 40,
+    marginTop: 2,
   },
   bidRow: {
-    marginTop: theme.spacing.xxs,
+    marginTop: theme.spacing.xs,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    flexWrap: "wrap",
   },
   bidSummary: {
     fontSize: 15,
@@ -248,11 +437,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
+
   divider: {
     height: 1,
+    marginVertical: theme.spacing.xxs,
   },
+
   posterRow: {
     marginTop: HALF_XXS,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
   },
   posterCopy: {
     flex: 1,
@@ -265,33 +460,32 @@ const styles = StyleSheet.create({
     marginTop: HALF_XXS,
     fontSize: 13,
   },
-  posterHint: {
-    marginTop: theme.spacing.xxs - 1,
-    fontSize: 12,
+
+  metaBlock: {
+    gap: theme.spacing.xs,
+    marginTop: -2,
   },
-  metaChip: {
-    borderWidth: 1,
-    borderRadius: theme.radius.md + HALF_XXS,
-    paddingHorizontal: CHIP_PADDING_X,
-    paddingVertical: theme.spacing.xs + 1,
+  metaRow: {
+    alignItems: "center",
   },
   metaText: {
     flex: 1,
     fontSize: 13,
     lineHeight: 18,
   },
+
   descriptionPanel: {
     borderWidth: 1,
     borderRadius: PANEL_RADIUS,
     paddingHorizontal: PANEL_PADDING_X,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
   },
   sectionLabel: {
     fontSize: 15,
     fontWeight: "700",
   },
   descriptionList: {
-    marginTop: theme.spacing.xs,
+    marginTop: theme.spacing.sm,
   },
   descriptionRow: {
     paddingRight: theme.spacing.xs,
@@ -307,9 +501,44 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     flex: 1,
   },
+
+  bottomZone: {
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
+  },
+  statePanel: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xxs,
+  },
+  stateLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  stateTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    lineHeight: 22,
+  },
+  stateDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 2,
+  },
+
+  actionDock: {
+    alignItems: "stretch",
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.sm,
+  },
+
   profileAvatarWrap: {
     alignItems: "center",
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
   },
   profileRow: {
     flexDirection: "row",
