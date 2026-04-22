@@ -111,7 +111,9 @@ export const BidForm: React.FC<BidFormProps> = ({
 
     return (
         <Stack gap="md">
-            <Text style={[styles.caption, { color: palette.textSecondary }]}>Fields marked * are required</Text>
+            <Text style={[styles.caption, { color: palette.textSecondary }]}>
+                Fields marked * are required
+            </Text>
 
             {requestTitle ? (
                 <View
@@ -123,7 +125,9 @@ export const BidForm: React.FC<BidFormProps> = ({
                         },
                     ]}
                 >
-                    <Text style={[styles.requestLabel, { color: palette.textSecondary }]}>Request</Text>
+                    <Text style={[styles.requestLabel, { color: palette.textSecondary }]}>
+                        Request
+                    </Text>
                     <Text
                         style={[styles.requestTitle, { color: palette.textPrimary }]}
                         numberOfLines={2}
@@ -143,8 +147,8 @@ export const BidForm: React.FC<BidFormProps> = ({
                 ]}
             >
                 <AppInput
-                    label="Bid amount *"
-                    placeholder="Enter your offer amount"
+                    label="Offer amount *"
+                    placeholder="0.00"
                     keyboardType="decimal-pad"
                     value={formData.amount}
                     error={fieldErrors.amount ?? null}
@@ -153,7 +157,9 @@ export const BidForm: React.FC<BidFormProps> = ({
                 />
 
                 {amountPreview ? (
-                    <Text style={[styles.helperTextStrong, { color: palette.textPrimary }]}>Your offer: ${amountPreview}</Text>
+                    <Text style={[styles.helperTextStrong, { color: palette.textPrimary }]}>
+                        Your offer: EUR {amountPreview}
+                    </Text>
                 ) : null}
             </View>
 
@@ -167,10 +173,11 @@ export const BidForm: React.FC<BidFormProps> = ({
                 ]}
             >
                 <AppInput
-                    label="Message *"
-                    placeholder="Write a short message..."
+                    label="Pitch message *"
+                    placeholder="Tell the requester why you are a good fit."
                     multiline
                     numberOfLines={5}
+                    autoFocus
                     value={formData.message}
                     error={fieldErrors.message ?? null}
                     onChangeText={(value) => handleInputChange("message", value)}
@@ -178,7 +185,7 @@ export const BidForm: React.FC<BidFormProps> = ({
                 />
 
                 <Text style={[styles.helperText, { color: palette.textSecondary }]}> 
-                    Explain briefly why you are a good fit for this request.
+                    Contact information is shared only after the requester accepts your offer.
                 </Text>
 
                 <Text style={[styles.counterText, { color: counterColor }]}>{messageLength}/500</Text>
@@ -226,7 +233,7 @@ export const BidForm: React.FC<BidFormProps> = ({
 
                     <View style={styles.actionButton}>
                         <AppButton
-                            title={loading ? "Submitting..." : isUpdate ? "Update Bid" : "Place Bid"}
+                            title={loading ? "Sending..." : isUpdate ? "Save Bid" : "Send Offer"}
                             onPress={handleSubmit}
                             fullWidth
                             disabled={loading || !formData.amount || !formData.message.trim()}
@@ -235,7 +242,7 @@ export const BidForm: React.FC<BidFormProps> = ({
                 </View>
             ) : (
                 <AppButton
-                    title={loading ? "Submitting..." : isUpdate ? "Update Bid" : "Place Bid"}
+                    title={loading ? "Sending..." : isUpdate ? "Save Bid" : "Send Offer"}
                     onPress={handleSubmit}
                     disabled={loading || !formData.amount || !formData.message.trim()}
                 />
@@ -303,5 +310,4 @@ const styles = StyleSheet.create({
         flex: 1,
     },
 });
-
 

@@ -56,15 +56,18 @@ export const ReviewComposerModal = ({
 
   const isEditing = Boolean(initialReview);
   const commentLength = form.comment.trim().length;
-  const titleText = isEditing ? "Update review" : "Leave a review";
+  const titleText = isEditing ? "Edit review" : "Leave a review";
+  const ratingLabel = form.rating
+    ? `${form.rating} out of 5${form.rating === 4 ? " - Good" : form.rating === 5 ? " - Excellent" : form.rating === 3 ? " - Okay" : form.rating === 2 ? " - Poor" : " - Very poor"}`
+    : "Tap a star to rate";
 
   const helperLine = useMemo(() => {
     if (helperName && requestTitle) {
-      return `Share how ${helperName} handled "${requestTitle}".`;
+      return `Review ${helperName} for "${requestTitle}".`;
     }
 
     if (helperName) {
-      return `Share how ${helperName} handled the request.`;
+      return `Review ${helperName} for this completed request.`;
     }
 
     return "Rate the completed request and leave a short comment.";
@@ -125,7 +128,7 @@ export const ReviewComposerModal = ({
             disabled={loading}
           />
           <AppButton
-            title={loading ? (isEditing ? "Saving..." : "Submitting...") : (isEditing ? "Save" : "Submit")}
+            title={loading ? (isEditing ? "Saving..." : "Submitting...") : (isEditing ? "Save Review" : "Submit Review")}
             fullWidth={false}
             onPress={() => {
               void handleSubmit();
@@ -155,7 +158,8 @@ export const ReviewComposerModal = ({
             label="Rating *"
             value={form.rating}
             onChange={(value) => handleFieldChange("rating", value)}
-            helperText="Choose 1 star for poor service up to 5 stars for excellent service."
+            size={34}
+            helperText={ratingLabel}
             disabled={loading}
           />
         </View>
@@ -183,12 +187,17 @@ export const ReviewComposerModal = ({
             placeholder="Describe your experience"
             multiline
             numberOfLines={5}
+            autoFocus
             value={form.comment}
             onChangeText={(value) => handleFieldChange("comment", value)}
             editable={!loading}
             maxLength={1000}
             containerStyle={styles.commentInput}
           />
+
+          <Text style={[styles.privacyNote, { color: palette.textSecondary }]}>
+            Your review is visible to other members and helps build trust in the community.
+          </Text>
 
           <Text style={[styles.counter, { color: palette.textSecondary }]}>
             {commentLength}/1000
@@ -248,6 +257,11 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
     fontSize: theme.typography.fontSize.xs,
     textAlign: "right",
+  },
+  privacyNote: {
+    marginTop: theme.spacing.xs,
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: theme.typography.lineHeight.xs,
   },
   errorBox: {
     borderWidth: 1,

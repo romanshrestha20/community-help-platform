@@ -28,7 +28,7 @@ export const BidRequestModal: React.FC<BidRequestModalProps> = ({
     return (
         <AppModal
             visible={visible}
-            title={selectedRequest ? `Bid on: ${selectedRequest.title}` : "Place Bid"}
+            title={selectedRequest ? `Offer for ${selectedRequest.title}` : "Send Offer"}
             onClose={onClose}
         >
             {selectedRequest ? (

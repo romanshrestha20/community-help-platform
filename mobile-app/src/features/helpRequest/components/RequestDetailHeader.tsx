@@ -7,21 +7,32 @@ import { AppModal } from "@/components/ui/AppModal";
 import { Card, Row, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
-import { HelpRequest } from "../types/helpRequest.types";
-import {
-  formatRequestBudget,
-  getRequestCategoryLabel,
-} from "../utils/requestDisplay";
-import { getRelativePostedTime } from "../utils/requestTime";
-import { RequestStatusBadge } from "./RequestStatusBadge";
+import type { HelpRequest } from "../types/helpRequest.types";
+import { getRequestCategoryLabel } from "../utils/requestDisplay";
+
+type HeaderChip = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  emphasis?: "accent" | "warning";
+};
+
+type HeaderFooter = {
+  fullName: string;
+  avatarUrl?: string | null;
+  meta: string;
+  label?: string;
+};
+
+type HeaderTone = "open" | "assigned" | "completed" | "cancelled" | "dimmed";
 
 type Props = {
   request: HelpRequest;
-  isOwner?: boolean;
-  actionContent?: React.ReactNode;
-  stateLabel?: string;
-  stateTitle?: string;
-  stateDescription?: string;
+  tone?: HeaderTone;
+  statusLabel: string;
+  headerBadgeLabel?: string;
+  titleMuted?: boolean;
+  chips?: HeaderChip[];
+  footer?: HeaderFooter;
 };
 
 const getDescriptionBullets = (description: string): string[] => {
@@ -44,19 +55,15 @@ const getDescriptionBullets = (description: string): string[] => {
 
 export const RequestDetailsHeader = ({
   request,
-  isOwner = false,
-  actionContent,
-  stateLabel,
-  stateTitle,
-  stateDescription,
+  tone = "open",
+  statusLabel,
+  headerBadgeLabel,
+  titleMuted = false,
+  chips = [],
+  footer,
 }: Props) => {
   const { palette } = useThemeContext();
   const [profileModalVisible, setProfileModalVisible] = useState(false);
-
-  const postedTime = useMemo(
-    () => getRelativePostedTime(request.createdAt),
-    [request.createdAt]
-  );
 
   const descriptionBullets = useMemo(
     () => getDescriptionBullets(request.description),
@@ -65,237 +72,233 @@ export const RequestDetailsHeader = ({
 
   const categoryLabel = getRequestCategoryLabel(request);
 
-  const locationLabel =
-    request.location?.formattedAddress ||
-    request.location?.addressLine1 ||
-    [request.city, request.country].filter(Boolean).join(", ") ||
-    "Location not provided";
-
-  const bidSummary =
-    request.bidCount === 0
-      ? "No bids yet"
-      : `${request.bidCount} bid${request.bidCount === 1 ? "" : "s"}`;
-
-  const bidSecondary =
-    request.status === "OPEN"
-      ? request.bidCount === 0
-        ? "Be the first to place a bid"
-        : "Open for bids"
-      : "Bidding closed";
-
-  const budgetLabel = useMemo(() => formatRequestBudget(request), [request]);
-
-  const showBottomZone = Boolean(stateTitle || actionContent);
+  const toneStyles = {
+    open: {
+      backgroundColor: "#163A2E",
+      surfaceColor: "rgba(255,255,255,0.08)",
+      surfaceBorder: "rgba(255,255,255,0.14)",
+      titleColor: "#F6FAF7",
+      bodyColor: "rgba(246,250,247,0.82)",
+      pillBackground: "#D9F2E2",
+      pillText: "#1A6B43",
+      categoryBackground: "rgba(255,255,255,0.10)",
+      categoryText: "#EAF5EE",
+      badgeBackground: "#D7B461",
+      badgeText: "#2B2110",
+      footerLabel: "#B9D4C3",
+    },
+    assigned: {
+      backgroundColor: "#1C2F4B",
+      surfaceColor: "rgba(255,255,255,0.08)",
+      surfaceBorder: "rgba(255,255,255,0.14)",
+      titleColor: "#F5F8FC",
+      bodyColor: "rgba(245,248,252,0.82)",
+      pillBackground: "#F4D88B",
+      pillText: "#6A4D06",
+      categoryBackground: "rgba(255,255,255,0.10)",
+      categoryText: "#E8EEF6",
+      badgeBackground: "#F4D88B",
+      badgeText: "#5C4510",
+      footerLabel: "#C3D0E4",
+    },
+    completed: {
+      backgroundColor: "#32264F",
+      surfaceColor: "rgba(255,255,255,0.08)",
+      surfaceBorder: "rgba(255,255,255,0.14)",
+      titleColor: "#F7F5FC",
+      bodyColor: "rgba(247,245,252,0.82)",
+      pillBackground: "#DBD1FF",
+      pillText: "#5A3FB2",
+      categoryBackground: "rgba(255,255,255,0.10)",
+      categoryText: "#ECE7FA",
+      badgeBackground: "#DBD1FF",
+      badgeText: "#4E3A8A",
+      footerLabel: "#CFC6E9",
+    },
+    cancelled: {
+      backgroundColor: "#4A2B24",
+      surfaceColor: "rgba(255,255,255,0.06)",
+      surfaceBorder: "rgba(255,255,255,0.12)",
+      titleColor: "rgba(255,244,241,0.68)",
+      bodyColor: "rgba(255,244,241,0.76)",
+      pillBackground: "#F3C1B6",
+      pillText: "#8D4435",
+      categoryBackground: "rgba(255,255,255,0.10)",
+      categoryText: "#F4DFD9",
+      badgeBackground: "#F3C1B6",
+      badgeText: "#72372C",
+      footerLabel: "#DDB8AE",
+    },
+    dimmed: {
+      backgroundColor: "#3B4146",
+      surfaceColor: "rgba(255,255,255,0.06)",
+      surfaceBorder: "rgba(255,255,255,0.10)",
+      titleColor: "rgba(244,246,248,0.74)",
+      bodyColor: "rgba(244,246,248,0.76)",
+      pillBackground: "#F1C5BE",
+      pillText: "#8D4940",
+      categoryBackground: "rgba(255,255,255,0.10)",
+      categoryText: "#DCE2E7",
+      badgeBackground: "#F1C5BE",
+      badgeText: "#6F3832",
+      footerLabel: "#BFC8D0",
+    },
+  }[tone];
 
   return (
-    <Card style={styles.card}>
+    <Card style={[styles.card, { backgroundColor: toneStyles.backgroundColor }]}>
       <Stack gap="md">
         <Row justify="space-between" align="center" style={styles.topRow}>
           <View
             style={[
               styles.categoryPill,
               {
-                backgroundColor: palette.surfaceMuted,
-                borderColor: palette.border,
+                backgroundColor: toneStyles.categoryBackground,
+                borderColor: toneStyles.surfaceBorder,
               },
             ]}
           >
-            <Text
-              style={[
-                styles.categoryPillLabel,
-                { color: palette.textSecondary },
-              ]}
-            >
+            <Text style={[styles.categoryPillLabel, { color: toneStyles.categoryText }]}>
               {categoryLabel}
             </Text>
           </View>
 
-          <RequestStatusBadge status={request.status} />
+          <Row gap="xs" align="center">
+            {headerBadgeLabel ? (
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: toneStyles.badgeBackground,
+                  },
+                ]}
+              >
+                <Text style={[styles.statusBadgeText, { color: toneStyles.badgeText }]}>
+                  {headerBadgeLabel}
+                </Text>
+              </View>
+            ) : null}
+
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor: toneStyles.pillBackground,
+                },
+              ]}
+            >
+              <Text style={[styles.statusBadgeText, { color: toneStyles.pillText }]}>
+                {statusLabel}
+              </Text>
+            </View>
+          </Row>
         </Row>
 
-        <Text style={[styles.title, { color: palette.textPrimary }]}>
-          {request.title}
-        </Text>
-
-        <View
+        <Text
           style={[
-            styles.budgetPanel,
+            styles.title,
             {
-              backgroundColor: palette.surfaceMuted,
-              borderColor: palette.border,
+              color: toneStyles.titleColor,
+              textDecorationLine: titleMuted ? "line-through" : "none",
             },
           ]}
         >
-          <Text
-            style={[styles.budgetEyebrow, { color: palette.textSecondary }]}
+          {request.title}
+        </Text>
+
+        {chips.length > 0 ? (
+          <View style={styles.chipWrap}>
+            {chips.map((chip) => {
+              const color =
+                chip.emphasis === "accent"
+                  ? palette.primary
+                  : chip.emphasis === "warning"
+                    ? palette.warning
+                    : toneStyles.bodyColor;
+
+              return (
+                <View
+                  key={`${chip.icon}-${chip.label}`}
+                  style={[
+                    styles.infoChip,
+                    {
+                      backgroundColor: toneStyles.surfaceColor,
+                      borderColor: toneStyles.surfaceBorder,
+                    },
+                  ]}
+                >
+                  <Ionicons name={chip.icon} size={14} color={color} />
+                  <Text style={[styles.infoChipText, { color }]}>{chip.label}</Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {footer ? (
+          <Pressable
+            onPress={() => setProfileModalVisible(true)}
+            style={({ pressed }) => [
+              styles.footerRow,
+              {
+                backgroundColor: toneStyles.surfaceColor,
+                borderColor: toneStyles.surfaceBorder,
+                opacity: pressed ? 0.86 : 1,
+              },
+            ]}
           >
-            Estimated budget
-          </Text>
+            <ProfileAvatar
+              uri={footer.avatarUrl}
+              fullName={footer.fullName}
+              size={44}
+            />
 
-          <Text style={[styles.price, { color: palette.primary }]}>
-            {budgetLabel}
-          </Text>
-
-          <View style={styles.bidRow}>
-            {isOwner && request.status === "OPEN" ? (
-              <Text style={[styles.bidSummary, { color: palette.textPrimary }]}>
-                {bidSummary}
+            <View style={styles.footerCopy}>
+              <Text style={[styles.footerName, { color: toneStyles.titleColor }]}>
+                {footer.fullName}
               </Text>
-            ) : (
-              <View />
-            )}
+              <Text style={[styles.footerMeta, { color: toneStyles.footerLabel }]}>
+                {footer.meta}
+              </Text>
+            </View>
 
-            <Text style={[styles.bidSecondary, { color: palette.textSecondary }]}>
-              {bidSecondary}
-            </Text>
-          </View>
-        </View>
-
-        <View style={[styles.divider, { backgroundColor: palette.border }]} />
-
-        <Pressable
-          onPress={() => setProfileModalVisible(true)}
-          style={({ pressed }) => [
-            styles.posterRow,
-            { opacity: pressed ? 0.82 : 1 },
-          ]}
-        >
-          <ProfileAvatar
-            uri={request.requesterAvatarUrl}
-            fullName={request.requesterName}
-            size={48}
-          />
-
-          <View style={styles.posterCopy}>
-            <Text style={[styles.posterName, { color: palette.textPrimary }]}>
-              Posted by {request.requesterName}
-            </Text>
-            <Text style={[styles.posterMeta, { color: palette.textSecondary }]}>
-              Community member
-            </Text>
-          </View>
-
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={palette.textSecondary}
-          />
-        </Pressable>
-
-        <View style={styles.metaBlock}>
-          <Row gap="xs" align="center" style={styles.metaRow}>
             <Ionicons
-              name="location-outline"
-              size={14}
-              color={palette.textSecondary}
+              name="chevron-forward"
+              size={18}
+              color={toneStyles.footerLabel}
             />
-            <Text style={[styles.metaText, { color: palette.textSecondary }]}>
-              {locationLabel}
-            </Text>
-          </Row>
-
-          <Row gap="xs" align="center" style={styles.metaRow}>
-            <Ionicons
-              name="time-outline"
-              size={14}
-              color={palette.textSecondary}
-            />
-            <Text style={[styles.metaText, { color: palette.textSecondary }]}>
-              Posted {postedTime}
-            </Text>
-          </Row>
-        </View>
+          </Pressable>
+        ) : null}
 
         <View
           style={[
             styles.descriptionPanel,
             {
-              backgroundColor: palette.surfaceMuted,
-              borderColor: palette.border,
+              backgroundColor: toneStyles.surfaceColor,
+              borderColor: toneStyles.surfaceBorder,
             },
           ]}
         >
-          <Text style={[styles.sectionLabel, { color: palette.textPrimary }]}>
+          <Text style={[styles.sectionLabel, { color: toneStyles.titleColor }]}>
             What needs to be done
           </Text>
 
           <Stack gap="xs" style={styles.descriptionList}>
             {descriptionBullets.map((line, index) => (
-              <Row
-                key={`${line}-${index}`}
-                gap="xs"
-                align="flex-start"
-                style={styles.descriptionRow}
-              >
+              <Row key={`${line}-${index}`} gap="xs" align="flex-start" style={styles.descriptionRow}>
                 <View
                   style={[
                     styles.bulletDot,
-                    { backgroundColor: palette.primary },
+                    { backgroundColor: palette.primarySoft ?? "#B7E0C7" },
                   ]}
                 />
-                <Text
-                  style={[
-                    styles.descriptionItem,
-                    { color: palette.textSecondary },
-                  ]}
-                >
+                <Text style={[styles.descriptionItem, { color: toneStyles.bodyColor }]}>
                   {line}
                 </Text>
               </Row>
             ))}
           </Stack>
         </View>
-
-        {showBottomZone ? (
-          <View style={styles.bottomZone}>
-            {stateTitle ? (
-              <View
-                style={[
-                  styles.statePanel,
-                  {
-                    backgroundColor: palette.surfaceSecondary,
-                    borderColor: palette.border,
-                  },
-                ]}
-              >
-                {stateLabel ? (
-                  <Text style={[styles.stateLabel, { color: palette.primary }]}>
-                    {stateLabel}
-                  </Text>
-                ) : null}
-
-                <Text style={[styles.stateTitle, { color: palette.textPrimary }]}>
-                  {stateTitle}
-                </Text>
-
-                {stateDescription ? (
-                  <Text
-                    style={[
-                      styles.stateDescription,
-                      { color: palette.textSecondary },
-                    ]}
-                  >
-                    {stateDescription}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-
-            {actionContent ? (
-              <View
-                style={[
-                  styles.actionDock,
-                  {
-                    backgroundColor: palette.surface,
-                    borderColor: palette.border,
-                  },
-                ]}
-              >
-                {actionContent}
-              </View>
-            ) : null}
-          </View>
-        ) : null}
       </Stack>
 
       <AppModal
@@ -321,40 +324,25 @@ export const RequestDetailsHeader = ({
           />
         </View>
 
-        <Stack gap="sm">
+        <Stack gap="xs">
           <View style={styles.profileRow}>
-            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>
-              Name
-            </Text>
+            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>Name</Text>
             <Text style={[styles.profileValue, { color: palette.textPrimary }]}>
               {request.requesterName}
             </Text>
           </View>
 
           <View style={styles.profileRow}>
-            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>
-              Role
-            </Text>
+            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>Role</Text>
             <Text style={[styles.profileValue, { color: palette.textPrimary }]}>
               Community member
             </Text>
           </View>
 
           <View style={styles.profileRow}>
-            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>
-              Location
-            </Text>
+            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>Location</Text>
             <Text style={[styles.profileValue, { color: palette.textPrimary }]}>
-              {request.requesterLocation || locationLabel}
-            </Text>
-          </View>
-
-          <View style={styles.profileRow}>
-            <Text style={[styles.profileLabel, { color: palette.textSecondary }]}>
-              Request posted
-            </Text>
-            <Text style={[styles.profileValue, { color: palette.textPrimary }]}>
-              {postedTime}
+              {request.requesterLocation || "Location not provided"}
             </Text>
           </View>
         </Stack>
@@ -364,29 +352,23 @@ export const RequestDetailsHeader = ({
 };
 
 const HALF_XXS = theme.spacing.xxs / 2;
-const CHIP_PADDING_Y = theme.spacing.xxs + HALF_XXS;
-const CHIP_PADDING_X = theme.spacing.xs + HALF_XXS;
 const PANEL_RADIUS = theme.radius.lg + HALF_XXS;
-const PANEL_PADDING_X = theme.spacing.sm + HALF_XXS;
 const BULLET_SIZE = theme.spacing.xs - 1;
 const BULLET_OFFSET_TOP = theme.spacing.xs - 1;
 
 const styles = StyleSheet.create({
   card: {
+    borderRadius: theme.radius.xl,
     overflow: "hidden",
-    padding: theme.spacing.md,
   },
-
   topRow: {
-    alignItems: "center",
+    alignItems: "flex-start",
   },
-
   categoryPill: {
     paddingHorizontal: theme.spacing.sm,
-    paddingVertical: CHIP_PADDING_Y,
+    paddingVertical: theme.spacing.xxs + 4,
     borderRadius: theme.radius.fill,
     borderWidth: 1,
-    maxWidth: "72%",
   },
   categoryPillLabel: {
     fontSize: 12,
@@ -394,98 +376,68 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-
+  statusBadge: {
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xxs + 4,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
   title: {
-    fontSize: 24,
-    lineHeight: 31,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: "800",
-    marginTop: 2,
   },
-
-  budgetPanel: {
-    borderRadius: PANEL_RADIUS,
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.xs,
+  },
+  infoChip: {
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
-    paddingHorizontal: PANEL_PADDING_X,
-    paddingVertical: theme.spacing.md,
-    rowGap: theme.spacing.xxs,
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 7,
+    gap: theme.spacing.xxs,
   },
-  budgetEyebrow: {
+  infoChipText: {
     fontSize: 12,
     fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
   },
-  price: {
-    fontSize: 34,
-    fontWeight: "800",
-    lineHeight: 40,
-    marginTop: 2,
-  },
-  bidRow: {
-    marginTop: theme.spacing.xs,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: theme.spacing.sm,
-    flexWrap: "wrap",
-  },
-  bidSummary: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  bidSecondary: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-
-  divider: {
-    height: 1,
-    marginVertical: theme.spacing.xxs,
-  },
-
-  posterRow: {
-    marginTop: HALF_XXS,
+  footerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.sm,
+    borderWidth: 1,
+    borderRadius: PANEL_RADIUS,
+    padding: theme.spacing.sm,
   },
-  posterCopy: {
+  footerCopy: {
     flex: 1,
   },
-  posterName: {
+  footerName: {
     fontSize: 15,
     fontWeight: "700",
   },
-  posterMeta: {
+  footerMeta: {
     marginTop: HALF_XXS,
     fontSize: 13,
   },
-
-  metaBlock: {
-    gap: theme.spacing.xs,
-    marginTop: -2,
-  },
-  metaRow: {
-    alignItems: "center",
-  },
-  metaText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-
   descriptionPanel: {
     borderWidth: 1,
     borderRadius: PANEL_RADIUS,
-    paddingHorizontal: PANEL_PADDING_X,
-    paddingVertical: theme.spacing.md,
+    padding: theme.spacing.md,
   },
   sectionLabel: {
     fontSize: 15,
     fontWeight: "700",
   },
   descriptionList: {
-    marginTop: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
   },
   descriptionRow: {
     paddingRight: theme.spacing.xs,
@@ -497,48 +449,13 @@ const styles = StyleSheet.create({
     marginTop: BULLET_OFFSET_TOP,
   },
   descriptionItem: {
-    fontSize: 14,
-    lineHeight: 20,
     flex: 1,
-  },
-
-  bottomZone: {
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.xs,
-  },
-  statePanel: {
-    borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
-    gap: theme.spacing.xxs,
-  },
-  stateLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  stateTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    lineHeight: 22,
-  },
-  stateDescription: {
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 2,
   },
-
-  actionDock: {
-    alignItems: "stretch",
-    borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.sm,
-  },
-
   profileAvatarWrap: {
     alignItems: "center",
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
   },
   profileRow: {
     flexDirection: "row",
