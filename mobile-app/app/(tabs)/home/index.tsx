@@ -7,6 +7,7 @@ import { useAuthStore } from "@/features/auth/store/auth.store";
 import { BidRequestModal } from "@/features/bid/components";
 import { useCategories } from "@/features/category/hooks/category.hook";
 import { RequestForm } from "@/features/helpRequest/components";
+import { RequestCardSkeleton } from "@/features/helpRequest/components/RequestCardSkeleton";
 import { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
 import { formatRequestBudget } from "@/features/helpRequest/utils/requestDisplay";
 import { getRelativePostedTime } from "@/features/helpRequest/utils/requestTime";
@@ -61,6 +62,7 @@ export default function Home() {
     filters,
     updateFilter,
     helperRequests,
+    loading,
     creatingRequest,
     createRequestError,
     handleCreateRequest,
@@ -178,7 +180,13 @@ export default function Home() {
         </Pressable>
       </View>
 
-      {visibleRequests.length === 0 ? (
+      {loading && visibleRequests.length === 0 ? (
+        <View style={styles.requestList}>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <RequestCardSkeleton key={`home-request-skeleton-${index}`} compact />
+          ))}
+        </View>
+      ) : visibleRequests.length === 0 ? (
         <View style={styles.emptyStateWrap}>
           <HomeEmptyState
             onCreateRequest={() => router.push(APP_ROUTES.HOME_REQUESTS)}
