@@ -258,8 +258,13 @@ export default function ProfileTabScreen() {
           </View>
         ) : (
           <Stack gap="md">
-            <View style={[styles.hero, { backgroundColor: "#173D31" }]}>
-              <View style={styles.heroGlow} />
+            <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
+              <View
+                style={[
+                  styles.heroGlow,
+                  { backgroundColor: `${palette.primaryLight}24` },
+                ]}
+              />
 
               <Row justify="space-between" align="flex-start" style={styles.heroTop}>
                 <Pressable
@@ -274,8 +279,16 @@ export default function ProfileTabScreen() {
                     fullName={user?.fullName}
                     size={92}
                   />
-                  <View style={styles.cameraBadge}>
-                    <Ionicons name="camera-outline" size={15} color="#173D31" />
+                  <View
+                    style={[
+                      styles.cameraBadge,
+                      {
+                        backgroundColor: palette.successSurface,
+                        borderColor: palette.primaryDark,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="camera-outline" size={15} color={palette.primaryDark} />
                   </View>
                 </Pressable>
 
@@ -287,13 +300,16 @@ export default function ProfileTabScreen() {
               </Row>
 
               <Stack gap="xs" style={styles.heroCopy}>
-                <Text style={styles.heroName}>
+                <Text style={[styles.heroName, { color: palette.textInverse }]}>
                   {user?.fullName || "Your profile"}
                 </Text>
-                <Text style={styles.heroMeta}>
+                <Text style={[styles.heroMeta, { color: `${palette.textInverse}CC` }]}>
                   {user?.email || "No email available"}
                 </Text>
-                <Text style={styles.heroBio} numberOfLines={3}>
+                <Text
+                  style={[styles.heroBio, { color: `${palette.textInverse}CC` }]}
+                  numberOfLines={3}
+                >
                   {user?.bio?.trim()
                     ? user.bio
                     : "Add a short bio so neighbors know how you prefer to help and connect."}
@@ -654,12 +670,24 @@ const InfoTile = ({ item }: { item: InfoItem }) => {
   );
 };
 
-const StatPill = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.statPill}>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
+const StatPill = ({ label, value }: { label: string; value: string }) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <View
+      style={[
+        styles.statPill,
+        {
+          borderColor: `${palette.textInverse}24`,
+          backgroundColor: `${palette.textInverse}12`,
+        },
+      ]}
+    >
+      <Text style={[styles.statValue, { color: palette.textInverse }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: `${palette.textInverse}B3` }]}>{label}</Text>
+    </View>
+  );
+};
 
 const TrustPill = ({
   icon,
@@ -670,8 +698,9 @@ const TrustPill = ({
   label: string;
   tone: "success" | "warning";
 }) => {
-  const backgroundColor = tone === "success" ? "#D9F2E2" : "#F4D88B";
-  const color = tone === "success" ? "#1A6B43" : "#6A4D06";
+  const { palette } = useThemeContext();
+  const backgroundColor = tone === "success" ? palette.successSurface : palette.warningSurface;
+  const color = tone === "success" ? palette.primary : palette.secondary;
 
   return (
     <View style={[styles.trustPill, { backgroundColor }]}>
@@ -726,7 +755,7 @@ const styles = StyleSheet.create({
     width: 190,
     height: 190,
     borderRadius: 95,
-    backgroundColor: "rgba(217,242,226,0.12)",
+    backgroundColor: "rgba(223,236,229,0.14)",
   },
   heroTop: {
     zIndex: 1,
@@ -743,29 +772,29 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#D9F2E2",
+    backgroundColor: "#ECF4EF",
     borderWidth: 2,
-    borderColor: "#173D31",
+    borderColor: "#1F4739",
   },
   heroCopy: {
     zIndex: 1,
   },
   heroName: {
-    color: "#F6FAF7",
+    color: "#F4F1EA",
     fontSize: 29,
     lineHeight: 34,
     fontWeight: "800",
     letterSpacing: -0.5,
   },
   heroMeta: {
-    color: "rgba(246,250,247,0.78)",
+    color: "rgba(242,238,230,0.78)",
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
     fontWeight: theme.typography.fontWeight.semibold,
   },
   heroBio: {
     marginTop: theme.spacing.xs,
-    color: "rgba(246,250,247,0.78)",
+    color: "rgba(242,238,230,0.78)",
     fontSize: theme.typography.fontSize.sm,
     lineHeight: 21,
   },
@@ -777,21 +806,21 @@ const styles = StyleSheet.create({
   statPill: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,253,252,0.14)",
     borderRadius: theme.radius.lg,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,253,252,0.08)",
   },
   statValue: {
-    color: "#F6FAF7",
+    color: "#F4F1EA",
     fontSize: theme.typography.fontSize.lg,
     lineHeight: theme.typography.lineHeight.lg,
     fontWeight: "800",
   },
   statLabel: {
     marginTop: 2,
-    color: "rgba(246,250,247,0.68)",
+    color: "rgba(242,238,230,0.68)",
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
   },
