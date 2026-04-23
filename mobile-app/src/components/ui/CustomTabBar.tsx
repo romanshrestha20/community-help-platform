@@ -33,8 +33,7 @@ const createStyles = (
   StyleSheet.create({
     container: {
       flexDirection: "row",
-      backgroundColor:
-        palette === lightColors ? "rgba(255,255,255,0.92)" : "rgba(36,39,36,0.94)",
+      backgroundColor: palette.surface,
       borderColor: palette.border,
       borderWidth: 1,
       height: TAB_BAR_CONSTANTS.HEIGHT + 16,
@@ -43,7 +42,7 @@ const createStyles = (
       paddingTop: 7,
       paddingHorizontal: 6,
       marginHorizontal: 0,
-      shadowColor: "#122013",
+      shadowColor: palette.shadow,
       shadowOpacity: palette === lightColors ? 0.09 : 0.2,
       shadowRadius: 18,
       shadowOffset: { width: 0, height: 8 },
@@ -72,7 +71,7 @@ const createStyles = (
     },
     iconWrapperActive: {
       backgroundColor:
-        palette === lightColors ? "rgba(255,255,255,0.16)" : `${colors.primaryColor}10`,
+        palette === lightColors ? `${palette.textInverse}22` : `${colors.primaryColor}18`,
     },
     label: {
       fontSize: 9,
@@ -83,7 +82,7 @@ const createStyles = (
       color: palette === lightColors ? palette.textInverse : colors.primaryColor,
     },
     labelInactive: {
-      color: palette === lightColors ? "#6B7A6B" : colors.secondaryColor,
+      color: palette.textSecondary,
     },
     badge: {
       position: "absolute",

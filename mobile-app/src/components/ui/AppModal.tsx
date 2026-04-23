@@ -54,7 +54,7 @@ export const AppModal = ({
       onRequestClose={onClose}
       statusBarTranslucent={Platform.OS === "android"}
     >
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, { backgroundColor: palette.overlay }]}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={handleBackdropPress} />
 
         <KeyboardAvoidingView
@@ -144,7 +144,6 @@ export const AppModal = ({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
     alignItems: "center",
     justifyContent: "center",
     padding: theme.spacing.lg,

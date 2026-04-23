@@ -66,7 +66,7 @@ export const ActionSheet = ({
             onRequestClose={onClose}
             statusBarTranslucent={Platform.OS === "android"}
         >
-            <View style={styles.root}>
+            <View style={[styles.root, { backgroundColor: palette.overlay }]}>
                 <Pressable style={StyleSheet.absoluteFillObject} onPress={handleBackdropPress} />
 
                 <View
@@ -112,7 +112,6 @@ const styles = StyleSheet.create({
     root: {
         flex: 1,
         justifyContent: "flex-end",
-        backgroundColor: "rgba(0,0,0,0.25)",
     },
     sheet: {
         borderTopLeftRadius: theme.radius.xl,
