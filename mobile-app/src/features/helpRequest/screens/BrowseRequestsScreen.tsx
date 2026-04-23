@@ -53,7 +53,7 @@ const FilterChip = ({ active = false, label, onPress }: ChipProps) => {
       style={({ pressed }) => [
         styles.filterChip,
         {
-          backgroundColor: active ? palette.primary : "#EEF3EC",
+          backgroundColor: active ? palette.primary : palette.surfaceMuted,
           borderColor: active ? palette.primary : palette.border,
           opacity: pressed ? 0.92 : 1,
         },
@@ -85,7 +85,7 @@ const ViewModeToggle = ({
       style={[
         styles.viewToggleWrap,
         {
-          backgroundColor: "#F3F6F2",
+          backgroundColor: palette.surfaceMuted,
           borderColor: palette.border,
         },
       ]}
@@ -392,7 +392,7 @@ export const BrowseRequestsScreen = () => {
                 Browse Requests
               </Text>
             </View>
-            <Text style={[styles.headerSubtitle, { color: "#6B7A6B" }]}>
+            <Text style={[styles.headerSubtitle, { color: palette.textSecondary }]}>
               Find nearby requests from other community members.
             </Text>
           </View>
@@ -404,7 +404,7 @@ export const BrowseRequestsScreen = () => {
           styles.searchCard,
           {
             backgroundColor: palette.surface,
-            shadowColor: "#18301E",
+            shadowColor: palette.shadow,
           },
         ]}
       >
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
   searchInputShell: {
     minHeight: 52,
     borderRadius: 18,
-    backgroundColor: "#F3F6F2",
+    backgroundColor: "#ECE7DC",
     flexDirection: "row",
     alignItems: "center",
     columnGap: 10,

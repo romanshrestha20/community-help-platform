@@ -180,7 +180,7 @@ export const MyRequestsScreen = () => {
               subtitle="Track posts, bids, and next actions."
             />
 
-            <View style={[styles.hero, { backgroundColor: "#173D31" }]}>
+            <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
               <View style={styles.heroGlow} />
 
               <Row justify="space-between" align="flex-start" gap="md" style={styles.heroTop}>
@@ -206,7 +206,7 @@ export const MyRequestsScreen = () => {
               </View>
 
               <View style={styles.latestStrip}>
-                <Ionicons name="time-outline" size={15} color="#B9D4C3" />
+                <Ionicons name="time-outline" size={15} color="#B9DDCF" />
                 <Text style={styles.latestText}>Latest post: {latestLabel}</Text>
               </View>
             </View>
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
     width: 178,
     height: 178,
     borderRadius: 89,
-    backgroundColor: "rgba(217,242,226,0.12)",
+    backgroundColor: "rgba(223,236,229,0.14)",
   },
   heroTop: {
     zIndex: 1,
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   heroEyebrow: {
-    color: "#B9D4C3",
+    color: "#B9DDCF",
     fontSize: theme.typography.fontSize.xs,
     fontWeight: "800",
     letterSpacing: 0.8,
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     marginTop: theme.spacing.xxs,
-    color: "#F6FAF7",
+    color: "#F4F1EA",
     fontSize: 30,
     lineHeight: 35,
     fontWeight: "800",
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     marginTop: theme.spacing.xs,
-    color: "rgba(246,250,247,0.78)",
+    color: "rgba(242,238,230,0.78)",
     fontSize: theme.typography.fontSize.sm,
     lineHeight: 21,
   },
@@ -532,21 +532,21 @@ const styles = StyleSheet.create({
   heroMetric: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,253,252,0.14)",
     borderRadius: theme.radius.lg,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,253,252,0.08)",
   },
   heroMetricValue: {
-    color: "#F6FAF7",
+    color: "#F4F1EA",
     fontSize: theme.typography.fontSize.lg,
     lineHeight: theme.typography.lineHeight.lg,
     fontWeight: "800",
   },
   heroMetricLabel: {
     marginTop: 2,
-    color: "rgba(246,250,247,0.68)",
+    color: "rgba(242,238,230,0.68)",
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
   },
@@ -558,11 +558,11 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.fill,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,253,252,0.08)",
     alignSelf: "flex-start",
   },
   latestText: {
-    color: "#B9D4C3",
+    color: "#B9DDCF",
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
   },
