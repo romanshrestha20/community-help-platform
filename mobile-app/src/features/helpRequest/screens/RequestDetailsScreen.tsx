@@ -200,6 +200,8 @@ const formatRatingLabel = (rating?: number | null) => {
   return `★ ${rating.toFixed(1)}`;
 };
 
+const formatBidCountLabel = (count: number) => `${count} bid${count === 1 ? "" : "s"}`;
+
 export const RequestDetailsScreen = ({ requestId }: Props) => {
   const params = useLocalSearchParams<{ id?: string }>();
   const pathname = usePathname();
@@ -551,8 +553,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
       case "owner-open-with-bids":
         return {
           tone: "open",
-          statusLabel: `Open · ${bids.length} bid${bids.length === 1 ? "" : "s"}`,
-          headerBadgeLabel: `${bids.length} bids`,
+          statusLabel: `Open · ${formatBidCountLabel(bids.length)}`,
+          headerBadgeLabel: formatBidCountLabel(bids.length),
           chips: [
             { icon: "location-outline", label: formatRequestLocation(request) },
             { icon: "cash-outline", label: formatRequestBudget(request), emphasis: "accent" },
@@ -660,9 +662,9 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           tone: "open",
           statusLabel:
             request.bidCount > 0
-              ? `Open · ${request.bidCount} bid${request.bidCount === 1 ? "" : "s"}`
+              ? `Open · ${formatBidCountLabel(request.bidCount)}`
               : "Open",
-          headerBadgeLabel: request.bidCount > 0 ? `${request.bidCount} bids` : undefined,
+          headerBadgeLabel: request.bidCount > 0 ? formatBidCountLabel(request.bidCount) : undefined,
           chips: [
             { icon: "location-outline", label: formatRequestLocation(request) },
             { icon: "cash-outline", label: formatRequestBudget(request), emphasis: "accent" },
