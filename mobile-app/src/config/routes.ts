@@ -12,6 +12,7 @@ export const APP_ROUTES = {
     PROFILE: "/profile",
     PROFILE_NOTIFICATIONS: "/profile/notifications",
     PROFILE_PRIVACY: "/profile/security",
+    PROFILE_SUPPORT: "/profile/support",
     PROFILE_REQUESTS: "/profile/requests",
     PROFILE_BIDS: "/profile/bids",
     PROFILE_REQUEST_DETAILS: (id: string) => `/profile/requests/${id}`,
