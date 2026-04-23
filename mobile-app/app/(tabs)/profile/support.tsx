@@ -221,10 +221,10 @@ export default function HelpSupportScreen() {
       />
 
       <Stack gap="md">
-        <View style={[styles.hero, { backgroundColor: "#173D31" }]}>
+        <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
           <View style={styles.heroGlow} />
           <View style={styles.heroIcon}>
-            <Ionicons name="help-buoy-outline" size={26} color="#173D31" />
+            <Ionicons name="help-buoy-outline" size={26} color={palette.primaryDark} />
           </View>
           <Text style={styles.heroTitle}>How can we help?</Text>
           <Text style={styles.heroCopy}>
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     width: 170,
     height: 170,
     borderRadius: 85,
-    backgroundColor: "rgba(217,242,226,0.12)",
+    backgroundColor: "rgba(223,236,229,0.14)",
   },
   heroIcon: {
     width: 48,
@@ -437,10 +437,10 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#D9F2E2",
+    backgroundColor: "#ECF4EF",
   },
   heroTitle: {
-    color: "#F6FAF7",
+    color: "#F4F1EA",
     fontSize: 30,
     lineHeight: 35,
     fontWeight: "800",
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   },
   heroCopy: {
     maxWidth: 330,
-    color: "rgba(246,250,247,0.78)",
+    color: "rgba(242,238,230,0.78)",
     fontSize: theme.typography.fontSize.sm,
     lineHeight: 21,
   },
