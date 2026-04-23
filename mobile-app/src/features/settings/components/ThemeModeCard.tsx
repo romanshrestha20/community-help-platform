@@ -1,6 +1,7 @@
 import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import type { ThemeMode } from "@/types/tabBar";
+import { theme } from "@/design-system";
 import { useThemeStore } from "../store/theme.store";
 import { useThemeContext } from "../hooks/useThemeContext";
 
@@ -21,7 +22,7 @@ export const ThemeModeCard = () => {
           },
         ]}
       >
-        <ActivityIndicator />
+        <ActivityIndicator color={palette.primary} />
       </View>
     );
   }
@@ -77,34 +78,36 @@ export const ThemeModeCard = () => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
-    padding: 18,
-    gap: 12,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.md,
+    gap: theme.spacing.sm,
     borderWidth: 1,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: theme.typography.fontSize.lg,
+    lineHeight: theme.typography.lineHeight.lg,
+    fontWeight: theme.typography.fontWeight.bold,
+    letterSpacing: theme.typography.letterSpacing.tight,
   },
   subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
   },
   row: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: theme.spacing.xs,
   },
   chip: {
-    minHeight: 42,
-    paddingHorizontal: 16,
-    borderRadius: 999,
+    minHeight: 40,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.fill,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
   },
   chipText: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold,
   },
 });
