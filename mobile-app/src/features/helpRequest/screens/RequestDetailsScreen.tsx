@@ -13,21 +13,19 @@ import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
-import { Card, Row, Screen, Stack, theme } from "@/design-system";
+import { Row, Screen, Stack, theme } from "@/design-system";
 import { BidRequestModal } from "@/features/bid/components/BidRequestModal";
 import { BidList } from "@/features/bid/components/BidList";
 import { EditBidModal } from "@/features/bid/components/EditBidModal";
 import type { Bid } from "@/features/bid/types/bid.types";
 import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
 import {
-  RequestDetailsHeader,
   RequestEmptyState,
   RequestPhotoUploadSection,
 } from "@/features/helpRequest/components";
 import { useRequestDetails } from "@/features/helpRequest/hooks/useRequestDetails";
 import type { HelpRequest, HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
 import { formatRequestBudget, formatRequestLocation } from "@/features/helpRequest/utils/requestDisplay";
-import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
 import {
   ReviewCard,
   ReviewComposerModal,
@@ -36,6 +34,7 @@ import {
 import { useReviews } from "@/features/reviews/hooks/useReviews";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { goBackOrFallback } from "@/utils/navigation";
 import { APP_ROUTES } from "@/config/routes";
 import { showSuccessToast } from "@/utils/toast";
@@ -423,7 +422,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
   const renderInlineError = () =>
     actionError ? (
-      <Card
+      <View
         style={[
           styles.inlineErrorCard,
           {
@@ -438,7 +437,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
             {actionError}
           </Text>
         </Row>
-      </Card>
+      </View>
     ) : null;
 
   if (viewState === "missing-id") {
@@ -522,11 +521,11 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     statusLabel: string;
     headerBadgeLabel?: string;
     titleMuted?: boolean;
-    chips: Array<{
+    chips: {
       icon: keyof typeof Ionicons.glyphMap;
       label: string;
       emphasis?: "accent" | "warning";
-    }>;
+    }[];
     footer: {
       fullName: string;
       avatarUrl?: string | null;
@@ -679,12 +678,14 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     }
   })();
 
-  const renderManageCard = (options: {
+  const renderActionSection = (options: {
+    icon: keyof typeof Ionicons.glyphMap;
+    eyebrow: string;
     title: string;
     description: string;
     buttons: React.ReactNode;
   }) => (
-    <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
+    <SurfaceSection>
       <Stack gap="sm">
         <View
           style={[
@@ -695,9 +696,9 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
             },
           ]}
         >
-          <Ionicons name="settings-outline" size={14} color={palette.textSecondary} />
+          <Ionicons name={options.icon} size={14} color={palette.textSecondary} />
           <Text style={[styles.sectionPillText, { color: palette.textSecondary }]}>
-            Manage request
+            {options.eyebrow}
           </Text>
         </View>
         <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
@@ -708,11 +709,11 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         </Text>
         {options.buttons}
       </Stack>
-    </Card>
+    </SurfaceSection>
   );
 
   const renderOffersCard = () => (
-    <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
+    <SurfaceSection>
       <Stack gap="sm">
         <View
           style={[
@@ -767,7 +768,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           />
         )}
       </Stack>
-    </Card>
+    </SurfaceSection>
   );
 
   return (
@@ -782,30 +783,37 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         }}
       />
 
-      <RequestDetailsHeader
-        request={request}
-        tone={headerConfig.tone}
-        statusLabel={headerConfig.statusLabel}
-        headerBadgeLabel={headerConfig.headerBadgeLabel}
-        titleMuted={headerConfig.titleMuted}
-        chips={headerConfig.chips}
-        footer={headerConfig.footer}
-      />
-
-      {request.images?.length ? (
-        <RequestPhotoUploadSection
-          title="Uploaded photos"
-          description="Photos attached to this request."
-          existingImages={request.images}
-          selectedImages={[]}
-          readOnly
+      <Stack gap="md">
+        <DetailHero
+          request={request}
+          tone={headerConfig.tone}
+          statusLabel={headerConfig.statusLabel}
+          headerBadgeLabel={headerConfig.headerBadgeLabel}
+          titleMuted={headerConfig.titleMuted}
+          chips={headerConfig.chips}
+          footer={headerConfig.footer}
+          perspective={isOwner ? "Owner view" : "Helper view"}
         />
-      ) : null}
 
-      {viewState === "owner-open-empty" || viewState === "owner-open-with-bids" ? (
-        <>
-          {renderInlineError()}
-          {renderManageCard({
+        {request.images?.length ? (
+          <SurfaceSection>
+            <RequestPhotoUploadSection
+              title="Uploaded photos"
+              description="Photos attached to this request."
+              existingImages={request.images}
+              selectedImages={[]}
+              readOnly
+            />
+          </SurfaceSection>
+        ) : null}
+
+        {renderInlineError()}
+
+        {viewState === "owner-open-empty" || viewState === "owner-open-with-bids" ? (
+          <>
+            {renderActionSection({
+              icon: "settings-outline",
+              eyebrow: "Manage request",
             title: "Manage your request",
             description:
               "Edit the details, cancel the request, or move it forward once you choose a helper.",
@@ -846,29 +854,17 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
             ),
           })}
           {renderOffersCard()}
-        </>
-      ) : null}
+          </>
+        ) : null}
 
-      {viewState === "owner-assigned" ? (
-        <>
-          {renderInlineError()}
-          <Card
-            style={[
-              styles.primaryStateCard,
-              {
-                backgroundColor: palette.warningSoft ?? palette.surfaceMuted,
-                borderColor: palette.warning,
-              },
-            ]}
-          >
-            <Stack gap="sm">
-              <Text style={[styles.primaryStateTitle, { color: palette.textPrimary }]}>
-                Helper assigned
-              </Text>
-              <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                Your helper has been notified. The next meaningful step is completion once the job
-                is done.
-              </Text>
+        {viewState === "owner-assigned" ? (
+          <>
+            <StatePanel
+              icon="people-outline"
+              title="Helper assigned"
+              description="Your helper has been notified. The next meaningful step is completion once the job is done."
+              tone="warning"
+            >
               <View style={styles.buttonGrid}>
                 <View style={styles.buttonCell}>
                   <AppButton
@@ -885,9 +881,10 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                   />
                 </View>
               </View>
-            </Stack>
-          </Card>
-          {renderManageCard({
+            </StatePanel>
+            {renderActionSection({
+              icon: "create-outline",
+              eyebrow: "Request controls",
             title: "Manage the in-progress request",
             description:
               "You can still update the wording or cancel the request if plans changed.",
@@ -911,28 +908,17 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
               </View>
             ),
           })}
-        </>
-      ) : null}
+          </>
+        ) : null}
 
-      {viewState === "owner-completed-no-review" ? (
-        <>
-          {renderInlineError()}
-          <Card
-            style={[
-              styles.primaryStateCard,
-              {
-                backgroundColor: palette.secondarySoft ?? palette.surfaceMuted,
-                borderColor: palette.secondary,
-              },
-            ]}
+        {viewState === "owner-completed-no-review" ? (
+          <StatePanel
+            icon="star-outline"
+            title={`How did ${helperDisplayName} do?`}
+            description="This request is closed. A review is the most valuable thing you can do now."
+            tone="info"
           >
             <Stack gap="md">
-              <Text style={[styles.primaryStateTitle, { color: palette.textPrimary }]}>
-                How did {helperDisplayName} do?
-              </Text>
-              <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                This request is closed. A review is the most valuable thing you can do now.
-              </Text>
               <Pressable onPress={() => void handleOpenReviewModal()}>
                 <StarRatingInput
                   value={previewReviewRating}
@@ -951,26 +937,17 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 disabled={reviewLoading}
               />
             </Stack>
-          </Card>
-        </>
-      ) : null}
+          </StatePanel>
+        ) : null}
 
-      {viewState === "owner-completed-reviewed" ? (
-        <>
-          {renderInlineError()}
-          <Card
-            style={[
-              styles.primaryStateCard,
-              {
-                backgroundColor: palette.secondarySoft ?? palette.surfaceMuted,
-                borderColor: palette.secondary,
-              },
-            ]}
+        {viewState === "owner-completed-reviewed" ? (
+          <StatePanel
+            icon="checkmark-done-outline"
+            title="Review submitted"
+            description="Your review is attached to this completed request."
+            tone="info"
           >
             <Stack gap="sm">
-              <Text style={[styles.primaryStateTitle, { color: palette.textPrimary }]}>
-                Review submitted
-              </Text>
               {existingReview ? (
                 <ReviewCard review={existingReview} showRequestContext={false} />
               ) : null}
@@ -982,56 +959,43 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 disabled={reviewLoading}
               />
             </Stack>
-          </Card>
-        </>
-      ) : null}
+          </StatePanel>
+        ) : null}
 
-      {viewState === "owner-cancelled" ? (
-        <>
-          <Card
-            style={[
-              styles.infoBanner,
-              {
-                backgroundColor: palette.dangerSoft,
-                borderColor: palette.danger,
-              },
-            ]}
-          >
-            <Row gap="xs" align="center">
-              <Ionicons name="information-circle-outline" size={16} color={palette.danger} />
-              <Text style={[styles.inlineErrorText, { color: palette.danger }]}>
-                This request is cancelled. No further actions are available on this listing.
-              </Text>
-            </Row>
-          </Card>
-          <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
-            <Stack gap="sm">
-              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-                Ready to try again?
-              </Text>
-              <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                Repost the request with updated timing or details so new helpers can discover it.
-              </Text>
+        {viewState === "owner-cancelled" ? (
+          <>
+            <InfoBanner
+              icon="information-circle-outline"
+              message="This request is cancelled. No further actions are available on this listing."
+              tone="danger"
+            />
+            <SurfaceSection>
+              <Stack gap="sm">
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                  Ready to try again?
+                </Text>
+                <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                  Repost the request with updated timing or details so new helpers can discover it.
+                </Text>
               <AppButton
                 title="Repost Request"
                 onPress={() => router.push(requestEditRoute(request.id))}
               />
-            </Stack>
-          </Card>
-        </>
-      ) : null}
+              </Stack>
+            </SurfaceSection>
+          </>
+        ) : null}
 
-      {viewState === "helper-open-no-bid" ? (
-        <>
-          {renderInlineError()}
-          <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
-            <Stack gap="sm">
-              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-                Save this request
-              </Text>
-              <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                Keep it in your saved list so you can come back if you need more time.
-              </Text>
+        {viewState === "helper-open-no-bid" ? (
+          <>
+            <SurfaceSection>
+              <Stack gap="sm">
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                  Save this request
+                </Text>
+                <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                  Keep it in your saved list so you can come back if you need more time.
+                </Text>
               <AppButton
                 title={favorited ? "Saved request" : "Save request"}
                 variant="secondary"
@@ -1047,38 +1011,26 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                   />
                 }
               />
-            </Stack>
-          </Card>
-          <Card
-            style={[
-              styles.primaryStateCard,
-              {
-                borderColor: palette.primary,
-                backgroundColor: palette.primarySoft ?? palette.surfaceMuted,
-              },
-            ]}
-          >
-            <Stack gap="sm">
-              <Text style={[styles.primaryStateTitle, { color: palette.textPrimary }]}>
-                Place your bid
-              </Text>
-              <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                Send your amount and a short pitch. Contact details stay private until acceptance.
-              </Text>
+              </Stack>
+            </SurfaceSection>
+            <StatePanel
+              icon="cash-outline"
+              title="Place your bid"
+              description="Send your amount and a short pitch. Contact details stay private until acceptance."
+              tone="success"
+            >
               <AppButton title="Submit offer" onPress={handleOpenBidModal} disabled={loading} />
-            </Stack>
-          </Card>
-        </>
-      ) : null}
+            </StatePanel>
+          </>
+        ) : null}
 
-      {viewState === "helper-open-bid-pending" && myBid ? (
-        <>
-          {renderInlineError()}
-          <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
-            <Stack gap="sm">
-              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-                Save this request
-              </Text>
+        {viewState === "helper-open-bid-pending" && myBid ? (
+          <>
+            <SurfaceSection>
+              <Stack gap="sm">
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                  Save this request
+                </Text>
               <AppButton
                 title={favorited ? "Saved request" : "Save request"}
                 variant="secondary"
@@ -1094,27 +1046,21 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                   />
                 }
               />
-            </Stack>
-          </Card>
-          <Card
-            style={[
-              styles.primaryStateCard,
-              {
-                backgroundColor: palette.successSoft ?? palette.surfaceMuted,
-                borderColor: palette.success,
-              },
-            ]}
-          >
-            <Stack gap="sm">
-              <Text style={[styles.primaryStateTitle, { color: palette.textPrimary }]}>
-                Your bid
-              </Text>
-              <Text style={[styles.amountText, { color: palette.success }]}>
-                €{myBid.amount.toFixed(2)}
-              </Text>
-              <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                {myBid.message}
-              </Text>
+              </Stack>
+            </SurfaceSection>
+            <StatePanel
+              icon="receipt-outline"
+              title="Your bid"
+              description="Waiting for the requester to choose a helper."
+              tone="success"
+            >
+              <Stack gap="sm">
+                <Text style={[styles.amountText, { color: palette.success }]}>
+                  €{myBid.amount.toFixed(2)}
+                </Text>
+                <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                  {myBid.message}
+                </Text>
               <View
                 style={[
                   styles.messageBlock,
@@ -1149,87 +1095,64 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                   />
                 </View>
               </View>
-            </Stack>
-          </Card>
-        </>
-      ) : null}
+              </Stack>
+            </StatePanel>
+          </>
+        ) : null}
 
-      {viewState === "helper-assigned-to-me" && myBid ? (
-        <>
-          {renderInlineError()}
-          <Card
-            style={[
-              styles.primaryStateCard,
-              {
-                backgroundColor: palette.warningSoft ?? palette.surfaceMuted,
-                borderColor: palette.warning,
-              },
-            ]}
-          >
-            <Stack gap="sm">
-              <Text style={[styles.primaryStateTitle, { color: palette.textPrimary }]}>
-                Your job is confirmed
-              </Text>
-              <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                Head to the agreed location and message the requester if you need to confirm any
-                final details.
-              </Text>
+        {viewState === "helper-assigned-to-me" && myBid ? (
+          <>
+            <StatePanel
+              icon="checkmark-circle-outline"
+              title="Your job is confirmed"
+              description="Head to the agreed location and message the requester if you need to confirm any final details."
+              tone="warning"
+            >
               <AppButton
                 title="Message Requester"
                 onPress={() => handleOpenBidChat(request.id)}
               />
-            </Stack>
-          </Card>
-          <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
-            <Stack gap="sm">
-              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-                Bid overview
-              </Text>
-              <Text style={[styles.amountText, { color: palette.primary }]}>
-                €{myBid.amount.toFixed(2)}
-              </Text>
-              <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                {myBid.message}
-              </Text>
-            </Stack>
-          </Card>
-        </>
-      ) : null}
+            </StatePanel>
+            <SurfaceSection>
+              <Stack gap="sm">
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                  Bid overview
+                </Text>
+                <Text style={[styles.amountText, { color: palette.primary }]}>
+                  €{myBid.amount.toFixed(2)}
+                </Text>
+                <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                  {myBid.message}
+                </Text>
+              </Stack>
+            </SurfaceSection>
+          </>
+        ) : null}
 
-      {viewState === "helper-bid-rejected" ? (
-        <>
-          <Card
-            style={[
-              styles.infoBanner,
-              {
-                backgroundColor: palette.dangerSoft,
-                borderColor: palette.danger,
-              },
-            ]}
-          >
-            <Row gap="xs" align="center">
-              <Ionicons name="close-circle-outline" size={16} color={palette.danger} />
-              <Text style={[styles.inlineErrorText, { color: palette.danger }]}>
-                Your bid was not selected for this request.
-              </Text>
-            </Row>
-          </Card>
-          <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
-            <Stack gap="sm">
-              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-                Keep the momentum
-              </Text>
-              <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                Browse other requests nearby and put your energy into the next opportunity.
-              </Text>
+        {viewState === "helper-bid-rejected" ? (
+          <>
+            <InfoBanner
+              icon="close-circle-outline"
+              message="Your bid was not selected for this request."
+              tone="danger"
+            />
+            <SurfaceSection>
+              <Stack gap="sm">
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                  Keep the momentum
+                </Text>
+                <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                  Browse other requests nearby and put your energy into the next opportunity.
+                </Text>
               <AppButton
                 title="Browse Requests"
                 onPress={() => router.replace(APP_ROUTES.HOME_REQUESTS)}
               />
-            </Stack>
-          </Card>
-        </>
-      ) : null}
+              </Stack>
+            </SurfaceSection>
+          </>
+        ) : null}
+      </Stack>
 
       <BidRequestModal
         visible={bidModalVisible}
@@ -1282,6 +1205,285 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
   );
 };
 
+const getHeroTone = (tone: HeaderTone) => {
+  switch (tone) {
+    case "assigned":
+      return {
+        backgroundColor: "#1C2F4B",
+        accentColor: "#F4D88B",
+        accentText: "#6A4D06",
+        mutedText: "#C3D0E4",
+      };
+    case "completed":
+      return {
+        backgroundColor: "#32264F",
+        accentColor: "#DBD1FF",
+        accentText: "#4E3A8A",
+        mutedText: "#CFC6E9",
+      };
+    case "cancelled":
+      return {
+        backgroundColor: "#4A2B24",
+        accentColor: "#F3C1B6",
+        accentText: "#72372C",
+        mutedText: "#DDB8AE",
+      };
+    case "dimmed":
+      return {
+        backgroundColor: "#3B4146",
+        accentColor: "#F1C5BE",
+        accentText: "#6F3832",
+        mutedText: "#BFC8D0",
+      };
+    case "open":
+    default:
+      return {
+        backgroundColor: "#163A2E",
+        accentColor: "#D9F2E2",
+        accentText: "#1A6B43",
+        mutedText: "#B9D4C3",
+      };
+  }
+};
+
+const getDescriptionBullets = (description: string): string[] => {
+  const cleaned = description
+    .replace(/^need\s+help\s+with[:\s-]*/i, "")
+    .replace(/^looking\s+for\s+/i, "")
+    .trim();
+
+  const parts = cleaned
+    .split(/[\n.;]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return parts.length > 1 ? parts : [cleaned || description.trim()].filter(Boolean);
+};
+
+const DetailHero = ({
+  request,
+  tone,
+  statusLabel,
+  headerBadgeLabel,
+  titleMuted,
+  chips,
+  footer,
+  perspective,
+}: {
+  request: HelpRequest;
+  tone: HeaderTone;
+  statusLabel: string;
+  headerBadgeLabel?: string;
+  titleMuted?: boolean;
+  chips: {
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    emphasis?: "accent" | "warning";
+  }[];
+  footer: {
+    fullName: string;
+    avatarUrl?: string | null;
+    meta: string;
+    label?: string;
+  };
+  perspective: string;
+}) => {
+  const { palette } = useThemeContext();
+  const toneStyle = getHeroTone(tone);
+  const bullets = useMemo(
+    () => getDescriptionBullets(request.description),
+    [request.description]
+  );
+
+  return (
+    <View style={[styles.detailHero, { backgroundColor: toneStyle.backgroundColor }]}>
+      <View style={styles.heroGlow} />
+
+      <Row justify="space-between" align="flex-start" gap="sm" style={styles.heroTopRow}>
+        <View style={styles.heroCategoryPill}>
+          <Text style={styles.heroCategoryText}>{perspective}</Text>
+        </View>
+
+        <Row gap="xs" align="center" style={styles.heroBadgeRow}>
+          {headerBadgeLabel ? (
+            <View style={[styles.heroBadge, { backgroundColor: "#D7B461" }]}>
+              <Text style={styles.heroBadgeText}>{headerBadgeLabel}</Text>
+            </View>
+          ) : null}
+          <View style={[styles.heroBadge, { backgroundColor: toneStyle.accentColor }]}>
+            <Text style={[styles.heroBadgeText, { color: toneStyle.accentText }]}>
+              {statusLabel}
+            </Text>
+          </View>
+        </Row>
+      </Row>
+
+      <Text
+        style={[
+          styles.heroTitle,
+          {
+            textDecorationLine: titleMuted ? "line-through" : "none",
+            opacity: titleMuted ? 0.74 : 1,
+          },
+        ]}
+      >
+        {request.title}
+      </Text>
+
+      <View style={styles.heroChipWrap}>
+        {chips.map((chip) => {
+          const color =
+            chip.emphasis === "accent"
+              ? toneStyle.accentColor
+              : chip.emphasis === "warning"
+                ? "#F4D88B"
+                : toneStyle.mutedText;
+
+          return (
+            <View key={`${chip.icon}-${chip.label}`} style={styles.heroChip}>
+              <Ionicons name={chip.icon} size={14} color={color} />
+              <Text style={[styles.heroChipText, { color }]} numberOfLines={1}>
+                {chip.label}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={styles.heroPersonPanel}>
+        <ProfileAvatar uri={footer.avatarUrl} fullName={footer.fullName} size={44} />
+        <View style={styles.heroPersonCopy}>
+          <Text style={styles.heroPersonName}>{footer.fullName}</Text>
+          <Text style={[styles.heroPersonMeta, { color: toneStyle.mutedText }]}>
+            {footer.meta}
+          </Text>
+        </View>
+        <Ionicons name="person-circle-outline" size={20} color={toneStyle.mutedText} />
+      </View>
+
+      <View style={styles.heroDescriptionPanel}>
+        <Text style={styles.heroSectionLabel}>What needs to be done</Text>
+        <Stack gap="xs" style={styles.heroDescriptionList}>
+          {bullets.map((line, index) => (
+            <Row key={`${line}-${index}`} gap="xs" align="flex-start">
+              <View
+                style={[
+                  styles.heroBullet,
+                  { backgroundColor: palette.primarySoft ?? toneStyle.accentColor },
+                ]}
+              />
+              <Text style={styles.heroDescriptionText}>{line}</Text>
+            </Row>
+          ))}
+        </Stack>
+      </View>
+    </View>
+  );
+};
+
+const SurfaceSection = ({ children }: { children: React.ReactNode }) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <View
+      style={[
+        styles.surfaceSection,
+        {
+          backgroundColor: palette.surface,
+          borderColor: palette.border,
+        },
+      ]}
+    >
+      {children}
+    </View>
+  );
+};
+
+const StatePanel = ({
+  icon,
+  title,
+  description,
+  tone,
+  children,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  description: string;
+  tone: "success" | "warning" | "info";
+  children: React.ReactNode;
+}) => {
+  const { palette } = useThemeContext();
+  const color =
+    tone === "success"
+      ? palette.success
+      : tone === "warning"
+        ? palette.warning
+        : palette.secondary;
+  const backgroundColor =
+    tone === "success"
+      ? palette.successSoft ?? palette.surfaceMuted
+      : tone === "warning"
+        ? palette.warningSoft ?? palette.surfaceMuted
+        : palette.secondarySoft ?? palette.surfaceMuted;
+
+  return (
+    <View
+      style={[
+        styles.statePanel,
+        {
+          backgroundColor,
+          borderColor: color,
+        },
+      ]}
+    >
+      <Row gap="sm" align="flex-start">
+        <View style={[styles.stateIcon, { backgroundColor: palette.surface }]}>
+          <Ionicons name={icon} size={22} color={color} />
+        </View>
+        <View style={styles.stateCopy}>
+          <Text style={[styles.primaryStateTitle, { color: palette.textPrimary }]}>
+            {title}
+          </Text>
+          <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+            {description}
+          </Text>
+        </View>
+      </Row>
+      <View style={styles.stateBody}>{children}</View>
+    </View>
+  );
+};
+
+const InfoBanner = ({
+  icon,
+  message,
+  tone,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  message: string;
+  tone: "danger";
+}) => {
+  const { palette } = useThemeContext();
+  const color = tone === "danger" ? palette.danger : palette.textSecondary;
+
+  return (
+    <View
+      style={[
+        styles.infoBanner,
+        {
+          backgroundColor: palette.dangerSoft,
+          borderColor: color,
+        },
+      ]}
+    >
+      <Row gap="xs" align="center">
+        <Ionicons name={icon} size={16} color={color} />
+        <Text style={[styles.inlineErrorText, { color }]}>{message}</Text>
+      </Row>
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
   centerState: {
     alignItems: "center",
@@ -1312,8 +1514,149 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
+  detailHero: {
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: theme.radius.xl + 6,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+  },
+  heroGlow: {
+    position: "absolute",
+    top: -70,
+    right: -52,
+    width: 198,
+    height: 198,
+    borderRadius: 99,
+    backgroundColor: "rgba(255,255,255,0.10)",
+  },
+  heroTopRow: {
+    zIndex: 1,
+  },
+  heroCategoryPill: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 8,
+    backgroundColor: "rgba(255,255,255,0.10)",
+  },
+  heroCategoryText: {
+    color: "#EAF5EE",
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
+  heroBadgeRow: {
+    flexShrink: 1,
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+  },
+  heroBadge: {
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 8,
+  },
+  heroBadgeText: {
+    color: "#2B2110",
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: "800",
+  },
+  heroTitle: {
+    zIndex: 1,
+    color: "#F6FAF7",
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  heroChipWrap: {
+    zIndex: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.xs,
+  },
+  heroChip: {
+    maxWidth: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.xxs,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 8,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  heroChipText: {
+    maxWidth: 260,
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  heroPersonPanel: {
+    zIndex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.sm,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  heroPersonCopy: {
+    flex: 1,
+  },
+  heroPersonName: {
+    color: "#F6FAF7",
+    fontSize: theme.typography.fontSize.md,
+    lineHeight: theme.typography.lineHeight.md,
+    fontWeight: "800",
+  },
+  heroPersonMeta: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  heroDescriptionPanel: {
+    zIndex: 1,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.md,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  heroSectionLabel: {
+    color: "#F6FAF7",
+    fontSize: theme.typography.fontSize.md,
+    lineHeight: theme.typography.lineHeight.md,
+    fontWeight: "800",
+  },
+  heroDescriptionList: {
+    marginTop: theme.spacing.xs,
+  },
+  heroBullet: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginTop: 7,
+  },
+  heroDescriptionText: {
+    flex: 1,
+    color: "rgba(246,250,247,0.78)",
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: 21,
+  },
+  surfaceSection: {
+    borderWidth: 1,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.md,
+  },
   inlineErrorCard: {
+    borderWidth: 1,
     borderRadius: 14,
+    padding: theme.spacing.md,
   },
   inlineErrorText: {
     flex: 1,
@@ -1327,7 +1670,28 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   infoBanner: {
-    borderRadius: 14,
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+  },
+  statePanel: {
+    borderWidth: 1,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.md,
+  },
+  stateIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stateCopy: {
+    flex: 1,
+    gap: theme.spacing.xxs,
+  },
+  stateBody: {
+    marginTop: theme.spacing.md,
   },
   sectionPill: {
     alignSelf: "flex-start",
