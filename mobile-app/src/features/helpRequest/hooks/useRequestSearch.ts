@@ -30,16 +30,22 @@ export const buildRequestSearchParams = (
 ) => {
   const latitude = coordinates?.latitude;
   const longitude = coordinates?.longitude;
+  const hasCoordinates =
+    latitude != null &&
+    longitude != null &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude);
 
   return {
     search: searchQuery.trim() || undefined,
     categoryId: filters.categoryId !== "ALL" ? filters.categoryId : undefined,
     status: filters.status !== "ALL" ? filters.status : undefined,
-    radiusKm: filters.radiusKm !== "ANY" ? Number(filters.radiusKm) : undefined,
-    latitude:
-      latitude != null && Number.isFinite(latitude) ? latitude : undefined,
-    longitude:
-      longitude != null && Number.isFinite(longitude) ? longitude : undefined,
+    radiusKm:
+      filters.radiusKm !== "ANY" && hasCoordinates
+        ? Number(filters.radiusKm)
+        : undefined,
+    latitude: hasCoordinates ? latitude : undefined,
+    longitude: hasCoordinates ? longitude : undefined,
   };
 };
 

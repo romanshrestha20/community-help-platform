@@ -119,7 +119,7 @@ export const GreetingOverview: React.FC<GreetingOverviewProps> = ({
                         {weekdayLabel}
                     </Text>
                     <Text style={[styles.title, { color: palette.textPrimary }]} numberOfLines={1}>
-                        {greeting}, {name}
+                        {greeting},{"\n"}{name}
                     </Text>
                 </View>
 
