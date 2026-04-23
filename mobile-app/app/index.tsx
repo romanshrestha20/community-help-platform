@@ -106,26 +106,26 @@ export default function EntryScreen() {
   const heroIllustration =
     colorScheme === "dark"
       ? {
-          panel: "#202520",
-          base: "#1F2A22",
-          curveA: "#284635",
-          curveB: "#203E48",
-          signalFill: "rgba(36,39,36,0.96)",
-          avatarFill: "rgba(36,39,36,0.96)",
+          panel: palette.surfaceSecondary,
+          base: palette.primaryLight,
+          curveA: palette.primaryMid,
+          curveB: palette.infoLight,
+          signalFill: palette.surface,
+          avatarFill: palette.surface,
         }
       : {
-          panel: palette.surfaceMuted,
-          base: "#DCEAD9",
-          curveA: "#BDD8BC",
-          curveB: "#CBE3C6",
-          signalFill: "rgba(255,255,255,0.96)",
-          avatarFill: "rgba(255,255,255,0.96)",
+          panel: palette.surfaceSecondary,
+          base: palette.primaryLight,
+          curveA: "#C8DDD0",
+          curveB: "#D7E5D8",
+          signalFill: palette.surface,
+          avatarFill: palette.surface,
         };
 
   const dividerColor =
     colorScheme === "dark"
-      ? "rgba(166,179,166,0.16)"
-      : "rgba(84,100,79,0.16)";
+      ? palette.borderStrong
+      : palette.border;
 
   return (
     <Screen
@@ -223,10 +223,10 @@ export default function EntryScreen() {
 
                   <Animated.View
                     style={[
-                      styles.pin,
-                      styles.pinOne,
+                        styles.pin,
+                        styles.pinOne,
                       {
-                        backgroundColor: "#1F7A58",
+                        backgroundColor: palette.primary,
                         transform: [
                           {
                             translateY: heroAnim.interpolate({
@@ -244,7 +244,7 @@ export default function EntryScreen() {
                       },
                     ]}
                   >
-                    <Ionicons name="location" size={16} color="#FFFFFF" />
+                    <Ionicons name="location" size={16} color={palette.textInverse} />
                   </Animated.View>
 
                   <Animated.View
@@ -252,7 +252,7 @@ export default function EntryScreen() {
                       styles.pin,
                       styles.pinTwo,
                       {
-                        backgroundColor: "#C46A2D",
+                        backgroundColor: palette.secondary,
                         transform: [
                           {
                             translateY: heroAnim.interpolate({
@@ -270,7 +270,7 @@ export default function EntryScreen() {
                       },
                     ]}
                   >
-                    <Ionicons name="briefcase" size={14} color="#FFFFFF" />
+                    <Ionicons name="briefcase" size={14} color={palette.textInverse} />
                   </Animated.View>
 
                   <Animated.View
@@ -278,7 +278,7 @@ export default function EntryScreen() {
                       styles.pin,
                       styles.pinThree,
                       {
-                        backgroundColor: "#3656D4",
+                        backgroundColor: palette.info,
                         transform: [
                           {
                             translateY: heroAnim.interpolate({
@@ -296,7 +296,7 @@ export default function EntryScreen() {
                       },
                     ]}
                   >
-                    <Ionicons name="chatbubble" size={13} color="#FFFFFF" />
+                    <Ionicons name="chatbubble" size={13} color={palette.textInverse} />
                   </Animated.View>
 
                   <View
@@ -335,9 +335,9 @@ export default function EntryScreen() {
                       },
                     ]}
                   >
-                    <View style={[styles.avatarDot, { backgroundColor: "#F0B27A" }]} />
-                    <View style={[styles.avatarDot, { backgroundColor: "#7BC6A4" }]} />
-                    <View style={[styles.avatarDot, { backgroundColor: "#8FA8FF" }]} />
+                    <View style={[styles.avatarDot, { backgroundColor: palette.secondary }]} />
+                    <View style={[styles.avatarDot, { backgroundColor: palette.primaryMid }]} />
+                    <View style={[styles.avatarDot, { backgroundColor: palette.info }]} />
                     <Text style={[styles.avatarLabel, { color: palette.textPrimary }]}>
                       Local helpers replying
                     </Text>
@@ -350,14 +350,14 @@ export default function EntryScreen() {
                   <TrustBadge
                     icon="shield-checkmark-outline"
                     label="Trusted locally"
-                    tone="#1F7A58"
-                    fill={colorScheme === "dark" ? "#223528" : "#E4F2EA"}
+                    tone={palette.primary}
+                    fill={palette.primaryLight}
                   />
                   <TrustBadge
                     icon="time-outline"
                     label="Fast coordination"
-                    tone="#B87617"
-                    fill={colorScheme === "dark" ? "#392E1E" : "#FFF2DD"}
+                    tone={palette.secondary}
+                    fill={palette.secondaryLight}
                   />
                 </View>
 
@@ -373,7 +373,7 @@ export default function EntryScreen() {
                 </Text>
 
                 <View style={styles.proofRow}>
-                  <Ionicons name="star" size={15} color="#C46A2D" />
+                  <Ionicons name="star" size={15} color={palette.star} />
                   <Text style={[styles.proofText, { color: palette.textSecondary }]}>
                     Simple onboarding, nearby discovery, and messaging built into one flow.
                   </Text>
@@ -412,7 +412,7 @@ export default function EntryScreen() {
                 icon="person-add-outline"
                 title="Create your account"
                 body="Add your name, email, password, and complete a quick setup."
-                accent="#1F7A58"
+                accent={palette.primary}
                 textPrimary={palette.textPrimary}
                 textSecondary={palette.textSecondary}
                 divider={dividerColor}
@@ -423,7 +423,7 @@ export default function EntryScreen() {
                 icon="location-outline"
                 title="Set your location"
                 body="Use your current location or search your city manually."
-                accent="#C46A2D"
+                accent={palette.secondary}
                 textPrimary={palette.textPrimary}
                 textSecondary={palette.textSecondary}
                 divider={dividerColor}
@@ -434,7 +434,7 @@ export default function EntryScreen() {
                 icon="camera-outline"
                 title="Add a profile photo"
                 body="Build trust with a photo, then start browsing or posting requests."
-                accent="#3656D4"
+                accent={palette.info}
                 textPrimary={palette.textPrimary}
                 textSecondary={palette.textSecondary}
                 divider={dividerColor}
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingTop: 18,
     paddingBottom: 22,
-    shadowColor: "#122013",
+    shadowColor: "#162018",
     shadowOpacity: 0.08,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 14 },
@@ -601,7 +601,7 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#122013",
+    shadowColor: "#162018",
     shadowOpacity: 0.18,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: "#FFFDFC",
     marginRight: -6,
   },
   avatarLabel: {
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     columnGap: 10,
-    shadowColor: "#1D6A46",
+    shadowColor: "#28483B",
     shadowOpacity: 0.18,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
