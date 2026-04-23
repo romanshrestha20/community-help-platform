@@ -369,7 +369,7 @@ export default function RequestMapScreen() {
             {selectedRequest ? (
               <SelectedRequestSheet
                 request={selectedRequest}
-                onPress={() =>
+                onViewDetails={() =>
                   router.push(APP_ROUTES.HOME_REQUEST_DETAILS(selectedRequest.id))
                 }
               />

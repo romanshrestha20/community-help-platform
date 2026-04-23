@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 
 import { AppBackButton } from "@/components/ui/AppBackButton";
 import { AppButton } from "@/components/ui/AppButton";
@@ -18,10 +18,13 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { RequestList } from "@/features/helpRequest/components/RequestList";
 import {
   GlobalFilters,
-  applyRequestSort,
+  applyRequestFiltersAndSort,
 } from "@/features/helpRequest/hooks/useGlobalFilters";
 import { useRequestList } from "@/features/helpRequest/hooks/useRequestList";
-import { useRequestSearch } from "@/features/helpRequest/hooks/useRequestSearch";
+import {
+  buildRequestSearchParams,
+  useRequestSearch,
+} from "@/features/helpRequest/hooks/useRequestSearch";
 import {
   HelpRequestStatus,
 } from "@/features/helpRequest/types/helpRequest.types";
@@ -33,6 +36,7 @@ import { MapRequestFilters } from "@/features/map/types/map.types";
 import { BidRequestModal } from "@/features/bid/components/BidRequestModal";
 import { useBidRequestFlow } from "@/features/bid/hooks";
 import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
+import { useDebounce } from "@/hooks/useDebounce";
 
 type ChipProps = {
   active?: boolean;
@@ -50,6 +54,7 @@ const FilterChip = ({ active = false, label, onPress }: ChipProps) => {
         styles.filterChip,
         {
           backgroundColor: active ? palette.primary : "#EEF3EC",
+          borderColor: active ? palette.primary : palette.border,
           opacity: pressed ? 0.92 : 1,
         },
       ]}
@@ -233,6 +238,7 @@ const FiltersModal = ({
 
 export const BrowseRequestsScreen = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const { palette } = useThemeContext();
   const {
     filters,
@@ -241,11 +247,11 @@ export const BrowseRequestsScreen = () => {
     searchQuery,
     setSearchQuery,
     resetSearch,
-    buildParams,
   } = useRequestSearch();
   const { categories } = useCategories();
   const [filtersVisible, setFiltersVisible] = useState(false);
-  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const isMapRoute = pathname.endsWith("/requests/map");
+  const [viewMode, setViewMode] = useState<"list" | "map">(isMapRoute ? "map" : "list");
   const {
     bidModalVisible,
     selectedRequest,
@@ -261,23 +267,31 @@ export const BrowseRequestsScreen = () => {
   const { value: userLocation } = useLocationPicker({
     autoUseCurrentLocationOnMount: true,
   });
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const hasCoordinates =
+    userLocation?.latitude != null &&
+    userLocation?.longitude != null &&
+    Number.isFinite(userLocation.latitude) &&
+    Number.isFinite(userLocation.longitude);
 
   const requestParams = useMemo(
     () =>
-      buildParams({
+      buildRequestSearchParams(filters, debouncedSearchQuery, {
         latitude: userLocation?.latitude,
         longitude: userLocation?.longitude,
       }),
-    [buildParams, userLocation?.latitude, userLocation?.longitude]
+    [
+      debouncedSearchQuery,
+      filters,
+      userLocation?.latitude,
+      userLocation?.longitude,
+    ]
   );
 
   const { requests, loading, refreshing, refreshRequests } = useRequestList({
     scope: "browse",
     params: requestParams,
-    useNearbyEndpoint:
-      filters.radiusKm !== "ANY" &&
-      userLocation?.latitude != null &&
-      userLocation?.longitude != null,
+    useNearbyEndpoint: filters.radiusKm !== "ANY" && hasCoordinates,
   });
 
   const medicalCategory = categories.find(
@@ -290,9 +304,31 @@ export const BrowseRequestsScreen = () => {
   );
   const allActive = filters.categoryId === "ALL" && filters.radiusKm === "ANY";
 
-  const filteredRequests = useMemo(() => {
-    return applyRequestSort(requests, filters.sortBy);
-  }, [filters.sortBy, requests]);
+  const filteredRequests = useMemo(
+    () =>
+      applyRequestFiltersAndSort(requests, filters, {
+        searchQuery: debouncedSearchQuery,
+        latitude: userLocation?.latitude,
+        longitude: userLocation?.longitude,
+      }),
+    [
+      debouncedSearchQuery,
+      filters,
+      requests,
+      userLocation?.latitude,
+      userLocation?.longitude,
+    ]
+  );
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.status !== "ALL") count += 1;
+    if (filters.categoryId !== "ALL") count += 1;
+    if (filters.radiusKm !== "ANY") count += 1;
+    if (filters.sortBy !== "NEWEST") count += 1;
+    if (searchQuery.trim()) count += 1;
+    return count;
+  }, [filters, searchQuery]);
 
   const mapFilters = useMemo<MapRequestFilters>(
     () => ({
@@ -300,14 +336,14 @@ export const BrowseRequestsScreen = () => {
       longitude: userLocation?.longitude,
       categoryId: filters.categoryId === "ALL" ? null : filters.categoryId,
       status: filters.status,
-      search: searchQuery.trim() || undefined,
+      search: debouncedSearchQuery.trim() || undefined,
       radiusKm: filters.radiusKm === "ANY" ? undefined : Number(filters.radiusKm),
     }),
     [
       filters.categoryId,
       filters.radiusKm,
       filters.status,
-      searchQuery,
+      debouncedSearchQuery,
       userLocation?.latitude,
       userLocation?.longitude,
     ]
@@ -315,6 +351,23 @@ export const BrowseRequestsScreen = () => {
 
   const handleResetAll = () => {
     resetSearch();
+  };
+
+  useEffect(() => {
+    setViewMode(isMapRoute ? "map" : "list");
+  }, [isMapRoute]);
+
+  const handleChangeViewMode = (nextView: "list" | "map") => {
+    setViewMode(nextView);
+
+    if (nextView === "map" && !isMapRoute) {
+      router.replace(APP_ROUTES.HOME_REQUESTS_MAP);
+      return;
+    }
+
+    if (nextView === "list" && isMapRoute) {
+      router.replace(APP_ROUTES.HOME_REQUESTS);
+    }
   };
 
   return (
@@ -374,6 +427,19 @@ export const BrowseRequestsScreen = () => {
           />
         </View>
 
+        <View style={styles.resultSummaryRow}>
+          <Text style={[styles.resultSummaryText, { color: palette.textSecondary }]}>
+            {loading && !requests.length
+              ? "Loading requests..."
+              : `${filteredRequests.length} request${filteredRequests.length === 1 ? "" : "s"} shown`}
+          </Text>
+          {searchQuery !== debouncedSearchQuery ? (
+            <Text style={[styles.resultSummaryText, { color: palette.primary }]}>
+              Updating...
+            </Text>
+          ) : null}
+        </View>
+
         <View style={styles.chipRow}>
           <FilterChip
             label="All"
@@ -387,24 +453,25 @@ export const BrowseRequestsScreen = () => {
             label="Nearby"
             active={isNearbyActive}
             onPress={() =>
-              updateFilter("radiusKm", isNearbyActive ? "ANY" : "10")
+              updateFilter("radiusKm", isNearbyActive || !hasCoordinates ? "ANY" : "10")
             }
           />
-          <FilterChip
-            label="Medical"
-            active={isMedicalActive}
-            onPress={() => {
-              if (!medicalCategory) return;
-              updateFilter(
-                "categoryId",
-                isMedicalActive ? "ALL" : medicalCategory.id
-              );
-            }}
-          />
+          {medicalCategory ? (
+            <FilterChip
+              label="Medical"
+              active={isMedicalActive}
+              onPress={() => {
+                updateFilter(
+                  "categoryId",
+                  isMedicalActive ? "ALL" : medicalCategory.id
+                );
+              }}
+            />
+          ) : null}
         </View>
 
         <View style={styles.secondaryActionsRow}>
-          <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          <ViewModeToggle value={viewMode} onChange={handleChangeViewMode} />
 
           <Pressable
             onPress={() => setFiltersVisible(true)}
@@ -425,14 +492,16 @@ export const BrowseRequestsScreen = () => {
               ]}
             >
               Filter
+              {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
             </Text>
           </Pressable>
 
           <Pressable
             onPress={handleResetAll}
+            disabled={activeFilterCount === 0}
             style={({ pressed }) => [
               styles.secondaryAction,
-              { opacity: pressed ? 0.7 : 1 },
+              { opacity: activeFilterCount === 0 ? 0.45 : pressed ? 0.7 : 1 },
             ]}
           >
             <Text
@@ -470,8 +539,10 @@ export const BrowseRequestsScreen = () => {
             }
             emptyDescription={
               searchQuery
-                ? "Try a different search keyword or reset filters."
-                : "Try widening your radius or resetting filters."
+                ? "Try a different search keyword or reset all filters."
+                : filters.radiusKm !== "ANY" && !hasCoordinates
+                  ? "Enable location or use Any distance to browse more requests."
+                  : "Try widening your radius or resetting filters."
             }
             emptyActionLabel="Reset"
             onPressEmptyAction={handleResetAll}
@@ -482,6 +553,7 @@ export const BrowseRequestsScreen = () => {
             onOpenRequest={(requestId) =>
               router.push(APP_ROUTES.HOME_REQUEST_DETAILS(requestId))
             }
+            onBidRequest={openBidModal}
           />
         )}
       </View>
@@ -561,6 +633,18 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
   },
+  resultSummaryRow: {
+    minHeight: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  resultSummaryText: {
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: theme.typography.lineHeight.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -569,6 +653,7 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     minHeight: 36,
+    borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: theme.radius.fill,
