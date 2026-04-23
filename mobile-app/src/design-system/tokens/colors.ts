@@ -2,45 +2,45 @@
 
 export const lightColors = {
   // ─── Backgrounds ───────────────────────────────────────────────────────────
-  background: "#FAFAF8",          // --page: warm off-white page base
-  surface: "#FFFFFF",             // --card: pure white card surface
-  surfaceSecondary: "#F4F3EF",    // --lift: subtle elevated surface
-  surfaceMuted: "#ECEAE4",        // --groove: muted/disabled surface
+  background: "#F6F5F0",          // warm paper base
+  surface: "#FFFDFC",             // softened card surface
+  surfaceSecondary: "#F1EEE6",    // lifted neutral surface
+  surfaceMuted: "#E8E4D9",        // muted controls / chips
 
   // ─── Text ──────────────────────────────────────────────────────────────────
-  textPrimary: "#0F0E0C",         // --ink: near-black, warm undertone
-  textSecondary: "#4A4845",       // --ink2: body / secondary text
-  textMuted: "#9A9894",           // --ink3: placeholders, captions, hints
+  textPrimary: "#161511",         // warm charcoal
+  textSecondary: "#59554D",       // softened body text
+  textMuted: "#8A857C",           // captions, placeholders
   textInverse: "#FFFFFF",         // text on dark/brand backgrounds
 
   // ─── Borders ───────────────────────────────────────────────────────────────
-  border: "rgba(15, 14, 12, 0.08)",       // --line: default hairline border
-  borderStrong: "rgba(15, 14, 12, 0.16)", // --line stronger: hover/focus rings
+  border: "rgba(22, 21, 17, 0.10)",
+  borderStrong: "rgba(22, 21, 17, 0.18)",
 
   // ─── Brand – Forest Green ──────────────────────────────────────────────────
-  primary: "#2B6651",             // --sage: core brand green
-  primaryPressed: "#245847",      // pressed/active state — slightly darker
-  primaryLight: "#E4F0EB",        // --sage-l: tinted background / chips
-  primaryMid: "#3D8B6E",          // --sage-m: avatars, mid-tone fills
-  primaryDark: "#174032",         // --sage-d: text on sage-l, hero bg
+  primary: "#2F6B58",
+  primaryPressed: "#275747",
+  primaryLight: "#DFECE5",
+  primaryMid: "#4B8A72",
+  primaryDark: "#1F4739",
 
   // ─── Secondary – Amber ─────────────────────────────────────────────────────
-  secondary: "#C17E1A",           // --gold: bids, assigned state, warnings
-  secondaryPressed: "#A86C14",
-  secondaryLight: "#FBF0DC",      // --gold-l: amber tinted surfaces
+  secondary: "#B57A22",
+  secondaryPressed: "#96631B",
+  secondaryLight: "#F6E8D0",
 
   // ─── Accent – Rust ─────────────────────────────────────────────────────────
-  accent: "#C4472A",              // --rust: destructive, unread dots, danger
-  accentPressed: "#A83A20",
-  accentLight: "#FAEAE6",         // --rust-l: destructive soft backgrounds
+  accent: "#B95238",
+  accentPressed: "#99432E",
+  accentLight: "#F6E6E0",
 
   // ─── Iris – Completed/Info state ───────────────────────────────────────────
-  info: "#4A47A3",                // --iris: completed status, info actions
-  infoLight: "#EEEDF9",           // --iris-l: info tinted surface
+  info: "#546C9F",
+  infoLight: "#E8EDF6",
 
   // ─── Pine – Garden / category ──────────────────────────────────────────────
-  pine: "#2D5A3D",
-  pineLight: "#E6F0E9",
+  pine: "#3F6B4B",
+  pineLight: "#E3ECE3",
 
   // ─── Semantic ──────────────────────────────────────────────────────────────
   success: "#2B6651",             // reuse brand green — success = done
@@ -67,25 +67,25 @@ export const lightColors = {
   accentSoft: "rgba(196, 71, 42, 0.10)",
 
   // ─── Rating ────────────────────────────────────────────────────────────────
-  star: "#D4860A",                // star fill — warmer than amber brand
+  star: "#CB8C24",
 
   // ─── Utility ───────────────────────────────────────────────────────────────
-  overlay: "rgba(15, 14, 12, 0.50)",   // modal scrim
-  shadow: "rgba(15, 14, 12, 0.08)",    // card shadow (if used)
-  scrim: "rgba(15, 14, 12, 0.08)",     // hover states, pressed overlays
+  overlay: "rgba(16, 16, 14, 0.42)",
+  shadow: "rgba(18, 22, 18, 0.12)",
+  scrim: "rgba(22, 21, 17, 0.08)",
 };
 
 export const darkColors: typeof lightColors = {
   // ─── Backgrounds ───────────────────────────────────────────────────────────
-  background: "#111210",          // deep warm-black page
-  surface: "#1C1E1C",             // card surface
-  surfaceSecondary: "#242724",    // lifted surface
-  surfaceMuted: "#2C302C",        // muted/disabled
+  background: "#131614",
+  surface: "#1A1F1C",
+  surfaceSecondary: "#212823",
+  surfaceMuted: "#283029",
 
   // ─── Text ──────────────────────────────────────────────────────────────────
-  textPrimary: "#F0EDE8",         // warm white — mirrors --ink inverted
-  textSecondary: "#A8A4A0",       // muted body text
-  textMuted: "#6A6764",           // captions, hints
+  textPrimary: "#F2EEE6",
+  textSecondary: "#B3ADA3",
+  textMuted: "#7A746B",
   textInverse: "#0F0E0C",         // text on light/brand-light surfaces
 
   // ─── Borders ───────────────────────────────────────────────────────────────
@@ -93,29 +93,29 @@ export const darkColors: typeof lightColors = {
   borderStrong: "rgba(240, 237, 232, 0.16)",
 
   // ─── Brand – Forest Green ──────────────────────────────────────────────────
-  primary: "#3D8B6E",             // lightened for dark bg contrast
-  primaryPressed: "#339060",
-  primaryLight: "#183326",        // dark tinted green surface
-  primaryMid: "#2B6651",          // mid stays as base
-  primaryDark: "#A8D4C2",         // text on primaryLight in dark mode
+  primary: "#5F9F85",
+  primaryPressed: "#4B8A72",
+  primaryLight: "#183127",
+  primaryMid: "#38715D",
+  primaryDark: "#B9DDCF",
 
   // ─── Secondary – Amber ─────────────────────────────────────────────────────
-  secondary: "#E09A30",           // brightened amber
-  secondaryPressed: "#C88420",
-  secondaryLight: "#3A2A0E",      // dark amber tinted surface
+  secondary: "#D29A44",
+  secondaryPressed: "#B88333",
+  secondaryLight: "#392A14",
 
   // ─── Accent – Rust ─────────────────────────────────────────────────────────
-  accent: "#E06040",              // brightened rust
-  accentPressed: "#C84E30",
-  accentLight: "#3A1A10",         // dark rust surface
+  accent: "#D6755C",
+  accentPressed: "#B85E48",
+  accentLight: "#371B16",
 
   // ─── Iris ──────────────────────────────────────────────────────────────────
-  info: "#7F77DD",                // lighter iris for dark bg
-  infoLight: "#1E1C3A",           // dark iris surface
+  info: "#89A2D7",
+  infoLight: "#1B2334",
 
   // ─── Pine ──────────────────────────────────────────────────────────────────
-  pine: "#4A8A5A",
-  pineLight: "#162418",
+  pine: "#6D9A74",
+  pineLight: "#18231A",
 
   // ─── Semantic ──────────────────────────────────────────────────────────────
   success: "#3D8B6E",
@@ -142,12 +142,12 @@ export const darkColors: typeof lightColors = {
   accentSoft: "rgba(224, 96, 64, 0.15)",
 
   // ─── Rating ────────────────────────────────────────────────────────────────
-  star: "#E8A020",
+  star: "#DDA04D",
 
   // ─── Utility ───────────────────────────────────────────────────────────────
-  overlay: "rgba(0, 0, 0, 0.60)",
-  shadow: "rgba(0, 0, 0, 0.30)",
-  scrim: "rgba(0, 0, 0, 0.20)",
+  overlay: "rgba(0, 0, 0, 0.58)",
+  shadow: "rgba(0, 0, 0, 0.34)",
+  scrim: "rgba(0, 0, 0, 0.22)",
 };
 
 // Backward-compatible export for modules importing { colors } directly.
