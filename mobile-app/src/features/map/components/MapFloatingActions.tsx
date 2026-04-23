@@ -21,7 +21,10 @@ export const MapFloatingActions = ({
       <View
         style={[
           styles.countPill,
-          { backgroundColor: "rgba(255,255,255,0.96)" },
+          {
+            backgroundColor: palette.surface,
+            borderColor: palette.border,
+          },
         ]}
       >
         <Ionicons name="location-outline" size={16} color={palette.primary} />
@@ -35,7 +38,8 @@ export const MapFloatingActions = ({
         style={({ pressed }) => [
           styles.recenterButton,
           {
-            backgroundColor: "rgba(255,255,255,0.96)",
+            backgroundColor: palette.surface,
+            borderColor: palette.border,
             opacity: pressed ? 0.92 : 1,
           },
         ]}
@@ -64,6 +68,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.fill,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    borderWidth: 1,
     shadowColor: "#122013",
     shadowOpacity: 0.1,
     shadowRadius: 14,
@@ -78,6 +83,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#122013",
