@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { theme } from "@/design-system";
@@ -10,26 +10,29 @@ import {
   formatRequestLocation,
   getRequestCategoryLabel,
 } from "@/features/helpRequest/utils/requestDisplay";
+import { getRelativePostedTime } from "@/features/helpRequest/utils/requestTime";
+import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
 import { formatDistance } from "@/utils/distance";
+import { AppButton } from "@/components/ui/AppButton";
 
 type Props = {
   request: MapRequestItem;
-  onPress: () => void;
+  onViewDetails: () => void;
+  onBidRequest?: () => void;
 };
 
-export const SelectedRequestSheet = ({ request, onPress }: Props) => {
+export const SelectedRequestSheet = ({ request, onViewDetails, onBidRequest }: Props) => {
   const { palette } = useThemeContext();
+  const canBid = Boolean(onBidRequest && isRequestOpenForBidding(request.status));
 
   return (
     <View style={styles.container}>
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [
+      <View
+        style={[
           styles.card,
           {
             backgroundColor: palette.surface,
             borderColor: palette.border,
-            opacity: pressed ? 0.96 : 1,
           },
         ]}
       >
@@ -75,6 +78,17 @@ export const SelectedRequestSheet = ({ request, onPress }: Props) => {
                 </Text>
               </View>
             ) : null}
+
+            <View
+              style={[
+                styles.pill,
+                { backgroundColor: palette.surfaceMuted },
+              ]}
+            >
+              <Text style={[styles.pillText, { color: palette.textSecondary }]}>
+                {getRelativePostedTime(request.createdAt)}
+              </Text>
+            </View>
           </View>
 
           <Text style={[styles.budget, { color: palette.primary }]}>
@@ -88,7 +102,24 @@ export const SelectedRequestSheet = ({ request, onPress }: Props) => {
         >
           {formatRequestLocation(request)}
         </Text>
-      </Pressable>
+
+        <View style={styles.actionsRow}>
+          <AppButton
+            title="View details"
+            variant="secondary"
+            onPress={onViewDetails}
+            fullWidth={false}
+          />
+          {canBid ? (
+            <AppButton
+              title="Submit offer"
+              variant="primary"
+              onPress={() => onBidRequest?.()}
+              fullWidth={false}
+            />
+          ) : null}
+        </View>
+      </View>
     </View>
   );
 };
@@ -156,5 +187,12 @@ const styles = StyleSheet.create({
   location: {
     marginTop: 10,
     fontSize: 13,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: theme.spacing.sm,
+    rowGap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
   },
 });

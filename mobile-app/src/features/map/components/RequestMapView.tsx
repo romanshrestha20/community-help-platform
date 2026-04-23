@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { Card, Stack, theme } from "@/design-system";
 import { MapFloatingActions } from "@/features/map/components/MapFloatingActions";
 import { RequestMap } from "@/features/map/components/RequestMap.web";
+import { SelectedRequestSheet } from "@/features/map/components/SelectedRequestSheet";
 import { useCurrentLocation } from "@/features/map/hooks/useCurrentLocation";
 import { useRequestMap } from "@/features/map/hooks/useRequestMap";
 import {
@@ -13,16 +14,11 @@ import {
   MapRequestItem,
 } from "@/features/map/types/map.types";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
-import {
-  formatRequestBudget,
-  formatRequestLocation,
-  getRequestCategoryLabel,
-} from "@/features/helpRequest/utils/requestDisplay";
-import { formatDistance } from "@/utils/distance";
 
 type Props = {
   filters: MapRequestFilters;
   onOpenRequest: (requestId: string) => void;
+  onBidRequest?: (request: MapRequestItem) => void;
 };
 
 const boundsChangedEnough = (a: MapBounds | null, b: MapBounds | null) => {
@@ -39,12 +35,15 @@ const boundsChangedEnough = (a: MapBounds | null, b: MapBounds | null) => {
 export const RequestMapView: React.FC<Props> = ({
   filters,
   onOpenRequest,
+  onBidRequest,
 }) => {
   const { palette } = useThemeContext();
   const boundsUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<MapRequestItem | null>(null);
   const [appliedBounds, setAppliedBounds] = useState<MapBounds | null>(null);
-  const [viewportCenter, setViewportCenter] = useState<Coordinates | null>(null);
+  const [appliedCenter, setAppliedCenter] = useState<Coordinates | null>(null);
+  const [pendingBounds, setPendingBounds] = useState<MapBounds | null>(null);
+  const [pendingCenter, setPendingCenter] = useState<Coordinates | null>(null);
   const [centerSignal, setCenterSignal] = useState(0);
 
   const {
@@ -58,11 +57,11 @@ export const RequestMapView: React.FC<Props> = ({
   const mergedFilters = useMemo<MapRequestFilters>(
     () => ({
       ...filters,
-      latitude: viewportCenter?.latitude ?? filters.latitude ?? location?.latitude,
-      longitude: viewportCenter?.longitude ?? filters.longitude ?? location?.longitude,
+      latitude: appliedCenter?.latitude ?? filters.latitude ?? location?.latitude,
+      longitude: appliedCenter?.longitude ?? filters.longitude ?? location?.longitude,
       bounds: appliedBounds,
     }),
-    [appliedBounds, filters, location?.latitude, location?.longitude, viewportCenter]
+    [appliedBounds, appliedCenter, filters, location?.latitude, location?.longitude]
   );
 
   const {
@@ -90,15 +89,19 @@ export const RequestMapView: React.FC<Props> = ({
 
   useEffect(() => {
     if (filters.latitude != null && filters.longitude != null) {
-      setViewportCenter({
+      const nextCenter = {
         latitude: filters.latitude,
         longitude: filters.longitude,
-      });
+      };
+      setAppliedCenter(nextCenter);
+      setPendingCenter(null);
     } else if (location?.latitude != null && location?.longitude != null) {
-      setViewportCenter({
+      const nextCenter = {
         latitude: location.latitude,
         longitude: location.longitude,
-      });
+      };
+      setAppliedCenter(nextCenter);
+      setPendingCenter(null);
     }
   }, [filters.latitude, filters.longitude, location?.latitude, location?.longitude]);
 
@@ -111,13 +114,19 @@ export const RequestMapView: React.FC<Props> = ({
   }, []);
 
   const handleRecenter = async () => {
+    const fallbackCenter =
+      (location?.latitude != null && location?.longitude != null)
+        ? { latitude: location.latitude, longitude: location.longitude }
+        : (filters.latitude != null && filters.longitude != null)
+          ? { latitude: filters.latitude, longitude: filters.longitude }
+          : null;
+
     setSelectedRequest(null);
     setAppliedBounds(null);
-    if (location?.latitude != null && location?.longitude != null) {
-      setViewportCenter({
-        latitude: location.latitude,
-        longitude: location.longitude,
-      });
+    setPendingBounds(null);
+    setPendingCenter(null);
+    if (fallbackCenter) {
+      setAppliedCenter(fallbackCenter);
     }
     setCenterSignal((value) => value + 1);
     await reloadLocation();
@@ -128,9 +137,34 @@ export const RequestMapView: React.FC<Props> = ({
     await reloadRequests();
   };
 
-  const screenError = locationError ?? requestsError ?? null;
+  const handleSearchThisArea = async () => {
+    if (!pendingBounds || !pendingCenter) return;
 
-  if (locationLoading && !location) {
+    setAppliedBounds(pendingBounds);
+    setAppliedCenter(pendingCenter);
+    setPendingBounds(null);
+    await reloadRequests();
+  };
+
+  const resolvedUserLocation =
+    location ??
+    (filters.latitude != null && filters.longitude != null
+      ? { latitude: filters.latitude, longitude: filters.longitude }
+      : null);
+  const hasFallbackCenter =
+    filters.latitude != null &&
+    filters.longitude != null &&
+    Number.isFinite(filters.latitude) &&
+    Number.isFinite(filters.longitude);
+  const showPermissionDeniedState = permissionDenied && !hasFallbackCenter && !location;
+  const screenError = requestsError ?? (showPermissionDeniedState ? locationError : null) ?? null;
+  const showSearchThisArea = Boolean(
+    pendingBounds &&
+      pendingCenter &&
+      (!appliedBounds || boundsChangedEnough(appliedBounds, pendingBounds))
+  );
+
+  if (locationLoading && !resolvedUserLocation) {
     return (
       <View style={styles.centerState}>
         <ActivityIndicator color={palette.primary} />
@@ -141,7 +175,7 @@ export const RequestMapView: React.FC<Props> = ({
     );
   }
 
-  if (permissionDenied) {
+  if (showPermissionDeniedState) {
     return (
       <Card
         style={[
@@ -157,7 +191,7 @@ export const RequestMapView: React.FC<Props> = ({
             Location permission is required
           </Text>
           <Text style={[styles.stateBody, { color: palette.textSecondary }]}>
-            Allow browser location access to show nearby requests on the map.
+            Allow browser location access to center the map on you, or save a location in your profile to use as a fallback.
           </Text>
           <Pressable
             onPress={handleReload}
@@ -178,23 +212,24 @@ export const RequestMapView: React.FC<Props> = ({
   return (
     <View style={styles.container}>
       <RequestMap
-        userLocation={location}
+        userLocation={resolvedUserLocation}
         requests={requests}
         selectedRequestId={selectedRequest?.id ?? null}
         onSelectRequest={setSelectedRequest}
         onPressMap={() => setSelectedRequest(null)}
         onBoundsChange={(bounds) => {
-          if (!appliedBounds || boundsChangedEnough(appliedBounds, bounds)) {
+          if (!pendingBounds || boundsChangedEnough(pendingBounds, bounds)) {
             if (boundsUpdateTimeoutRef.current) {
               clearTimeout(boundsUpdateTimeoutRef.current);
             }
 
             boundsUpdateTimeoutRef.current = setTimeout(() => {
-              setViewportCenter({
+              const nextCenter = {
                 latitude: (bounds.minLatitude + bounds.maxLatitude) / 2,
                 longitude: (bounds.minLongitude + bounds.maxLongitude) / 2,
-              });
-              setAppliedBounds(bounds);
+              };
+              setPendingCenter(nextCenter);
+              setPendingBounds(bounds);
             }, 280);
           }
         }}
@@ -205,6 +240,22 @@ export const RequestMapView: React.FC<Props> = ({
         mappedCount={requests.length}
         onPressRecenter={handleRecenter}
       />
+
+      {showSearchThisArea ? (
+        <View style={styles.searchAreaButtonWrap}>
+          <Pressable
+            onPress={handleSearchThisArea}
+            style={[
+              styles.primaryButton,
+              { backgroundColor: palette.primary },
+            ]}
+          >
+            <Text style={[styles.primaryButtonText, { color: palette.textInverse }]}>
+              Search this area
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {requestsLoading ? (
         <View
@@ -254,70 +305,13 @@ export const RequestMapView: React.FC<Props> = ({
       ) : null}
 
       {selectedRequest ? (
-        <Pressable
-          onPress={() => onOpenRequest(selectedRequest.id)}
-          style={({ pressed }) => [
-            styles.selectedCard,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-              opacity: pressed ? 0.96 : 1,
-            },
-          ]}
-        >
-          <View style={styles.selectedCardHeader}>
-            <View style={styles.selectedCardCopy}>
-              <Text
-                numberOfLines={1}
-                style={[styles.selectedCardTitle, { color: palette.textPrimary }]}
-              >
-                {selectedRequest.title}
-              </Text>
-              <Text
-                style={[styles.selectedCardSubtitle, { color: palette.textSecondary }]}
-              >
-                {getRequestCategoryLabel(selectedRequest)}
-              </Text>
-            </View>
-
-            <Text style={[styles.selectedCardBudget, { color: palette.primary }]}>
-              {formatRequestBudget(selectedRequest)}
-            </Text>
-          </View>
-
-          <View style={styles.selectedCardMeta}>
-            <View
-              style={[
-                styles.statusPill,
-                { backgroundColor: palette.surfaceMuted },
-              ]}
-            >
-              <Text style={[styles.statusPillText, { color: palette.textSecondary }]}>
-                {selectedRequest.status}
-              </Text>
-            </View>
-
-            {typeof selectedRequest.distanceKm === "number" ? (
-              <View
-                style={[
-                  styles.statusPill,
-                  { backgroundColor: `${palette.primary}14` },
-                ]}
-              >
-                <Text style={[styles.statusPillText, { color: palette.primary }]}>
-                  {formatDistance(selectedRequest.distanceKm)} away
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          <Text
-            numberOfLines={1}
-            style={[styles.selectedCardLocation, { color: palette.textSecondary }]}
-          >
-            {formatRequestLocation(selectedRequest)}
-          </Text>
-        </Pressable>
+        <SelectedRequestSheet
+          request={selectedRequest}
+          onViewDetails={() => onOpenRequest(selectedRequest.id)}
+          onBidRequest={
+            onBidRequest ? () => onBidRequest(selectedRequest) : undefined
+          }
+        />
       ) : null}
     </View>
   );
@@ -406,59 +400,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
   },
-  selectedCard: {
+  searchAreaButtonWrap: {
     position: "absolute",
-    left: theme.spacing.md,
-    right: theme.spacing.md,
-    bottom: theme.spacing.md,
-    borderWidth: 1,
-    borderRadius: 22,
-    padding: theme.spacing.md,
-    shadowColor: "#122013",
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-  },
-  selectedCardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    columnGap: theme.spacing.sm,
-  },
-  selectedCardCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  selectedCardTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  selectedCardSubtitle: {
-    fontSize: theme.typography.fontSize.sm,
-  },
-  selectedCardBudget: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-  },
-  selectedCardMeta: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 12,
-  },
-  statusPill: {
-    borderRadius: theme.radius.fill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  statusPillText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  selectedCardLocation: {
-    marginTop: 10,
-    fontSize: 13,
+    top: theme.spacing.md,
+    alignSelf: "center",
   },
 });

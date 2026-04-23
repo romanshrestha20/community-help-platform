@@ -26,6 +26,7 @@ import { getBoundsFromRegion } from "@/features/map/utils/mapRegion";
 type Props = {
     filters: MapRequestFilters;
     onOpenRequest: (requestId: string) => void;
+    onBidRequest?: (request: MapRequestItem) => void;
 };
 
 const regionChangedEnough = (a: Region | null, b: Region | null) => {
@@ -47,13 +48,16 @@ const regionChangedEnough = (a: Region | null, b: Region | null) => {
 export const RequestMapView: React.FC<Props> = ({
     filters,
     onOpenRequest,
+    onBidRequest,
 }) => {
     const { palette } = useThemeContext();
     const mapRef = useRef<MapView | null>(null);
     const boundsUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [selectedRequest, setSelectedRequest] = useState<MapRequestItem | null>(null);
     const [appliedBounds, setAppliedBounds] = useState<MapBounds | null>(null);
-    const [viewportCenter, setViewportCenter] = useState<Coordinates | null>(null);
+    const [appliedCenter, setAppliedCenter] = useState<Coordinates | null>(null);
+    const [pendingBounds, setPendingBounds] = useState<MapBounds | null>(null);
+    const [pendingCenter, setPendingCenter] = useState<Coordinates | null>(null);
 
     const {
         location,
@@ -66,11 +70,11 @@ export const RequestMapView: React.FC<Props> = ({
     const mergedFilters = useMemo<MapRequestFilters>(() => {
         return {
             ...filters,
-            latitude: viewportCenter?.latitude ?? filters.latitude ?? location?.latitude,
-            longitude: viewportCenter?.longitude ?? filters.longitude ?? location?.longitude,
+            latitude: appliedCenter?.latitude ?? filters.latitude ?? location?.latitude,
+            longitude: appliedCenter?.longitude ?? filters.longitude ?? location?.longitude,
             bounds: appliedBounds,
         };
-    }, [appliedBounds, filters, location?.latitude, location?.longitude, viewportCenter]);
+    }, [appliedBounds, appliedCenter, filters, location?.latitude, location?.longitude]);
 
     const {
         requests,
@@ -97,15 +101,19 @@ export const RequestMapView: React.FC<Props> = ({
 
     useEffect(() => {
         if (filters.latitude != null && filters.longitude != null) {
-            setViewportCenter({
+            const nextCenter = {
                 latitude: filters.latitude,
                 longitude: filters.longitude,
-            });
+            };
+            setAppliedCenter(nextCenter);
+            setPendingCenter(null);
         } else if (location?.latitude != null && location?.longitude != null) {
-            setViewportCenter({
+            const nextCenter = {
                 latitude: location.latitude,
                 longitude: location.longitude,
-            });
+            };
+            setAppliedCenter(nextCenter);
+            setPendingCenter(null);
         }
     }, [filters.latitude, filters.longitude, location?.latitude, location?.longitude]);
 
@@ -118,23 +126,30 @@ export const RequestMapView: React.FC<Props> = ({
     }, []);
 
     const handleRecenter = async () => {
-        if (!mapRef.current || !location) return;
+        const fallbackCenter =
+            (location?.latitude != null && location?.longitude != null)
+                ? { latitude: location.latitude, longitude: location.longitude }
+                : (filters.latitude != null && filters.longitude != null)
+                    ? { latitude: filters.latitude, longitude: filters.longitude }
+                    : null;
+
+        if (!mapRef.current || !fallbackCenter) return;
 
         const nextRegion = {
-            latitude: location.latitude,
-            longitude: location.longitude,
+            latitude: fallbackCenter.latitude,
+            longitude: fallbackCenter.longitude,
             latitudeDelta: 0.08,
             longitudeDelta: 0.08,
         };
 
         mapRef.current.animateToRegion(nextRegion, 450);
-        setViewportCenter({
-            latitude: nextRegion.latitude,
-            longitude: nextRegion.longitude,
-        });
-        setAppliedBounds(getBoundsFromRegion(nextRegion));
+        setSelectedRequest(null);
+        setAppliedCenter(fallbackCenter);
+        setAppliedBounds(null);
+        setPendingBounds(null);
+        setPendingCenter(null);
 
-        await reloadRequests();
+        await reloadLocation();
     };
 
     const handleReload = async () => {
@@ -142,9 +157,34 @@ export const RequestMapView: React.FC<Props> = ({
         await reloadRequests();
     };
 
-    const screenError = locationError ?? requestsError ?? null;
+    const handleSearchThisArea = async () => {
+        if (!pendingBounds || !pendingCenter) return;
 
-    if (locationLoading) {
+        setAppliedBounds(pendingBounds);
+        setAppliedCenter(pendingCenter);
+        setPendingBounds(null);
+        await reloadRequests();
+    };
+
+    const resolvedUserLocation =
+        location ??
+        (filters.latitude != null && filters.longitude != null
+            ? { latitude: filters.latitude, longitude: filters.longitude }
+            : null);
+    const hasFallbackCenter =
+        filters.latitude != null &&
+        filters.longitude != null &&
+        Number.isFinite(filters.latitude) &&
+        Number.isFinite(filters.longitude);
+    const showPermissionDeniedState = permissionDenied && !hasFallbackCenter && !location;
+    const screenError = requestsError ?? (showPermissionDeniedState ? locationError : null) ?? null;
+    const showSearchThisArea = Boolean(
+        pendingBounds &&
+            pendingCenter &&
+            (!appliedBounds || pendingBounds !== appliedBounds)
+    );
+
+    if (locationLoading && !resolvedUserLocation) {
         return (
             <View style={styles.centerState}>
                 <ActivityIndicator color={palette.primary} />
@@ -155,7 +195,7 @@ export const RequestMapView: React.FC<Props> = ({
         );
     }
 
-    if (permissionDenied) {
+    if (showPermissionDeniedState) {
         return (
             <Card
                 style={[
@@ -171,7 +211,7 @@ export const RequestMapView: React.FC<Props> = ({
                         Location permission is required
                     </Text>
                     <Text style={[styles.stateBody, { color: palette.textSecondary }]}>
-                        Allow location access to show nearby requests on the map.
+                        Allow location access to center the map on you, or save a location in your profile to use as a fallback.
                     </Text>
                     <AppButton title="Try again" variant="primary" onPress={handleReload} />
                 </Stack>
@@ -183,22 +223,33 @@ export const RequestMapView: React.FC<Props> = ({
         <View style={styles.container}>
             <RequestMap
                 mapRef={mapRef}
-                userLocation={location}
+                userLocation={resolvedUserLocation}
                 requests={requests}
                 onSelectRequest={setSelectedRequest}
                 onPressMap={() => setSelectedRequest(null)}
                 onRegionChangeComplete={(region, isGesture) => {
                     if (isGesture === false) return;
-                    const currentRegion = appliedBounds
+                    const currentRegion = pendingBounds ?? appliedBounds
                         ? {
                               latitude:
-                                  (appliedBounds.minLatitude + appliedBounds.maxLatitude) / 2,
+                                  ((pendingBounds ?? appliedBounds)!.minLatitude +
+                                      (pendingBounds ?? appliedBounds)!.maxLatitude) / 2,
                               longitude:
-                                  (appliedBounds.minLongitude + appliedBounds.maxLongitude) / 2,
+                                  ((pendingBounds ?? appliedBounds)!.minLongitude +
+                                      (pendingBounds ?? appliedBounds)!.maxLongitude) / 2,
                               latitudeDelta:
-                                  appliedBounds.maxLatitude - appliedBounds.minLatitude,
+                                  (pendingBounds ?? appliedBounds)!.maxLatitude -
+                                  (pendingBounds ?? appliedBounds)!.minLatitude,
                               longitudeDelta:
-                                  appliedBounds.maxLongitude - appliedBounds.minLongitude,
+                                  (pendingBounds ?? appliedBounds)!.maxLongitude -
+                                  (pendingBounds ?? appliedBounds)!.minLongitude,
+                          }
+                        : appliedCenter
+                        ? {
+                              latitude: appliedCenter.latitude,
+                              longitude: appliedCenter.longitude,
+                              latitudeDelta: 0.08,
+                              longitudeDelta: 0.08,
                           }
                         : null;
 
@@ -208,11 +259,12 @@ export const RequestMapView: React.FC<Props> = ({
                         }
 
                         boundsUpdateTimeoutRef.current = setTimeout(() => {
-                            setViewportCenter({
+                            const nextCenter = {
                                 latitude: region.latitude,
                                 longitude: region.longitude,
-                            });
-                            setAppliedBounds(getBoundsFromRegion(region));
+                            };
+                            setPendingCenter(nextCenter);
+                            setPendingBounds(getBoundsFromRegion(region));
                         }, 280);
                     }
                 }}
@@ -222,6 +274,12 @@ export const RequestMapView: React.FC<Props> = ({
                 mappedCount={requests.length}
                 onPressRecenter={handleRecenter}
             />
+
+            {showSearchThisArea ? (
+                <View style={styles.searchAreaButtonWrap}>
+                    <AppButton title="Search this area" variant="primary" onPress={handleSearchThisArea} />
+                </View>
+            ) : null}
 
             {requestsLoading ? (
                 <View
@@ -240,7 +298,10 @@ export const RequestMapView: React.FC<Props> = ({
             {selectedRequest ? (
                 <SelectedRequestSheet
                     request={selectedRequest}
-                    onPress={() => onOpenRequest(selectedRequest.id)}
+                    onViewDetails={() => onOpenRequest(selectedRequest.id)}
+                    onBidRequest={
+                        onBidRequest ? () => onBidRequest(selectedRequest) : undefined
+                    }
                 />
             ) : null}
 
@@ -297,6 +358,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 10,
         elevation: 3,
+    },
+    searchAreaButtonWrap: {
+        position: "absolute",
+        top: theme.spacing.md,
+        alignSelf: "center",
     },
     loadingBadgeText: {
         fontSize: 13,
