@@ -29,36 +29,40 @@ export const useUser = () => {
     (nextUser: typeof user) => {
       if (!nextUser || !authUser) return;
 
-      useAuthStore.setState((state) => ({
-        ...state,
-        user: {
-          ...state.user,
-          ...authUser,
-          id: nextUser.id,
-          email: nextUser.email,
-          phone: nextUser.phone,
-          hasPassword: nextUser.hasPassword ?? state.user?.hasPassword ?? authUser?.hasPassword,
-          isVerified: nextUser.isVerified,
-          isEmailVerified: nextUser.isEmailVerified,
-          isPhoneVerified: nextUser.isPhoneVerified,
-          fullName: nextUser.fullName,
-          avatarUrl: nextUser.avatarUrl ?? null,
-          profile: state.user?.profile
-            ? {
-                ...state.user.profile,
-                fullName: nextUser.fullName,
-                bio: nextUser.bio ?? null,
-                dateOfBirth: nextUser.dateOfBirth ?? null,
-                gender: nextUser.gender ?? null,
-                userType: nextUser.userType,
-                rating: nextUser.rating,
-                helpCount: nextUser.helpCount,
-                avatarUrl: nextUser.avatarUrl ?? null,
-                address: nextUser.address ?? null,
-              }
-            : state.user?.profile ?? null,
-        },
-      }));
+      useAuthStore.setState((state) => {
+        const currentProfile = state.user?.profile ?? authUser.profile ?? null;
+
+        return {
+          ...state,
+          user: {
+            ...state.user,
+            ...authUser,
+            id: nextUser.id,
+            email: nextUser.email,
+            phone: nextUser.phone,
+            hasPassword: nextUser.hasPassword ?? state.user?.hasPassword ?? authUser?.hasPassword,
+            isVerified: nextUser.isVerified,
+            isEmailVerified: nextUser.isEmailVerified,
+            isPhoneVerified: nextUser.isPhoneVerified,
+            fullName: nextUser.fullName,
+            avatarUrl: nextUser.avatarUrl ?? null,
+            profile: currentProfile
+              ? {
+                  ...currentProfile,
+                  fullName: nextUser.fullName,
+                  bio: nextUser.bio ?? null,
+                  dateOfBirth: nextUser.dateOfBirth ?? null,
+                  gender: nextUser.gender ?? null,
+                  userType: nextUser.userType,
+                  rating: nextUser.rating,
+                  helpCount: nextUser.helpCount,
+                  avatarUrl: nextUser.avatarUrl ?? null,
+                  address: nextUser.address ?? null,
+                }
+              : null,
+          },
+        };
+      });
     },
     [authUser]
   );
@@ -68,8 +72,6 @@ export const useUser = () => {
       clearUser();
       return;
     }
-
-    if (user) return;
 
     setLoading(true);
     setError(null);
@@ -84,7 +86,7 @@ export const useUser = () => {
       }
 
     setLoading(false);
-  }, [authUser, clearUser, isAuthenticated, setError, setLoading, setUser, syncAuthUser, user]);
+  }, [authUser, clearUser, isAuthenticated, setError, setLoading, setUser, syncAuthUser]);
 
   const handleUpdateProfile = useCallback(
     async (profileData: Partial<UpdateUserProfilePayload>) => {
