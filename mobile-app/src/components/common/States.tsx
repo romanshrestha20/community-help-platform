@@ -4,6 +4,7 @@ import {Card }from "@/design-system/layout/Card";
 import {Stack} from "@/design-system/layout/Stack";
 import {AppButton} from "@/components/ui/AppButton";
 import { spacing, colors, typography } from "@/design-system/tokens";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 interface EmptyStateProps {
     title?: string;
@@ -60,19 +61,23 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
     message,
     actionLabel = "Retry",
     onAction,
-}) => (
+}) => {
+    const { palette } = useThemeContext();
+
+    return (
     <View style={styles.errorContainer}>
-        <Card style={{ backgroundColor: colors.dangerSoft }}>
+        <Card style={{ backgroundColor: palette.dangerSoft, borderColor: palette.danger }}>
             <Stack gap="md">
-                <Text style={[styles.bodyText, { color: colors.danger, fontWeight: typography.fontWeight.semibold }]}>
+                <Text style={[styles.bodyText, { color: palette.danger, fontWeight: typography.fontWeight.semibold }]}>
                     {title}
                 </Text>
-                <Text style={[styles.captionText, { color: colors.danger }]}>{message}</Text>
+                <Text style={[styles.captionText, { color: palette.danger }]}>{message}</Text>
                 {onAction && <AppButton title={actionLabel} onPress={onAction} />}
             </Stack>
         </Card>
     </View>
-);
+    );
+};
 
 export const LoadingState: React.FC<LoadingStateProps> = ({
     message = "Loading...",
@@ -94,8 +99,11 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     onCancel,
     onConfirm,
     isDangerous = false,
-}) => (
-    <View style={styles.dialogContainer}>
+}) => {
+    const { palette } = useThemeContext();
+
+    return (
+    <View style={[styles.dialogContainer, { backgroundColor: palette.overlay }]}>
         <Card>
             <Stack gap="md">
                 <Text style={[styles.bodyText, { fontWeight: typography.fontWeight.semibold }]}>{title}</Text>
@@ -118,7 +126,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             </Stack>
         </Card>
     </View>
-);
+    );
+};
 
 const styles = StyleSheet.create({
     bodyText: {
@@ -156,7 +165,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
         justifyContent: "center",
         alignItems: "center",
         padding: spacing.lg,
