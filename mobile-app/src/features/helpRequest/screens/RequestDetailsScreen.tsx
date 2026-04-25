@@ -4,6 +4,7 @@ import {
   Alert,
   Animated,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -26,6 +27,7 @@ import {
 import { useRequestDetails } from "@/features/helpRequest/hooks/useRequestDetails";
 import type { HelpRequest, HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
 import { formatRequestBudget, formatRequestLocation } from "@/features/helpRequest/utils/requestDisplay";
+import { getRelativePostedTime } from "@/features/helpRequest/utils/requestTime";
 import {
   ReviewCard,
   ReviewComposerModal,
@@ -213,6 +215,13 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
   const [editingBid, setEditingBid] = useState<Bid | null>(null);
   const [savingBid, setSavingBid] = useState(false);
   const [previewReviewRating, setPreviewReviewRating] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    offers: true,
+    photos: true,
+    activity: false,
+    manage: false,
+  });
 
   const activeRequestId = requestId || params.id;
   const isProfileRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
@@ -331,6 +340,28 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
       },
     ]);
   };
+
+  const toggleSection = useCallback((key: "offers" | "photos" | "activity" | "manage") => {
+    setExpandedSections((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchDetails();
+      if (helperId) {
+        await getUserReviews(helperId, {
+          limit: 10,
+          forceRefresh: true,
+        });
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchDetails, getUserReviews, helperId]);
 
   const handleStatusUpdate = useCallback(
     async (status: HelpRequestStatus) => {
@@ -678,62 +709,20 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     }
   })();
 
-  const renderActionSection = (options: {
-    icon: keyof typeof Ionicons.glyphMap;
-    eyebrow: string;
-    title: string;
-    description: string;
-    buttons: React.ReactNode;
-  }) => (
-    <SurfaceSection>
-      <Stack gap="sm">
-        <View
-          style={[
-            styles.sectionPill,
-            {
-              backgroundColor: palette.surfaceMuted,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <Ionicons name={options.icon} size={14} color={palette.textSecondary} />
-          <Text style={[styles.sectionPillText, { color: palette.textSecondary }]}>
-            {options.eyebrow}
-          </Text>
-        </View>
-        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-          {options.title}
-        </Text>
-        <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-          {options.description}
-        </Text>
-        {options.buttons}
-      </Stack>
-    </SurfaceSection>
-  );
-
   const renderOffersCard = () => (
-    <SurfaceSection>
+    <AccordionSection
+      title={`Offers (${bids.length})`}
+      subtitle={
+        bids.length
+          ? "Review incoming offers and choose a helper."
+          : "Offers from helpers will appear here."
+      }
+      icon="receipt-outline"
+      expanded={expandedSections.offers}
+      onToggle={() => toggleSection("offers")}
+      badgeLabel={bids.length ? `${bids.length}` : undefined}
+    >
       <Stack gap="sm">
-        <View
-          style={[
-            styles.sectionPill,
-            {
-              backgroundColor: palette.surfaceMuted,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <Ionicons name="receipt-outline" size={14} color={palette.textSecondary} />
-          <Text style={[styles.sectionPillText, { color: palette.textSecondary }]}>
-            Bidder offers
-          </Text>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-          Bidder offers
-        </Text>
-
         {bids.length === 0 ? (
           <View
             style={[
@@ -761,18 +750,96 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
             canRespond
             canModify={false}
             actionLoadingByBidId={actionLoadingByBidId}
-            onBidAccept={(bid) => acceptBid(bid.id)}
+            onBidAccept={async (bid) => {
+              const accepted = await acceptBid(bid.id);
+              if (accepted) {
+                showSuccessToast("Helper assigned successfully");
+              }
+            }}
             onBidReject={(bid) => rejectBid(bid.id)}
             onBidMessage={(bid) => handleOpenBidChat(bid.helpRequestId)}
             onRetry={fetchDetails}
           />
         )}
       </Stack>
-    </SurfaceSection>
+    </AccordionSection>
+  );
+
+  const renderPhotosCard = () =>
+    request.images?.length ? (
+      <AccordionSection
+        title="Photos"
+        subtitle="Reference images attached to this request."
+        icon="images-outline"
+        expanded={expandedSections.photos}
+        onToggle={() => toggleSection("photos")}
+        badgeLabel={`${request.images.length}`}
+      >
+        <RequestPhotoUploadSection
+          title="Uploaded photos"
+          description="Photos attached to this request."
+          existingImages={request.images}
+          selectedImages={[]}
+          readOnly
+        />
+      </AccordionSection>
+    ) : null;
+
+  const renderActivityCard = () => (
+    <AccordionSection
+      title="Timeline"
+      subtitle="Recent request status and bidding activity."
+      icon="time-outline"
+      expanded={expandedSections.activity}
+      onToggle={() => toggleSection("activity")}
+    >
+      <Stack gap="sm">
+        <TimelineRow
+          icon="create-outline"
+          title="Request created"
+          detail={getRelativePostedTime(request.createdAt)}
+        />
+        <TimelineRow
+          icon="refresh-outline"
+          title="Last updated"
+          detail={getRelativePostedTime(request.updatedAt ?? request.createdAt)}
+        />
+        <TimelineRow
+          icon="radio-button-on-outline"
+          title="Current status"
+          detail={request.status}
+        />
+        <TimelineRow
+          icon="receipt-outline"
+          title="Bid activity"
+          detail={bids.length ? formatBidCountLabel(bids.length) : "No bids yet"}
+        />
+      </Stack>
+    </AccordionSection>
+  );
+
+  const renderManageCard = (buttons: React.ReactNode, description: string) => (
+    <AccordionSection
+      title="Manage request"
+      subtitle={description}
+      icon="settings-outline"
+      expanded={expandedSections.manage}
+      onToggle={() => toggleSection("manage")}
+    >
+      <View style={styles.buttonGrid}>{buttons}</View>
+    </AccordionSection>
   );
 
   return (
-    <Screen>
+    <Screen
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor={palette.primary}
+        />
+      }
+    >
       <AppHeader
         title="Request Details"
         subtitle="Review status, bids, and next actions."
@@ -795,30 +862,15 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           perspective={isOwner ? "Owner view" : "Helper view"}
         />
 
-        {request.images?.length ? (
-          <SurfaceSection>
-            <RequestPhotoUploadSection
-              title="Uploaded photos"
-              description="Photos attached to this request."
-              existingImages={request.images}
-              selectedImages={[]}
-              readOnly
-            />
-          </SurfaceSection>
-        ) : null}
-
         {renderInlineError()}
 
         {viewState === "owner-open-empty" || viewState === "owner-open-with-bids" ? (
           <>
-            {renderActionSection({
-              icon: "settings-outline",
-              eyebrow: "Manage request",
-            title: "Manage your request",
-            description:
-              "Edit the details, cancel the request, or move it forward once you choose a helper.",
-            buttons: (
-              <View style={styles.buttonGrid}>
+            {renderOffersCard()}
+            {renderPhotosCard()}
+            {renderActivityCard()}
+            {renderManageCard(
+              <>
                 <View style={styles.buttonCell}>
                   <AppButton
                     title="Edit"
@@ -850,10 +902,9 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                     disabled={loading}
                   />
                 </View>
-              </View>
-            ),
-          })}
-          {renderOffersCard()}
+              </>,
+              "Edit details, cancel the request, or move it forward once you choose a helper."
+            )}
           </>
         ) : null}
 
@@ -882,14 +933,11 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 </View>
               </View>
             </StatePanel>
-            {renderActionSection({
-              icon: "create-outline",
-              eyebrow: "Request controls",
-            title: "Manage the in-progress request",
-            description:
-              "You can still update the wording or cancel the request if plans changed.",
-            buttons: (
-              <View style={styles.buttonGrid}>
+            {renderOffersCard()}
+            {renderPhotosCard()}
+            {renderActivityCard()}
+            {renderManageCard(
+              <>
                 <View style={styles.buttonCell}>
                   <AppButton
                     title="Edit"
@@ -905,9 +953,9 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                     disabled={loading}
                   />
                 </View>
-              </View>
-            ),
-          })}
+              </>,
+              "You can still update the wording or cancel the request if plans changed."
+            )}
           </>
         ) : null}
 
@@ -962,6 +1010,14 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           </StatePanel>
         ) : null}
 
+        {viewState === "owner-completed-no-review" || viewState === "owner-completed-reviewed" ? (
+          <>
+            {renderOffersCard()}
+            {renderPhotosCard()}
+            {renderActivityCard()}
+          </>
+        ) : null}
+
         {viewState === "owner-cancelled" ? (
           <>
             <InfoBanner
@@ -983,6 +1039,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
               />
               </Stack>
             </SurfaceSection>
+            {renderPhotosCard()}
+            {renderActivityCard()}
           </>
         ) : null}
 
@@ -1021,6 +1079,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
             >
               <AppButton title="Submit offer" onPress={handleOpenBidModal} disabled={loading} />
             </StatePanel>
+            {renderPhotosCard()}
+            {renderActivityCard()}
           </>
         ) : null}
 
@@ -1097,6 +1157,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
               </View>
               </Stack>
             </StatePanel>
+            {renderPhotosCard()}
+            {renderActivityCard()}
           </>
         ) : null}
 
@@ -1126,6 +1188,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 </Text>
               </Stack>
             </SurfaceSection>
+            {renderPhotosCard()}
+            {renderActivityCard()}
           </>
         ) : null}
 
@@ -1150,6 +1214,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
               />
               </Stack>
             </SurfaceSection>
+            {renderPhotosCard()}
+            {renderActivityCard()}
           </>
         ) : null}
       </Stack>
@@ -1396,6 +1462,100 @@ const SurfaceSection = ({ children }: { children: React.ReactNode }) => {
     >
       {children}
     </View>
+  );
+};
+
+const AccordionSection = ({
+  title,
+  subtitle,
+  icon,
+  expanded,
+  onToggle,
+  badgeLabel,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  expanded: boolean;
+  onToggle: () => void;
+  badgeLabel?: string;
+  children: React.ReactNode;
+}) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <SurfaceSection>
+      <Pressable onPress={onToggle} style={({ pressed }) => [{ opacity: pressed ? 0.78 : 1 }]}>
+        <Row justify="space-between" align="center" gap="sm">
+          <Row gap="sm" align="center" style={styles.accordionCopy}>
+            <View
+              style={[
+                styles.accordionIcon,
+                {
+                  backgroundColor: palette.surfaceMuted,
+                  borderColor: palette.border,
+                },
+              ]}
+            >
+              <Ionicons name={icon} size={16} color={palette.primary} />
+            </View>
+            <View style={styles.accordionTextWrap}>
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>{title}</Text>
+              <Text style={[styles.helperText, { color: palette.textSecondary }]}>{subtitle}</Text>
+            </View>
+          </Row>
+          <Row gap="xs" align="center">
+            {badgeLabel ? (
+              <View style={[styles.accordionBadge, { backgroundColor: palette.surfaceMuted }]}>
+                <Text style={[styles.accordionBadgeText, { color: palette.textSecondary }]}>
+                  {badgeLabel}
+                </Text>
+              </View>
+            ) : null}
+            <Ionicons
+              name={expanded ? "chevron-up-outline" : "chevron-down-outline"}
+              size={18}
+              color={palette.textSecondary}
+            />
+          </Row>
+        </Row>
+      </Pressable>
+
+      {expanded ? <View style={styles.accordionBody}>{children}</View> : null}
+    </SurfaceSection>
+  );
+};
+
+const TimelineRow = ({
+  icon,
+  title,
+  detail,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  detail: string;
+}) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <Row gap="sm" align="center">
+      <View
+        style={[
+          styles.timelineIcon,
+          {
+            backgroundColor: palette.surfaceMuted,
+            borderColor: palette.border,
+          },
+        ]}
+      >
+        <Ionicons name={icon} size={14} color={palette.primary} />
+      </View>
+      <View style={styles.timelineCopy}>
+        <Text style={[styles.timelineTitle, { color: palette.textPrimary }]}>{title}</Text>
+        <Text style={[styles.timelineDetail, { color: palette.textSecondary }]}>{detail}</Text>
+      </View>
+    </Row>
   );
 };
 
@@ -1652,6 +1812,51 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: theme.radius.xl,
     padding: theme.spacing.md,
+  },
+  accordionCopy: {
+    flex: 1,
+  },
+  accordionIcon: {
+    width: 36,
+    height: 36,
+    borderWidth: 1,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  accordionTextWrap: {
+    flex: 1,
+  },
+  accordionBadge: {
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  accordionBadgeText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  accordionBody: {
+    marginTop: theme.spacing.md,
+  },
+  timelineIcon: {
+    width: 32,
+    height: 32,
+    borderWidth: 1,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timelineCopy: {
+    flex: 1,
+  },
+  timelineTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  timelineDetail: {
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: 18,
   },
   inlineErrorCard: {
     borderWidth: 1,
