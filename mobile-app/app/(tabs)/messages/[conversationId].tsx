@@ -57,6 +57,7 @@ export default function ConversationScreen() {
                 onStopTyping={stopTyping}
                 onDeleteMessage={deleteMessage}
                 typingLabel={typingLabel}
+                requestScoped={false}
             />
         </ScreenView>
     );
