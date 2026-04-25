@@ -16,7 +16,6 @@ import {
 import type { Conversation, Message } from "../types/conversation.type";
 import {
     deleteConversationMessage,
-    ensureConversation,
     getConversationById,
     getConversationByRequestId,
     getConversationMessages,
@@ -286,12 +285,12 @@ export const useConversationThread = (
             }
         }
 
-        if (!activeConversation && requestId) {
-            activeConversation = await ensureConversation(requestId);
-        }
-
         if (!activeConversation) {
-            throw new Error("Conversation not found");
+            setConversation(null);
+            setMessages([]);
+            setHasOlderMessages(false);
+            setNextOlderPage(null);
+            return;
         }
 
         setConversation(activeConversation);
