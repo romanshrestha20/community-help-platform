@@ -1,3 +1,5 @@
+// app/(tabs)/profile/index.tsx
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -32,7 +34,7 @@ type ActionItem = {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   subtitle: string;
-  actionLabel?: string;
+  metric?: string;
   danger?: boolean;
   onPress: () => void;
 };
@@ -75,28 +77,63 @@ export default function ProfileTabScreen() {
   const { palette } = useThemeContext();
   const router = useRouter();
   const { handleLogout, loadingLogout } = useAuth();
-  const {
-    user,
-    loading,
-    error,
-    loadUserProfile,
-    handleUpdateProfile,
-  } = useUser();
+  const { user, loading, error, loadUserProfile, handleUpdateProfile } =
+    useUser();
 
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+
   const hasLoadedProfileRef = useRef(false);
 
   useEffect(() => {
-    if (hasLoadedProfileRef.current) {
-      return;
-    }
+    if (hasLoadedProfileRef.current) return;
 
     hasLoadedProfileRef.current = true;
     void loadUserProfile();
   }, [loadUserProfile]);
+
+  const profileCompleteness = useMemo(() => {
+    if (!user) return 0;
+
+    const fields = [
+      user.fullName,
+      user.email,
+      user.phone,
+      user.bio,
+      user.dateOfBirth,
+      user.gender,
+      user.userType,
+      user.address,
+      user.avatarUrl,
+    ];
+
+    const completed = fields.filter(Boolean).length;
+    return Math.round((completed / fields.length) * 100);
+  }, [user]);
+
+  const completionItems = useMemo(
+    () => [
+      {
+        label: "Add profile photo",
+        done: Boolean(user?.avatarUrl),
+      },
+      {
+        label: "Verify phone number",
+        done: Boolean(user?.isPhoneVerified),
+      },
+      {
+        label: "Add short bio",
+        done: Boolean(user?.bio?.trim()),
+      },
+      {
+        label: "Add address",
+        done: Boolean(user?.address),
+      },
+    ],
+    [user]
+  );
 
   const activityItems = useMemo<ActionItem[]>(
     () => [
@@ -105,7 +142,7 @@ export default function ProfileTabScreen() {
         icon: "clipboard-outline",
         title: "My requests",
         subtitle: "Create, edit, and monitor posts you own.",
-        actionLabel: "Open",
+        metric: `${user?.requestCount ?? 0} active`,
         onPress: () => router.push(APP_ROUTES.PROFILE_REQUESTS),
       },
       {
@@ -113,7 +150,7 @@ export default function ProfileTabScreen() {
         icon: "pricetag-outline",
         title: "My bids",
         subtitle: "Review offers you placed on nearby requests.",
-        actionLabel: "Open",
+        metric: `${user?.bidCount ?? 0} pending`,
         onPress: () => router.push(APP_ROUTES.PROFILE_BIDS),
       },
       {
@@ -121,11 +158,11 @@ export default function ProfileTabScreen() {
         icon: "time-outline",
         title: "Activity history",
         subtitle: "Completed requests and bid outcomes.",
-        actionLabel: "Open",
+        metric: `${user?.completedCount ?? 0} completed`,
         onPress: () => router.push("/profile/activity-history"),
       },
     ],
-    [router]
+    [router, user]
   );
 
   const settingsItems = useMemo<ActionItem[]>(
@@ -135,7 +172,6 @@ export default function ProfileTabScreen() {
         icon: "notifications-outline",
         title: "Notifications",
         subtitle: "Manage alerts and app updates.",
-        actionLabel: "Open",
         onPress: () => router.push(APP_ROUTES.PROFILE_NOTIFICATIONS),
       },
       {
@@ -143,7 +179,6 @@ export default function ProfileTabScreen() {
         icon: "shield-checkmark-outline",
         title: "Privacy & security",
         subtitle: "Control visibility and account safety.",
-        actionLabel: "Open",
         onPress: () => router.push(APP_ROUTES.PROFILE_PRIVACY),
       },
       {
@@ -151,7 +186,6 @@ export default function ProfileTabScreen() {
         icon: "help-buoy-outline",
         title: "Help & support",
         subtitle: "Report issues or contact support.",
-        actionLabel: "Open",
         onPress: () => router.push(APP_ROUTES.PROFILE_SUPPORT),
       },
     ],
@@ -194,35 +228,11 @@ export default function ProfileTabScreen() {
     [user]
   );
 
-  const profileCompleteness = useMemo(() => {
-    if (!user) return 0;
-
-    const fields = [
-      user.fullName,
-      user.email,
-      user.phone,
-      user.bio,
-      user.dateOfBirth,
-      user.gender,
-      user.userType,
-      user.address,
-      user.avatarUrl,
-    ];
-
-    const completed = fields.filter(Boolean).length;
-    return Math.round((completed / fields.length) * 100);
-  }, [user]);
-
   const verificationLabel = user?.isPhoneVerified
     ? "Phone verified"
     : user?.phone
       ? "Phone pending"
       : "Phone missing";
-
-  const handleTopLogoutPress = () => {
-    if (loadingLogout) return;
-    setLogoutModalVisible(true);
-  };
 
   const handleConfirmLogout = async () => {
     if (loadingLogout) return;
@@ -245,7 +255,9 @@ export default function ProfileTabScreen() {
     <Screen showsVerticalScrollIndicator={false}>
       <Stack gap="md">
         <View style={styles.screenIntro}>
-          <Text style={[styles.eyebrow, { color: palette.primary }]}>Account</Text>
+          <Text style={[styles.eyebrow, { color: palette.primary }]}>
+            Account
+          </Text>
           <Text style={[styles.screenTitle, { color: palette.textPrimary }]}>
             Profile
           </Text>
@@ -293,12 +305,20 @@ export default function ProfileTabScreen() {
                       },
                     ]}
                   >
-                    <Ionicons name="camera-outline" size={15} color={palette.primaryDark} />
+                    <Ionicons
+                      name="camera-outline"
+                      size={15}
+                      color={palette.primaryDark}
+                    />
                   </View>
                 </Pressable>
 
                 <TrustPill
-                  icon={user?.isPhoneVerified ? "checkmark-circle" : "alert-circle-outline"}
+                  icon={
+                    user?.isPhoneVerified
+                      ? "checkmark-circle"
+                      : "alert-circle-outline"
+                  }
                   label={verificationLabel}
                   tone={user?.isPhoneVerified ? "success" : "warning"}
                 />
@@ -321,29 +341,56 @@ export default function ProfileTabScreen() {
                 </Text>
               </Stack>
 
-              <View style={styles.heroStats}>
-                <StatPill label="Rating" value={(user?.rating ?? 0).toFixed(1)} />
-                <StatPill label="Helps" value={String(user?.helpCount ?? 0)} />
-                <StatPill label="Complete" value={`${profileCompleteness}%`} />
+              <View style={styles.heroStatsCompact}>
+                <StatChip label="Rating" value={(user?.rating ?? 0).toFixed(1)} />
+                <StatChip label="Helps" value={String(user?.helpCount ?? 0)} />
+                <StatChip label="Complete" value={`${profileCompleteness}%`} />
               </View>
 
-              <Row gap="sm" style={styles.heroActions}>
-                <View style={styles.heroActionCell}>
-                  <AppButton
-                    title="Edit profile"
-                    onPress={() => setEditModalVisible(true)}
-                    variant="secondary"
-                  />
-                </View>
-                <View style={styles.heroActionCell}>
-                  <AppButton
-                    title={user?.avatarUrl ? "Change photo" : "Add photo"}
-                    onPress={() => setAvatarModalVisible(true)}
-                    variant="ghost"
-                  />
-                </View>
-              </Row>
+              <AppButton
+                title="Edit profile"
+                onPress={() => setEditModalVisible(true)}
+                variant="secondary"
+              />
             </View>
+
+            <Section title="Profile strength" subtitle="Complete your profile to build more trust with nearby members.">
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${profileCompleteness}%`,
+                      backgroundColor: palette.primary,
+                    },
+                  ]}
+                />
+              </View>
+
+              <Text style={[styles.completionPercent, { color: palette.textPrimary }]}>
+                {profileCompleteness}% complete
+              </Text>
+
+              <View style={styles.completionList}>
+                {completionItems.map((item) => (
+                  <View key={item.label} style={styles.completionItem}>
+                    <Ionicons
+                      name={item.done ? "checkmark-circle" : "ellipse-outline"}
+                      size={18}
+                      color={item.done ? palette.primary : palette.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.completionText,
+                        { color: item.done ? palette.textPrimary : palette.textSecondary },
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </Section>
 
             {user?.phone && !user?.isPhoneVerified ? (
               <Pressable
@@ -357,22 +404,19 @@ export default function ProfileTabScreen() {
                   },
                 ]}
               >
-                <View
-                  style={[
-                    styles.verifyIcon,
-                    { backgroundColor: palette.surface },
-                  ]}
-                >
+                <View style={[styles.verifyIcon, { backgroundColor: palette.surface }]}>
                   <Ionicons name="shield-outline" size={20} color={palette.warning} />
                 </View>
+
                 <View style={styles.actionTextWrap}>
                   <Text style={[styles.actionTitle, { color: palette.textPrimary }]}>
                     Verify your phone
                   </Text>
                   <Text style={[styles.actionSubtitle, { color: palette.textSecondary }]}>
-                    Confirm your number to add more trust to your profile.
+                    Confirm your number to unlock a trusted profile badge.
                   </Text>
                 </View>
+
                 <Text style={[styles.actionLabel, { color: palette.warning }]}>
                   Verify
                 </Text>
@@ -381,7 +425,7 @@ export default function ProfileTabScreen() {
 
             <Section
               title="Activity"
-              subtitle="Fast access to the work you post and the help you offer."
+              subtitle="Quick access to your posts, offers, and outcomes."
             >
               {activityItems.map((item, index) => (
                 <ActionRow
@@ -394,7 +438,7 @@ export default function ProfileTabScreen() {
 
             <Section
               title="Profile details"
-              subtitle="The information other members use to understand who they are contacting."
+              subtitle="Information other members use when contacting you."
               action={
                 <Pressable onPress={() => setEditModalVisible(true)}>
                   <Text style={[styles.sectionAction, { color: palette.primary }]}>
@@ -403,9 +447,13 @@ export default function ProfileTabScreen() {
                 </Pressable>
               }
             >
-              <View style={styles.infoGrid}>
-                {infoItems.map((item) => (
-                  <InfoTile key={item.label} item={item} />
+              <View style={styles.infoList}>
+                {infoItems.map((item, index) => (
+                  <InfoRow
+                    key={item.label}
+                    item={item}
+                    isLast={index === infoItems.length - 1}
+                  />
                 ))}
               </View>
             </Section>
@@ -427,24 +475,18 @@ export default function ProfileTabScreen() {
 
             <Pressable
               style={({ pressed }) => [
-                styles.logoutPanel,
+                styles.logoutRow,
                 {
-                  backgroundColor: palette.dangerSoft,
-                  borderColor: palette.danger,
-                  opacity: pressed ? 0.86 : 1,
+                  opacity: pressed ? 0.72 : 1,
+                  borderColor: palette.border,
                 },
               ]}
-              onPress={handleTopLogoutPress}
+              onPress={() => setLogoutModalVisible(true)}
               disabled={loadingLogout}
             >
-              <View style={styles.actionTextWrap}>
-                <Text style={[styles.actionTitle, { color: palette.danger }]}>
-                  {loadingLogout ? "Logging out..." : "Log out"}
-                </Text>
-                <Text style={[styles.actionSubtitle, { color: palette.textSecondary }]}>
-                  End this session on the current device.
-                </Text>
-              </View>
+              <Text style={[styles.logoutText, { color: palette.danger }]}>
+                {loadingLogout ? "Logging out..." : "Log out"}
+              </Text>
               <Ionicons name="log-out-outline" size={20} color={palette.danger} />
             </Pressable>
 
@@ -480,7 +522,6 @@ export default function ProfileTabScreen() {
                 onPress={() => setLogoutModalVisible(false)}
                 disabled={loadingLogout}
               />
-
               <AppButton
                 title="Log out"
                 variant="danger"
@@ -529,9 +570,7 @@ export default function ProfileTabScreen() {
                   setSavingProfile(true);
                   try {
                     const success = await handleUpdateProfile(payload);
-                    if (success) {
-                      setEditModalVisible(false);
-                    }
+                    if (success) setEditModalVisible(false);
                     return success;
                   } finally {
                     setSavingProfile(false);
@@ -602,30 +641,12 @@ const ActionRow = ({ item, isLast }: { item: ActionItem; isLast: boolean }) => {
         { opacity: pressed ? 0.72 : 1 },
       ]}
     >
-      <View
-        style={[
-          styles.actionIcon,
-          {
-            backgroundColor: item.danger
-              ? palette.dangerSoft
-              : palette.surfaceMuted,
-          },
-        ]}
-      >
-        <Ionicons
-          name={item.icon}
-          size={19}
-          color={item.danger ? palette.danger : palette.primary}
-        />
+      <View style={[styles.actionIcon, { backgroundColor: palette.surfaceMuted }]}>
+        <Ionicons name={item.icon} size={19} color={palette.primary} />
       </View>
 
       <View style={styles.actionTextWrap}>
-        <Text
-          style={[
-            styles.actionTitle,
-            { color: item.danger ? palette.danger : palette.textPrimary },
-          ]}
-        >
+        <Text style={[styles.actionTitle, { color: palette.textPrimary }]}>
           {item.title}
         </Text>
         <Text style={[styles.actionSubtitle, { color: palette.textSecondary }]}>
@@ -634,45 +655,37 @@ const ActionRow = ({ item, isLast }: { item: ActionItem; isLast: boolean }) => {
       </View>
 
       <Row gap="xxs" align="center">
-        {item.actionLabel ? (
-          <Text
-            style={[
-              styles.actionLabel,
-              { color: item.danger ? palette.danger : palette.textSecondary },
-            ]}
-          >
-            {item.actionLabel}
+        {item.metric ? (
+          <Text style={[styles.metricLabel, { color: palette.primary }]}>
+            {item.metric}
           </Text>
         ) : null}
-        <Ionicons
-          name="chevron-forward"
-          size={17}
-          color={item.danger ? palette.danger : palette.textSecondary}
-        />
+        <Ionicons name="chevron-forward" size={17} color={palette.textSecondary} />
       </Row>
     </Pressable>
   );
 };
 
-const InfoTile = ({ item }: { item: InfoItem }) => {
+const InfoRow = ({ item, isLast }: { item: InfoItem; isLast: boolean }) => {
   const { palette } = useThemeContext();
 
   return (
     <View
       style={[
-        styles.infoTile,
-        {
-          backgroundColor: palette.surfaceMuted,
-          borderColor: palette.border,
+        styles.infoRow,
+        !isLast && {
+          borderBottomWidth: 1,
+          borderBottomColor: palette.border,
         },
       ]}
     >
-      <Row gap="xs" align="center">
-        <Ionicons name={item.icon} size={15} color={palette.primary} />
+      <Row gap="sm" align="center" style={styles.infoLabelWrap}>
+        <Ionicons name={item.icon} size={17} color={palette.primary} />
         <Text style={[styles.infoLabel, { color: palette.textSecondary }]}>
           {item.label}
         </Text>
       </Row>
+
       <Text style={[styles.infoValue, { color: palette.textPrimary }]} numberOfLines={2}>
         {item.value}
       </Text>
@@ -680,21 +693,25 @@ const InfoTile = ({ item }: { item: InfoItem }) => {
   );
 };
 
-const StatPill = ({ label, value }: { label: string; value: string }) => {
+const StatChip = ({ label, value }: { label: string; value: string }) => {
   const { palette } = useThemeContext();
 
   return (
     <View
       style={[
-        styles.statPill,
+        styles.statChip,
         {
           borderColor: `${palette.textInverse}24`,
           backgroundColor: `${palette.textInverse}12`,
         },
       ]}
     >
-      <Text style={[styles.statValue, { color: palette.textInverse }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: `${palette.textInverse}B3` }]}>{label}</Text>
+      <Text style={[styles.statChipValue, { color: palette.textInverse }]}>
+        {value}
+      </Text>
+      <Text style={[styles.statChipLabel, { color: `${palette.textInverse}B3` }]}>
+        {label}
+      </Text>
     </View>
   );
 };
@@ -709,7 +726,8 @@ const TrustPill = ({
   tone: "success" | "warning";
 }) => {
   const { palette } = useThemeContext();
-  const backgroundColor = tone === "success" ? palette.successSurface : palette.warningSurface;
+  const backgroundColor =
+    tone === "success" ? palette.successSurface : palette.warningSurface;
   const color = tone === "success" ? palette.primary : palette.secondary;
 
   return (
@@ -765,7 +783,6 @@ const styles = StyleSheet.create({
     width: 190,
     height: 190,
     borderRadius: 95,
-    backgroundColor: "rgba(223,236,229,0.14)",
   },
   heroTop: {
     zIndex: 1,
@@ -782,63 +799,49 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ECF4EF",
     borderWidth: 2,
-    borderColor: "#1F4739",
   },
   heroCopy: {
     zIndex: 1,
   },
   heroName: {
-    color: "#F4F1EA",
     fontSize: 29,
     lineHeight: 34,
     fontWeight: "800",
     letterSpacing: -0.5,
   },
   heroMeta: {
-    color: "rgba(242,238,230,0.78)",
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
     fontWeight: theme.typography.fontWeight.semibold,
   },
   heroBio: {
     marginTop: theme.spacing.xs,
-    color: "rgba(242,238,230,0.78)",
     fontSize: theme.typography.fontSize.sm,
     lineHeight: 21,
   },
-  heroStats: {
+  heroStatsCompact: {
     zIndex: 1,
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: theme.spacing.xs,
   },
-  statPill: {
-    flex: 1,
+  statChip: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
     borderWidth: 1,
-    borderColor: "rgba(255,253,252,0.14)",
-    borderRadius: theme.radius.lg,
+    borderRadius: theme.radius.fill,
     paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: "rgba(255,253,252,0.08)",
+    paddingVertical: 8,
   },
-  statValue: {
-    color: "#F4F1EA",
-    fontSize: theme.typography.fontSize.lg,
-    lineHeight: theme.typography.lineHeight.lg,
+  statChipValue: {
+    fontSize: theme.typography.fontSize.md,
     fontWeight: "800",
   },
-  statLabel: {
-    marginTop: 2,
-    color: "rgba(242,238,230,0.68)",
+  statChipLabel: {
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
-  },
-  heroActions: {
-    zIndex: 1,
-  },
-  heroActionCell: {
-    flex: 1,
   },
   trustPill: {
     flexDirection: "row",
@@ -894,6 +897,34 @@ const styles = StyleSheet.create({
   sectionBody: {
     marginTop: theme.spacing.md,
   },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden",
+    backgroundColor: "rgba(0,0,0,0.08)",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  completionPercent: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: "800",
+  },
+  completionList: {
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  completionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.xs,
+  },
+  completionText: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
   actionRow: {
     minHeight: 74,
     flexDirection: "row",
@@ -925,38 +956,48 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.bold,
   },
-  infoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing.sm,
-  },
-  infoTile: {
-    flexGrow: 1,
-    flexBasis: "47%",
-    minHeight: 86,
-    borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.sm,
-    justifyContent: "space-between",
-  },
-  infoLabel: {
+  metricLabel: {
     fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontWeight: "800",
   },
-  infoValue: {
-    marginTop: theme.spacing.sm,
-    fontSize: theme.typography.fontSize.sm,
-    lineHeight: theme.typography.lineHeight.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
+  infoList: {
+    gap: 0,
   },
-  logoutPanel: {
-    minHeight: 76,
+  infoRow: {
+    minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing.sm,
+    justifyContent: "space-between",
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  infoLabelWrap: {
+    flexShrink: 0,
+    minWidth: 112,
+  },
+  infoLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  infoValue: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  logoutRow: {
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing.xs,
     borderWidth: 1,
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+  },
+  logoutText: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.bold,
   },
   errorText: {
     fontSize: theme.typography.fontSize.sm,
