@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   StyleSheet,
@@ -122,9 +121,8 @@ export default function ProfileTabScreen() {
         icon: "time-outline",
         title: "Activity history",
         subtitle: "Completed requests and bid outcomes.",
-        actionLabel: "Soon",
-        onPress: () =>
-          Alert.alert("Coming soon", "Activity history will be available soon."),
+        actionLabel: "Open",
+        onPress: () => router.push("/profile/activity-history"),
       },
     ],
     [router]
