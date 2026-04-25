@@ -3,15 +3,15 @@ import {
   Animated,
   Easing,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 
-import { Screen, theme } from "@/design-system";
+import { ScreenView, theme } from "@/design-system";
 import { APP_ROUTES } from "@/config/routes";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
@@ -75,6 +75,8 @@ function StepRow({
 export default function EntryScreen() {
   const router = useRouter();
   const { palette, colorScheme } = useThemeContext();
+  const { height } = useWindowDimensions();
+  const isCompactHeight = height < 700;
 
   const heroAnim = useRef(new Animated.Value(0)).current;
   const flowAnim = useRef(new Animated.Value(0)).current;
@@ -128,31 +130,28 @@ export default function EntryScreen() {
       : palette.border;
 
   return (
-    <Screen
+    <ScreenView
       withTabBarSpacing={false}
-      contentContainerStyle={[
+      style={[
         styles.screenContent,
         { backgroundColor: palette.background },
       ]}
     >
-      <ScrollView
-        bounces={false}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View style={styles.shell}>
-          <View
-            style={[
-              styles.surface,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-              },
-            ]}
-          >
+      <View style={styles.shell}>
+        <View
+          style={[
+            styles.surface,
+            isCompactHeight && styles.surfaceCompact,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+            },
+          ]}
+        >
             <Animated.View
               style={[
                 styles.heroSection,
+                isCompactHeight && styles.heroSectionCompact,
                 {
                   opacity: heroAnim,
                   transform: [
@@ -170,6 +169,7 @@ export default function EntryScreen() {
                 <View
                   style={[
                     styles.brandMark,
+                    isCompactHeight && styles.brandMarkCompact,
                     { backgroundColor: `${palette.primary}15` },
                   ]}
                 >
@@ -181,11 +181,11 @@ export default function EntryScreen() {
                 </View>
 
                 <View style={styles.brandCopy}>
-                  <Text style={[styles.brandName, { color: palette.textPrimary }]}>
+                  <Text style={[styles.brandName, isCompactHeight && styles.brandNameCompact, { color: palette.textPrimary }]}>
                     Community Support
                   </Text>
                   <Text
-                    style={[styles.brandSubline, { color: palette.textSecondary }]}
+                    style={[styles.brandSubline, isCompactHeight && styles.brandSublineCompact, { color: palette.textSecondary }]}
                   >
                     Nearby help, trusted replies, and simple coordination.
                   </Text>
@@ -195,13 +195,14 @@ export default function EntryScreen() {
               <View
                 style={[
                   styles.visualPanel,
+                  isCompactHeight && styles.visualPanelCompact,
                   {
                     backgroundColor: heroIllustration.panel,
                     borderColor: palette.border,
                   },
                 ]}
               >
-                <View style={styles.mapFrame}>
+                <View style={[styles.mapFrame, isCompactHeight && styles.mapFrameCompact]}>
                   <View
                     style={[
                       styles.mapLayerBase,
@@ -225,6 +226,7 @@ export default function EntryScreen() {
                     style={[
                         styles.pin,
                         styles.pinOne,
+                        isCompactHeight && styles.pinOneCompact,
                       {
                         backgroundColor: palette.primary,
                         transform: [
@@ -251,6 +253,7 @@ export default function EntryScreen() {
                     style={[
                       styles.pin,
                       styles.pinTwo,
+                      isCompactHeight && styles.pinTwoCompact,
                       {
                         backgroundColor: palette.secondary,
                         transform: [
@@ -277,6 +280,7 @@ export default function EntryScreen() {
                     style={[
                       styles.pin,
                       styles.pinThree,
+                      isCompactHeight && styles.pinThreeCompact,
                       {
                         backgroundColor: palette.info,
                         transform: [
@@ -361,12 +365,12 @@ export default function EntryScreen() {
                   />
                 </View>
 
-                <Text style={[styles.headline, { color: palette.textPrimary }]}>
+                <Text style={[styles.headline, isCompactHeight && styles.headlineCompact, { color: palette.textPrimary }]}>
                   Find or offer help nearby.
                 </Text>
 
                 <Text
-                  style={[styles.subheadline, { color: palette.textSecondary }]}
+                  style={[styles.subheadline, isCompactHeight && styles.subheadlineCompact, { color: palette.textSecondary }]}
                 >
                   Create your account, set your location, and start posting
                   requests or helping people in your community.
@@ -384,6 +388,7 @@ export default function EntryScreen() {
             <Animated.View
               style={[
                 styles.flowBlock,
+                isCompactHeight && styles.flowBlockCompact,
                 {
                   backgroundColor: palette.surfaceMuted,
                   borderColor: palette.border,
@@ -444,6 +449,7 @@ export default function EntryScreen() {
             <Animated.View
               style={[
                 styles.actionBlock,
+                isCompactHeight && styles.actionBlockCompact,
                 {
                   opacity: actionAnim,
                   transform: [
@@ -461,6 +467,7 @@ export default function EntryScreen() {
                 onPress={() => router.push(APP_ROUTES.AUTH_REGISTER)}
                 style={({ pressed }) => [
                   styles.primaryCta,
+                  isCompactHeight && styles.primaryCtaCompact,
                   {
                     backgroundColor: palette.primary,
                     opacity: pressed ? 0.94 : 1,
@@ -469,7 +476,7 @@ export default function EntryScreen() {
                 ]}
               >
                 <Text
-                  style={[styles.primaryCtaText, { color: palette.textInverse }]}
+                  style={[styles.primaryCtaText, isCompactHeight && styles.primaryCtaTextCompact, { color: palette.textInverse }]}
                 >
                   Create account
                 </Text>
@@ -480,7 +487,7 @@ export default function EntryScreen() {
                 />
               </Pressable>
 
-              <Text style={[styles.primaryMeta, { color: palette.textSecondary }]}>
+              <Text style={[styles.primaryMeta, isCompactHeight && styles.primaryMetaCompact, { color: palette.textSecondary }]}>
                 Takes less than a minute to get started.
               </Text>
 
@@ -500,41 +507,46 @@ export default function EntryScreen() {
                 <Ionicons name="arrow-forward" size={14} color={palette.primary} />
               </Pressable>
             </Animated.View>
-          </View>
         </View>
-      </ScrollView>
-    </Screen>
+      </View>
+    </ScreenView>
   );
 }
 
 const styles = StyleSheet.create({
   screenContent: {
     flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  scrollContent: {
-    flexGrow: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   shell: {
     flex: 1,
     justifyContent: "center",
   },
   surface: {
+    flex: 1,
     borderWidth: 1,
-    borderRadius: 30,
+    borderRadius: 28,
     overflow: "hidden",
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 22,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 16,
     shadowColor: "#162018",
     shadowOpacity: 0.08,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 14 },
     elevation: 5,
   },
+  surfaceCompact: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
   heroSection: {
-    gap: 16,
+    gap: 12,
+  },
+  heroSectionCompact: {
+    gap: 8,
   },
   brandRow: {
     flexDirection: "row",
@@ -542,36 +554,57 @@ const styles = StyleSheet.create({
     columnGap: 12,
   },
   brandMark: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
+  },
+  brandMarkCompact: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
   },
   brandCopy: {
     flex: 1,
   },
   brandName: {
-    fontSize: 21,
-    lineHeight: 25,
+    fontSize: 19,
+    lineHeight: 23,
     fontWeight: "800",
     letterSpacing: -0.4,
   },
+  brandNameCompact: {
+    fontSize: 17,
+    lineHeight: 21,
+  },
   brandSubline: {
-    marginTop: 4,
-    fontSize: 13,
-    lineHeight: 19,
+    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: "500",
+  },
+  brandSublineCompact: {
+    fontSize: 11,
+    lineHeight: 15,
   },
   visualPanel: {
     borderWidth: 1,
-    borderRadius: 26,
-    padding: 12,
+    borderRadius: 22,
+    padding: 10,
+  },
+  visualPanelCompact: {
+    padding: 8,
+    borderRadius: 18,
   },
   mapFrame: {
-    height: 220,
-    borderRadius: 22,
+    height: 176,
+    borderRadius: 18,
     overflow: "hidden",
+  },
+  mapFrameCompact: {
+    height: 138,
+    borderRadius: 14,
   },
   mapLayerBase: {
     ...StyleSheet.absoluteFillObject,
@@ -611,23 +644,35 @@ const styles = StyleSheet.create({
     top: 54,
     left: 52,
   },
+  pinOneCompact: {
+    top: 38,
+    left: 36,
+  },
   pinTwo: {
     top: 118,
     right: 84,
+  },
+  pinTwoCompact: {
+    top: 82,
+    right: 58,
   },
   pinThree: {
     bottom: 42,
     left: 142,
   },
+  pinThreeCompact: {
+    bottom: 24,
+    left: 100,
+  },
   signalCard: {
     position: "absolute",
-    right: 16,
-    top: 16,
-    minWidth: 126,
+    right: 12,
+    top: 12,
+    minWidth: 112,
     borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   signalCardLabel: {
     fontSize: 11,
@@ -636,20 +681,20 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   signalCardValue: {
-    fontSize: 15,
-    lineHeight: 19,
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: "800",
   },
   avatarCluster: {
     position: "absolute",
-    left: 16,
-    bottom: 16,
+    left: 12,
+    bottom: 12,
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   avatarDot: {
     width: 22,
@@ -660,14 +705,14 @@ const styles = StyleSheet.create({
     marginRight: -6,
   },
   avatarLabel: {
-    marginLeft: 12,
-    fontSize: 12,
-    lineHeight: 17,
+    marginLeft: 10,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: "700",
     flexShrink: 1,
   },
   copyBlock: {
-    gap: 12,
+    gap: 10,
   },
   badgeRow: {
     flexDirection: "row",
@@ -675,28 +720,36 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   trustBadge: {
-    minHeight: 34,
+    minHeight: 30,
     borderRadius: theme.radius.fill,
     flexDirection: "row",
     alignItems: "center",
     columnGap: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
   },
   trustBadgeText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
   },
   headline: {
-    fontSize: 33,
-    lineHeight: 37,
+    fontSize: 28,
+    lineHeight: 31,
     fontWeight: "800",
     letterSpacing: -0.9,
   },
+  headlineCompact: {
+    fontSize: 24,
+    lineHeight: 27,
+  },
   subheadline: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 21,
     fontWeight: "500",
-    maxWidth: "96%",
+    maxWidth: "100%",
+  },
+  subheadlineCompact: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   proofRow: {
     flexDirection: "row",
@@ -705,22 +758,27 @@ const styles = StyleSheet.create({
   },
   proofText: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: "600",
   },
   flowBlock: {
-    marginTop: 18,
+    marginTop: 12,
     borderWidth: 1,
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  flowBlockCompact: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   flowHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   flowEyebrow: {
     fontSize: 12,
@@ -739,12 +797,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     columnGap: 12,
-    paddingVertical: 10,
+    paddingVertical: 7,
   },
   stepIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -753,28 +811,33 @@ const styles = StyleSheet.create({
     paddingTop: 1,
   },
   stepTitle: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: "800",
-    marginBottom: 3,
+    marginBottom: 2,
   },
   stepBody: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: "500",
   },
   stepDivider: {
     height: 1,
-    marginLeft: 50,
+    marginLeft: 46,
   },
   actionBlock: {
-    paddingTop: 18,
-    gap: 10,
+    paddingTop: 12,
+    gap: 8,
+    marginTop: "auto",
+  },
+  actionBlockCompact: {
+    paddingTop: 10,
+    gap: 6,
   },
   primaryCta: {
-    minHeight: 58,
+    minHeight: 52,
     borderRadius: theme.radius.fill,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -785,31 +848,41 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 4,
   },
+  primaryCtaCompact: {
+    minHeight: 48,
+  },
   primaryCtaText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "800",
+  },
+  primaryCtaTextCompact: {
+    fontSize: 14,
   },
   primaryMeta: {
     textAlign: "center",
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: "600",
+  },
+  primaryMetaCompact: {
+    fontSize: 10,
+    lineHeight: 14,
   },
   signInLink: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     columnGap: 6,
-    minHeight: 42,
+    minHeight: 36,
   },
   signInLabel: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: "500",
   },
   signInAction: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 17,
     fontWeight: "800",
   },
 });
