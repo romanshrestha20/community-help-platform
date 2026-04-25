@@ -75,6 +75,7 @@ export const BidCard = ({
   const canEdit = helperActions && bid.status === "PENDING" && Boolean(onUpdate);
   const canDelete = helperActions && bid.status === "PENDING" && Boolean(onDelete);
   const canMessage = bid.status === "ACCEPTED" && Boolean(onMessage);
+  const messageLabel = requesterActions ? "Message helper" : "Message requester";
 
   useEffect(() => {
     if (!isSwipeOpen) {
@@ -142,7 +143,7 @@ export const BidCard = ({
     if (canMessage && onMessage) {
       actions.push({
         key: "message",
-        label: "Message",
+        label: messageLabel,
         icon: "chatbubble-outline",
         backgroundColor: palette.primary,
         textColor: palette.textInverse,
@@ -171,6 +172,7 @@ export const BidCard = ({
     palette.surfaceMuted,
     palette.textInverse,
     palette.textPrimary,
+    messageLabel,
   ]);
 
   const renderRightActions = (
