@@ -53,6 +53,7 @@ interface ChatProps {
     onStopTyping?: () => void;
     onDeleteMessage?: (messageId: string) => Promise<unknown> | unknown;
     typingLabel?: string | null;
+    requestScoped?: boolean;
 }
 
 const groupMessagesForTimeline = (messages: Message[]) => {
@@ -82,19 +83,6 @@ const groupMessagesForTimeline = (messages: Message[]) => {
     return rows;
 };
 
-const getConversationStateLabel = (conversation: Conversation) => {
-    switch (conversation.request.status) {
-        case "ASSIGNED":
-            return "Live conversation";
-        case "COMPLETED":
-            return "Request completed";
-        case "CANCELLED":
-            return "Request cancelled";
-        default:
-            return "Waiting for assignment";
-    }
-};
-
 const Chat: React.FC<ChatProps> = ({
     conversation,
     messages,
@@ -113,11 +101,13 @@ const Chat: React.FC<ChatProps> = ({
     onStopTyping,
     onDeleteMessage,
     typingLabel,
+    requestScoped = false,
 }) => {
     const { palette } = useThemeContext();
     const insets = useSafeAreaInsets();
     const user = useAuthStore((state) => state.user);
     const userId = user?.id ?? "";
+    const userEmail = user?.email ?? "";
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedParticipant, setSelectedParticipant] = useState<ConversationMember | null>(null);
     const listRef = useRef<FlatList<ThreadRow>>(null);
@@ -142,8 +132,8 @@ const Chat: React.FC<ChatProps> = ({
     const canSend = conversation?.request.status === "ASSIGNED";
     const isThreadEmpty = threadRows.length === 0;
     const otherParticipant = useMemo(
-        () => (conversation ? getOtherParticipant(conversation, userId) ?? null : null),
-        [conversation, userId]
+        () => (conversation ? getOtherParticipant(conversation, userId, userEmail) ?? null : null),
+        [conversation, userEmail, userId]
     );
     const searchResultsLabel = useMemo(() => {
         if (!normalizedQuery) {
@@ -205,8 +195,14 @@ const Chat: React.FC<ChatProps> = ({
     }
 
     if (!conversation) {
-        return <ChatEmptyState />;
+        return <ChatEmptyState requestScoped={requestScoped} />;
     }
+
+    const composerStatusLabel = canSend
+        ? "Live conversation"
+        : conversation.request.status === "COMPLETED"
+          ? "Completed request · read-only history"
+          : "Closed request conversation";
 
     return (
         <KeyboardAvoidingView
@@ -224,6 +220,7 @@ const Chat: React.FC<ChatProps> = ({
                     <ChatHeader
                         conversation={conversation}
                         userId={userId}
+                        userEmail={userEmail}
                         onAvatarPress={() => {
                             setSelectedParticipant(otherParticipant);
                         }}
@@ -368,7 +365,7 @@ const Chat: React.FC<ChatProps> = ({
                                     </Stack>
                                 </Card>
                             ) : (
-                                <ChatEmptyState />
+                            <ChatEmptyState requestScoped={requestScoped} />
                             )}
                         </View>
                     }
@@ -446,11 +443,6 @@ const Chat: React.FC<ChatProps> = ({
                     ]}
                 >
                     <Stack gap="xxs">
-                        <Text style={[styles.stateHint, { color: palette.textMuted }]}>
-                            {canSend
-                                ? `${getConversationStateLabel(conversation)}`
-                                : "Messaging is locked until the request is assigned."}
-                        </Text>
                         {typingLabel ? (
                             <Text style={[styles.typingHint, { color: palette.primary }]}>
                                 {typingLabel}
@@ -464,6 +456,7 @@ const Chat: React.FC<ChatProps> = ({
                         onStopTyping={onStopTyping}
                         disabled={!canSend}
                         sending={Boolean(sending)}
+                        statusLabel={composerStatusLabel}
                     />
                 </View>
             </View>
@@ -574,10 +567,6 @@ const styles = StyleSheet.create({
         paddingTop: theme.spacing.xs,
         paddingHorizontal: theme.spacing.md,
         gap: 4,
-    },
-    stateHint: {
-        ...theme.typography.textStyle.caption,
-        paddingHorizontal: 2,
     },
     typingHint: {
         ...theme.typography.textStyle.captionMedium,

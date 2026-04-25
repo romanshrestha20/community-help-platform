@@ -63,6 +63,7 @@ export default function ConversationChatRoute() {
                 onStopTyping={stopTyping}
                 onDeleteMessage={deleteMessage}
                 typingLabel={typingLabel}
+                requestScoped={typeof requestId === "string"}
             />
         </ScreenView>
     );
