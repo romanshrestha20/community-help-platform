@@ -89,7 +89,15 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     return () => {
       isCancelled = true;
     };
-  }, [clearValidationError, user]);
+  }, [
+    clearValidationError,
+    user?.bio,
+    user?.dateOfBirth,
+    user?.fullName,
+    user?.gender,
+    user?.phone,
+    user?.userType,
+  ]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -153,7 +161,7 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
 
     await onSubmit({
       fullName: fullName.trim(),
-      phone,
+      phone: phone || undefined,
       bio: bio.trim(),
       dateOfBirth: dateOfBirth.trim() || undefined,
       gender,

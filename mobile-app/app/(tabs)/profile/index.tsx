@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -87,9 +87,16 @@ export default function ProfileTabScreen() {
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const hasLoadedProfileRef = useRef(false);
 
   useEffect(() => {
-    loadUserProfile();
+    if (hasLoadedProfileRef.current) {
+      return;
+    }
+
+    hasLoadedProfileRef.current = true;
+    void loadUserProfile();
   }, [loadUserProfile]);
 
   const activityItems = useMemo<ActionItem[]>(
@@ -519,13 +526,18 @@ export default function ProfileTabScreen() {
 
               <ProfileEditForm
                 user={user}
-                loading={loading}
+                loading={savingProfile}
                 onSubmit={async (payload) => {
-                  const success = await handleUpdateProfile(payload);
-                  if (success) {
-                    setEditModalVisible(false);
+                  setSavingProfile(true);
+                  try {
+                    const success = await handleUpdateProfile(payload);
+                    if (success) {
+                      setEditModalVisible(false);
+                    }
+                    return success;
+                  } finally {
+                    setSavingProfile(false);
                   }
-                  return success;
                 }}
                 onCancel={() => setEditModalVisible(false)}
               />
