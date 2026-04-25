@@ -22,6 +22,15 @@ const relativeDateFormatter = new Intl.DateTimeFormat(undefined, {
     day: "numeric",
 });
 
+const getStatusLabel = (status: Conversation["request"]["status"]) =>
+    status === "ASSIGNED"
+        ? "Live"
+        : status === "COMPLETED"
+          ? "Completed"
+          : status === "CANCELLED"
+            ? "Closed"
+            : "Pending";
+
 const ConversationListItem: React.FC<ConversationListItemProps> = ({
     conversation,
     userId,
@@ -34,36 +43,32 @@ const ConversationListItem: React.FC<ConversationListItemProps> = ({
     const displayName = other?.fullName || other?.email || "Conversation";
     const lastActivity = conversation.lastMessage?.createdAt || conversation.updatedAt;
     const hasUnread = conversation.unreadCount > 0;
+    const isLive = conversation.request.status === "ASSIGNED";
 
-    const statusTone = (() => {
-        switch (conversation.request.status) {
-            case "OPEN":
-                return {
-                    backgroundColor: palette.primarySoft,
-                    color: palette.primary,
-                    label: "Open",
-                };
-            case "ASSIGNED":
-                return {
-                    backgroundColor: palette.accentSoft,
-                    color: palette.accent,
-                    label: "Assigned",
-                };
-            case "COMPLETED":
-                return {
-                    backgroundColor: palette.successSoft,
-                    color: palette.success,
-                    label: "Completed",
-                };
-            case "CANCELLED":
-            default:
-                return {
+    const statusTone =
+        conversation.request.status === "ASSIGNED"
+            ? {
+                backgroundColor: palette.primarySoft,
+                color: palette.primary,
+                label: "Live",
+            }
+            : conversation.request.status === "COMPLETED"
+              ? {
+                  backgroundColor: palette.successSoft,
+                  color: palette.success,
+                  label: "Completed",
+              }
+              : conversation.request.status === "CANCELLED"
+                ? {
                     backgroundColor: palette.dangerSoftFill,
                     color: palette.danger,
                     label: "Closed",
+                }
+                : {
+                    backgroundColor: palette.surfaceMuted,
+                    color: palette.textSecondary,
+                    label: "Pending",
                 };
-        }
-    })();
 
     return (
         <Pressable
@@ -78,7 +83,7 @@ const ConversationListItem: React.FC<ConversationListItemProps> = ({
                     styles.row,
                     {
                         backgroundColor: hasUnread ? palette.surface : palette.surfaceSecondary,
-                        borderColor: hasUnread ? palette.primarySoft : palette.border,
+                        borderColor: hasUnread || isLive ? palette.primarySoft : palette.border,
                     },
                     isFirst ? styles.firstRow : null,
                     isLast ? styles.lastRow : null,
@@ -194,7 +199,9 @@ const ConversationListItem: React.FC<ConversationListItemProps> = ({
                         </View>
 
                         <Text style={[styles.threadMeta, { color: palette.textMuted }]}>
-                            {conversation.lastMessage ? "Recent reply" : "New thread"}
+                            {conversation.lastMessage
+                                ? getStatusLabel(conversation.request.status)
+                                : "Waiting for first message"}
                         </Text>
                     </View>
                 </View>

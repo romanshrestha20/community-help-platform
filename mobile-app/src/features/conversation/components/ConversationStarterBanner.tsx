@@ -24,9 +24,9 @@ const ConversationStarterBanner: React.FC<ConversationStarterBannerProps> = ({ n
                 ]}
             >
                 <Row align="flex-start" gap="xs">
-                    <Ionicons name="document-text-outline" size={16} color={palette.secondary} />
+                    <Ionicons name="trail-sign-outline" size={16} color={palette.secondary} />
                     <Stack gap="xxs" style={styles.textWrap}>
-                        <Text style={[styles.title, { color: palette.textPrimary }]}>Starter note</Text>
+                        <Text style={[styles.title, { color: palette.textPrimary }]}>Conversation guidance</Text>
                         <Text style={[styles.note, { color: palette.textSecondary }]}>{note}</Text>
                     </Stack>
                 </Row>

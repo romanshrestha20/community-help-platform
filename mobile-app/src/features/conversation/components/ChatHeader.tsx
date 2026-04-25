@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { AppBackButton } from "@/components/ui/AppBackButton";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
@@ -12,26 +12,29 @@ import { getOtherParticipant } from "../utils/conversation.utils";
 interface ChatHeaderProps {
     conversation: Conversation;
     userId: string;
+    userEmail?: string;
     onAvatarPress?: () => void;
 }
 
 const getStatusLabel = (status: Conversation["request"]["status"]) => {
     switch (status) {
         case "ASSIGNED":
-            return "Active";
+            return "Live handoff";
         case "COMPLETED":
             return "Completed";
         case "CANCELLED":
-            return "Cancelled";
+            return "Closed";
         default:
-            return "Pending";
+            return "Waiting for assignment";
     }
 };
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, userId, onAvatarPress }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, userId, userEmail, onAvatarPress }) => {
     const { palette } = useThemeContext();
-    const other = getOtherParticipant(conversation, userId);
-    const displayName = other?.fullName || other?.email || "Conversation";
+    const other = getOtherParticipant(conversation, userId, userEmail);
+    const displayName = other?.fullName || other?.email || "Assigned request";
+    const statusTone =
+        conversation.request.status === "ASSIGNED" ? palette.primary : palette.textMuted;
 
     return (
         <Row justify="space-between" style={styles.container}>
@@ -45,12 +48,18 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, userId, onAvatarP
                 />
 
                 <Stack gap="xxs" style={styles.titleWrap}>
+                    <Text style={[styles.eyebrow, { color: palette.primary }]} numberOfLines={1}>
+                        Request conversation
+                    </Text>
                     <Text style={[styles.title, { color: palette.textPrimary }]} numberOfLines={1}>
                         {displayName}
                     </Text>
-                    <Text style={[styles.subtitle, { color: palette.textMuted }]} numberOfLines={1}>
-                        {getStatusLabel(conversation.request.status)}
-                    </Text>
+                    <Row align="center" gap="xs">
+                        <View style={[styles.statusDot, { backgroundColor: statusTone }]} />
+                        <Text style={[styles.subtitle, { color: palette.textMuted }]} numberOfLines={1}>
+                            {getStatusLabel(conversation.request.status)}
+                        </Text>
+                    </Row>
                 </Stack>
             </Row>
 
@@ -79,11 +88,21 @@ const styles = StyleSheet.create({
         minWidth: 0,
         justifyContent: "center",
     },
+    eyebrow: {
+        ...theme.typography.textStyle.captionMedium,
+        textTransform: "uppercase",
+        letterSpacing: 0.8,
+    },
     title: {
         ...theme.typography.textStyle.bodyMedium,
     },
     subtitle: {
         ...theme.typography.textStyle.caption,
+    },
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
 });
 
