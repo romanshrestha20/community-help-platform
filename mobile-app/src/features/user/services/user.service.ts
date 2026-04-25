@@ -77,14 +77,26 @@ export const updateUserProfileService = async (
   currentUser: User | null
 ): Promise<UserResponse> => {
   try {
-    const payload: Partial<UpdateUserProfilePayload> = {
+    const payload = {
       fullName: profileData.fullName,
-      phone: profileData.phone,
+      phone: profileData.phone?.trim() ? profileData.phone : undefined,
       bio: profileData.bio,
       dateOfBirth: profileData.dateOfBirth,
       gender: profileData.gender,
       userType: profileData.userType,
-      address: profileData.address,
+      location: profileData.address
+        ? {
+            latitude: profileData.address.latitude,
+            longitude: profileData.address.longitude,
+            addressLine1: profileData.address.addressLine1 ?? null,
+            addressLine2: profileData.address.addressLine2 ?? null,
+            city: profileData.address.city ?? null,
+            state: profileData.address.state ?? null,
+            postalCode: profileData.address.postalCode ?? null,
+            country: profileData.address.country ?? null,
+            formattedAddress: profileData.address.formattedAddress ?? null,
+          }
+        : undefined,
     };
 
     const data = await userApi.updateUserProfile(payload);
