@@ -32,11 +32,11 @@ const InboxEmptyState: React.FC = () => {
             </View>
 
             <Text style={[styles.title, { color: palette.textPrimary }]}>
-                No conversations yet
+                No assigned request conversations yet
             </Text>
             <Text style={[styles.body, { color: palette.textSecondary }]}>
-                When you post a request or respond to one, your conversations will appear
-                here for quick follow-up.
+                Conversations appear only after a requester accepts a bid and the request moves
+                into an assigned handoff.
             </Text>
 
             <View
@@ -48,9 +48,10 @@ const InboxEmptyState: React.FC = () => {
                     },
                 ]}
             >
-                <Ionicons name="sparkles-outline" size={16} color={palette.primary} />
+                <Ionicons name="git-merge-outline" size={16} color={palette.primary} />
                 <Text style={[styles.tipText, { color: palette.textSecondary }]}>
-                    Start helping or requesting to open your first thread.
+                    Create a request, receive bids, accept one helper, and the chat opens
+                    automatically.
                 </Text>
             </View>
 
@@ -63,7 +64,7 @@ const InboxEmptyState: React.FC = () => {
                 ]}
             >
                 <Text style={[styles.ctaText, { color: palette.textInverse }]}>
-                    Messages will show up automatically
+                    Assigned request chats will show up here
                 </Text>
             </View>
         </View>

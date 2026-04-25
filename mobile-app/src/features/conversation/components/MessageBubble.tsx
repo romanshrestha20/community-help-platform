@@ -57,6 +57,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     const senderName = message.sender.fullName || message.sender.email || "Unknown";
     const messageText = message.deletedAt ? "Message deleted" : message.content || "Unsupported message";
+    const readLabel = message.isRead ? "Read" : "Delivered";
 
     return (
         <Row
@@ -144,7 +145,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     </Text>
                     {isOwn && !message.deletedAt ? (
                         <Text style={[styles.metaText, { color: palette.textMuted }]}>
-                            {message.isRead ? "Read" : "Sent"}
+                            {readLabel}
                         </Text>
                     ) : null}
                 </Row>

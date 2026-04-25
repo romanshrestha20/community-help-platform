@@ -39,6 +39,7 @@ const Inbox: React.FC<InboxProps> = ({
     const { palette } = useThemeContext();
     const user = useAuthStore((state) => state.user);
     const userId = user?.id || "";
+    const userEmail = user?.email || "";
     const firstName = user?.fullName?.trim().split(/\s+/)[0] ?? "there";
     const [searchQuery, setSearchQuery] = React.useState("");
 
@@ -50,7 +51,7 @@ const Inbox: React.FC<InboxProps> = ({
         }
 
         return conversations.filter((conversation) => {
-            const otherParticipant = getOtherParticipant(conversation, userId);
+            const otherParticipant = getOtherParticipant(conversation, userId, userEmail);
             const displayName = otherParticipant?.fullName || "";
             const email = otherParticipant?.email || "";
             const requestTitle = conversation.request.title || "";
@@ -61,11 +62,11 @@ const Inbox: React.FC<InboxProps> = ({
                 .toLowerCase()
                 .includes(normalizedQuery);
         });
-    }, [conversations, normalizedQuery, userId]);
+    }, [conversations, normalizedQuery, userEmail, userId]);
 
     const conversationCountLabel = useMemo(() => {
         const count = conversations.length;
-        return `${count} ${count === 1 ? "conversation" : "conversations"}`;
+        return `${count} ${count === 1 ? "assigned chat" : "assigned chats"}`;
     }, [conversations.length]);
 
     const unreadConversationsCount = useMemo(
@@ -120,10 +121,10 @@ const Inbox: React.FC<InboxProps> = ({
                     </View>
 
                     <Text style={[styles.loadingTitle, { color: palette.textPrimary }]}>
-                        Loading messages
+                        Loading assigned chats
                     </Text>
                     <Text style={[styles.loadingSubtitle, { color: palette.textSecondary }]}>
-                        Syncing conversations, unread counts, and recent replies.
+                        Syncing request-linked conversations, unread counts, and recent replies.
                     </Text>
                 </View>
             </ScreenView>
@@ -162,7 +163,7 @@ const Inbox: React.FC<InboxProps> = ({
                         <View style={styles.heroRow}>
                             <View style={styles.heroCopy}>
                                 <Text style={[styles.eyebrow, { color: palette.primary }]}>
-                                    Inbox
+                                    Request conversations
                                 </Text>
                                 <Text style={[styles.heroTitle, { color: palette.textPrimary }]}>
                                     Messages for {firstName}
@@ -173,7 +174,8 @@ const Inbox: React.FC<InboxProps> = ({
                                         { color: palette.textSecondary },
                                     ]}
                                 >
-                                    Track replies, coordinate details, and keep each request moving.
+                                    Only assigned requests appear here, so every thread is tied to
+                                    a real job in progress.
                                 </Text>
                             </View>
 
@@ -253,7 +255,7 @@ const Inbox: React.FC<InboxProps> = ({
                                             { color: palette.textSecondary },
                                         ]}
                                     >
-                                        Active request chats
+                                        Request-based threads
                                     </Text>
                                 </View>
                             </View>
@@ -307,7 +309,7 @@ const Inbox: React.FC<InboxProps> = ({
                                             { color: palette.textSecondary },
                                         ]}
                                     >
-                                        Needs your attention
+                                        Waiting on your reply
                                     </Text>
                                 </View>
                             </View>
@@ -331,7 +333,7 @@ const Inbox: React.FC<InboxProps> = ({
                                     >
                                         {highlightedConversation.unreadCount > 0
                                             ? "Reply waiting"
-                                            : "Latest thread"}
+                                            : "Latest assigned thread"}
                                     </Text>
                                     <Ionicons
                                         name="arrow-forward-outline"
@@ -340,8 +342,8 @@ const Inbox: React.FC<InboxProps> = ({
                                     />
                                 </View>
                                 <Text style={styles.spotlightTitle} numberOfLines={1}>
-                                    {getOtherParticipant(highlightedConversation, userId)?.fullName ||
-                                        getOtherParticipant(highlightedConversation, userId)?.email ||
+                                    {getOtherParticipant(highlightedConversation, userId, userEmail)?.fullName ||
+                                        getOtherParticipant(highlightedConversation, userId, userEmail)?.email ||
                                         "Conversation"}
                                 </Text>
                                 <Text style={styles.spotlightRequest} numberOfLines={1}>
@@ -357,7 +359,7 @@ const Inbox: React.FC<InboxProps> = ({
                             <SearchField
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}
-                                placeholder="Search people, requests, or messages"
+                                placeholder="Search assigned requests, people, or messages"
                                 returnKeyType="search"
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -370,7 +372,7 @@ const Inbox: React.FC<InboxProps> = ({
                                         { color: palette.textPrimary },
                                     ]}
                                 >
-                                    Recent conversations
+                                    Active request conversations
                                 </Text>
 
                                 {searchResultsLabel ? (
@@ -422,7 +424,8 @@ const Inbox: React.FC<InboxProps> = ({
                                         { color: palette.textSecondary },
                                     ]}
                                 >
-                                    Try a different name, request title, or message keyword.
+                                    Try a different helper name, requester, request title, or
+                                    message keyword.
                                 </Text>
                             </View>
                         ) : null}
