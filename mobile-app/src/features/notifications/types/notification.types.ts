@@ -24,6 +24,20 @@ export type NotificationPreferencesDto = {
     savedRequestsEnabled: boolean;
 };
 
+export type NotificationRegistrationStatus =
+    | "idle"
+    | "requesting-permission"
+    | "denied"
+    | "registering-token"
+    | "registered"
+    | "failed";
+
+export type NotificationPermissionStatus =
+    | "undetermined"
+    | "granted"
+    | "denied"
+    | null;
+
 export type AppNotification = {
     id: string;
     actorId?: string | null;

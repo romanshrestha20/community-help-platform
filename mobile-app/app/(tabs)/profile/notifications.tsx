@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Card, Screen, Stack, theme } from "@/design-system";
@@ -62,6 +62,9 @@ export default function NotificationSettingsScreen() {
     const {
         isHydrated,
         pushEnabled,
+        registrationStatus,
+        permissionStatus,
+        lastRegistrationError,
         messagesEnabled,
         bidsEnabled,
         requestUpdatesEnabled,
@@ -69,6 +72,39 @@ export default function NotificationSettingsScreen() {
         initializeNotificationSettings,
         setPreference,
     } = useNotificationSettingsStore();
+
+    const statusTitle =
+        registrationStatus === "registered"
+            ? "Push notifications are active"
+            : registrationStatus === "requesting-permission"
+                ? "Waiting for Android permission"
+                : registrationStatus === "registering-token"
+                    ? "Registering this device"
+                    : registrationStatus === "denied"
+                        ? "Android notifications are blocked"
+                        : registrationStatus === "failed"
+                            ? "Push setup needs attention"
+                            : pushEnabled
+                                ? "Push notifications are ready to register"
+                                : "Push notifications are turned off";
+
+    const statusBody =
+        registrationStatus === "registered"
+            ? "This Android device is registered for push delivery. System notifications should appear when messages or request updates arrive."
+            : registrationStatus === "requesting-permission"
+                ? "Approve the Android notification prompt to allow system notifications."
+                : registrationStatus === "registering-token"
+                    ? "The app is requesting an Expo push token and syncing it with the backend."
+                    : registrationStatus === "denied"
+                        ? "Android permission was denied, so system notifications cannot be shown until you re-enable them in Settings."
+                        : registrationStatus === "failed"
+                            ? lastRegistrationError ?? "Push registration failed before the device could be registered."
+                            : pushEnabled
+                                ? "Push will register after Android permission is granted on a physical device."
+                                : "Turn on the master switch to register this device for push notifications.";
+
+    const canOpenSettings =
+        registrationStatus === "denied" || permissionStatus === "denied";
 
     useEffect(() => {
         void initializeNotificationSettings();
@@ -98,8 +134,9 @@ export default function NotificationSettingsScreen() {
                                 Delivery
                             </Text>
                             <Text style={[styles.sectionDescription, { color: palette.textSecondary }]}>
-                                This first step stores your notification preferences inside the app.
-                                Push registration and server-side filtering can be wired in next.
+                                Enable push on this device, then allow the Android system prompt when it appears.
+                                Push delivery works on a physical Android device with a development or signed build
+                                that supports Expo notifications.
                             </Text>
 
                             <SettingRow
@@ -112,6 +149,40 @@ export default function NotificationSettingsScreen() {
                             />
                         </Stack>
                     </Card>
+
+                    <Pressable
+                        style={[
+                            styles.helperCard,
+                            {
+                                backgroundColor:
+                                    registrationStatus === "registered"
+                                        ? palette.primarySoft
+                                        : palette.surfaceMuted,
+                                borderColor:
+                                    registrationStatus === "denied" || registrationStatus === "failed"
+                                        ? palette.warning
+                                        : palette.border,
+                            },
+                        ]}
+                        disabled={!canOpenSettings}
+                        onPress={() => {
+                            if (canOpenSettings) {
+                                void Linking.openSettings();
+                            }
+                        }}
+                    >
+                        <Text style={[styles.helperTitle, { color: palette.textPrimary }]}>
+                            {statusTitle}
+                        </Text>
+                        <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                            {statusBody}
+                        </Text>
+                        {canOpenSettings ? (
+                            <Text style={[styles.helperAction, { color: palette.primary }]}>
+                                Open Android settings
+                            </Text>
+                        ) : null}
+                    </Pressable>
 
                     <Card>
                         <Stack gap="sm">
@@ -174,11 +245,11 @@ export default function NotificationSettingsScreen() {
                         ]}
                     >
                         <Text style={[styles.helperTitle, { color: palette.textPrimary }]}>
-                            Next step
+                            How delivery works
                         </Text>
                         <Text style={[styles.helperText, { color: palette.textSecondary }]}>
-                            Wire the master switch into push-token registration and use these toggles
-                            to filter which notifications are surfaced.
+                            The master switch controls device registration. The activity toggles filter which
+                            foreground banners, badges, and server notifications remain visible in the app.
                         </Text>
                     </Pressable>
                 </Stack>
@@ -238,5 +309,10 @@ const styles = StyleSheet.create({
     helperText: {
         fontSize: theme.typography.fontSize.xs + 1,
         lineHeight: theme.typography.lineHeight.xs + 3,
+    },
+    helperAction: {
+        fontSize: theme.typography.fontSize.xs + 1,
+        lineHeight: theme.typography.lineHeight.xs + 3,
+        fontWeight: theme.typography.fontWeight.semibold,
     },
 });

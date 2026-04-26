@@ -7,6 +7,7 @@ import { useRouter } from "expo-router";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useNotificationSettingsStore } from "@/features/settings/store/notification-settings.store";
 import { registerPushToken, unregisterPushToken } from "../service/notification.service";
+import type { NotificationPermissionStatus } from "../types/notification.types";
 import { isNotificationTypeEnabled } from "../utils/notification-preferences";
 
 const getProjectId = () => {
@@ -23,18 +24,6 @@ const getProjectId = () => {
 };
 
 const registerForPushNotificationsAsync = async () => {
-    const permissions = await Notifications.getPermissionsAsync();
-    let status = permissions.status;
-
-    if (status !== "granted") {
-        const request = await Notifications.requestPermissionsAsync();
-        status = request.status;
-    }
-
-    if (status !== "granted") {
-        return null;
-    }
-
     const projectId = getProjectId();
     if (!projectId) {
         throw new Error("Expo project ID is missing");
@@ -42,6 +31,32 @@ const registerForPushNotificationsAsync = async () => {
 
     const token = await Notifications.getExpoPushTokenAsync({ projectId });
     return token.data;
+};
+
+const normalizePermissionStatus = (
+    status: Notifications.PermissionStatus
+): NotificationPermissionStatus => {
+    if (status === "granted") return "granted";
+    if (status === "denied") return "denied";
+    return "undetermined";
+};
+
+const getRegistrationErrorMessage = (error: unknown) => {
+    if (!(error instanceof Error)) {
+        return "Push registration failed";
+    }
+
+    const message = error.message.trim();
+
+    if (/physical device/i.test(message)) {
+        return "Push notifications require a physical Android device.";
+    }
+
+    if (/project id/i.test(message)) {
+        return "Expo project configuration is missing for push notifications.";
+    }
+
+    return message || "Push registration failed";
 };
 
 export const usePushNotifications = () => {
@@ -54,6 +69,9 @@ export const usePushNotifications = () => {
     );
     const syncNotificationSettings = useNotificationSettingsStore(
         (state) => state.syncNotificationSettings
+    );
+    const setRegistrationState = useNotificationSettingsStore(
+        (state) => state.setRegistrationState
     );
     const lastRegisteredToken = useRef<string | null>(null);
 
@@ -86,6 +104,11 @@ export const usePushNotifications = () => {
                         })
                         : state.pushEnabled;
 
+                console.log("[push] foreground notification decision", {
+                    notificationType,
+                    isEnabled,
+                });
+
                 return {
                     shouldShowAlert: isEnabled,
                     shouldShowBanner: isEnabled,
@@ -103,6 +126,7 @@ export const usePushNotifications = () => {
                 vibrationPattern: [0, 250, 250, 250],
                 lightColor: "#6AA84F",
                 sound: "default",
+                lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
             });
         }
     }, []);
@@ -114,6 +138,11 @@ export const usePushNotifications = () => {
 
         const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
             const route = response.notification.request.content.data?.route;
+
+            console.log("[push] notification response received", {
+                route,
+                notificationId: response.notification.request.identifier,
+            });
 
             if (typeof route === "string" && route.length > 0) {
                 router.push(route as never);
@@ -131,10 +160,22 @@ export const usePushNotifications = () => {
         }
 
         if (!isAuthenticated || !pushEnabled) {
+            setRegistrationState("idle", {
+                error: null,
+            });
+
             if (lastRegisteredToken.current) {
-                void unregisterPushToken(lastRegisteredToken.current).catch((error) => {
-                    console.warn("Failed to unregister push notifications:", error);
+                console.log("[push] unregistering push token", {
+                    tokenSuffix: lastRegisteredToken.current.slice(-8),
                 });
+
+                void unregisterPushToken(lastRegisteredToken.current)
+                    .then(() => {
+                        console.log("[push] backend token unregistration succeeded");
+                    })
+                    .catch((error) => {
+                        console.warn("Failed to unregister push notifications:", error);
+                    });
                 lastRegisteredToken.current = null;
             }
             return;
@@ -144,23 +185,94 @@ export const usePushNotifications = () => {
 
         const registerToken = async () => {
             try {
+                const permissions = await Notifications.getPermissionsAsync();
+                const initialPermissionStatus = normalizePermissionStatus(permissions.status);
+
+                console.log("[push] current permission status", {
+                    status: initialPermissionStatus,
+                });
+
+                let permissionStatus = permissions.status;
+
+                if (permissionStatus !== "granted") {
+                    setRegistrationState("requesting-permission", {
+                        permissionStatus: initialPermissionStatus,
+                        error: null,
+                    });
+
+                    const request = await Notifications.requestPermissionsAsync();
+                    permissionStatus = request.status;
+
+                    console.log("[push] permission request resolved", {
+                        status: permissionStatus,
+                    });
+                }
+
+                const normalizedPermissionStatus = normalizePermissionStatus(permissionStatus);
+
+                if (permissionStatus !== "granted") {
+                    setRegistrationState("denied", {
+                        permissionStatus: normalizedPermissionStatus,
+                        error: "Android notifications are blocked. Enable them in system settings.",
+                    });
+                    return;
+                }
+
+                setRegistrationState("registering-token", {
+                    permissionStatus: normalizedPermissionStatus,
+                    error: null,
+                });
+
                 const token = await registerForPushNotificationsAsync();
+
+                console.log("[push] expo push token fetched", {
+                    tokenSuffix: token?.slice(-8),
+                });
 
                 if (!token || isCancelled) {
                     return;
                 }
 
                 if (lastRegisteredToken.current === token) {
+                    setRegistrationState("registered", {
+                        permissionStatus: normalizedPermissionStatus,
+                        error: null,
+                    });
                     return;
                 }
 
                 if (lastRegisteredToken.current) {
+                    console.log("[push] unregistering previous push token", {
+                        tokenSuffix: lastRegisteredToken.current.slice(-8),
+                    });
                     await unregisterPushToken(lastRegisteredToken.current);
+                    console.log("[push] previous token unregistered");
                 }
 
                 lastRegisteredToken.current = token;
                 await registerPushToken(token, Platform.OS);
+
+                console.log("[push] backend token registration succeeded", {
+                    platform: Platform.OS,
+                    tokenSuffix: token.slice(-8),
+                });
+
+                setRegistrationState("registered", {
+                    permissionStatus: normalizedPermissionStatus,
+                    error: null,
+                });
             } catch (error) {
+                const message = getRegistrationErrorMessage(error);
+
+                console.warn("[push] registration failed", {
+                    message,
+                    rawError: error,
+                });
+
+                setRegistrationState("failed", {
+                    permissionStatus: "granted",
+                    error: message,
+                });
                 console.warn("Failed to register push notifications:", error);
             }
         };
@@ -170,7 +282,7 @@ export const usePushNotifications = () => {
         return () => {
             isCancelled = true;
         };
-    }, [isAuthenticated, isHydrated, pushEnabled]);
+    }, [isAuthenticated, isHydrated, pushEnabled, setRegistrationState]);
 };
 
 const isHydratedNotificationType = (value: string): value is Parameters<

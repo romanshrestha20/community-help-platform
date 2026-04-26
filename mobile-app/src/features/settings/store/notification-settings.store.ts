@@ -4,6 +4,10 @@ import {
     fetchNotificationPreferences,
     updateNotificationPreferences,
 } from "@/features/notifications/service/notification.service";
+import type {
+    NotificationPermissionStatus,
+    NotificationRegistrationStatus,
+} from "@/features/notifications/types/notification.types";
 import {
     getDefaultNotificationPreferences,
     getNotificationPreferences,
@@ -13,12 +17,22 @@ import {
 
 type NotificationSettingsState = NotificationPreferences & {
     isHydrated: boolean;
+    registrationStatus: NotificationRegistrationStatus;
+    permissionStatus: NotificationPermissionStatus;
+    lastRegistrationError: string | null;
     initializeNotificationSettings: () => Promise<void>;
     syncNotificationSettings: () => Promise<void>;
     setPreference: <K extends keyof NotificationPreferences>(
         key: K,
         value: NotificationPreferences[K]
     ) => Promise<void>;
+    setRegistrationState: (
+        status: NotificationRegistrationStatus,
+        options?: {
+            permissionStatus?: NotificationPermissionStatus;
+            error?: string | null;
+        }
+    ) => void;
 };
 
 const defaultPreferences = getDefaultNotificationPreferences();
@@ -27,6 +41,9 @@ export const useNotificationSettingsStore =
     create<NotificationSettingsState>((set, get) => ({
         ...defaultPreferences,
         isHydrated: false,
+        registrationStatus: "idle",
+        permissionStatus: null,
+        lastRegistrationError: null,
 
         initializeNotificationSettings: async () => {
             if (get().isHydrated) return;
@@ -65,6 +82,9 @@ export const useNotificationSettingsStore =
                 bidsEnabled: get().bidsEnabled,
                 requestUpdatesEnabled: get().requestUpdatesEnabled,
                 savedRequestsEnabled: get().savedRequestsEnabled,
+                registrationStatus: get().registrationStatus,
+                permissionStatus: get().permissionStatus,
+                lastRegistrationError: get().lastRegistrationError,
                 [key]: value,
             } as NotificationPreferences;
 
@@ -88,5 +108,20 @@ export const useNotificationSettingsStore =
             } catch {
                 // Keep local state so the UI remains responsive even if sync fails.
             }
+        },
+        setRegistrationState: (status, options) => {
+            set({
+                registrationStatus: status,
+                permissionStatus:
+                    options?.permissionStatus !== undefined
+                        ? options.permissionStatus
+                        : get().permissionStatus,
+                lastRegistrationError:
+                    options?.error !== undefined
+                        ? options.error
+                        : status === "registered" || status === "idle"
+                            ? null
+                            : get().lastRegistrationError,
+            });
         },
     }));
