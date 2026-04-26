@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
 import MapView, { Marker, MapPressEvent } from "react-native-maps";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Card, ScreenView, theme } from "@/design-system";
 import { APP_ROUTES } from "@/config/routes";
+import { goBackOrFallback } from "@/utils/navigation";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useCurrentLocation } from "@/features/map/hooks/useCurrentLocation";
 import { getRegionForCoordinates } from "@/features/map/utils/getRegionForCoordinates";
@@ -33,11 +33,11 @@ const formatLocationLabel = (location: AppLocation | null) => {
 };
 
 export default function LocationPickerScreen() {
-  const router = useRouter();
   const { palette } = useThemeContext();
   const mapRef = useRef<MapView | null>(null);
   const draftLocation = useLocationPickerScreenStore((state) => state.draftLocation);
   const confirmLocation = useLocationPickerScreenStore((state) => state.confirmLocation);
+  const draftReturnRoute = useLocationPickerScreenStore((state) => state.draftReturnRoute);
   const { location: currentLocation, loading: currentLocationLoading } = useCurrentLocation();
   const [selectedLocation, setSelectedLocation] = useState<AppLocation | null>(
     draftLocation
@@ -103,7 +103,10 @@ export default function LocationPickerScreen() {
   const handleConfirm = () => {
     if (!selectedLocation) return;
     confirmLocation(selectedLocation);
-    router.back();
+    goBackOrFallback({
+      fallback: (draftReturnRoute as any) ?? APP_ROUTES.HOME_REQUESTS,
+      replace: true,
+    });
   };
 
   return (
@@ -113,7 +116,7 @@ export default function LocationPickerScreen() {
         subtitle="Pick the exact spot where help is needed."
         showBackButton
         backButtonProps={{
-          fallback: APP_ROUTES.HOME_REQUESTS,
+          fallback: (draftReturnRoute as any) ?? APP_ROUTES.HOME_REQUESTS,
           variant: "secondary",
         }}
       />
