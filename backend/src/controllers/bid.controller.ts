@@ -46,7 +46,7 @@ const sendResponse = (res: Response, data: any = null, message = "") => {
   res.json({ success: true, data, message });
 };
 
-const HELPER_PROFILE_SELECT = {
+const buildHelperProfileSelect = (): Prisma.ProfileSelect => ({
   fullName: true,
   dateOfBirth: true,
   gender: true,
@@ -54,6 +54,37 @@ const HELPER_PROFILE_SELECT = {
   rating: true,
   totalReviews: true,
   helpCount: true,
+  userSkills: {
+    orderBy: [{ isPrimary: Prisma.SortOrder.desc }, { createdAt: Prisma.SortOrder.asc }],
+    include: {
+      skill: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+    },
+  },
+  certifications: {
+    where: {
+      status: "APPROVED",
+    },
+    orderBy: [
+      { reviewedAt: Prisma.SortOrder.desc },
+      { createdAt: Prisma.SortOrder.desc },
+    ],
+    select: {
+      id: true,
+      name: true,
+      issuer: true,
+      credentialId: true,
+      status: true,
+      issuedAt: true,
+      expiresAt: true,
+      reviewedAt: true,
+    },
+  },
   address: {
     select: {
       city: true,
@@ -62,7 +93,7 @@ const HELPER_PROFILE_SELECT = {
       formattedAddress: true,
     },
   },
-} as const;
+});
 
 // Format bid for consistent responses
 const formatBid = (bid: any) => ({
@@ -89,6 +120,34 @@ const formatBid = (bid: any) => ({
   helperRating: bid.helper?.profile?.rating ?? 0,
   helperTotalReviews: bid.helper?.profile?.totalReviews ?? 0,
   helperCompletedHelps: bid.helper?.profile?.helpCount ?? 0,
+  helperSkills: (bid.helper?.profile?.userSkills ?? []).map((userSkill: any) => ({
+    id: userSkill.id,
+    skillId: userSkill.skillId,
+    experienceLevel: userSkill.experienceLevel,
+    yearsExperience: userSkill.yearsExperience ?? null,
+    isPrimary: userSkill.isPrimary,
+    skill: userSkill.skill
+      ? {
+          id: userSkill.skill.id,
+          name: userSkill.skill.name,
+          slug: userSkill.skill.slug,
+        }
+      : null,
+  })),
+  helperPrimarySkills: (bid.helper?.profile?.userSkills ?? [])
+    .filter((userSkill: any) => userSkill.isPrimary)
+    .map((userSkill: any) => userSkill.skill?.name)
+    .filter(Boolean),
+  helperApprovedCertifications: (bid.helper?.profile?.certifications ?? []).map((certification: any) => ({
+    id: certification.id,
+    name: certification.name,
+    issuer: certification.issuer,
+    credentialId: certification.credentialId ?? null,
+    status: certification.status,
+    issuedAt: certification.issuedAt,
+    expiresAt: certification.expiresAt,
+    reviewedAt: certification.reviewedAt,
+  })),
   createdAt: bid.createdAt,
   updatedAt: bid.updatedAt || bid.createdAt,
 });
@@ -124,7 +183,7 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
           select: {
             id: true,
             email: true,
-            profile: { select: HELPER_PROFILE_SELECT },
+            profile: { select: buildHelperProfileSelect() },
           },
         },
       },
@@ -195,7 +254,7 @@ export const getBidsForHelpRequest = async (req: Request, res: Response, next: N
           select: {
             id: true,
             email: true,
-            profile: { select: HELPER_PROFILE_SELECT },
+            profile: { select: buildHelperProfileSelect() },
           },
         },
       },
@@ -268,7 +327,7 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
             id: true,
             email: true,
             profile: {
-              select: HELPER_PROFILE_SELECT,
+              select: buildHelperProfileSelect(),
             },
           },
         },
@@ -385,7 +444,7 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
             id: true,
             email: true,
             profile: {
-              select: HELPER_PROFILE_SELECT,
+              select: buildHelperProfileSelect(),
             },
           },
         },
@@ -455,7 +514,7 @@ export const updateBid = async (req: Request, res: Response, next: NextFunction)
           select: {
             id: true,
             email: true,
-            profile: { select: HELPER_PROFILE_SELECT },
+            profile: { select: buildHelperProfileSelect() },
           },
         },
       },
@@ -485,7 +544,7 @@ export const getBidById = async (req: Request, res: Response, next: NextFunction
           select: {
             id: true,
             email: true,
-            profile: { select: HELPER_PROFILE_SELECT },
+            profile: { select: buildHelperProfileSelect() },
           },
         },
       },
