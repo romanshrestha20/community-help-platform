@@ -4,3 +4,4 @@ mobile-app/node_modules/
 mobile-app/readme/
 mobile-app/.env
 node_modules
+google-services.json
