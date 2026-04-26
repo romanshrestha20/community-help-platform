@@ -7,18 +7,28 @@ const config: ExpoConfig = {
   slug: "community-support",
   version: "1.0.0",
   orientation: "portrait",
+
+  icon: "./assets/images/icon.png",
+
+  splash: {
+    image: "./assets/images/icon.png",
+    resizeMode: "contain",
+    backgroundColor: "#F6F5F0",
+  },
+
   ios: {
     bundleIdentifier: "com.romann-shrr.mobileapp",
     config: {
-      ...(googleMapsApiKey
-        ? {
-          googleMapsApiKey,
-        }
-        : {}),
+      ...(googleMapsApiKey ? { googleMapsApiKey } : {}),
     },
   },
+
   android: {
     package: "com.romann_shrr.mobileapp",
+    adaptiveIcon: {
+      foregroundImage: "./assets/images/icon.png",
+      backgroundColor: "#F6F5F0",
+    },
     config: {
       ...(googleMapsApiKey
         ? {
@@ -29,11 +39,13 @@ const config: ExpoConfig = {
         : {}),
     },
   },
+
   extra: {
     eas: {
       projectId: "f24e21a6-ad96-4e1a-9421-8c4a0049d288",
     },
   },
+
   plugins: [
     "@react-native-community/datetimepicker",
     [
