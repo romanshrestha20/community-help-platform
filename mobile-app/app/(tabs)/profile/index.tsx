@@ -142,7 +142,6 @@ export default function ProfileTabScreen() {
         icon: "clipboard-outline",
         title: "My requests",
         subtitle: "Create, edit, and monitor posts you own.",
-        metric: `${user?.requestCount ?? 0} active`,
         onPress: () => router.push(APP_ROUTES.PROFILE_REQUESTS),
       },
       {
@@ -150,7 +149,6 @@ export default function ProfileTabScreen() {
         icon: "pricetag-outline",
         title: "My bids",
         subtitle: "Review offers you placed on nearby requests.",
-        metric: `${user?.bidCount ?? 0} pending`,
         onPress: () => router.push(APP_ROUTES.PROFILE_BIDS),
       },
       {
@@ -158,7 +156,10 @@ export default function ProfileTabScreen() {
         icon: "time-outline",
         title: "Activity history",
         subtitle: "Completed requests and bid outcomes.",
-        metric: `${user?.completedCount ?? 0} completed`,
+        metric:
+          user?.helpCount && user.helpCount > 0
+            ? `${user.helpCount} helped`
+            : undefined,
         onPress: () => router.push("/profile/activity-history"),
       },
     ],
@@ -569,9 +570,9 @@ export default function ProfileTabScreen() {
                 onSubmit={async (payload) => {
                   setSavingProfile(true);
                   try {
-                    const success = await handleUpdateProfile(payload);
-                    if (success) setEditModalVisible(false);
-                    return success;
+                    const result = await handleUpdateProfile(payload);
+                    if (result.success) setEditModalVisible(false);
+                    return result;
                   } finally {
                     setSavingProfile(false);
                   }
