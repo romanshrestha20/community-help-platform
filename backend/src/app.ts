@@ -9,6 +9,8 @@ import conversationRoutes from './routes/conversation.route.js';
 import favoriteRoutes from './routes/favorite.route.js';
 import reviewRoutes from './routes/review.route.js';
 import userRoutes from './routes/user.route.js';
+import skillRoutes from './routes/skill.route.js';
+import adminRoutes from './routes/admin.route.js';
 import { errorHandler, notFound } from './middlewares/error.middleware.js';
 
 
@@ -29,6 +31,8 @@ app.use('/api/conversations', conversationRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/skills', skillRoutes);
+app.use('/api/admin', adminRoutes);
 
 
 app.use(notFound);
