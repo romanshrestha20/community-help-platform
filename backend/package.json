@@ -8,10 +8,12 @@
   "dev": "tsx watch src/server.ts",
   "build": "tsc",
   "start": "node dist/src/server.js",
+  "start:render": "node scripts/render-start.mjs",
   "test": "vitest",
   "test:run": "vitest run",
   "prisma:generate": "prisma generate",
-  "prisma:migrate:deploy": "prisma migrate deploy"
+  "prisma:migrate:deploy": "prisma migrate deploy",
+  "prisma:migrate:deploy:retry": "node scripts/prisma-migrate-deploy-retry.mjs"
 },
   "keywords": [],
   "author": "",
