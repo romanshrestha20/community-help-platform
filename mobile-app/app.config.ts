@@ -51,6 +51,12 @@ const config: ExpoConfig = {
   plugins: [
     "@react-native-community/datetimepicker",
     [
+      "expo-notifications",
+      {
+        color: "#6AA84F",
+      },
+    ],
+    [
       "expo-location",
       {
         locationWhenInUsePermission:
