@@ -25,10 +25,10 @@ export const useProfileScreen = () => {
 
   const updateProfile = async () => {
     setActionLoading(true);
-    const success = await handleUpdateProfile(formHook.form);
+    const result = await handleUpdateProfile(formHook.form);
     setActionLoading(false);
-    if (success) setIsEditing(false);
-    return success;
+    if (result.success) setIsEditing(false);
+    return result.success;
   };
 
   const confirmDelete = async () => {

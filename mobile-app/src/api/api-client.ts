@@ -11,7 +11,10 @@ import { showToast } from "../utils/toast";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { reconnectSocketWithFreshToken } from "@/lib/socket-client";
 
-type RetryRequest = AxiosRequestConfig & { _retry?: boolean };
+type RetryRequest = AxiosRequestConfig & {
+  _retry?: boolean;
+  skipErrorToast?: boolean;
+};
 
 const resolveApiBaseUrl = () => {
   const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
@@ -207,10 +210,14 @@ apiClient.interceptors.response.use(
         error.message ||
         "Something went wrong";
 
-      showToast("error", "Error", message);
+      if (!originalRequest?.skipErrorToast) {
+        showToast("error", "Error", message);
+      }
       console.warn("API Error:", message);
     } else if (error.request) {
-      showToast("error", "Network Error", "Could not reach the server");
+      if (!originalRequest?.skipErrorToast) {
+        showToast("error", "Network Error", "Could not reach the server");
+      }
       console.warn("Network error");
     } else {
       console.warn("Request error:", error.message);

@@ -103,7 +103,10 @@ export const useUser = () => {
       }
 
       setLoading(false);
-      return result.success;
+      return {
+        success: result.success,
+        message: result.message || (result.success ? null : "Failed to update profile"),
+      };
     },
     [user, setUser, setLoading, setError, syncAuthUser]
   );

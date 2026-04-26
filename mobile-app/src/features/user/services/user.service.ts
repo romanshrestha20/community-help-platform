@@ -86,16 +86,16 @@ export const updateUserProfileService = async (
       userType: profileData.userType,
       location: profileData.address
         ? {
-            latitude: profileData.address.latitude,
-            longitude: profileData.address.longitude,
-            addressLine1: profileData.address.addressLine1 ?? null,
-            addressLine2: profileData.address.addressLine2 ?? null,
-            city: profileData.address.city ?? null,
-            state: profileData.address.state ?? null,
-            postalCode: profileData.address.postalCode ?? null,
-            country: profileData.address.country ?? null,
-            formattedAddress: profileData.address.formattedAddress ?? null,
-          }
+          latitude: profileData.address.latitude,
+          longitude: profileData.address.longitude,
+          addressLine1: profileData.address.addressLine1 ?? null,
+          addressLine2: profileData.address.addressLine2 ?? null,
+          city: profileData.address.city ?? null,
+          state: profileData.address.state ?? null,
+          postalCode: profileData.address.postalCode ?? null,
+          country: profileData.address.country ?? null,
+          formattedAddress: profileData.address.formattedAddress ?? null,
+        }
         : undefined,
     };
 
@@ -114,7 +114,6 @@ export const updateUserProfileService = async (
       "Failed to update user profile";
 
     console.error("Update user profile error:", error);
-    showToast("error", "Failed to update user profile");
     return {
       success: false,
       data: null,

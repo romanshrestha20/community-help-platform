@@ -17,7 +17,10 @@ export const updateUserProfile = async (
 ): Promise<UpdateUserProfileApiResponse> => {
   const response = await apiClient.patch<UpdateUserProfileApiResponse>(
     "/auth/profile",
-    profileData
+    profileData,
+    {
+      skipErrorToast: true,
+    }
   );
   return response.data;
 };

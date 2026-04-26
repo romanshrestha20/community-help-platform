@@ -15,6 +15,7 @@ import { PhoneNumberField } from "@/components/ui/PhoneNumberField";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
+import { showErrorToast } from "@/utils/toast";
 import {
   combinePhoneNumber,
   getCallingCodeForCountry,
@@ -28,7 +29,9 @@ import { validateProfileUpdateFormFields } from "../utils/userValidation";
 type Props = {
   user: User | null;
   loading?: boolean;
-  onSubmit: (payload: Partial<UpdateUserProfilePayload>) => Promise<boolean>;
+  onSubmit: (
+    payload: Partial<UpdateUserProfilePayload>
+  ) => Promise<{ success: boolean; message?: string | null }>;
   onCancel?: () => void;
 };
 
@@ -154,12 +157,14 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     if (!validation.isValid) {
       setValidationError(validation.formError);
       setFieldErrors(validation.fieldErrors);
+      showErrorToast("Invalid profile details", validation.formError || "Please fix the highlighted fields.");
       return;
     }
 
     clearValidationError();
+    setFieldErrors({});
 
-    await onSubmit({
+    const result = await onSubmit({
       fullName: fullName.trim(),
       phone: phone || undefined,
       bio: bio.trim(),
@@ -167,6 +172,12 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
       gender,
       userType,
     });
+
+    if (!result.success) {
+      const message = result.message || "Please review your details and try again.";
+      setValidationError(message);
+      showErrorToast("Could not update profile", message);
+    }
   };
 
   return (
