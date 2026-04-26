@@ -4,12 +4,14 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 
 import { AppHeader } from "@/components/ui/AppHeader";
-import { Row, ScreenView, Stack, theme } from "@/design-system";
+import { Row, ScreenView, theme } from "@/design-system";
+import { APP_ROUTES } from "@/config/routes";
 import { RequestCardSkeleton } from "@/features/helpRequest/components/RequestCardSkeleton";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
 import { RequestForm } from "@/features/helpRequest/components/RequestForm";
 import { useHelpRequest } from "@/features/helpRequest/hooks/helpRequest.hook";
 import { useRequestList } from "@/features/helpRequest/hooks/useRequestList";
+import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import type { HelpRequest, HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
 import {
   formatRequestBudget,
@@ -18,8 +20,6 @@ import {
   getRequestCategoryLabel,
   REQUEST_STATUS_LABELS,
 } from "@/features/helpRequest/utils/requestDisplay";
-import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
-import { APP_ROUTES } from "@/config/routes";
 import { showSuccessToast } from "@/utils/toast";
 
 type StatusFilter = "ALL" | HelpRequestStatus;
@@ -40,30 +40,30 @@ const sortByNewest = (requests: HelpRequest[]) =>
       new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
   );
 
-const getStatusTone = (status: HelpRequestStatus) => {
+const getStatusTone = (palette: ReturnType<typeof useThemeContext>["palette"], status: HelpRequestStatus) => {
   switch (status) {
     case "OPEN":
       return {
-        backgroundColor: "#D9F2E2",
-        textColor: "#1A6B43",
+        surface: palette.successSoft ?? "#D9F2E2",
+        text: palette.success ?? "#1A6B43",
         icon: "radio-button-on-outline" as const,
       };
     case "ASSIGNED":
       return {
-        backgroundColor: "#F4D88B",
-        textColor: "#6A4D06",
+        surface: palette.warningSoft ?? "#F4D88B",
+        text: palette.warning ?? "#6A4D06",
         icon: "people-outline" as const,
       };
     case "COMPLETED":
       return {
-        backgroundColor: "#DBD1FF",
-        textColor: "#4E3A8A",
+        surface: palette.infoSoft ?? "#DBD1FF",
+        text: palette.info ?? "#4E3A8A",
         icon: "checkmark-done-outline" as const,
       };
     case "CANCELLED":
       return {
-        backgroundColor: "#F3C1B6",
-        textColor: "#72372C",
+        surface: palette.dangerSoft ?? "#F3C1B6",
+        text: palette.danger ?? "#72372C",
         icon: "close-circle-outline" as const,
       };
   }
@@ -72,9 +72,7 @@ const getStatusTone = (status: HelpRequestStatus) => {
 const getNextAction = (request: HelpRequest) => {
   switch (request.status) {
     case "OPEN":
-      return request.bidCount > 0
-        ? "Review incoming bids"
-        : "Waiting for helpers";
+      return request.bidCount > 0 ? "Review incoming bids" : "Waiting for helpers";
     case "ASSIGNED":
       return "Track progress";
     case "COMPLETED":
@@ -138,6 +136,7 @@ export const MyRequestsScreen = () => {
     () => requests.reduce((sum, request) => sum + (request.bidCount ?? 0), 0),
     [requests]
   );
+
   const latestRequest = sortedRequests[0];
   const latestLabel = latestRequest
     ? formatRequestCreatedAt(latestRequest.createdAt)
@@ -177,37 +176,74 @@ export const MyRequestsScreen = () => {
           <View style={styles.headerWrap}>
             <AppHeader
               title="My Requests"
-              subtitle="Track posts, bids, and next actions."
+              subtitle="Track live posts, bids, and request progress."
             />
 
-            <View style={[styles.hero, { backgroundColor: palette.primaryDark }]}>
-              <View style={styles.heroGlow} />
-
-              <Row justify="space-between" align="flex-start" gap="md" style={styles.heroTop}>
-                <View style={styles.heroCopy}>
-                  <Text style={styles.heroEyebrow}>Owner dashboard</Text>
-                  <Text style={styles.heroTitle}>
+            <View
+              style={[
+                styles.summaryPanel,
+                {
+                  backgroundColor: palette.surface,
+                  borderColor: palette.border,
+                },
+              ]}
+            >
+              <Row justify="space-between" align="center" gap="md" style={styles.summaryTop}>
+                <View style={styles.summaryCopy}>
+                  <Text style={[styles.summaryEyebrow, { color: palette.textSecondary }]}>
+                    Request workspace
+                  </Text>
+                  <Text style={[styles.summaryTitle, { color: palette.textPrimary }]}>
                     {activeCount > 0
                       ? `${activeCount} active request${activeCount === 1 ? "" : "s"}`
-                      : "Ready for your next request"}
+                      : "Start your first request"}
                   </Text>
-                  <Text style={styles.heroSubtitle}>
-                    Review bid activity, update request status, and keep every post moving.
+                  <Text style={[styles.summarySubtitle, { color: palette.textSecondary }]}>
+                    Manage responses, update statuses, and keep your request history organized.
                   </Text>
                 </View>
 
                 <RequestForm onSubmit={handleCreateRequest} compactTrigger />
               </Row>
 
-              <View style={styles.heroMetrics}>
-                <HeroMetric label="Total" value={String(counts.ALL)} />
-                <HeroMetric label="Active" value={String(activeCount)} />
-                <HeroMetric label="Bids" value={String(totalBids)} />
+              <View style={styles.metricRow}>
+                <MetricChip
+                  label="Total"
+                  value={String(counts.ALL)}
+                  tint={palette.primary}
+                  fill={palette.primarySoft ?? palette.surfaceMuted}
+                />
+                <MetricChip
+                  label="Active"
+                  value={String(activeCount)}
+                  tint={palette.secondary}
+                  fill={palette.secondarySoft ?? palette.surfaceMuted}
+                />
+                <MetricChip
+                  label="Bids"
+                  value={String(totalBids)}
+                  tint={palette.info}
+                  fill={palette.infoSoft ?? palette.surfaceMuted}
+                />
               </View>
 
-              <View style={styles.latestStrip}>
-                <Ionicons name="time-outline" size={15} color="#B9DDCF" />
-                <Text style={styles.latestText}>Latest post: {latestLabel}</Text>
+              <View
+                style={[
+                  styles.latestRow,
+                  {
+                    borderTopColor: palette.border,
+                  },
+                ]}
+              >
+                <Row align="center" gap="xs">
+                  <Ionicons name="time-outline" size={14} color={palette.textSecondary} />
+                  <Text style={[styles.latestLabel, { color: palette.textSecondary }]}>
+                    Latest post
+                  </Text>
+                </Row>
+                <Text style={[styles.latestValue, { color: palette.textPrimary }]}>
+                  {latestLabel}
+                </Text>
               </View>
             </View>
 
@@ -230,23 +266,21 @@ export const MyRequestsScreen = () => {
 
             <View
               style={[
-                styles.filterPanel,
+                styles.sectionBlock,
                 {
                   backgroundColor: palette.surface,
                   borderColor: palette.border,
                 },
               ]}
             >
-              <Row justify="space-between" align="center" style={styles.sectionTop}>
-                <View style={styles.sectionCopy}>
-                  <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-                    Request queue
-                  </Text>
-                  <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
-                    {closedCount} closed · pull down to refresh latest activity
-                  </Text>
-                </View>
-              </Row>
+              <View style={styles.sectionTop}>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                  Request queue
+                </Text>
+                <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+                  {closedCount} closed requests
+                </Text>
+              </View>
 
               <View style={styles.filterRow}>
                 {filters.map((filter) => {
@@ -259,9 +293,9 @@ export const MyRequestsScreen = () => {
                       style={({ pressed }) => [
                         styles.filterChip,
                         {
-                          backgroundColor: active ? palette.primary : palette.surfaceMuted,
-                          borderColor: active ? palette.primary : palette.border,
-                          opacity: pressed ? 0.8 : 1,
+                          backgroundColor: active ? palette.textPrimary : palette.surfaceMuted,
+                          borderColor: active ? palette.textPrimary : palette.border,
+                          opacity: pressed ? 0.84 : 1,
                         },
                       ]}
                     >
@@ -269,7 +303,7 @@ export const MyRequestsScreen = () => {
                         style={[
                           styles.filterChipText,
                           {
-                            color: active ? palette.textInverse : palette.textPrimary,
+                            color: active ? palette.surface : palette.textPrimary,
                           },
                         ]}
                       >
@@ -279,7 +313,7 @@ export const MyRequestsScreen = () => {
                         style={[
                           styles.filterChipCount,
                           {
-                            color: active ? palette.textInverse : palette.textSecondary,
+                            color: active ? palette.surface : palette.textSecondary,
                           },
                         ]}
                       >
@@ -303,7 +337,7 @@ export const MyRequestsScreen = () => {
             <View style={styles.filteredEmpty}>
               <RequestEmptyState
                 title={`No ${selectedFilter === "ALL" ? "" : REQUEST_STATUS_LABELS[selectedFilter].toLowerCase()} requests`}
-                description="Try another status filter to view the rest of your request history."
+                description="Try another filter to view the rest of your request history."
               />
             </View>
           ) : (
@@ -325,10 +359,20 @@ export const MyRequestsScreen = () => {
   );
 };
 
-const HeroMetric = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.heroMetric}>
-    <Text style={styles.heroMetricValue}>{value}</Text>
-    <Text style={styles.heroMetricLabel}>{label}</Text>
+const MetricChip = ({
+  label,
+  value,
+  tint,
+  fill,
+}: {
+  label: string;
+  value: string;
+  tint: string;
+  fill: string;
+}) => (
+  <View style={[styles.metricChip, { backgroundColor: fill }]}>
+    <Text style={[styles.metricValue, { color: tint }]}>{value}</Text>
+    <Text style={[styles.metricLabel, { color: tint }]}>{label}</Text>
   </View>
 );
 
@@ -340,7 +384,7 @@ const OwnerRequestRow = ({
   onPress: () => void;
 }) => {
   const { palette } = useThemeContext();
-  const tone = getStatusTone(request.status);
+  const tone = getStatusTone(palette, request.status);
   const location = formatRequestLocation(request);
   const budget = formatRequestBudget(request);
   const category = getRequestCategoryLabel(request);
@@ -356,79 +400,79 @@ const OwnerRequestRow = ({
         {
           backgroundColor: palette.surface,
           borderColor: palette.border,
-          opacity: pressed ? 0.78 : 1,
+          opacity: pressed ? 0.82 : 1,
         },
       ]}
     >
-      <View style={[styles.statusRail, { backgroundColor: tone.textColor }]} />
-
-      <Stack gap="sm">
-        <Row justify="space-between" align="flex-start" gap="sm">
-          <View style={styles.requestTitleWrap}>
-            <Text
-              numberOfLines={2}
-              style={[styles.requestTitle, { color: palette.textPrimary }]}
-            >
-              {request.title?.trim() || "Untitled request"}
+      <Row justify="space-between" align="flex-start" gap="sm">
+        <View style={styles.requestCopy}>
+          <Row align="center" gap="xs" style={styles.requestTopline}>
+            <View style={[styles.categoryDot, { backgroundColor: palette.primary }]} />
+            <Text style={[styles.requestMetaLine, { color: palette.textSecondary }]}>
+              {category}
             </Text>
-            <Text
-              numberOfLines={1}
-              style={[styles.requestMetaLine, { color: palette.textSecondary }]}
-            >
-              {category} · {createdAt}
+            <Text style={[styles.requestMetaBullet, { color: palette.textMuted }]}>•</Text>
+            <Text style={[styles.requestMetaLine, { color: palette.textSecondary }]}>
+              {createdAt}
             </Text>
-          </View>
-
-          <View style={[styles.statusPill, { backgroundColor: tone.backgroundColor }]}>
-            <Ionicons name={tone.icon} size={13} color={tone.textColor} />
-            <Text style={[styles.statusPillText, { color: tone.textColor }]}>
-              {REQUEST_STATUS_LABELS[request.status]}
-            </Text>
-          </View>
-        </Row>
-
-        <Text
-          numberOfLines={2}
-          style={[styles.description, { color: palette.textSecondary }]}
-        >
-          {request.description?.trim() || "No description provided."}
-        </Text>
-
-        <View style={styles.detailGrid}>
-          <DetailPill icon="location-outline" label={location} />
-          <DetailPill icon="cash-outline" label={budget} emphasis />
-          <DetailPill icon="receipt-outline" label={formatBidCount(request.bidCount ?? 0)} />
-        </View>
-
-        <View
-          style={[
-            styles.nextActionPanel,
-            {
-              backgroundColor: palette.surfaceMuted,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <View style={styles.nextActionCopy}>
-            <Text style={[styles.nextActionLabel, { color: palette.textSecondary }]}>
-              Next action
-            </Text>
-            <Text style={[styles.nextActionText, { color: palette.textPrimary }]}>
-              {getNextAction(request)}
-            </Text>
-          </View>
-
-          <Row gap="xxs" align="center">
-            <Text style={[styles.manageText, { color: palette.primary }]}>Manage</Text>
-            <Ionicons name="chevron-forward" size={16} color={palette.primary} />
           </Row>
+
+          <Text
+            numberOfLines={2}
+            style={[styles.requestTitle, { color: palette.textPrimary }]}
+          >
+            {request.title?.trim() || "Untitled request"}
+          </Text>
         </View>
-      </Stack>
+
+        <View style={[styles.statusPill, { backgroundColor: tone.surface }]}>
+          <Ionicons name={tone.icon} size={13} color={tone.text} />
+          <Text style={[styles.statusPillText, { color: tone.text }]}>
+            {REQUEST_STATUS_LABELS[request.status]}
+          </Text>
+        </View>
+      </Row>
+
+      <Text
+        numberOfLines={2}
+        style={[styles.description, { color: palette.textSecondary }]}
+      >
+        {request.description?.trim() || "No description provided."}
+      </Text>
+
+      <View style={styles.detailRow}>
+        <DetailChip icon="location-outline" label={location} />
+        <DetailChip icon="cash-outline" label={budget} emphasis />
+        <DetailChip icon="receipt-outline" label={formatBidCount(request.bidCount ?? 0)} />
+      </View>
+
+      <View
+        style={[
+          styles.footerRow,
+          {
+            borderTopColor: palette.border,
+          },
+        ]}
+      >
+        <View style={styles.nextActionCopy}>
+          <Text style={[styles.nextActionLabel, { color: palette.textSecondary }]}>
+            Next
+          </Text>
+          <Text style={[styles.nextActionText, { color: palette.textPrimary }]}>
+            {getNextAction(request)}
+          </Text>
+        </View>
+
+        <Row gap="xxs" align="center">
+          <Text style={[styles.manageText, { color: palette.primary }]}>Open</Text>
+          <Ionicons name="chevron-forward" size={15} color={palette.primary} />
+        </Row>
+      </View>
     </Pressable>
   );
 };
 
-const DetailPill = ({
+const DetailChip = ({
   icon,
   label,
   emphasis = false,
@@ -442,24 +486,23 @@ const DetailPill = ({
   return (
     <View
       style={[
-        styles.detailPill,
+        styles.detailChip,
         {
           backgroundColor: emphasis
             ? palette.primarySoft ?? palette.surfaceMuted
             : palette.surfaceMuted,
-          borderColor: emphasis ? palette.primary : palette.border,
         },
       ]}
     >
       <Ionicons
         name={icon}
-        size={14}
+        size={13}
         color={emphasis ? palette.primary : palette.textSecondary}
       />
       <Text
         numberOfLines={1}
         style={[
-          styles.detailPillText,
+          styles.detailChipText,
           { color: emphasis ? palette.primary : palette.textSecondary },
         ]}
       >
@@ -474,97 +517,78 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingBottom: theme.spacing.md,
+    paddingBottom: theme.spacing.lg,
   },
   headerWrap: {
     marginBottom: theme.spacing.md,
+    gap: theme.spacing.md,
   },
-  hero: {
-    position: "relative",
-    overflow: "hidden",
-    borderRadius: theme.radius.xl + 6,
+  summaryPanel: {
+    borderWidth: 1,
+    borderRadius: 28,
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
-    marginBottom: theme.spacing.md,
   },
-  heroGlow: {
-    position: "absolute",
-    top: -58,
-    right: -46,
-    width: 178,
-    height: 178,
-    borderRadius: 89,
-    backgroundColor: "rgba(223,236,229,0.14)",
+  summaryTop: {
+    alignItems: "flex-start",
   },
-  heroTop: {
-    zIndex: 1,
-  },
-  heroCopy: {
+  summaryCopy: {
     flex: 1,
-    minWidth: 0,
   },
-  heroEyebrow: {
-    color: "#B9DDCF",
+  summaryEyebrow: {
     fontSize: theme.typography.fontSize.xs,
-    fontWeight: "800",
+    fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
-  heroTitle: {
-    marginTop: theme.spacing.xxs,
-    color: "#F4F1EA",
-    fontSize: 30,
-    lineHeight: 35,
+  summaryTitle: {
+    marginTop: 4,
+    fontSize: 28,
+    lineHeight: 32,
     fontWeight: "800",
     letterSpacing: -0.5,
   },
-  heroSubtitle: {
+  summarySubtitle: {
     marginTop: theme.spacing.xs,
-    color: "rgba(242,238,230,0.78)",
     fontSize: theme.typography.fontSize.sm,
     lineHeight: 21,
   },
-  heroMetrics: {
-    zIndex: 1,
+  metricRow: {
     flexDirection: "row",
     gap: theme.spacing.xs,
   },
-  heroMetric: {
+  metricChip: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: "rgba(255,253,252,0.14)",
-    borderRadius: theme.radius.lg,
+    borderRadius: theme.radius.xl,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
-    backgroundColor: "rgba(255,253,252,0.08)",
   },
-  heroMetricValue: {
-    color: "#F4F1EA",
+  metricValue: {
     fontSize: theme.typography.fontSize.lg,
-    lineHeight: theme.typography.lineHeight.lg,
+    lineHeight: 24,
     fontWeight: "800",
   },
-  heroMetricLabel: {
+  metricLabel: {
     marginTop: 2,
-    color: "rgba(242,238,230,0.68)",
     fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
-  latestStrip: {
-    zIndex: 1,
+  latestRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing.xs,
-    borderRadius: theme.radius.fill,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    backgroundColor: "rgba(255,253,252,0.08)",
-    alignSelf: "flex-start",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    paddingTop: theme.spacing.sm,
   },
-  latestText: {
-    color: "#B9DDCF",
+  latestLabel: {
     fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
+    fontWeight: "600",
+  },
+  latestValue: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: "700",
   },
   errorBanner: {
     flexDirection: "row",
@@ -573,7 +597,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
   },
   errorText: {
     flex: 1,
@@ -581,16 +604,14 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.lineHeight.sm,
     fontWeight: theme.typography.fontWeight.semibold,
   },
-  filterPanel: {
+  sectionBlock: {
     borderWidth: 1,
     borderRadius: theme.radius.xl,
     padding: theme.spacing.md,
+    gap: theme.spacing.md,
   },
   sectionTop: {
-    marginBottom: theme.spacing.md,
-  },
-  sectionCopy: {
-    flex: 1,
+    gap: 2,
   },
   sectionTitle: {
     fontSize: theme.typography.fontSize.lg,
@@ -599,7 +620,6 @@ const styles = StyleSheet.create({
     letterSpacing: theme.typography.letterSpacing.tight,
   },
   sectionSubtitle: {
-    marginTop: theme.spacing.xxs,
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
   },
@@ -630,37 +650,36 @@ const styles = StyleSheet.create({
     height: theme.spacing.sm,
   },
   requestRow: {
-    position: "relative",
-    overflow: "hidden",
     borderWidth: 1,
-    borderRadius: theme.radius.xl,
+    borderRadius: 24,
     padding: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
-  statusRail: {
-    position: "absolute",
-    left: 0,
-    top: theme.spacing.md,
-    bottom: theme.spacing.md,
-    width: 5,
-    borderTopRightRadius: theme.radius.fill,
-    borderBottomRightRadius: theme.radius.fill,
-  },
-  requestTitleWrap: {
+  requestCopy: {
     flex: 1,
-    paddingLeft: theme.spacing.xs,
-    paddingRight: theme.spacing.xs,
+  },
+  requestTopline: {
+    marginBottom: 8,
+    flexWrap: "wrap",
+  },
+  categoryDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  requestMetaLine: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  requestMetaBullet: {
+    fontSize: 12,
+    lineHeight: 12,
   },
   requestTitle: {
     fontSize: theme.typography.fontSize.lg,
-    lineHeight: theme.typography.lineHeight.lg,
+    lineHeight: 24,
     fontWeight: "800",
     letterSpacing: -0.3,
-  },
-  requestMetaLine: {
-    marginTop: theme.spacing.xxs,
-    fontSize: theme.typography.fontSize.xs,
-    lineHeight: theme.typography.lineHeight.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
   },
   statusPill: {
     flexDirection: "row",
@@ -675,39 +694,35 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   description: {
-    paddingLeft: theme.spacing.xs,
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
   },
-  detailGrid: {
+  detailRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: theme.spacing.xs,
-    paddingLeft: theme.spacing.xs,
   },
-  detailPill: {
+  detailChip: {
     maxWidth: "100%",
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.xxs,
-    borderWidth: 1,
     borderRadius: theme.radius.fill,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 7,
   },
-  detailPillText: {
+  detailChipText: {
     maxWidth: 220,
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.bold,
   },
-  nextActionPanel: {
+  footerRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: theme.spacing.sm,
-    borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.sm,
-    marginLeft: theme.spacing.xs,
+    borderTopWidth: 1,
+    paddingTop: theme.spacing.sm,
   },
   nextActionCopy: {
     flex: 1,

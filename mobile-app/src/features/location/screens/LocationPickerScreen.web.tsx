@@ -92,11 +92,12 @@ export default function LocationPickerScreen() {
   const { palette } = useThemeContext();
   const draftLocation = useLocationPickerScreenStore((state) => state.draftLocation);
   const confirmLocation = useLocationPickerScreenStore((state) => state.confirmLocation);
+  const draftReturnRoute = useLocationPickerScreenStore((state) => state.draftReturnRoute);
   const { location: currentLocation, loading: currentLocationLoading } = useCurrentLocation();
 
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapContainerRef = useRef<any>(null);
 
   const [selectedLocation, setSelectedLocation] = useState<AppLocation | null>(
     draftLocation
@@ -127,9 +128,9 @@ export default function LocationPickerScreen() {
       getRegionForCoordinates(
         selectedLocation
           ? {
-              latitude: selectedLocation.latitude,
-              longitude: selectedLocation.longitude,
-            }
+            latitude: selectedLocation.latitude,
+            longitude: selectedLocation.longitude,
+          }
           : currentLocation,
         []
       ),
@@ -250,7 +251,12 @@ export default function LocationPickerScreen() {
   const handleConfirm = () => {
     if (!selectedLocation) return;
     confirmLocation(selectedLocation);
-    router.back();
+    if (draftReturnRoute) {
+      router.replace(draftReturnRoute as any);
+      return;
+    }
+
+    router.replace(APP_ROUTES.HOME_REQUESTS);
   };
 
   return (
@@ -266,7 +272,7 @@ export default function LocationPickerScreen() {
       />
 
       <View style={styles.mapWrap}>
-        <div ref={mapContainerRef} style={mapCanvasStyle} />
+        <View ref={mapContainerRef} style={styles.mapCanvas} />
 
         {!mapReady && !mapError ? (
           <View style={styles.loadingOverlay}>
@@ -354,12 +360,7 @@ export default function LocationPickerScreen() {
   );
 }
 
-const mapCanvasStyle: React.CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  width: "100%",
-  height: "100%",
-};
+// Moved mapCanvasStyle to CSS below
 
 const styles = StyleSheet.create({
   screen: {
@@ -371,6 +372,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     marginTop: theme.spacing.sm,
     backgroundColor: "#EAF1E4",
+  },
+  mapCanvas: {
+    ...StyleSheet.absoluteFillObject,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

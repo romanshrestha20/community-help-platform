@@ -76,52 +76,70 @@ export async function reverseGeocodeToLocation(
     latitude: number,
     longitude: number
 ): Promise<AppLocation> {
-    const results = await ExpoLocation.reverseGeocodeAsync({
-        latitude,
-        longitude,
-    });
+    try {
+        const results = await ExpoLocation.reverseGeocodeAsync({
+            latitude,
+            longitude,
+        });
 
-    const first = results[0];
+        const first = results[0];
 
-    const addressLine1 = first
-        ? [first.streetNumber, first.street]
-            .filter(Boolean)
-            .join(" ") || first.name || null
-        : null;
+        const addressLine1 = first
+            ? [first.streetNumber, first.street]
+                .filter(Boolean)
+                .join(" ") || first.name || null
+            : null;
 
-    const formattedAddress = first
-        ? [
-            addressLine1,
-            [first.postalCode, first.city].filter(Boolean).join(" "),
-            first.region,
-            first.country,
-        ]
-            .filter(Boolean)
-            .join(", ")
-        : null;
+        const formattedAddress = first
+            ? [
+                addressLine1,
+                [first.postalCode, first.city].filter(Boolean).join(" "),
+                first.region,
+                first.country,
+            ]
+                .filter(Boolean)
+                .join(", ")
+            : null;
 
-    const hasCoreAddress = Boolean(
-        addressLine1 || first?.postalCode || first?.city || first?.region || first?.country
-    );
+        const hasCoreAddress = Boolean(
+            addressLine1 || first?.postalCode || first?.city || first?.region || first?.country
+        );
 
-    if (!hasCoreAddress) {
-        const fallback = await reverseGeocodeWithNominatim(latitude, longitude);
-        if (fallback) {
-            return fallback;
+        if (hasCoreAddress) {
+            return {
+                latitude,
+                longitude,
+                addressLine1,
+                addressLine2: null,
+                city: first?.city ?? null,
+                state: first?.region ?? null,
+                postalCode: first?.postalCode ?? null,
+                country: first?.country ?? null,
+                countryCode: first?.isoCountryCode?.toUpperCase() ?? null,
+                formattedAddress,
+            };
         }
+    } catch {
+        // Some platforms may not provide Expo reverse geocoding reliably.
+        // Fall through to the network-backed fallback below.
+    }
+
+    const fallback = await reverseGeocodeWithNominatim(latitude, longitude);
+    if (fallback) {
+        return fallback;
     }
 
     return {
         latitude,
         longitude,
-        addressLine1,
+        addressLine1: null,
         addressLine2: null,
-        city: first?.city ?? null,
-        state: first?.region ?? null,
-        postalCode: first?.postalCode ?? null,
-        country: first?.country ?? null,
-        countryCode: first?.isoCountryCode?.toUpperCase() ?? null,
-        formattedAddress,
+        city: null,
+        state: null,
+        postalCode: null,
+        country: null,
+        countryCode: null,
+        formattedAddress: formatCoordinateLabel(latitude, longitude),
     };
 }
 
@@ -193,6 +211,10 @@ const reverseGeocodeWithNominatim = async (
 const pickFirst = (...values: (string | null | undefined)[]) => {
     const value = values.find((item) => typeof item === "string" && item.trim().length > 0);
     return value ? value.trim() : null;
+};
+
+const formatCoordinateLabel = (latitude: number, longitude: number) => {
+    return `Pinned location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
 };
 
 const buildStreetAddress = (address?: {

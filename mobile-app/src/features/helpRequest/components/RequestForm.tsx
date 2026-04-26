@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { Platform, StyleSheet, View } from "react-native";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppModal } from "@/components/ui/AppModal";
@@ -40,6 +40,8 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     compactTrigger = false,
 }) => {
     const router = useRouter();
+    const pathname = usePathname();
+    const locationPickerOwnerId = pathname;
     const { addHelpRequestImages } = useHelpRequest();
     const { categories } = useCategories();
     const confirmedMapLocation = useLocationPickerScreenStore((state) => state.confirmedLocation);
@@ -91,12 +93,13 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         if (!confirmedMapLocation) return;
 
         void (async () => {
-            const nextLocation = consumeConfirmedLocation();
+            const nextLocation = consumeConfirmedLocation(locationPickerOwnerId);
             if (!nextLocation) return;
             clearFieldError("location");
             await locationPicker.setValue(nextLocation);
+            setModalVisible(true);
         })();
-    }, [clearFieldError, confirmedMapLocation, consumeConfirmedLocation, locationPicker]);
+    }, [clearFieldError, confirmedMapLocation, consumeConfirmedLocation, locationPicker, locationPickerOwnerId]);
 
     const handleChangeField = <K extends keyof RequestFormValues>(
         field: K,
@@ -194,6 +197,15 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         }
     };
 
+    const handleOpenMapPicker = () => {
+        setDraftMapLocation(locationPicker.value, locationPickerOwnerId, pathname);
+        setModalVisible(false);
+
+        requestAnimationFrame(() => {
+            router.push(APP_ROUTES.LOCATION_PICKER);
+        });
+    };
+
     return (
         <>
             <RequestFormTrigger
@@ -245,10 +257,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                     onPickImages={handlePickImages}
                     onRemoveImage={handleRemoveImage}
                     onChangeField={handleChangeField}
-                    onOpenMapPicker={() => {
-                        setDraftMapLocation(locationPicker.value);
-                        router.push(APP_ROUTES.LOCATION_PICKER);
-                    }}
+                    onOpenMapPicker={handleOpenMapPicker}
                     locationPickerProps={{
                         ...locationPicker,
                         onUseCurrentLocation: async () => {
