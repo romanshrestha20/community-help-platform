@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from "react";
+import * as SplashScreen from "expo-splash-screen";
 import {
   Animated,
   Easing,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -82,7 +84,9 @@ export default function EntryScreen() {
   const flowAnim = useRef(new Animated.Value(0)).current;
   const actionAnim = useRef(new Animated.Value(0)).current;
 
+  // Manual splash screen control
   useEffect(() => {
+    SplashScreen.preventAutoHideAsync();
     Animated.stagger(110, [
       Animated.timing(heroAnim, {
         toValue: 1,
@@ -102,27 +106,29 @@ export default function EntryScreen() {
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-    ]).start();
+    ]).start(() => {
+      SplashScreen.hideAsync();
+    });
   }, [actionAnim, flowAnim, heroAnim]);
 
   const heroIllustration =
     colorScheme === "dark"
       ? {
-          panel: palette.surfaceSecondary,
-          base: palette.primaryLight,
-          curveA: palette.primaryMid,
-          curveB: palette.infoLight,
-          signalFill: palette.surface,
-          avatarFill: palette.surface,
-        }
+        panel: palette.surfaceSecondary,
+        base: palette.primaryLight,
+        curveA: palette.primaryMid,
+        curveB: palette.infoLight,
+        signalFill: palette.surface,
+        avatarFill: palette.surface,
+      }
       : {
-          panel: palette.surfaceSecondary,
-          base: palette.primaryLight,
-          curveA: "#C8DDD0",
-          curveB: "#D7E5D8",
-          signalFill: palette.surface,
-          avatarFill: palette.surface,
-        };
+        panel: palette.surfaceSecondary,
+        base: palette.primaryLight,
+        curveA: "#C8DDD0",
+        curveB: "#D7E5D8",
+        signalFill: palette.surface,
+        avatarFill: palette.surface,
+      };
 
   const dividerColor =
     colorScheme === "dark"
@@ -137,17 +143,23 @@ export default function EntryScreen() {
         { backgroundColor: palette.background },
       ]}
     >
-      <View style={styles.shell}>
-        <View
-          style={[
-            styles.surface,
-            isCompactHeight && styles.surfaceCompact,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-            },
-          ]}
-        >
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.shell}>
+          <View
+            style={[
+              styles.surface,
+              isCompactHeight && styles.surfaceCompact,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+            ]}
+          >
             <Animated.View
               style={[
                 styles.heroSection,
@@ -224,9 +236,9 @@ export default function EntryScreen() {
 
                   <Animated.View
                     style={[
-                        styles.pin,
-                        styles.pinOne,
-                        isCompactHeight && styles.pinOneCompact,
+                      styles.pin,
+                      styles.pinOne,
+                      isCompactHeight && styles.pinOneCompact,
                       {
                         backgroundColor: palette.primary,
                         transform: [
@@ -507,24 +519,32 @@ export default function EntryScreen() {
                 <Ionicons name="arrow-forward" size={14} color={palette.primary} />
               </Pressable>
             </Animated.View>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </ScreenView>
   );
 }
 
 const styles = StyleSheet.create({
   screenContent: {
-    flexGrow: 1,
+    flex: 1,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  shell: {
+  scroll: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
+  shell: {
+    flexGrow: 1,
     justifyContent: "center",
   },
   surface: {
-    flex: 1,
+    minHeight: "100%",
     borderWidth: 1,
     borderRadius: 28,
     overflow: "hidden",
@@ -537,6 +557,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 14 },
     elevation: 5,
   },
+  actionBlock: {
+    paddingTop: 12,
+    gap: 8,
+    marginTop: 12,
+  },
+
   surfaceCompact: {
     paddingHorizontal: 14,
     paddingTop: 12,
