@@ -22,6 +22,11 @@ import {
   uploadUserAvatar,
   deleteUserAvatar,
 } from "../controllers/user.controller.js";
+import {
+  deleteUserCertification,
+  replaceUserSkills,
+  uploadUserCertification,
+} from "../controllers/qualification.controller.js";
 
 import { authenticateUser } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/upload.middleware.js";
@@ -45,6 +50,18 @@ router.post("/refresh", refreshAccessToken);
 router.get("/profile", authenticateUser, getUserProfile);
 router.patch("/profile", authenticateUser, updateUserProfile);
 router.delete("/profile", authenticateUser, deleteUserAccount);
+router.put("/profile/skills", authenticateUser, replaceUserSkills);
+router.post(
+  "/profile/certifications",
+  authenticateUser,
+  upload.single("proof"),
+  uploadUserCertification
+);
+router.delete(
+  "/profile/certifications/:id",
+  authenticateUser,
+  deleteUserCertification
+);
 
 // Avatar (NEW)
 router.post(
