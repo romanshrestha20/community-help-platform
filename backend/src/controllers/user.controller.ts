@@ -12,6 +12,10 @@ import {
   deleteImageFromCloudinary,
 } from "../utils/cloudinary.js";
 import { normalizePhoneNumber } from "../utils/phone.js";
+import {
+  ownerProfileQualificationInclude,
+  serializeProfileQualifications,
+} from "../utils/profile-qualifications.js";
 
 export const getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
@@ -27,6 +31,7 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
         profile: {
           include: {
             address: true,
+            ...ownerProfileQualificationInclude(),
           },
         },
       },
@@ -44,7 +49,7 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
       isVerified: user.isVerified,
       isEmailVerified: user.isEmailVerified,
       isPhoneVerified: user.isPhoneVerified,
-      profile: user.profile,
+      profile: user.profile ? serializeProfileQualifications(user.profile) : null,
     });
   } catch (error) {
     next(error);
@@ -162,6 +167,7 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
         data: updateData,
         include: {
           address: true,
+          ...ownerProfileQualificationInclude(),
         },
       }),
     ]);
@@ -173,7 +179,7 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
       isVerified: updatedUser.isVerified,
       isEmailVerified: updatedUser.isEmailVerified,
       isPhoneVerified: updatedUser.isPhoneVerified,
-      profile: updatedProfile,
+      profile: serializeProfileQualifications(updatedProfile),
     });
   } catch (error) {
     console.error(error);
@@ -228,6 +234,7 @@ export const uploadUserAvatar = async (req: Request, res: Response, next: NextFu
       },
       include: {
         address: true,
+        ...ownerProfileQualificationInclude(),
       },
     });
     const { avatarPublicId, ...safeProfile } = updatedProfile;
@@ -235,7 +242,7 @@ export const uploadUserAvatar = async (req: Request, res: Response, next: NextFu
     res.json({
       status: "success",
       message: "Avatar updated successfully",
-      profile: safeProfile,
+      profile: serializeProfileQualifications(safeProfile),
     });
 
   } catch (error) {
@@ -255,6 +262,7 @@ export const deleteUserAvatar = async (req: Request, res: Response, next: NextFu
       where: { userId },
       include: {
         address: true,
+        ...ownerProfileQualificationInclude(),
       },
     });
 
@@ -282,13 +290,14 @@ export const deleteUserAvatar = async (req: Request, res: Response, next: NextFu
       },
       include: {
         address: true,
+        ...ownerProfileQualificationInclude(),
       },
     });
 
     res.status(200).json({
       status: "success",
       message: "Avatar deleted successfully",
-      profile: updatedProfile,
+      profile: serializeProfileQualifications(updatedProfile),
     });
   } catch (error) {
     next(error);
