@@ -8,11 +8,11 @@ datasource db {
 }
 
 model UserModel {
-  id           String  @id @default(uuid())
-  email        String  @unique
-  phone        String? @unique
-  passwordHash String?
-  isVerified   Boolean @default(false)
+  id              String  @id @default(uuid())
+  email           String  @unique
+  phone           String? @unique
+  passwordHash    String?
+  isVerified      Boolean @default(false)
   isEmailVerified Boolean @default(false)
   isPhoneVerified Boolean @default(false)
 
@@ -27,22 +27,25 @@ model UserModel {
 
   receivedReviews Review[] @relation("UserReviewsReceived")
 
-  notificationsReceived Notification[] @relation("UserNotifications")
-  notificationsActed    Notification[] @relation("ActorNotifications")
+  notificationsReceived  Notification[]          @relation("UserNotifications")
+  notificationsActed     Notification[]          @relation("ActorNotifications")
   notificationPreference NotificationPreference?
 
-  refreshTokens RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
-  phoneVerificationCodes PhoneVerificationCode[]
-  oauthAccounts OAuthAccount[]
-  pushTokens    PushToken[]
+  phoneVerificationCodes  PhoneVerificationCode[]
+  oauthAccounts           OAuthAccount[]
+  pushTokens              PushToken[]
 
-  reviews       Review[]
-  reviewReplies ReviewReply[]
-  reviewLikes   ReviewLike[]
-  favorites     Favorite[]
-  images        Image[]
+  reviews                Review[]
+  reviewReplies          ReviewReply[]
+  reviewLikes            ReviewLike[]
+  favorites              Favorite[]
+  images                 Image[]
+  userSkills             UserSkill[]
+  certifications         UserCertification[]
+  certificationsReviewed UserCertification[] @relation("CertificationReviewer")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -74,25 +77,27 @@ model OAuthAccount {
 }
 
 model Profile {
-  id          String    @id @default(uuid())
-  userId      String    @unique
-  fullName    String
-  bio         String?
-  dateOfBirth DateTime?
-  gender      Gender?
-  userType    UserType  @default(GENERAL)
-  rating      Float     @default(0)
-  helpCount   Int       @default(0)
-  totalReviews Int      @default(0)
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  fullName     String
+  bio          String?
+  dateOfBirth  DateTime?
+  gender       Gender?
+  userType     UserType  @default(GENERAL)
+  rating       Float     @default(0)
+  helpCount    Int       @default(0)
+  totalReviews Int       @default(0)
 
   avatarUrl      String?
   avatarPublicId String?
 
   searchRadiusMeters Int? @default(800)
 
-  user      UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
-  addressId String?   @unique
-  address   Location? @relation("ProfileAddress", fields: [addressId], references: [id], onDelete: SetNull)
+  user           UserModel           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addressId      String?             @unique
+  address        Location?           @relation("ProfileAddress", fields: [addressId], references: [id], onDelete: SetNull)
+  userSkills     UserSkill[]
+  certifications UserCertification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -140,12 +145,12 @@ model RefreshToken {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -155,12 +160,12 @@ model PasswordResetToken {
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -170,14 +175,14 @@ model EmailVerificationToken {
 }
 
 model PhoneVerificationCode {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
   phone     String
   codeHash  String
   expiresAt DateTime
   usedAt    DateTime?
-  attempts  Int      @default(0)
-  createdAt DateTime @default(now())
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now())
 
   user UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -205,7 +210,7 @@ model PushToken {
 model NotificationPreference {
   id String @id @default(uuid())
 
-  userId String @unique
+  userId String    @unique
   user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   pushEnabled           Boolean @default(true)
@@ -235,6 +240,7 @@ model Category {
   children Category[] @relation("CategoryHierarchy")
 
   requests HelpRequest[]
+  skills   Skill[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -243,6 +249,78 @@ model Category {
   @@index([isActive, sortOrder])
   @@index([parentId])
   @@map("categories")
+}
+
+model Skill {
+  id       String  @id @default(uuid())
+  name     String
+  slug     String  @unique
+  isActive Boolean @default(true)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  userSkills UserSkill[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([categoryId])
+  @@map("skills")
+}
+
+model UserSkill {
+  id              String          @id @default(uuid())
+  userId          String
+  profileId       String
+  skillId         String
+  experienceLevel ExperienceLevel
+  yearsExperience Int?
+  isPrimary       Boolean         @default(false)
+
+  user    UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  skill   Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, skillId])
+  @@index([profileId])
+  @@index([skillId])
+  @@index([experienceLevel])
+  @@map("user_skills")
+}
+
+model UserCertification {
+  id              String              @id @default(uuid())
+  userId          String
+  profileId       String
+  name            String
+  issuer          String
+  credentialId    String?
+  proofUrl        String
+  proofPublicId   String?
+  status          CertificationStatus @default(PENDING)
+  issuedAt        DateTime?
+  expiresAt       DateTime?
+  reviewNote      String?
+  rejectionReason String?
+  reviewedAt      DateTime?
+  reviewedBy      String?
+
+  user     UserModel  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile  Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  reviewer UserModel? @relation("CertificationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
+  @@index([status])
+  @@index([reviewedBy])
+  @@map("user_certifications")
 }
 
 model HelpRequest {
@@ -568,6 +646,19 @@ enum Gender {
   MALE
   FEMALE
   OTHER
+}
+
+enum ExperienceLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum CertificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum MessageType {

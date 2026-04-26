@@ -2,6 +2,8 @@ import bcrypt from "bcrypt";
 import { prisma } from "../src/lib/prisma.js";
 import {
   BidStatus,
+  CertificationStatus,
+  ExperienceLevel,
   Gender,
   RequestStatus,
   UserType,
@@ -65,6 +67,56 @@ const categorySeedData = [
     color: "#10B981",
     sortOrder: 7,
     isActive: true,
+  },
+] as const;
+
+const skillSeedData = [
+  { name: "Cleaning", slug: "cleaning", categorySlug: "home-help" },
+  { name: "Moving help", slug: "moving-help", categorySlug: "moving" },
+  { name: "Delivery", slug: "delivery", categorySlug: "errands" },
+  { name: "Pet care", slug: "pet-care", categorySlug: "pet-care" },
+  { name: "Tutoring", slug: "tutoring", categorySlug: null },
+  { name: "Elderly assistance", slug: "elderly-assistance", categorySlug: "health-support" },
+  { name: "Repairs", slug: "repairs", categorySlug: "home-help" },
+  { name: "Gardening", slug: "gardening", categorySlug: "outdoor-help" },
+  { name: "Tech help", slug: "tech-help", categorySlug: null },
+  { name: "Childcare", slug: "childcare", categorySlug: null },
+] as const;
+
+const userQualificationSeedData = [
+  {
+    email: "james.helper@example.com",
+    skills: [
+      { skillSlug: "delivery", experienceLevel: ExperienceLevel.ADVANCED, yearsExperience: 4, isPrimary: true },
+      { skillSlug: "elderly-assistance", experienceLevel: ExperienceLevel.ADVANCED, yearsExperience: 5, isPrimary: true },
+      { skillSlug: "moving-help", experienceLevel: ExperienceLevel.INTERMEDIATE, yearsExperience: 2, isPrimary: false },
+    ],
+    certifications: [
+      {
+        name: "First Aid Basics",
+        issuer: "Community Safety Board",
+        credentialId: "FA-2025-JL",
+        proofUrl: "https://example.com/certifications/james-first-aid.png",
+        status: CertificationStatus.APPROVED,
+      },
+    ],
+  },
+  {
+    email: "mikko.helper@example.com",
+    skills: [
+      { skillSlug: "moving-help", experienceLevel: ExperienceLevel.EXPERT, yearsExperience: 8, isPrimary: true },
+      { skillSlug: "gardening", experienceLevel: ExperienceLevel.ADVANCED, yearsExperience: 6, isPrimary: true },
+      { skillSlug: "repairs", experienceLevel: ExperienceLevel.INTERMEDIATE, yearsExperience: 3, isPrimary: false },
+    ],
+    certifications: [
+      {
+        name: "Home Safety Handling",
+        issuer: "Finnish Home Assist Network",
+        credentialId: "HS-2024-MS",
+        proofUrl: "https://example.com/certifications/mikko-home-safety.png",
+        status: CertificationStatus.APPROVED,
+      },
+    ],
   },
 ] as const;
 
@@ -1183,6 +1235,36 @@ const upsertCategories = async () => {
   return new Map(categories.map((category) => [category.slug, category]));
 };
 
+const upsertSkills = async (
+  categoryMap: Map<string, { id: string; slug: string; name: string }>
+) => {
+  for (const skill of skillSeedData) {
+    await prisma.skill.upsert({
+      where: { slug: skill.slug },
+      update: {
+        name: skill.name,
+        isActive: true,
+        categoryId: skill.categorySlug ? categoryMap.get(skill.categorySlug)?.id ?? null : null,
+      },
+      create: {
+        name: skill.name,
+        slug: skill.slug,
+        isActive: true,
+        categoryId: skill.categorySlug ? categoryMap.get(skill.categorySlug)?.id ?? null : null,
+      },
+    });
+  }
+
+  const skills = await prisma.skill.findMany({
+    select: {
+      id: true,
+      slug: true,
+    },
+  });
+
+  return new Map(skills.map((skill) => [skill.slug, skill]));
+};
+
 const upsertUsersAndProfiles = async (passwordHash: string) => {
   const createdUsers: Record<string, { id: string; email: string }> = {};
 
@@ -1417,6 +1499,73 @@ const upsertHelpRequests = async (
   return helpRequests;
 };
 
+const upsertUserQualifications = async (
+  createdUsers: Record<string, { id: string; email: string }>,
+  skillMap: Map<string, { id: string; slug: string }>
+) => {
+  for (const entry of userQualificationSeedData) {
+    const user = createdUsers[entry.email];
+
+    if (!user) {
+      continue;
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+
+    if (!profile) {
+      continue;
+    }
+
+    await prisma.userSkill.deleteMany({
+      where: { userId: user.id },
+    });
+
+    await prisma.userCertification.deleteMany({
+      where: { userId: user.id },
+    });
+
+    if (entry.skills.length > 0) {
+      await prisma.userSkill.createMany({
+        data: entry.skills
+          .map((skill) => {
+            const mappedSkill = skillMap.get(skill.skillSlug);
+            if (!mappedSkill) {
+              return null;
+            }
+
+            return {
+              userId: user.id,
+              profileId: profile.id,
+              skillId: mappedSkill.id,
+              experienceLevel: skill.experienceLevel,
+              yearsExperience: skill.yearsExperience,
+              isPrimary: skill.isPrimary,
+            };
+          })
+          .filter(Boolean) as any[],
+      });
+    }
+
+    for (const certification of entry.certifications) {
+      await prisma.userCertification.create({
+        data: {
+          userId: user.id,
+          profileId: profile.id,
+          name: certification.name,
+          issuer: certification.issuer,
+          credentialId: certification.credentialId,
+          proofUrl: certification.proofUrl,
+          status: certification.status,
+          reviewedAt: certification.status === CertificationStatus.APPROVED ? new Date() : null,
+        },
+      });
+    }
+  }
+};
+
 const seedBid = async (
   createdUsers: Record<string, { id: string; email: string }>,
   helpRequests: Array<{ id: string; title: string }>
@@ -1459,13 +1608,16 @@ const seed = async () => {
   const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
   const categoryMap = await upsertCategories();
+  const skillMap = await upsertSkills(categoryMap);
   const createdUsers = await upsertUsersAndProfiles(passwordHash);
+  await upsertUserQualifications(createdUsers, skillMap);
   const helpRequests = await upsertHelpRequests(createdUsers, categoryMap);
 
   await seedBid(createdUsers, helpRequests);
 
   console.log("Seed complete:");
   console.log(`- Categories: ${categoryMap.size}`);
+  console.log(`- Skills: ${skillMap.size}`);
   console.log(`- Users: ${Object.keys(createdUsers).length}`);
   console.log(`- Seeded Help Requests: ${helpRequests.length}`);
   console.log(`- Default Password: ${DEFAULT_PASSWORD}`);
