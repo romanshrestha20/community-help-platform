@@ -38,7 +38,7 @@ export default function ConversationScreen() {
         : null;
 
     return (
-        <ScreenView useSafeArea={false} style={{ padding: 0 }}>
+        <ScreenView style={{ padding: 0 }}>
             <Chat
                 conversation={conversation}
                 messages={messages}
