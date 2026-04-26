@@ -120,6 +120,12 @@ export const CustomTabBar: React.FC<CustomTabBarProps> = ({
   const colors = getTheme(resolvedColorScheme);
   const palette = resolvedColorScheme === "dark" ? darkColors : lightColors;
   const styles = createStyles(colors, palette);
+  const shouldHideForNestedMessageThread =
+    pathname.startsWith("/messages/") && pathname !== "/messages";
+
+  if (shouldHideForNestedMessageThread) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
