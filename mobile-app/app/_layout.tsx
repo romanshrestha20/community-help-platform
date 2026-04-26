@@ -9,7 +9,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-
+import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useThemeStore } from "@/features/settings/store/theme.store";
 import { getAccessToken, getRefreshToken, clearTokens } from "@/utils/token";
@@ -39,6 +39,11 @@ export default function Layout() {
   const [isInitializing, setIsInitializing] = useState(true);
 
   usePushNotifications();
+  // Set the animation options. This is optional.
+  SplashScreen.setOptions({
+    duration: 1000,
+    fade: true,
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") {

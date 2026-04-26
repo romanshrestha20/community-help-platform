@@ -7,12 +7,13 @@ const config: ExpoConfig = {
   slug: "community-support",
   version: "1.0.0",
   orientation: "portrait",
+  "owner": "romann_shrr",
 
   icon: "./assets/images/icon.png",
 
   splash: {
-    image: "./assets/images/icon.png",
-    resizeMode: "contain",
+    image: "./assets/images/splash-screen.png",
+    resizeMode: "cover",
     backgroundColor: "#F6F5F0",
   },
 
@@ -25,6 +26,7 @@ const config: ExpoConfig = {
 
   android: {
     package: "com.romann_shrr.mobileapp",
+    googleServicesFile: "./google-services.json",
     adaptiveIcon: {
       foregroundImage: "./assets/images/icon.png",
       backgroundColor: "#F6F5F0",
@@ -42,8 +44,8 @@ const config: ExpoConfig = {
 
   extra: {
     eas: {
-      projectId: "f24e21a6-ad96-4e1a-9421-8c4a0049d288",
-    },
+      "projectId": "f189da7b-5751-4e9a-bbbf-0f3273b6f6bb",
+    }
   },
 
   plugins: [
