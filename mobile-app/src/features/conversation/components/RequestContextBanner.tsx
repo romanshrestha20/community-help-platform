@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { Card, Stack, theme } from "@/design-system";
+import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 
@@ -20,7 +20,7 @@ const RequestContextBanner: React.FC<RequestContextBannerProps> = ({ conversatio
         (member) => (userId && member.id === userId) || (userEmail && member.email === userEmail)
     );
     const isRequester = me?.id === conversation.request.requesterId || userId === conversation.request.requesterId;
-    const counterpartLabel = isRequester ? "Assigned helper" : "Requester";
+    const counterpartLabel = isRequester ? "Helper" : "Requester";
     const counterpartId = isRequester
         ? conversation.request.assignedHelperId
         : conversation.request.requesterId;
@@ -32,61 +32,41 @@ const RequestContextBanner: React.FC<RequestContextBannerProps> = ({ conversatio
         fallbackParticipant?.fullName ||
         fallbackParticipant?.email ||
         "Conversation participant";
-    const statusLabel =
-        conversation.request.status === "ASSIGNED"
-            ? "Live conversation"
-            : conversation.request.status === "COMPLETED"
-              ? "Read-only after completion"
-              : "Conversation closed";
 
     return (
-        <Stack style={styles.shell}>
-            <Card
-                style={[
-                    styles.container,
-                    {
-                        backgroundColor: palette.surfaceSecondary,
-                        borderColor: palette.border,
-                    },
-                ]}
-            >
-                <Stack gap="xs">
-                    <View style={styles.topRow}>
-                        <Text style={[styles.label, { color: palette.textMuted }]}>Request</Text>
-                        <View
-                            style={[
-                                styles.statusPill,
-                                {
-                                    backgroundColor: palette.surfaceMuted,
-                                    borderColor: palette.border,
-                                },
-                            ]}
-                        >
-                            <Text style={[styles.statusText, { color: palette.textSecondary }]}>
-                                {statusLabel}
-                            </Text>
-                        </View>
-                    </View>
-                    <Text style={[styles.title, { color: palette.textPrimary }]} numberOfLines={1}>
-                        {conversation.request.title}
-                    </Text>
-                    <Text style={[styles.helperText, { color: palette.textSecondary }]} numberOfLines={1}>
-                        {counterpartLabel}: {counterpartName}
-                    </Text>
-                </Stack>
-            </Card>
-        </Stack>
+        <View
+            style={[
+                styles.container,
+                {
+                    borderTopColor: palette.border,
+                    borderBottomColor: palette.border,
+                },
+            ]}
+        >
+            <View style={styles.topRow}>
+                <Text style={[styles.label, { color: palette.textSecondary }]}>Request</Text>
+                <Text style={[styles.state, { color: palette.textSecondary }]}>
+                    {conversation.request.status === "ASSIGNED" ? "Live" : "Archive"}
+                </Text>
+            </View>
+            <Text style={[styles.title, { color: palette.textPrimary }]} numberOfLines={2}>
+                {conversation.request.title}
+            </Text>
+            <Text style={[styles.meta, { color: palette.textSecondary }]} numberOfLines={1}>
+                {counterpartLabel}: {counterpartName}
+            </Text>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    shell: {
-        paddingHorizontal: theme.spacing.md,
-        paddingBottom: theme.spacing.xs,
-    },
     container: {
-        paddingHorizontal: theme.spacing.sm,
-        paddingVertical: theme.spacing.sm,
+        gap: 2,
+        marginHorizontal: theme.spacing.md,
+        marginTop: theme.spacing.xs,
+        paddingVertical: theme.spacing.sm + 2,
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
     },
     topRow: {
         flexDirection: "row",
@@ -96,20 +76,17 @@ const styles = StyleSheet.create({
     },
     label: {
         ...theme.typography.textStyle.caption,
+        textTransform: "uppercase",
+        letterSpacing: 0.7,
+    },
+    state: {
+        ...theme.typography.textStyle.caption,
     },
     title: {
         ...theme.typography.textStyle.bodySmallMedium,
+        lineHeight: 23,
     },
-    helperText: {
-        ...theme.typography.textStyle.caption,
-    },
-    statusPill: {
-        borderWidth: 1,
-        borderRadius: theme.radius.fill,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-    },
-    statusText: {
+    meta: {
         ...theme.typography.textStyle.caption,
     },
 });

@@ -9,7 +9,7 @@ const ChatLoadingState: React.FC = () => {
 
     return (
         <View style={[styles.container, { backgroundColor: palette.background }]}>
-            <ActivityIndicator size="large" color={palette.primary} />
+            <ActivityIndicator size="small" color={palette.primary} />
             <Text style={[styles.label, { color: palette.textSecondary }]}>Loading conversation</Text>
         </View>
     );

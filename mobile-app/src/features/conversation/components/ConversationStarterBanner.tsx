@@ -1,8 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
-import { Card, Row, Stack, theme } from "@/design-system";
+import { Row, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 interface ConversationStarterBannerProps {
@@ -13,45 +13,36 @@ const ConversationStarterBanner: React.FC<ConversationStarterBannerProps> = ({ n
     const { palette } = useThemeContext();
 
     return (
-        <Stack style={styles.shell}>
-            <Card
-                style={[
-                    styles.container,
-                    {
-                        backgroundColor: palette.infoSurface,
-                        borderColor: palette.border,
-                    },
-                ]}
-            >
-                <Row align="flex-start" gap="xs">
-                    <Ionicons name="trail-sign-outline" size={16} color={palette.secondary} />
-                    <Stack gap="xxs" style={styles.textWrap}>
-                        <Text style={[styles.title, { color: palette.textPrimary }]}>Conversation guidance</Text>
-                        <Text style={[styles.note, { color: palette.textSecondary }]}>{note}</Text>
-                    </Stack>
-                </Row>
-            </Card>
-        </Stack>
+        <View
+            style={[
+                styles.container,
+                {
+                    backgroundColor: palette.surfaceMuted,
+                    borderColor: palette.border,
+                },
+            ]}
+        >
+            <Row align="flex-start" gap="xs">
+                <Ionicons name="information-circle-outline" size={16} color={palette.textSecondary} />
+                <Text style={[styles.note, { color: palette.textSecondary }]}>{note}</Text>
+            </Row>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    shell: {
-        paddingHorizontal: theme.spacing.md,
-        paddingBottom: theme.spacing.xs,
-    },
     container: {
+        marginHorizontal: theme.spacing.md,
+        marginTop: theme.spacing.sm,
         paddingHorizontal: theme.spacing.sm,
-        paddingVertical: theme.spacing.xs,
-    },
-    textWrap: {
-        flex: 1,
-    },
-    title: {
-        ...theme.typography.textStyle.labelStrong,
+        paddingVertical: theme.spacing.sm,
+        borderWidth: 1,
+        borderRadius: theme.radius.md,
     },
     note: {
         ...theme.typography.textStyle.bodySmall,
+        flex: 1,
+        lineHeight: 20,
     },
 });
 

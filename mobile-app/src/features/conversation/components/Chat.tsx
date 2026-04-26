@@ -4,10 +4,10 @@ import {
     ActivityIndicator,
     FlatList,
     KeyboardAvoidingView,
-    Platform,
-    RefreshControl,
     NativeScrollEvent,
     NativeSyntheticEvent,
+    Platform,
+    RefreshControl,
     StyleSheet,
     Text,
     View,
@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SearchField } from "@/components/ui/SearchField";
-import { Card, Row, Stack, theme } from "@/design-system";
+import { Row, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 
@@ -128,6 +128,7 @@ const Chat: React.FC<ChatProps> = ({
             return searchableText.includes(normalizedQuery);
         });
     }, [messages, normalizedQuery]);
+
     const threadRows = useMemo(() => groupMessagesForTimeline(filteredMessages), [filteredMessages]);
     const canSend = conversation?.request.status === "ASSIGNED";
     const isThreadEmpty = threadRows.length === 0;
@@ -135,6 +136,7 @@ const Chat: React.FC<ChatProps> = ({
         () => (conversation ? getOtherParticipant(conversation, userId, userEmail) ?? null : null),
         [conversation, userEmail, userId]
     );
+
     const searchResultsLabel = useMemo(() => {
         if (!normalizedQuery) {
             return null;
@@ -199,10 +201,10 @@ const Chat: React.FC<ChatProps> = ({
     }
 
     const composerStatusLabel = canSend
-        ? "Live conversation"
+        ? "Assigned request conversation"
         : conversation.request.status === "COMPLETED"
-          ? "Completed request · read-only history"
-          : "Closed request conversation";
+            ? "Completed request · read-only"
+            : "Closed conversation";
 
     return (
         <KeyboardAvoidingView
@@ -230,11 +232,11 @@ const Chat: React.FC<ChatProps> = ({
                         <ConversationStarterBanner note={conversation.starterNote} />
                     ) : null}
                     {error ? (
-                        <Card
+                        <View
                             style={[
                                 styles.feedbackBar,
                                 {
-                                    backgroundColor: palette.dangerSoftFill,
+                                    backgroundColor: palette.dangerSoft,
                                     borderColor: palette.danger,
                                 },
                             ]}
@@ -245,31 +247,28 @@ const Chat: React.FC<ChatProps> = ({
                                     {error}
                                 </Text>
                             </Row>
-                        </Card>
+                        </View>
                     ) : null}
                     {liveWarning ? (
-                        <Card
+                        <View
                             style={[
-                                styles.warningBar,
+                                styles.feedbackBar,
                                 {
                                     backgroundColor: palette.surfaceMuted,
                                     borderColor: palette.border,
                                 },
                             ]}
                         >
-                            <Row gap="xs" align="center">
-                                <Ionicons name="wifi-outline" size={16} color={palette.textSecondary} />
-                                <Text style={[styles.feedbackText, { color: palette.textSecondary }]}>
-                                    {liveWarning}
-                                </Text>
-                            </Row>
-                        </Card>
+                            <Text style={[styles.feedbackText, { color: palette.textSecondary }]}>
+                                {liveWarning}
+                            </Text>
+                        </View>
                     ) : null}
                     <View style={styles.searchBlock}>
                         <SearchField
                             value={searchQuery}
                             onChangeText={setSearchQuery}
-                            placeholder="Search messages in this conversation"
+                            placeholder="Search this conversation"
                             returnKeyType="search"
                             autoCapitalize="none"
                             autoCorrect={false}
@@ -324,48 +323,16 @@ const Chat: React.FC<ChatProps> = ({
                     ListEmptyComponent={
                         <View style={styles.emptyWrap}>
                             {normalizedQuery ? (
-                                <Card
-                                    style={[
-                                        styles.searchEmptyCard,
-                                        {
-                                            backgroundColor: palette.surface,
-                                            borderColor: palette.border,
-                                        },
-                                    ]}
-                                >
-                                    <Stack gap="sm" style={styles.searchEmptyStack}>
-                                        <View
-                                            style={[
-                                                styles.searchEmptyIconWrap,
-                                                { backgroundColor: palette.surfaceMuted },
-                                            ]}
-                                        >
-                                            <Ionicons
-                                                name="search-outline"
-                                                size={22}
-                                                color={palette.textSecondary}
-                                            />
-                                        </View>
-                                        <Text
-                                            style={[
-                                                styles.searchEmptyTitle,
-                                                { color: palette.textPrimary },
-                                            ]}
-                                        >
-                                            No matching messages
-                                        </Text>
-                                        <Text
-                                            style={[
-                                                styles.searchEmptyText,
-                                                { color: palette.textSecondary },
-                                            ]}
-                                        >
-                                            Try a different keyword or sender name.
-                                        </Text>
-                                    </Stack>
-                                </Card>
+                                <View style={styles.searchEmpty}>
+                                    <Text style={[styles.searchEmptyTitle, { color: palette.textPrimary }]}>
+                                        No matching messages
+                                    </Text>
+                                    <Text style={[styles.searchEmptyText, { color: palette.textSecondary }]}>
+                                        Try a different keyword or sender name.
+                                    </Text>
+                                </View>
                             ) : (
-                            <ChatEmptyState requestScoped={requestScoped} />
+                                <ChatEmptyState requestScoped={requestScoped} />
                             )}
                         </View>
                     }
@@ -380,7 +347,7 @@ const Chat: React.FC<ChatProps> = ({
                         ) : hasOlderMessages ? (
                             <View style={styles.olderHint}>
                                 <Text style={[styles.olderHintText, { color: palette.textMuted }]}>
-                                    Scroll up to load older messages
+                                    Scroll up for older messages
                                 </Text>
                             </View>
                         ) : null
@@ -442,13 +409,11 @@ const Chat: React.FC<ChatProps> = ({
                         },
                     ]}
                 >
-                    <Stack gap="xxs">
-                        {typingLabel ? (
-                            <Text style={[styles.typingHint, { color: palette.primary }]}>
-                                {typingLabel}
-                            </Text>
-                        ) : null}
-                    </Stack>
+                    {typingLabel ? (
+                        <Text style={[styles.typingHint, { color: palette.primary }]}>
+                            {typingLabel}
+                        </Text>
+                    ) : null}
 
                     <MessageComposer
                         onSend={onSend}
@@ -482,24 +447,21 @@ const styles = StyleSheet.create({
     },
     feedbackBar: {
         marginHorizontal: theme.spacing.md,
-        marginBottom: theme.spacing.sm,
-        paddingHorizontal: theme.spacing.sm,
-        paddingVertical: theme.spacing.xs,
-    },
-    warningBar: {
-        marginHorizontal: theme.spacing.md,
-        marginBottom: theme.spacing.sm,
+        marginTop: theme.spacing.sm,
+        borderWidth: 1,
+        borderRadius: theme.radius.md,
         paddingHorizontal: theme.spacing.sm,
         paddingVertical: theme.spacing.xs,
     },
     searchBlock: {
         marginHorizontal: theme.spacing.md,
-        marginBottom: theme.spacing.sm,
+        marginTop: theme.spacing.sm,
+        marginBottom: theme.spacing.md,
         gap: theme.spacing.xxs,
     },
     searchMeta: {
         ...theme.typography.textStyle.caption,
-        paddingHorizontal: theme.spacing.xxs,
+        paddingHorizontal: 2,
     },
     feedbackText: {
         ...theme.typography.textStyle.bodySmall,
@@ -511,28 +473,16 @@ const styles = StyleSheet.create({
     listContent: {
         flexGrow: 1,
         paddingHorizontal: theme.spacing.md,
-        paddingTop: theme.spacing.xs,
+        paddingTop: theme.spacing.md,
     },
     emptyWrap: {
         flex: 1,
         justifyContent: "center",
         minHeight: 280,
     },
-    searchEmptyCard: {
-        borderWidth: 1,
-        borderRadius: theme.radius.xl,
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.xl,
-    },
-    searchEmptyStack: {
+    searchEmpty: {
         alignItems: "center",
-    },
-    searchEmptyIconWrap: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        alignItems: "center",
-        justifyContent: "center",
+        gap: theme.spacing.xs,
     },
     searchEmptyTitle: {
         ...theme.typography.textStyle.bodyMedium,
@@ -564,13 +514,14 @@ const styles = StyleSheet.create({
     },
     composerShell: {
         borderTopWidth: 1,
-        paddingTop: theme.spacing.xs,
+        paddingTop: theme.spacing.sm,
         paddingHorizontal: theme.spacing.md,
-        gap: 4,
+        gap: theme.spacing.xs,
     },
     typingHint: {
         ...theme.typography.textStyle.captionMedium,
         paddingHorizontal: 2,
+        marginBottom: 2,
     },
 });
 

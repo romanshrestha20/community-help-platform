@@ -13,8 +13,6 @@ interface ConversationListItemProps {
     conversation: Conversation;
     userId: string;
     onPress: () => void;
-    isFirst?: boolean;
-    isLast?: boolean;
 }
 
 const relativeDateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -35,174 +33,76 @@ const ConversationListItem: React.FC<ConversationListItemProps> = ({
     conversation,
     userId,
     onPress,
-    isFirst = false,
-    isLast = false,
 }) => {
     const { palette } = useThemeContext();
     const other = getOtherParticipant(conversation, userId);
     const displayName = other?.fullName || other?.email || "Conversation";
     const lastActivity = conversation.lastMessage?.createdAt || conversation.updatedAt;
     const hasUnread = conversation.unreadCount > 0;
-    const isLive = conversation.request.status === "ASSIGNED";
-
-    const statusTone =
-        conversation.request.status === "ASSIGNED"
-            ? {
-                backgroundColor: palette.primarySoft,
-                color: palette.primary,
-                label: "Live",
-            }
-            : conversation.request.status === "COMPLETED"
-              ? {
-                  backgroundColor: palette.successSoft,
-                  color: palette.success,
-                  label: "Completed",
-              }
-              : conversation.request.status === "CANCELLED"
-                ? {
-                    backgroundColor: palette.dangerSoftFill,
-                    color: palette.danger,
-                    label: "Closed",
-                }
-                : {
-                    backgroundColor: palette.surfaceMuted,
-                    color: palette.textSecondary,
-                    label: "Pending",
-                };
+    const preview = getLastMessagePreview(conversation, userId);
 
     return (
         <Pressable
             onPress={onPress}
             style={({ pressed }) => [
                 styles.pressable,
-                pressed ? styles.pressed : null,
+                {
+                    backgroundColor: pressed ? palette.surfaceMuted : "transparent",
+                    borderColor: hasUnread ? palette.primarySoft : palette.border,
+                },
             ]}
         >
-            <View
-                style={[
-                    styles.row,
-                    {
-                        backgroundColor: hasUnread ? palette.surface : palette.surfaceSecondary,
-                        borderColor: hasUnread || isLive ? palette.primarySoft : palette.border,
-                    },
-                    isFirst ? styles.firstRow : null,
-                    isLast ? styles.lastRow : null,
-                ]}
-            >
-                <View style={styles.leadingWrap}>
-                    <ProfileAvatar
-                        uri={other?.avatarUrl}
-                        fullName={displayName}
-                        size={52}
-                    />
+            <View style={styles.leading}>
+                <ProfileAvatar uri={other?.avatarUrl} fullName={displayName} size={48} />
+                {hasUnread ? <View style={[styles.dot, { backgroundColor: palette.primary }]} /> : null}
+            </View>
 
-                    {hasUnread ? (
-                        <View
-                            style={[
-                                styles.presenceDot,
-                                { backgroundColor: palette.primary },
-                            ]}
-                        />
-                    ) : null}
+            <View style={styles.content}>
+                <View style={styles.topRow}>
+                    <Text style={[styles.name, { color: palette.textPrimary }]} numberOfLines={1}>
+                        {displayName}
+                    </Text>
+                    <Text style={[styles.date, { color: palette.textMuted }]}>
+                        {relativeDateFormatter.format(new Date(lastActivity))}
+                    </Text>
                 </View>
 
-                <View style={styles.content}>
-                    <View style={styles.topRow}>
-                        <View style={styles.titleCluster}>
-                            <Text
-                                style={[styles.name, { color: palette.textPrimary }]}
-                                numberOfLines={1}
-                            >
-                                {displayName}
-                            </Text>
+                <Text style={[styles.preview, { color: palette.textSecondary }]} numberOfLines={2}>
+                    {preview}
+                </Text>
 
-                            <View
-                                style={[
-                                    styles.statusBadge,
-                                    { backgroundColor: statusTone.backgroundColor },
-                                ]}
-                            >
-                                <Text style={[styles.statusLabel, { color: statusTone.color }]}>
-                                    {statusTone.label}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.trailingMeta}>
-                            <Text style={[styles.date, { color: palette.textMuted }]}>
-                                {relativeDateFormatter.format(new Date(lastActivity))}
-                            </Text>
-                            {hasUnread ? (
-                                <View
-                                    style={[
-                                        styles.unreadBadge,
-                                        { backgroundColor: palette.primary },
-                                    ]}
-                                >
-                                    <Text
-                                        style={[
-                                            styles.unreadLabel,
-                                            { color: palette.textInverse },
-                                        ]}
-                                    >
-                                        {conversation.unreadCount}
-                                    </Text>
-                                </View>
-                            ) : (
-                                <Ionicons
-                                    name="chevron-forward-outline"
-                                    size={16}
-                                    color={palette.textMuted}
-                                />
-                            )}
-                        </View>
-                    </View>
-
-                    <Text
-                        style={[
-                            styles.preview,
-                            {
-                                color: hasUnread
-                                    ? palette.textPrimary
-                                    : palette.textSecondary,
-                            },
-                        ]}
-                        numberOfLines={2}
-                    >
-                        {getLastMessagePreview(conversation, userId)}
+                <View style={styles.bottomRow}>
+                    <Text style={[styles.request, { color: palette.textMuted }]} numberOfLines={1}>
+                        {conversation.request.title}
                     </Text>
 
-                    <View style={styles.bottomRow}>
-                        <View
+                    <View style={styles.trailing}>
+                        <Text
                             style={[
-                                styles.requestChip,
+                                styles.status,
                                 {
-                                    backgroundColor: palette.surfaceSecondary,
-                                    borderColor: palette.border,
+                                    color:
+                                        conversation.request.status === "ASSIGNED"
+                                            ? palette.primary
+                                            : palette.textSecondary,
                                 },
                             ]}
                         >
+                            {getStatusLabel(conversation.request.status)}
+                        </Text>
+                        {hasUnread ? (
+                            <View style={[styles.unreadBadge, { backgroundColor: palette.primary }]}>
+                                <Text style={[styles.unreadLabel, { color: palette.textInverse }]}>
+                                    {conversation.unreadCount}
+                                </Text>
+                            </View>
+                        ) : (
                             <Ionicons
-                                name="document-text-outline"
-                                size={12}
+                                name="chevron-forward-outline"
+                                size={16}
                                 color={palette.textMuted}
                             />
-                            <Text
-                                style={[
-                                    styles.requestChipText,
-                                    { color: palette.textSecondary },
-                                ]}
-                                numberOfLines={1}
-                            >
-                                {conversation.request.title}
-                            </Text>
-                        </View>
-
-                        <Text style={[styles.threadMeta, { color: palette.textMuted }]}>
-                            {conversation.lastMessage
-                                ? getStatusLabel(conversation.request.status)
-                                : "Waiting for first message"}
-                        </Text>
+                        )}
                     </View>
                 </View>
             </View>
@@ -212,119 +112,78 @@ const ConversationListItem: React.FC<ConversationListItemProps> = ({
 
 const styles = StyleSheet.create({
     pressable: {
-        borderRadius: 26,
-    },
-    pressed: {
-        opacity: 0.9,
-    },
-    row: {
         flexDirection: "row",
+        gap: theme.spacing.sm,
         borderWidth: 1,
-        borderRadius: 26,
-        padding: theme.spacing.md,
-        shadowColor: "#122013",
-        shadowOpacity: 0.04,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 6 },
-        elevation: 1,
+        borderRadius: theme.radius.lg,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: theme.spacing.sm,
     },
-    firstRow: {
-        marginTop: 0,
-    },
-    lastRow: {
-        marginBottom: 0,
-    },
-    leadingWrap: {
+    leading: {
         position: "relative",
     },
-    presenceDot: {
+    dot: {
         position: "absolute",
-        right: 1,
-        bottom: 2,
-        width: 12,
-        height: 12,
-        borderRadius: 6,
+        right: 0,
+        top: 1,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
         borderWidth: 2,
         borderColor: "#FFFFFF",
     },
     content: {
         flex: 1,
-        marginLeft: theme.spacing.sm,
         minWidth: 0,
+        gap: 6,
     },
     topRow: {
         flexDirection: "row",
-        alignItems: "flex-start",
+        alignItems: "baseline",
+        justifyContent: "space-between",
         gap: theme.spacing.sm,
-    },
-    titleCluster: {
-        flex: 1,
-        minWidth: 0,
-        gap: 6,
     },
     name: {
         ...theme.typography.textStyle.bodyMedium,
         flex: 1,
         fontWeight: "700",
     },
-    statusBadge: {
-        alignSelf: "flex-start",
-        borderRadius: 999,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-    },
-    statusLabel: {
-        ...theme.typography.textStyle.caption,
-        fontWeight: "700",
-    },
-    trailingMeta: {
-        alignItems: "flex-end",
-        gap: 8,
-    },
     date: {
         ...theme.typography.textStyle.caption,
     },
     preview: {
         ...theme.typography.textStyle.bodySmall,
-        marginTop: 8,
-        lineHeight: 21,
+        lineHeight: 20,
     },
     bottomRow: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         gap: theme.spacing.sm,
-        marginTop: theme.spacing.sm,
     },
-    requestChip: {
+    request: {
+        ...theme.typography.textStyle.caption,
+        flex: 1,
+    },
+    trailing: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
-        borderWidth: 1,
-        borderRadius: 999,
-        paddingHorizontal: theme.spacing.sm,
-        paddingVertical: 6,
-        flex: 1,
-        minWidth: 0,
+        gap: 8,
     },
-    requestChipText: {
-        ...theme.typography.textStyle.caption,
-        flex: 1,
-    },
-    threadMeta: {
-        ...theme.typography.textStyle.caption,
-        fontWeight: "600",
+    status: {
+        ...theme.typography.textStyle.captionMedium,
     },
     unreadBadge: {
-        minWidth: 26,
-        height: 26,
-        borderRadius: 13,
+        minWidth: 22,
+        height: 22,
+        borderRadius: 11,
         alignItems: "center",
         justifyContent: "center",
         paddingHorizontal: 6,
     },
     unreadLabel: {
-        ...theme.typography.textStyle.captionMedium,
+        ...theme.typography.textStyle.caption,
+        fontWeight: "700",
     },
 });
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppBackButton } from "@/components/ui/AppBackButton";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
@@ -25,7 +25,7 @@ const getStatusLabel = (status: Conversation["request"]["status"]) => {
         case "CANCELLED":
             return "Closed";
         default:
-            return "Waiting for assignment";
+            return "Waiting";
     }
 };
 
@@ -33,11 +33,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, userId, userEmail
     const { palette } = useThemeContext();
     const other = getOtherParticipant(conversation, userId, userEmail);
     const displayName = other?.fullName || other?.email || "Assigned request";
-    const statusTone =
-        conversation.request.status === "ASSIGNED" ? palette.primary : palette.textMuted;
+    const statusActive = conversation.request.status === "ASSIGNED";
 
     return (
-        <Row justify="space-between" style={styles.container}>
+        <Row justify="space-between" align="center" style={styles.container}>
             <Row gap="sm" style={styles.leftSection}>
                 <AppBackButton
                     title=""
@@ -48,27 +47,30 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, userId, userEmail
                 />
 
                 <Stack gap="xxs" style={styles.titleWrap}>
-                    <Text style={[styles.eyebrow, { color: palette.primary }]} numberOfLines={1}>
-                        Request conversation
-                    </Text>
                     <Text style={[styles.title, { color: palette.textPrimary }]} numberOfLines={1}>
                         {displayName}
                     </Text>
                     <Row align="center" gap="xs">
-                        <View style={[styles.statusDot, { backgroundColor: statusTone }]} />
-                        <Text style={[styles.subtitle, { color: palette.textMuted }]} numberOfLines={1}>
+                        <View
+                            style={[
+                                styles.statusDot,
+                                { backgroundColor: statusActive ? palette.primary : palette.textMuted },
+                            ]}
+                        />
+                        <Text style={[styles.subtitle, { color: palette.textSecondary }]} numberOfLines={1}>
                             {getStatusLabel(conversation.request.status)}
                         </Text>
                     </Row>
                 </Stack>
             </Row>
 
-            <ProfileAvatar
-                uri={other?.avatarUrl}
-                fullName={displayName}
-                size={40}
-                onPress={onAvatarPress}
-            />
+            <Pressable onPress={onAvatarPress} hitSlop={8}>
+                <ProfileAvatar
+                    uri={other?.avatarUrl}
+                    fullName={displayName}
+                    size={40}
+                />
+            </Pressable>
         </Row>
     );
 };
@@ -76,8 +78,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, userId, userEmail
 const styles = StyleSheet.create({
     container: {
         paddingHorizontal: theme.spacing.md,
-        paddingTop: theme.spacing.xs,
-        paddingBottom: theme.spacing.sm,
+        paddingTop: theme.spacing.sm + 2,
+        paddingBottom: theme.spacing.sm + 2,
     },
     leftSection: {
         flex: 1,
@@ -88,20 +90,17 @@ const styles = StyleSheet.create({
         minWidth: 0,
         justifyContent: "center",
     },
-    eyebrow: {
-        ...theme.typography.textStyle.captionMedium,
-        textTransform: "uppercase",
-        letterSpacing: 0.8,
-    },
     title: {
         ...theme.typography.textStyle.bodyMedium,
+        fontWeight: "700",
+        lineHeight: 24,
     },
     subtitle: {
         ...theme.typography.textStyle.caption,
     },
     statusDot: {
-        width: 8,
-        height: 8,
+        width: 7,
+        height: 7,
         borderRadius: 4,
     },
 });

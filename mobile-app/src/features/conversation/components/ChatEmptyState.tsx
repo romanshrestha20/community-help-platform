@@ -2,7 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { Card, Stack, theme } from "@/design-system";
+import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 interface ChatEmptyStateProps {
@@ -14,45 +14,17 @@ const ChatEmptyState: React.FC<ChatEmptyStateProps> = ({ requestScoped = false }
 
     return (
         <View style={styles.container}>
-            <Card
-                style={[
-                    styles.card,
-                    {
-                        backgroundColor: palette.surface,
-                        borderColor: palette.border,
-                    },
-                ]}
-            >
-                <Stack gap="sm" style={styles.content}>
-                    <View style={[styles.iconWrap, { backgroundColor: palette.surfaceMuted }]}>
-                        <Ionicons name="chatbubble-ellipses-outline" size={24} color={palette.textSecondary} />
-                    </View>
-                    <Text style={[styles.title, { color: palette.textPrimary }]}>
-                        {requestScoped ? "Conversation not available yet" : "No messages yet"}
-                    </Text>
-                    <Text style={[styles.body, { color: palette.textSecondary }]}>
-                        {requestScoped
-                            ? "Chat starts only after a bid is accepted and the request becomes assigned."
-                            : "Use this thread for request-specific updates, coordination, and clear next steps."}
-                    </Text>
-                    {requestScoped ? (
-                        <View
-                            style={[
-                                styles.note,
-                                {
-                                    backgroundColor: palette.surfaceSecondary,
-                                    borderColor: palette.border,
-                                },
-                            ]}
-                        >
-                            <Text style={[styles.noteText, { color: palette.textSecondary }]}>
-                                Flow: request created, bids received, one helper accepted, then one
-                                request conversation opens.
-                            </Text>
-                        </View>
-                    ) : null}
-                </Stack>
-            </Card>
+            <View style={[styles.iconWrap, { backgroundColor: palette.surfaceMuted }]}>
+                <Ionicons name="chatbubble-ellipses-outline" size={22} color={palette.textSecondary} />
+            </View>
+            <Text style={[styles.title, { color: palette.textPrimary }]}>
+                {requestScoped ? "Conversation unavailable" : "No messages yet"}
+            </Text>
+            <Text style={[styles.body, { color: palette.textSecondary }]}>
+                {requestScoped
+                    ? "Chat opens after a helper is accepted and the request becomes assigned."
+                    : "Use this thread for updates, logistics, and clear next steps."}
+            </Text>
         </View>
     );
 };
@@ -63,14 +35,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         paddingHorizontal: theme.spacing.xl,
         paddingVertical: theme.spacing.xxl,
-    },
-    card: {
-        width: "100%",
-        maxWidth: 360,
-        borderWidth: 1,
-    },
-    content: {
-        alignItems: "center",
+        gap: theme.spacing.sm,
     },
     iconWrap: {
         width: 52,
@@ -80,23 +45,14 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     title: {
-        ...theme.typography.textStyle.title,
+        ...theme.typography.textStyle.bodyMedium,
+        fontWeight: "700",
         textAlign: "center",
     },
     body: {
         ...theme.typography.textStyle.bodySmall,
         textAlign: "center",
-    },
-    note: {
-        width: "100%",
-        borderWidth: 1,
-        borderRadius: 16,
-        paddingHorizontal: theme.spacing.md,
-        paddingVertical: theme.spacing.sm,
-    },
-    noteText: {
-        ...theme.typography.textStyle.bodySmall,
-        textAlign: "center",
+        maxWidth: 280,
     },
 });
 
