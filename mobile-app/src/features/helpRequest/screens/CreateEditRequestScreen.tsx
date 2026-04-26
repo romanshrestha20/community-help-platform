@@ -29,6 +29,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
     const params = useLocalSearchParams<{ id?: string }>();
     const pathname = usePathname();
     const router = useRouter();
+    const locationPickerOwnerId = pathname;
     const { palette } = useThemeContext();
     const { categories } = useCategories();
     const confirmedMapLocation = useLocationPickerScreenStore((state) => state.confirmedLocation);
@@ -69,12 +70,12 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
         if (!confirmedMapLocation) return;
 
         void (async () => {
-            const nextLocation = consumeConfirmedLocation();
+            const nextLocation = consumeConfirmedLocation(locationPickerOwnerId);
             if (!nextLocation) return;
             clearFieldError("location");
             await locationPicker.setValue(nextLocation);
         })();
-    }, [clearFieldError, confirmedMapLocation, consumeConfirmedLocation, locationPicker]);
+    }, [clearFieldError, confirmedMapLocation, consumeConfirmedLocation, locationPicker, locationPickerOwnerId]);
 
     const handleBack = () => {
         goBackOrFallback({
@@ -280,7 +281,11 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                         <AppButton
                             title="Choose on map"
                             onPress={() => {
-                                setDraftMapLocation(locationPicker.value);
+                                setDraftMapLocation(
+                                    locationPicker.value,
+                                    locationPickerOwnerId,
+                                    pathname
+                                );
                                 router.push(APP_ROUTES.LOCATION_PICKER);
                             }}
                             variant="secondary"
