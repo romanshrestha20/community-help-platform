@@ -25,6 +25,8 @@ const dateOfBirthSchema = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be in YYYY-MM-DD format.");
 
 const genderSchema = z.enum(["MALE", "FEMALE", "OTHER"]);
+const experienceLevelSchema = z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"]);
+const certificationStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
 
 const categoryIdSchema = z
   .string()
@@ -275,4 +277,45 @@ export const reviewIdParamSchema = z.object({
 export const reviewsPaginationQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(50).optional(),
+});
+
+export const updateProfileSkillsBodySchema = z.object({
+  skills: z
+    .array(
+      z.object({
+        skillId: z.string().trim().uuid("Skill ID must be a valid UUID."),
+        experienceLevel: experienceLevelSchema,
+        yearsExperience: z.coerce.number().int().min(0).max(80).optional(),
+        isPrimary: z.boolean().optional().default(false),
+      })
+    )
+    .max(15, "You can select up to 15 skills."),
+});
+
+export const createUserCertificationBodySchema = z.object({
+  name: z.string().trim().min(1, "Certification name is required.").max(120),
+  issuer: z.string().trim().min(1, "Issuer is required.").max(120),
+  credentialId: z.string().trim().max(120).optional().transform((value) => value && value.length > 0 ? value : undefined),
+  issuedAt: z.string().trim().optional().transform((value) => value && value.length > 0 ? value : undefined),
+  expiresAt: z.string().trim().optional().transform((value) => value && value.length > 0 ? value : undefined),
+});
+
+export const reviewUserCertificationBodySchema = z
+  .object({
+    status: certificationStatusSchema.exclude(["PENDING"]),
+    reviewNote: z.string().trim().max(500).optional().transform((value) => value && value.length > 0 ? value : undefined),
+    rejectionReason: z.string().trim().max(500).optional().transform((value) => value && value.length > 0 ? value : undefined),
+  })
+  .superRefine((data, ctx) => {
+    if (data.status === "REJECTED" && !data.rejectionReason) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Rejection reason is required when rejecting a certification.",
+        path: ["rejectionReason"],
+      });
+    }
+  });
+
+export const certificationIdParamSchema = z.object({
+  id: z.string().trim().uuid("Certification ID must be a valid UUID."),
 });
