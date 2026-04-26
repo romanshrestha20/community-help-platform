@@ -64,67 +64,31 @@ const Inbox: React.FC<InboxProps> = ({
         });
     }, [conversations, normalizedQuery, userEmail, userId]);
 
-    const conversationCountLabel = useMemo(() => {
-        const count = conversations.length;
-        return `${count} ${count === 1 ? "assigned chat" : "assigned chats"}`;
-    }, [conversations.length]);
-
     const unreadConversationsCount = useMemo(
         () => conversations.filter((conversation) => conversation.unreadCount > 0).length,
         [conversations]
     );
 
-    const unreadConversationsLabel = useMemo(() => {
-        if (unreadConversationsCount === 0) {
-            return "All caught up";
+    const resultsLabel = useMemo(() => {
+        if (normalizedQuery) {
+            const count = filteredConversations.length;
+            return `${count} ${count === 1 ? "result" : "results"}`;
         }
 
-        return `${unreadConversationsCount} unread thread${unreadConversationsCount === 1 ? "" : "s"}`;
-    }, [unreadConversationsCount]);
-
-    const highlightedConversation = useMemo(
-        () =>
-            conversations.find((conversation) => conversation.unreadCount > 0) ??
-            conversations[0] ??
-            null,
-        [conversations]
-    );
-
-    const searchResultsLabel = useMemo(() => {
-        if (!normalizedQuery) {
-            return null;
-        }
-
-        const count = filteredConversations.length;
-        return `${count} ${count === 1 ? "result" : "results"}`;
-    }, [filteredConversations.length, normalizedQuery]);
+        const count = conversations.length;
+        return `${count} ${count === 1 ? "conversation" : "conversations"}`;
+    }, [conversations.length, filteredConversations.length, normalizedQuery]);
 
     if (loading && conversations.length === 0) {
         return (
             <ScreenView centered style={styles.screen}>
-                <View
-                    style={[
-                        styles.loadingCard,
-                        {
-                            backgroundColor: palette.surface,
-                            borderColor: palette.border,
-                        },
-                    ]}
-                >
-                    <View
-                        style={[
-                            styles.loadingIconWrap,
-                            { backgroundColor: palette.primarySoft },
-                        ]}
-                    >
-                        <ActivityIndicator size="small" color={palette.primary} />
-                    </View>
-
+                <View style={styles.loadingWrap}>
+                    <ActivityIndicator size="small" color={palette.primary} />
                     <Text style={[styles.loadingTitle, { color: palette.textPrimary }]}>
-                        Loading assigned chats
+                        Loading messages
                     </Text>
-                    <Text style={[styles.loadingSubtitle, { color: palette.textSecondary }]}>
-                        Syncing request-linked conversations, unread counts, and recent replies.
+                    <Text style={[styles.loadingBody, { color: palette.textSecondary }]}>
+                        Pulling in request conversations and unread activity.
                     </Text>
                 </View>
             </ScreenView>
@@ -134,9 +98,7 @@ const Inbox: React.FC<InboxProps> = ({
     if (!loading && conversations.length === 0) {
         return (
             <ScreenView centered style={styles.screen}>
-                <View style={styles.emptyWrap}>
-                    <InboxEmptyState />
-                </View>
+                <InboxEmptyState />
             </ScreenView>
         );
     }
@@ -146,292 +108,116 @@ const Inbox: React.FC<InboxProps> = ({
             <FlatList
                 data={filteredConversations}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item, index }) => (
+                renderItem={({ item }) => (
                     <ConversationListItem
                         conversation={item}
                         userId={userId}
                         onPress={() => onSelectConversation(item)}
-                        isFirst={index === 0}
-                        isLast={index === filteredConversations.length - 1}
                     />
                 )}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.listContent}
-                ItemSeparatorComponent={() => <View style={styles.listSpacer} />}
+                ItemSeparatorComponent={() => <View style={styles.separator} />}
                 ListHeaderComponent={
                     <View style={styles.headerBlock}>
                         <View style={styles.heroRow}>
                             <View style={styles.heroCopy}>
-                                <Text style={[styles.eyebrow, { color: palette.primary }]}>
-                                    Request conversations
+                                <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>
+                                    Messaging
                                 </Text>
                                 <Text style={[styles.heroTitle, { color: palette.textPrimary }]}>
-                                    Messages for {firstName}
+                                    {`${firstName}\u2019s conversations`}
                                 </Text>
-                                <Text
-                                    style={[
-                                        styles.heroSubtitle,
-                                        { color: palette.textSecondary },
-                                    ]}
-                                >
-                                    Only assigned requests appear here, so every thread is tied to
-                                    a real job in progress.
+                                <Text style={[styles.heroSubtitle, { color: palette.textSecondary }]}>
+                                    Assigned requests only. Keep coordination, updates, and next steps in one place.
                                 </Text>
                             </View>
 
                             <View
                                 style={[
-                                    styles.heroBadge,
-                                    unreadTotal > 0
-                                        ? {
-                                              backgroundColor: palette.primarySoft,
-                                              borderColor: "transparent",
-                                          }
-                                        : {
-                                              backgroundColor: palette.surface,
-                                              borderColor: palette.border,
-                                          },
+                                    styles.unreadCapsule,
+                                    {
+                                        backgroundColor:
+                                            unreadTotal > 0 ? palette.primarySoft : palette.surfaceMuted,
+                                    },
                                 ]}
                             >
                                 <Ionicons
-                                    name={
-                                        unreadTotal > 0
-                                            ? "mail-unread-outline"
-                                            : "checkmark-done-outline"
-                                    }
-                                    size={16}
-                                    color={unreadTotal > 0 ? palette.primary : palette.textMuted}
+                                    name={unreadTotal > 0 ? "mail-outline" : "checkmark-done-outline"}
+                                    size={14}
+                                    color={unreadTotal > 0 ? palette.primary : palette.textSecondary}
                                 />
                                 <Text
                                     style={[
-                                        styles.heroBadgeText,
+                                        styles.unreadCapsuleText,
                                         {
-                                            color:
-                                                unreadTotal > 0
-                                                    ? palette.primary
-                                                    : palette.textSecondary,
+                                            color: unreadTotal > 0 ? palette.primary : palette.textSecondary,
                                         },
                                     ]}
                                 >
-                                    {unreadTotal > 0 ? `${unreadTotal} unread` : "Up to date"}
+                                    {unreadTotal > 0 ? `${unreadTotal} unread` : "Caught up"}
                                 </Text>
                             </View>
                         </View>
 
-                        <View style={styles.summaryRow}>
-                            <View
-                                style={[
-                                    styles.summaryCard,
-                                    {
-                                        backgroundColor: palette.surface,
-                                        borderColor: palette.border,
-                                    },
-                                ]}
-                            >
-                                <View
-                                    style={[
-                                        styles.summaryIconWrap,
-                                        { backgroundColor: palette.surfaceMuted },
-                                    ]}
-                                >
-                                    <Ionicons
-                                        name="chatbubbles-outline"
-                                        size={16}
-                                        color={palette.primary}
-                                    />
-                                </View>
-                                <View style={styles.summaryCopy}>
-                                    <Text
-                                        style={[
-                                            styles.summaryValue,
-                                            { color: palette.textPrimary },
-                                        ]}
-                                    >
-                                        {conversationCountLabel}
-                                    </Text>
-                                    <Text
-                                        style={[
-                                            styles.summaryLabel,
-                                            { color: palette.textSecondary },
-                                        ]}
-                                    >
-                                        Request-based threads
-                                    </Text>
-                                </View>
+                        <View
+                            style={[
+                                styles.summaryStrip,
+                                {
+                                    borderTopColor: palette.border,
+                                    borderBottomColor: palette.border,
+                                },
+                            ]}
+                        >
+                            <View style={styles.summaryItem}>
+                                <Text style={[styles.summaryValue, { color: palette.textPrimary }]}>
+                                    {conversations.length}
+                                </Text>
+                                <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>
+                                    active threads
+                                </Text>
                             </View>
-
-                            <View
-                                style={[
-                                    styles.summaryCard,
-                                    {
-                                        backgroundColor: palette.surface,
-                                        borderColor: palette.border,
-                                    },
-                                ]}
-                            >
-                                <View
-                                    style={[
-                                        styles.summaryIconWrap,
-                                        {
-                                            backgroundColor:
-                                                unreadConversationsCount > 0
-                                                    ? palette.primarySoft
-                                                    : palette.surfaceMuted,
-                                        },
-                                    ]}
-                                >
-                                    <Ionicons
-                                        name={
-                                            unreadConversationsCount > 0
-                                                ? "sparkles-outline"
-                                                : "time-outline"
-                                        }
-                                        size={16}
-                                        color={
-                                            unreadConversationsCount > 0
-                                                ? palette.primary
-                                                : palette.textSecondary
-                                        }
-                                    />
-                                </View>
-                                <View style={styles.summaryCopy}>
-                                    <Text
-                                        style={[
-                                            styles.summaryValue,
-                                            { color: palette.textPrimary },
-                                        ]}
-                                    >
-                                        {unreadConversationsLabel}
-                                    </Text>
-                                    <Text
-                                        style={[
-                                            styles.summaryLabel,
-                                            { color: palette.textSecondary },
-                                        ]}
-                                    >
-                                        Waiting on your reply
-                                    </Text>
-                                </View>
+                            <View style={styles.summaryItem}>
+                                <Text style={[styles.summaryValue, { color: palette.textPrimary }]}>
+                                    {unreadConversationsCount}
+                                </Text>
+                                <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>
+                                    waiting on you
+                                </Text>
                             </View>
                         </View>
 
-                        {highlightedConversation ? (
-                            <View
-                                style={[
-                                    styles.spotlightCard,
-                                    {
-                                        backgroundColor: palette.textPrimary,
-                                    },
-                                ]}
-                            >
-                                <View style={styles.spotlightHeader}>
-                                    <Text
-                                        style={[
-                                            styles.spotlightEyebrow,
-                                            { color: "rgba(255,255,255,0.72)" },
-                                        ]}
-                                    >
-                                        {highlightedConversation.unreadCount > 0
-                                            ? "Reply waiting"
-                                            : "Latest assigned thread"}
-                                    </Text>
-                                    <Ionicons
-                                        name="arrow-forward-outline"
-                                        size={16}
-                                        color="#FFFFFF"
-                                    />
-                                </View>
-                                <Text style={styles.spotlightTitle} numberOfLines={1}>
-                                    {getOtherParticipant(highlightedConversation, userId, userEmail)?.fullName ||
-                                        getOtherParticipant(highlightedConversation, userId, userEmail)?.email ||
-                                        "Conversation"}
-                                </Text>
-                                <Text style={styles.spotlightRequest} numberOfLines={1}>
-                                    {highlightedConversation.request.title}
-                                </Text>
-                                <Text style={styles.spotlightPreview} numberOfLines={2}>
-                                    {getLastMessagePreview(highlightedConversation, userId)}
-                                </Text>
-                            </View>
-                        ) : null}
+                        <SearchField
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholder="Search people, requests, or messages"
+                            returnKeyType="search"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
 
-                        <View style={styles.searchBlock}>
-                            <SearchField
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                                placeholder="Search assigned requests, people, or messages"
-                                returnKeyType="search"
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-
-                            <View style={styles.searchMetaRow}>
-                                <Text
-                                    style={[
-                                        styles.sectionTitle,
-                                        { color: palette.textPrimary },
-                                    ]}
-                                >
-                                    Active request conversations
-                                </Text>
-
-                                {searchResultsLabel ? (
-                                    <Text
-                                        style={[
-                                            styles.searchMeta,
-                                            { color: palette.textSecondary },
-                                        ]}
-                                    >
-                                        {searchResultsLabel}
-                                    </Text>
-                                ) : null}
-                            </View>
+                        <View style={styles.metaRow}>
+                            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                                Threads
+                            </Text>
+                            <Text style={[styles.sectionMeta, { color: palette.textSecondary }]}>
+                                {resultsLabel}
+                            </Text>
                         </View>
-
-                        {normalizedQuery && filteredConversations.length === 0 ? (
-                            <View
-                                style={[
-                                    styles.searchEmptyState,
-                                    {
-                                        backgroundColor: palette.surface,
-                                        borderColor: palette.border,
-                                    },
-                                ]}
-                            >
-                                <View
-                                    style={[
-                                        styles.searchEmptyIconWrap,
-                                        { backgroundColor: palette.surfaceMuted },
-                                    ]}
-                                >
-                                    <Ionicons
-                                        name="search-outline"
-                                        size={20}
-                                        color={palette.textSecondary}
-                                    />
-                                </View>
-                                <Text
-                                    style={[
-                                        styles.searchEmptyTitle,
-                                        { color: palette.textPrimary },
-                                    ]}
-                                >
-                                    No matching conversations
-                                </Text>
-                                <Text
-                                    style={[
-                                        styles.searchEmptyText,
-                                        { color: palette.textSecondary },
-                                    ]}
-                                >
-                                    Try a different helper name, requester, request title, or
-                                    message keyword.
-                                </Text>
-                            </View>
-                        ) : null}
                     </View>
                 }
-                ListEmptyComponent={null}
+                ListEmptyComponent={
+                    normalizedQuery ? (
+                        <View style={styles.searchEmpty}>
+                            <Text style={[styles.searchEmptyTitle, { color: palette.textPrimary }]}>
+                                No matching conversations
+                            </Text>
+                            <Text style={[styles.searchEmptyBody, { color: palette.textSecondary }]}>
+                                Try a participant name, request title, or a word from the latest message.
+                            </Text>
+                        </View>
+                    ) : null
+                }
                 refreshControl={
                     onRefresh ? (
                         <RefreshControl
@@ -450,70 +236,56 @@ const styles = StyleSheet.create({
     screen: {
         flex: 1,
     },
+    listContent: {
+        paddingHorizontal: theme.spacing.md,
+        paddingTop: theme.spacing.sm,
+        paddingBottom: theme.spacing.xl,
+    },
     headerBlock: {
         gap: theme.spacing.md,
-        marginBottom: theme.spacing.md,
+        paddingBottom: theme.spacing.md,
     },
     heroRow: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
         gap: theme.spacing.md,
     },
     heroCopy: {
-        flex: 1,
-        gap: 4,
+        gap: theme.spacing.xs,
     },
     eyebrow: {
-        fontSize: theme.typography.fontSize.xs,
-        fontWeight: theme.typography.fontWeight.bold,
-        letterSpacing: 0.8,
+        ...theme.typography.textStyle.caption,
         textTransform: "uppercase",
+        letterSpacing: 0.8,
     },
     heroTitle: {
-        ...theme.typography.textStyle.heading,
-        fontSize: 32,
-        lineHeight: 38,
+        ...theme.typography.textStyle.title,
+        fontWeight: "700",
     },
     heroSubtitle: {
         ...theme.typography.textStyle.bodySmall,
-        lineHeight: 22,
-        maxWidth: 280,
+        maxWidth: 520,
+        lineHeight: 21,
     },
-    heroBadge: {
-        minHeight: 38,
-        borderWidth: 1,
-        borderRadius: theme.radius.fill,
-        paddingHorizontal: 12,
+    unreadCapsule: {
+        alignSelf: "flex-start",
         flexDirection: "row",
         alignItems: "center",
         gap: 6,
+        borderRadius: 999,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: 7,
     },
-    heroBadgeText: {
+    unreadCapsuleText: {
         ...theme.typography.textStyle.captionMedium,
     },
-    summaryRow: {
+    summaryStrip: {
         flexDirection: "row",
-        gap: theme.spacing.sm,
+        justifyContent: "space-between",
+        gap: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
     },
-    summaryCard: {
-        flex: 1,
-        borderWidth: 1,
-        borderRadius: 22,
-        padding: theme.spacing.md,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: theme.spacing.sm,
-    },
-    summaryIconWrap: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    summaryCopy: {
-        flex: 1,
+    summaryItem: {
         gap: 2,
     },
     summaryValue: {
@@ -523,118 +295,47 @@ const styles = StyleSheet.create({
     summaryLabel: {
         ...theme.typography.textStyle.caption,
     },
-    spotlightCard: {
-        borderRadius: 26,
-        paddingHorizontal: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
-        gap: 6,
-    },
-    spotlightHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-    },
-    spotlightEyebrow: {
-        fontSize: theme.typography.fontSize.xs,
-        fontWeight: theme.typography.fontWeight.bold,
-        letterSpacing: 0.8,
-        textTransform: "uppercase",
-    },
-    spotlightTitle: {
-        color: "#FFFFFF",
-        fontSize: 24,
-        lineHeight: 28,
-        fontWeight: theme.typography.fontWeight.bold,
-    },
-    spotlightRequest: {
-        color: "rgba(255,255,255,0.86)",
-        fontSize: theme.typography.fontSize.sm,
-        fontWeight: theme.typography.fontWeight.semibold,
-    },
-    spotlightPreview: {
-        color: "rgba(255,255,255,0.7)",
-        fontSize: theme.typography.fontSize.sm,
-        lineHeight: 21,
-        marginTop: 2,
-    },
-    searchBlock: {
-        gap: theme.spacing.xs,
-    },
-    searchMetaRow: {
+    metaRow: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         gap: theme.spacing.sm,
-        paddingHorizontal: 2,
     },
     sectionTitle: {
-        fontSize: theme.typography.fontSize.lg,
-        fontWeight: theme.typography.fontWeight.bold,
+        ...theme.typography.textStyle.bodySmallMedium,
     },
-    searchMeta: {
+    sectionMeta: {
         ...theme.typography.textStyle.caption,
     },
-    listContent: {
-        paddingHorizontal: theme.spacing.md,
-        paddingTop: theme.spacing.sm,
-        paddingBottom: theme.spacing.xxl,
+    separator: {
+        height: theme.spacing.xs,
     },
-    listSpacer: {
-        height: theme.spacing.sm,
-    },
-    searchEmptyState: {
-        borderWidth: 1,
-        borderRadius: 24,
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.xl,
+    loadingWrap: {
         alignItems: "center",
         gap: theme.spacing.xs,
+        maxWidth: 260,
     },
-    searchEmptyIconWrap: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+    loadingTitle: {
+        ...theme.typography.textStyle.bodyMedium,
+        fontWeight: "700",
+    },
+    loadingBody: {
+        ...theme.typography.textStyle.bodySmall,
+        textAlign: "center",
+    },
+    searchEmpty: {
+        paddingTop: theme.spacing.xl,
         alignItems: "center",
-        justifyContent: "center",
-        marginBottom: theme.spacing.xxs,
+        gap: theme.spacing.xs,
     },
     searchEmptyTitle: {
         ...theme.typography.textStyle.bodyMedium,
         fontWeight: "700",
     },
-    searchEmptyText: {
+    searchEmptyBody: {
         ...theme.typography.textStyle.bodySmall,
         textAlign: "center",
-    },
-    loadingCard: {
-        width: "100%",
-        maxWidth: 320,
-        borderWidth: 1,
-        borderRadius: 24,
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.xl,
-        alignItems: "center",
-    },
-    loadingIconWrap: {
-        width: 52,
-        height: 52,
-        borderRadius: 26,
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: theme.spacing.md,
-    },
-    loadingTitle: {
-        ...theme.typography.textStyle.bodyMedium,
-        fontWeight: "700",
-        marginBottom: 4,
-    },
-    loadingSubtitle: {
-        ...theme.typography.textStyle.bodySmall,
-        textAlign: "center",
-    },
-    emptyWrap: {
-        width: "100%",
-        paddingHorizontal: theme.spacing.md,
+        maxWidth: 280,
     },
 });
 

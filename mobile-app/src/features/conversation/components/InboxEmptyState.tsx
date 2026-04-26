@@ -9,84 +9,37 @@ const InboxEmptyState: React.FC = () => {
     const { palette } = useThemeContext();
 
     return (
-        <View
-            style={[
-                styles.shell,
-                {
-                    backgroundColor: palette.surface,
-                    borderColor: palette.border,
-                },
-            ]}
-        >
-            <View
-                style={[
-                    styles.iconWrap,
-                    { backgroundColor: palette.primarySoft },
-                ]}
-            >
+        <View style={styles.shell}>
+            <View style={[styles.iconWrap, { backgroundColor: palette.surfaceMuted }]}>
                 <Ionicons
                     name="chatbubble-ellipses-outline"
-                    size={26}
-                    color={palette.primary}
+                    size={24}
+                    color={palette.textSecondary}
                 />
             </View>
 
             <Text style={[styles.title, { color: palette.textPrimary }]}>
-                No assigned request conversations yet
+                No conversations yet
             </Text>
             <Text style={[styles.body, { color: palette.textSecondary }]}>
-                Conversations appear only after a requester accepts a bid and the request moves
-                into an assigned handoff.
+                Chats appear once a helper is assigned to a request and the handoff begins.
             </Text>
-
-            <View
-                style={[
-                    styles.tipRow,
-                    {
-                        backgroundColor: palette.surfaceSecondary,
-                        borderColor: palette.border,
-                    },
-                ]}
-            >
-                <Ionicons name="git-merge-outline" size={16} color={palette.primary} />
-                <Text style={[styles.tipText, { color: palette.textSecondary }]}>
-                    Create a request, receive bids, accept one helper, and the chat opens
-                    automatically.
-                </Text>
-            </View>
-
-            <View
-                style={[
-                    styles.cta,
-                    {
-                        backgroundColor: palette.primary,
-                    },
-                ]}
-            >
-                <Text style={[styles.ctaText, { color: palette.textInverse }]}>
-                    Assigned request chats will show up here
-                </Text>
-            </View>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     shell: {
-        borderWidth: 1,
-        borderRadius: 28,
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.xl,
         alignItems: "center",
         gap: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.xl,
     },
     iconWrap: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: theme.spacing.xs,
     },
     title: {
         fontSize: theme.typography.fontSize.xl,
@@ -97,35 +50,7 @@ const styles = StyleSheet.create({
         fontSize: theme.typography.fontSize.sm,
         lineHeight: 22,
         textAlign: "center",
-    },
-    tipRow: {
-        width: "100%",
-        borderWidth: 1,
-        borderRadius: 18,
-        paddingHorizontal: theme.spacing.md,
-        paddingVertical: theme.spacing.sm,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: theme.spacing.xs,
-        marginTop: theme.spacing.xs,
-    },
-    tipText: {
-        flex: 1,
-        fontSize: theme.typography.fontSize.sm,
-        lineHeight: 20,
-    },
-    cta: {
-        minHeight: 48,
-        borderRadius: theme.radius.fill,
-        paddingHorizontal: theme.spacing.lg,
-        alignItems: "center",
-        justifyContent: "center",
-        marginTop: theme.spacing.xs,
-    },
-    ctaText: {
-        fontSize: theme.typography.fontSize.sm,
-        fontWeight: theme.typography.fontWeight.semibold,
-        textAlign: "center",
+        maxWidth: 280,
     },
 });
 

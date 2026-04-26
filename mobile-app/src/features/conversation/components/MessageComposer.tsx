@@ -3,8 +3,8 @@ import React, { useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
-    Text,
     StyleSheet,
+    Text,
     TextInput,
     View,
 } from "react-native";
@@ -54,7 +54,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
     return (
         <View style={styles.shell}>
             {statusLabel ? (
-                <Text style={[styles.statusLabel, { color: palette.textMuted }]}>
+                <Text style={[styles.statusLabel, { color: palette.textSecondary }]}>
                     {statusLabel}
                 </Text>
             ) : null}
@@ -69,12 +69,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 ]}
             >
                 <TextInput
-                    style={[
-                        styles.input,
-                        {
-                            color: palette.textPrimary,
-                        },
-                    ]}
+                    style={[styles.input, { color: palette.textPrimary }]}
                     value={text}
                     onChangeText={(value) => {
                         setText(value);
@@ -85,7 +80,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                             onStopTyping?.();
                         }
                     }}
-                    placeholder={disabled ? "Conversation is read-only" : "Type a request update"}
+                    placeholder={disabled ? "Conversation is read-only" : "Write a message"}
                     placeholderTextColor={palette.textMuted}
                     editable={!disabled && !sending}
                     multiline
@@ -137,7 +132,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "flex-end",
         borderWidth: 1,
-        borderRadius: 22,
+        borderRadius: theme.radius.lg,
         paddingLeft: theme.spacing.md,
         paddingRight: 8,
         paddingVertical: 8,
@@ -154,7 +149,7 @@ const styles = StyleSheet.create({
     sendButton: {
         width: 40,
         height: 40,
-        borderRadius: 20,
+        borderRadius: 12,
         alignItems: "center",
         justifyContent: "center",
         marginLeft: theme.spacing.xs,

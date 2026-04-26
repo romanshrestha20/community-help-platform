@@ -66,8 +66,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             style={[
                 styles.row,
                 {
-                    marginTop: groupedWithPrevious ? 1 : theme.spacing.sm,
-                    marginBottom: groupedWithNext ? 1 : theme.spacing.xs,
+                    marginTop: groupedWithPrevious ? 2 : theme.spacing.sm,
+                    marginBottom: groupedWithNext ? 2 : theme.spacing.xs,
                 },
             ]}
         >
@@ -76,7 +76,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     <ProfileAvatar
                         uri={message.sender.avatarUrl}
                         fullName={senderName}
-                        size={30}
+                        size={28}
                         onPress={onAvatarPress}
                     />
                 ) : (
@@ -97,11 +97,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     style={({ pressed }) => [
                         styles.bubble,
                         isOwn ? styles.ownBubble : styles.otherBubble,
-                        groupedWithPrevious && (isOwn ? styles.ownBubbleConnectedTop : styles.otherBubbleConnectedTop),
-                        groupedWithNext && (isOwn ? styles.ownBubbleConnectedBottom : styles.otherBubbleConnectedBottom),
                         {
                             backgroundColor: message.deletedAt
-                                ? palette.surfaceSecondary
+                                ? palette.surfaceMuted
                                 : isOwn
                                     ? palette.primary
                                     : palette.surface,
@@ -110,9 +108,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                                 : isOwn
                                     ? palette.primary
                                     : palette.border,
+                            opacity: pressed ? 0.92 : 1,
                         },
-                        message.deletedAt ? styles.deletedBubble : null,
-                        pressed && !message.deletedAt ? styles.bubblePressed : null,
                     ]}
                 >
                     {deleting ? (
@@ -135,11 +132,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     )}
                 </Pressable>
 
-                <Row
-                    gap="xs"
-                    justify={isOwn ? "flex-end" : "flex-start"}
-                    style={styles.metaRow}
-                >
+                <Row gap="xs" justify={isOwn ? "flex-end" : "flex-start"}>
                     <Text style={[styles.metaText, { color: palette.textMuted }]}>
                         {timeFormatter.format(new Date(message.createdAt))}
                     </Text>
@@ -159,7 +152,7 @@ const styles = StyleSheet.create({
         width: "100%",
     },
     avatarSpacer: {
-        width: 30,
+        width: 28,
     },
     bubbleWrap: {
         maxWidth: "82%",
@@ -174,45 +167,23 @@ const styles = StyleSheet.create({
     senderLabel: {
         ...theme.typography.textStyle.caption,
         marginLeft: 2,
-        marginBottom: 1,
     },
     bubble: {
         borderWidth: 1,
         paddingHorizontal: theme.spacing.sm,
-        paddingVertical: 9,
+        paddingVertical: 10,
     },
     ownBubble: {
-        borderRadius: 22,
-        borderBottomRightRadius: 8,
+        borderRadius: 18,
+        borderBottomRightRadius: 6,
     },
     otherBubble: {
-        borderRadius: 22,
-        borderBottomLeftRadius: 8,
-    },
-    ownBubbleConnectedTop: {
-        borderTopRightRadius: 10,
-    },
-    otherBubbleConnectedTop: {
-        borderTopLeftRadius: 10,
-    },
-    ownBubbleConnectedBottom: {
-        borderBottomRightRadius: 18,
-    },
-    otherBubbleConnectedBottom: {
-        borderBottomLeftRadius: 18,
-    },
-    deletedBubble: {
-        borderStyle: "dashed",
-    },
-    bubblePressed: {
-        opacity: 0.92,
+        borderRadius: 18,
+        borderBottomLeftRadius: 6,
     },
     messageText: {
         ...theme.typography.textStyle.body,
-    },
-    metaRow: {
-        marginTop: 1,
-        paddingHorizontal: 2,
+        lineHeight: 21,
     },
     metaText: {
         ...theme.typography.textStyle.caption,
