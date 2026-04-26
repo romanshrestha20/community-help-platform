@@ -3,6 +3,7 @@ import { NextFunction, Request, Response } from "express";
 import AppError from "../utils/appError.js";
 import bcrypt from "bcrypt";
 import { accessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
+import { Prisma } from "../../generated/prisma/client.js";
 import {
   normalizeIncomingLocation,
   toLocationCreateInput,
@@ -44,6 +45,11 @@ import {
   isGoogleSignInConfigured,
   verifyGoogleIdToken,
 } from "../services/google.service.js";
+import {
+  ownerProfileQualificationInclude,
+  publicProfileQualificationInclude,
+  serializeProfileQualifications,
+} from "../utils/profile-qualifications.js";
 
 const PASSWORD_RESET_SUCCESS_MESSAGE =
   "If an account exists for this email, we sent a password reset link.";
@@ -108,7 +114,7 @@ const queuePhoneVerification = async ({
   });
 };
 
-const publicUserSelect = {
+const buildPublicUserSelect = (): Prisma.UserModelSelect => ({
   id: true,
   email: true,
   phone: true,
@@ -135,11 +141,12 @@ const publicUserSelect = {
       searchRadiusMeters: true,
       addressId: true,
       address: true,
+      ...publicProfileQualificationInclude(),
       createdAt: true,
       updatedAt: true,
     },
   },
-} as const;
+});
 
 const sendResponse = (
   res: Response,
@@ -168,7 +175,7 @@ const sendResponse = (
 const getPublicUserById = async (userId: string) => {
   const user = await prisma.userModel.findUnique({
     where: { id: userId },
-    select: publicUserSelect,
+    select: buildPublicUserSelect(),
   });
 
   if (!user) {
@@ -179,6 +186,9 @@ const getPublicUserById = async (userId: string) => {
 
   return {
     ...publicUser,
+    profile: publicUser.profile
+      ? serializeProfileQualifications(publicUser.profile, { publicView: true })
+      : null,
     hasPassword: Boolean(passwordHash),
   };
 };
