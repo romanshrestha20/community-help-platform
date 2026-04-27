@@ -229,6 +229,19 @@ export default function ProfileTabScreen() {
     [user]
   );
 
+  const primarySkills = useMemo(
+    () => (user?.skills ?? []).filter((skill) => skill.isPrimary),
+    [user?.skills]
+  );
+
+  const approvedCertifications = useMemo(
+    () =>
+      (user?.certifications ?? []).filter(
+        (certification) => certification.status === "APPROVED"
+      ),
+    [user?.certifications]
+  );
+
   const verificationLabel = user?.isPhoneVerified
     ? "Phone verified"
     : user?.phone
@@ -457,6 +470,86 @@ export default function ProfileTabScreen() {
                   />
                 ))}
               </View>
+            </Section>
+
+            <Section
+              title="Qualifications"
+              subtitle="Skills, experience, and approved certifications shown to requesters."
+              action={
+                <Pressable onPress={() => setEditModalVisible(true)}>
+                  <Text style={[styles.sectionAction, { color: palette.primary }]}>
+                    Edit
+                  </Text>
+                </Pressable>
+              }
+            >
+              <Stack gap="md">
+                <View style={styles.qualificationGroup}>
+                  <Text style={[styles.qualificationLabel, { color: palette.textSecondary }]}>
+                    Skills
+                  </Text>
+                  <View style={styles.qualificationChips}>
+                    {(primarySkills.length > 0 ? primarySkills : user?.skills ?? []).map((skill) => (
+                      <View
+                        key={skill.id}
+                        style={[
+                          styles.qualificationChip,
+                          {
+                            backgroundColor: skill.isPrimary
+                              ? palette.primarySoft
+                              : palette.surfaceMuted,
+                            borderColor: skill.isPrimary ? palette.primary : palette.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.qualificationChipTitle, { color: palette.textPrimary }]}>
+                          {skill.skill?.name || "Skill"}
+                        </Text>
+                        <Text style={[styles.qualificationChipMeta, { color: palette.textSecondary }]}>
+                          {formatEnumLabel(skill.experienceLevel)}
+                        </Text>
+                      </View>
+                    ))}
+                    {(!user?.skills || user.skills.length === 0) ? (
+                      <Text style={[styles.emptyQualificationText, { color: palette.textSecondary }]}>
+                        Add skills to improve trust and conversion.
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.qualificationGroup}>
+                  <Text style={[styles.qualificationLabel, { color: palette.textSecondary }]}>
+                    Approved certifications
+                  </Text>
+                  <Stack gap="sm">
+                    {approvedCertifications.map((certification) => (
+                      <View
+                        key={certification.id}
+                        style={[
+                          styles.certificationRow,
+                          {
+                            backgroundColor: palette.surfaceMuted,
+                            borderColor: palette.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.certificationRowTitle, { color: palette.textPrimary }]}>
+                          {certification.name}
+                        </Text>
+                        <Text style={[styles.certificationRowMeta, { color: palette.textSecondary }]}>
+                          {certification.issuer}
+                        </Text>
+                      </View>
+                    ))}
+                    {approvedCertifications.length === 0 ? (
+                      <Text style={[styles.emptyQualificationText, { color: palette.textSecondary }]}>
+                        No approved certifications yet.
+                      </Text>
+                    ) : null}
+                  </Stack>
+                </View>
+              </Stack>
             </Section>
 
             <ThemeModeCard />
@@ -963,6 +1056,51 @@ const styles = StyleSheet.create({
   },
   infoList: {
     gap: 0,
+  },
+  qualificationGroup: {
+    gap: theme.spacing.sm,
+  },
+  qualificationLabel: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  qualificationChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+  },
+  qualificationChip: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.xxs,
+  },
+  qualificationChipTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  qualificationChipMeta: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+  },
+  certificationRow: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xxs,
+  },
+  certificationRowTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  certificationRowMeta: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+  },
+  emptyQualificationText: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
   },
   infoRow: {
     minHeight: 58,
