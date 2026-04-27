@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,14 +9,16 @@ import {
   TextInput,
   View,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 
 import { Card, Row, Stack, theme } from "@/design-system";
+import { AppModal } from "@/components/ui/AppModal";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { PhoneNumberField } from "@/components/ui/PhoneNumberField";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
-import { showErrorToast } from "@/utils/toast";
+import { showErrorToast, showInfoToast, showSuccessToast } from "@/utils/toast";
 import {
   combinePhoneNumber,
   getCallingCodeForCountry,
@@ -23,7 +26,19 @@ import {
   resolvePhoneCountryCode,
   splitPhoneNumber,
 } from "@/utils/phone";
-import { Gender, UpdateUserProfilePayload, User, UserType } from "../types/user.types";
+import { fetchAvailableSkills } from "../services/user.service";
+import { useUser } from "../hooks/user.hook";
+import {
+  CertificationStatus,
+  ExperienceLevel,
+  Gender,
+  Skill,
+  UpdateUserProfilePayload,
+  UpdateUserSkillInput,
+  User,
+  UserCertification,
+  UserType,
+} from "../types/user.types";
 import { validateProfileUpdateFormFields } from "../utils/userValidation";
 
 type Props = {
@@ -37,9 +52,67 @@ type Props = {
 
 const genderOptions: Gender[] = [Gender.MALE, Gender.FEMALE, Gender.OTHER];
 const userTypeOptions: UserType[] = [UserType.GENERAL, UserType.ELDERLY, UserType.DISABLED];
+const experienceLevels: ExperienceLevel[] = [
+  ExperienceLevel.BEGINNER,
+  ExperienceLevel.INTERMEDIATE,
+  ExperienceLevel.ADVANCED,
+  ExperienceLevel.EXPERT,
+];
+const MAX_SKILLS = 15;
+const MAX_PRIMARY_SKILLS = 3;
+
+const formatEnumLabel = (value?: string | null) => {
+  if (!value) return "Not set";
+
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
+const getStatusTone = (status: CertificationStatus, palette: ReturnType<typeof useThemeContext>["palette"]) => {
+  if (status === CertificationStatus.APPROVED) {
+    return {
+      backgroundColor: palette.successSurface,
+      textColor: palette.success,
+    };
+  }
+
+  if (status === CertificationStatus.REJECTED) {
+    return {
+      backgroundColor: palette.dangerSoft,
+      textColor: palette.danger,
+    };
+  }
+
+  return {
+    backgroundColor: palette.warningSoft ?? palette.surfaceMuted,
+    textColor: palette.warning ?? palette.textPrimary,
+  };
+};
+
+const skillsEqual = (left: UpdateUserSkillInput[], right: UpdateUserSkillInput[]) => {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const normalize = (items: UpdateUserSkillInput[]) =>
+    [...items]
+      .sort((a, b) => a.skillId.localeCompare(b.skillId))
+      .map((item) => ({
+        skillId: item.skillId,
+        experienceLevel: item.experienceLevel,
+        yearsExperience: item.yearsExperience ?? null,
+        isPrimary: item.isPrimary,
+      }));
+
+  return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
+};
 
 export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: Props) => {
   const { palette } = useThemeContext();
+  const { handleReplaceUserSkills, handleUploadCertification, handleDeleteCertification } = useUser();
   const locationPicker = useLocationPicker({
     initialValue: user?.address ?? null,
     autoUseCurrentLocationOnMount: !user?.address,
@@ -64,6 +137,63 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [gender, setGender] = useState<Gender | undefined>(undefined);
   const [userType, setUserType] = useState<UserType>(UserType.GENERAL);
+  const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<UpdateUserSkillInput[]>([]);
+  const [skillsModalVisible, setSkillsModalVisible] = useState(false);
+  const [certificationsModalVisible, setCertificationsModalVisible] = useState(false);
+  const [savingSkills, setSavingSkills] = useState(false);
+  const [certificationBusyId, setCertificationBusyId] = useState<string | null>(null);
+  const [uploadingCertification, setUploadingCertification] = useState(false);
+  const [certificationName, setCertificationName] = useState("");
+  const [certificationIssuer, setCertificationIssuer] = useState("");
+  const [certificationCredentialId, setCertificationCredentialId] = useState("");
+  const [certificationIssuedAt, setCertificationIssuedAt] = useState("");
+  const [certificationExpiresAt, setCertificationExpiresAt] = useState("");
+
+  const currentCertifications = user?.certifications ?? [];
+  const primarySkillsCount = selectedSkills.filter((skill) => skill.isPrimary).length;
+  const previewSkills = useMemo(() => {
+    const prioritizedSkills = selectedSkills
+      .map((selectedSkill) => {
+        const skillMeta = availableSkills.find((item) => item.id === selectedSkill.skillId);
+
+        return {
+          ...selectedSkill,
+          skillName: skillMeta?.name || "Selected skill",
+        };
+      })
+      .sort((left, right) => Number(right.isPrimary) - Number(left.isPrimary));
+
+    return prioritizedSkills.slice(0, 4);
+  }, [availableSkills, selectedSkills]);
+  const currentSkills = useMemo<UpdateUserSkillInput[]>(
+    () =>
+      (user?.skills ?? []).map((skill) => ({
+        skillId: skill.skillId,
+        experienceLevel: skill.experienceLevel,
+        yearsExperience: skill.yearsExperience ?? null,
+        isPrimary: skill.isPrimary,
+      })),
+    [user?.skills]
+  );
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadSkills = async () => {
+      const nextSkills = await fetchAvailableSkills();
+
+      if (!isCancelled) {
+        setAvailableSkills(nextSkills);
+      }
+    };
+
+    void loadSkills();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let isCancelled = false;
@@ -86,6 +216,12 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     setDateOfBirth(user?.dateOfBirth ?? "");
     setGender(user?.gender);
     setUserType(user?.userType ?? UserType.GENERAL);
+    setSelectedSkills(currentSkills);
+    setCertificationName("");
+    setCertificationIssuer("");
+    setCertificationCredentialId("");
+    setCertificationIssuedAt("");
+    setCertificationExpiresAt("");
     clearValidationError();
     void syncPhoneState();
 
@@ -94,6 +230,7 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     };
   }, [
     clearValidationError,
+    currentSkills,
     user?.bio,
     user?.dateOfBirth,
     user?.fullName,
@@ -144,6 +281,145 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     user?.phone,
   ]);
 
+  const handleToggleSkill = (skill: Skill) => {
+    setSelectedSkills((current) => {
+      const existing = current.find((item) => item.skillId === skill.id);
+
+      if (existing) {
+        return current.filter((item) => item.skillId !== skill.id);
+      }
+
+      if (current.length >= MAX_SKILLS) {
+        showInfoToast("Skill limit reached", `You can add up to ${MAX_SKILLS} skills.`);
+        return current;
+      }
+
+      return [
+        ...current,
+        {
+          skillId: skill.id,
+          experienceLevel: ExperienceLevel.INTERMEDIATE,
+          yearsExperience: null,
+          isPrimary: false,
+        },
+      ];
+    });
+  };
+
+  const updateSelectedSkill = (
+    skillId: string,
+    updater: (current: UpdateUserSkillInput) => UpdateUserSkillInput
+  ) => {
+    setSelectedSkills((current) =>
+      current.map((item) => (item.skillId === skillId ? updater(item) : item))
+    );
+  };
+
+  const handleTogglePrimarySkill = (skillId: string) => {
+    setSelectedSkills((current) => {
+      const target = current.find((item) => item.skillId === skillId);
+      if (!target) {
+        return current;
+      }
+
+      const nextValue = !target.isPrimary;
+      const primaryCount = current.filter((item) => item.isPrimary).length;
+
+      if (nextValue && primaryCount >= MAX_PRIMARY_SKILLS) {
+        showInfoToast(
+          "Primary skill limit reached",
+          `You can mark up to ${MAX_PRIMARY_SKILLS} primary skills.`
+        );
+        return current;
+      }
+
+      return current.map((item) =>
+        item.skillId === skillId ? { ...item, isPrimary: nextValue } : item
+      );
+    });
+  };
+
+  const handleUploadCertificationProof = async () => {
+    if (!certificationName.trim() || !certificationIssuer.trim()) {
+      showErrorToast("Missing details", "Certification name and issuer are required.");
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      showInfoToast("Permission required", "Please allow access to your photo library.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.9,
+    });
+
+    if (result.canceled || !result.assets?.length) {
+      return;
+    }
+
+    const asset = result.assets[0];
+
+    setUploadingCertification(true);
+    try {
+      const response = await handleUploadCertification({
+        uri: asset.uri,
+        name: asset.fileName ?? `certification-${Date.now()}.jpg`,
+        type: asset.mimeType ?? "image/jpeg",
+        webFile: (asset as any).file ?? undefined,
+        certificationName,
+        issuer: certificationIssuer,
+        credentialId: certificationCredentialId || undefined,
+        issuedAt: certificationIssuedAt || undefined,
+        expiresAt: certificationExpiresAt || undefined,
+      });
+
+      if (response.success) {
+        setCertificationName("");
+        setCertificationIssuer("");
+        setCertificationCredentialId("");
+        setCertificationIssuedAt("");
+        setCertificationExpiresAt("");
+        showSuccessToast("Certification uploaded");
+      } else {
+        showErrorToast("Upload failed", response.message || "Could not upload certification.");
+      }
+    } finally {
+      setUploadingCertification(false);
+    }
+  };
+
+  const handleDeleteCertificationItem = async (certification: UserCertification) => {
+    Alert.alert(
+      "Delete certification",
+      `Remove "${certification.name}" from your profile?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setCertificationBusyId(certification.id);
+            try {
+              const response = await handleDeleteCertification(certification.id);
+              if (!response.success) {
+                showErrorToast(
+                  "Delete failed",
+                  response.message || "Could not remove certification."
+                );
+              }
+            } finally {
+              setCertificationBusyId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleSave = async () => {
     const phone = combinePhoneNumber(phoneCallingCode, phoneNationalNumber);
 
@@ -157,7 +433,10 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     if (!validation.isValid) {
       setValidationError(validation.formError);
       setFieldErrors(validation.fieldErrors);
-      showErrorToast("Invalid profile details", validation.formError || "Please fix the highlighted fields.");
+      showErrorToast(
+        "Invalid profile details",
+        validation.formError || "Please fix the highlighted fields."
+      );
       return;
     }
 
@@ -177,189 +456,293 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
       const message = result.message || "Please review your details and try again.";
       setValidationError(message);
       showErrorToast("Could not update profile", message);
+      return;
     }
+
+    if (!skillsEqual(selectedSkills, currentSkills)) {
+      setSavingSkills(true);
+      try {
+        const skillResult = await handleReplaceUserSkills(selectedSkills);
+
+        if (!skillResult.success) {
+          showErrorToast(
+            "Could not update skills",
+            skillResult.message || "Please try again."
+          );
+          return;
+        }
+      } finally {
+        setSavingSkills(false);
+      }
+    }
+
+    showSuccessToast("Profile updated");
   };
 
   return (
-    <Card>
+    <Card padded={false} style={styles.formCard}>
       <Stack gap="md">
-        <Text style={[styles.title, { color: palette.textPrimary }]}>Edit profile</Text>
+        <View style={styles.headerBlock}>
+          <Text style={[styles.title, { color: palette.textPrimary }]}>Edit profile</Text>
+          <Text style={[styles.formSubtitle, { color: palette.textSecondary }]}>
+            Update your personal details separately from the qualifications requesters see.
+          </Text>
+        </View>
 
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Field label="Full name">
-            <TextInput
-              value={fullName}
-              onChangeText={(value) => {
-                clearFieldError("fullName");
-                setFullName(value);
-              }}
-              placeholder="Enter full name"
-              style={[
-                styles.input,
-                {
-                  backgroundColor: palette.surfaceMuted,
-                  borderColor: palette.border,
-                  color: palette.textPrimary,
-                },
-              ]}
-              placeholderTextColor={palette.textSecondary}
-            />
-            {fieldErrors.fullName ? (
-              <Text style={[styles.errorText, { color: palette.danger }]}>{fieldErrors.fullName}</Text>
-            ) : null}
-          </Field>
+          <SectionCard
+            title="Profile details"
+            subtitle="Basic information used across your account and conversations."
+          >
+            <Field label="Full name">
+              <TextInput
+                value={fullName}
+                onChangeText={(value) => {
+                  clearFieldError("fullName");
+                  setFullName(value);
+                }}
+                placeholder="Enter full name"
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: palette.surfaceMuted,
+                    borderColor: palette.border,
+                    color: palette.textPrimary,
+                  },
+                ]}
+                placeholderTextColor={palette.textSecondary}
+              />
+              {fieldErrors.fullName ? (
+                <Text style={[styles.errorText, { color: palette.danger }]}>{fieldErrors.fullName}</Text>
+              ) : null}
+            </Field>
 
-          <PhoneNumberField
-            label="Phone number"
-            countryCode={phoneCountryCode}
-            callingCode={phoneCallingCode}
-            nationalNumber={phoneNationalNumber}
-            error={fieldErrors.phone ?? null}
-            hint={getPhoneRegionHint(phoneCountryCode, phoneCallingCode)}
-            detectedLabel={
-              !phoneCountryTouched && phoneCountryDetected
-                ? "Detected from current location"
-                : null
-            }
-            onCountryChange={({ countryCode, callingCode }, source) => {
-              clearFieldError("phone");
-              if (source === "user") {
-                setPhoneCountryTouched(true);
-                setPhoneCountryDetected(false);
+            <PhoneNumberField
+              label="Phone number"
+              countryCode={phoneCountryCode}
+              callingCode={phoneCallingCode}
+              nationalNumber={phoneNationalNumber}
+              error={fieldErrors.phone ?? null}
+              hint={getPhoneRegionHint(phoneCountryCode, phoneCallingCode)}
+              detectedLabel={
+                !phoneCountryTouched && phoneCountryDetected
+                  ? "Detected from current location"
+                  : null
               }
-              setPhoneCountryCode(countryCode);
-              setPhoneCallingCode(callingCode);
-            }}
-            onNationalNumberChange={(value) => {
-              clearFieldError("phone");
-              setPhoneNationalNumber(value.replace(/\D/g, ""));
-            }}
-          />
-
-          <Field label="Bio">
-            <TextInput
-              value={bio}
-              onChangeText={(value) => {
-                clearFieldError("bio");
-                setBio(value);
+              onCountryChange={({ countryCode, callingCode }, source) => {
+                clearFieldError("phone");
+                if (source === "user") {
+                  setPhoneCountryTouched(true);
+                  setPhoneCountryDetected(false);
+                }
+                setPhoneCountryCode(countryCode);
+                setPhoneCallingCode(callingCode);
               }}
-              placeholder="Tell something about yourself"
-              multiline
-              textAlignVertical="top"
-              style={[
-                styles.input,
-                styles.textArea,
-                {
-                  backgroundColor: palette.surfaceMuted,
-                  borderColor: palette.border,
-                  color: palette.textPrimary,
-                },
-              ]}
-              placeholderTextColor={palette.textSecondary}
+              onNationalNumberChange={(value) => {
+                clearFieldError("phone");
+                setPhoneNationalNumber(value.replace(/\D/g, ""));
+              }}
             />
-            {fieldErrors.bio ? (
-              <Text style={[styles.errorText, { color: palette.danger }]}>{fieldErrors.bio}</Text>
-            ) : null}
-          </Field>
 
-          <Field label="Date of birth">
+            <Field label="Bio">
+              <TextInput
+                value={bio}
+                onChangeText={(value) => {
+                  clearFieldError("bio");
+                  setBio(value);
+                }}
+                placeholder="Tell something about yourself"
+                multiline
+                textAlignVertical="top"
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  {
+                    backgroundColor: palette.surfaceMuted,
+                    borderColor: palette.border,
+                    color: palette.textPrimary,
+                  },
+                ]}
+                placeholderTextColor={palette.textSecondary}
+              />
+              {fieldErrors.bio ? (
+                <Text style={[styles.errorText, { color: palette.danger }]}>{fieldErrors.bio}</Text>
+              ) : null}
+            </Field>
+
             <DatePickerField
+              label="Date of birth"
               value={dateOfBirth}
-              error={fieldErrors.dateOfBirth ?? null}
               onChangeText={(value) => {
                 clearFieldError("dateOfBirth");
                 setDateOfBirth(value);
               }}
+              error={fieldErrors.dateOfBirth ?? null}
             />
-          </Field>
 
-          <Field label="Gender">
-            <View style={styles.optionRow}>
-              {genderOptions.map((option) => {
-                const active = gender === option;
-                return (
-                  <Pressable
-                    key={option}
-                    style={[
-                      styles.optionChip,
-                      {
-                        backgroundColor: active ? palette.primary : palette.surfaceMuted,
-                        borderColor: active ? palette.primary : palette.border,
-                      },
-                    ]}
-                    onPress={() => {
-                      clearValidationError();
-                      setGender(option);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        {
-                          color: active ? palette.textInverse : palette.textPrimary,
-                        },
-                      ]}
-                    >
-                      {option}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </Field>
+            <Field label="Gender">
+              <Row gap="xs" style={styles.wrapRow}>
+                {genderOptions.map((option) => {
+                  const selected = gender === option;
 
-          <Field label="User type">
-            <View style={styles.optionRow}>
-              {userTypeOptions.map((option) => {
-                const active = userType === option;
-                return (
-                  <Pressable
+                  return (
+                    <SelectablePill
+                      key={option}
+                      selected={selected}
+                      label={formatEnumLabel(option)}
+                      onPress={() => setGender(selected ? undefined : option)}
+                    />
+                  );
+                })}
+              </Row>
+            </Field>
+
+            <Field label="User type">
+              <Row gap="xs" style={styles.wrapRow}>
+                {userTypeOptions.map((option) => (
+                  <SelectablePill
                     key={option}
-                    style={[
-                      styles.optionChip,
-                      {
-                        backgroundColor: active ? palette.accent : palette.surfaceMuted,
-                        borderColor: active ? palette.accent : palette.border,
-                      },
-                    ]}
-                    onPress={() => {
-                      clearValidationError();
-                      setUserType(option);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        {
-                          color: active ? palette.textInverse : palette.textPrimary,
-                        },
-                      ]}
-                    >
-                      {option}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </Field>
+                    selected={userType === option}
+                    label={formatEnumLabel(option)}
+                    onPress={() => setUserType(option)}
+                  />
+                ))}
+              </Row>
+            </Field>
+          </SectionCard>
+
+          <SectionCard
+            title="Qualifications"
+            subtitle="Skills and certifications that help requesters trust your profile."
+          >
+            <Pressable
+              style={[
+                styles.summaryCard,
+                {
+                  backgroundColor: palette.surfaceMuted,
+                  borderColor: palette.border,
+                },
+              ]}
+              onPress={() => setSkillsModalVisible(true)}
+            >
+              <Row justify="space-between" align="flex-start" gap="md">
+                <View style={styles.summaryCopy}>
+                  <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>
+                    Skills
+                  </Text>
+                  <Text style={[styles.summaryTitle, { color: palette.textPrimary }]}>
+                    {selectedSkills.length === 0
+                      ? "Add skills to improve trust and conversion."
+                      : `${selectedSkills.length} selected, ${primarySkillsCount} primary`}
+                  </Text>
+                  <View style={styles.summaryPreviewWrap}>
+                    {previewSkills.map((skill) => (
+                      <View
+                        key={skill.skillId}
+                        style={[
+                          styles.previewChip,
+                          {
+                            backgroundColor: skill.isPrimary
+                              ? palette.primarySoft
+                              : palette.surface,
+                            borderColor: skill.isPrimary ? palette.primary : palette.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.previewChipTitle, { color: palette.textPrimary }]}>
+                          {skill.skillName}
+                        </Text>
+                        <Text style={[styles.previewChipMeta, { color: palette.textSecondary }]}>
+                          {formatEnumLabel(skill.experienceLevel)}
+                        </Text>
+                      </View>
+                    ))}
+                    {selectedSkills.length === 0 ? (
+                      <Text style={[styles.emptyQualificationText, { color: palette.textSecondary }]}>
+                        Open skills to choose the services you can confidently help with.
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                <Text style={[styles.summaryActionText, { color: palette.primary }]}>
+                  Manage
+                </Text>
+              </Row>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.summaryCard,
+                {
+                  backgroundColor: palette.surfaceMuted,
+                  borderColor: palette.border,
+                },
+              ]}
+              onPress={() => setCertificationsModalVisible(true)}
+            >
+              <Row justify="space-between" align="flex-start" gap="md">
+                <View style={styles.summaryCopy}>
+                  <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>
+                    Certifications
+                  </Text>
+                  <Text style={[styles.summaryTitle, { color: palette.textPrimary }]}>
+                    {currentCertifications.length === 0
+                      ? "No certifications uploaded yet."
+                      : `${currentCertifications.length} certification${currentCertifications.length === 1 ? "" : "s"} on file`}
+                  </Text>
+                  <Stack gap="sm" style={styles.summaryRows}>
+                    {currentCertifications.slice(0, 2).map((certification) => (
+                      <View
+                        key={certification.id}
+                        style={[
+                          styles.summaryRow,
+                          {
+                            backgroundColor: palette.surface,
+                            borderColor: palette.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.summaryRowTitle, { color: palette.textPrimary }]}>
+                          {certification.name}
+                        </Text>
+                        <Text style={[styles.summaryRowMeta, { color: palette.textSecondary }]}>
+                          {certification.issuer}
+                        </Text>
+                      </View>
+                    ))}
+                    {currentCertifications.length === 0 ? (
+                      <Text style={[styles.emptyQualificationText, { color: palette.textSecondary }]}>
+                        Upload proof documents so approved certifications can appear on your public profile.
+                      </Text>
+                    ) : null}
+                  </Stack>
+                </View>
+
+                <Text style={[styles.summaryActionText, { color: palette.primary }]}>
+                  Manage
+                </Text>
+              </Row>
+            </Pressable>
+          </SectionCard>
 
           {validationError ? (
             <Text style={[styles.errorText, { color: palette.danger }]}>{validationError}</Text>
           ) : null}
 
-          <Row gap="sm" style={styles.actions}>
+          <Row gap="sm">
             {onCancel ? (
               <Pressable
                 style={[
-                  styles.button,
+                  styles.secondaryAction,
                   {
-                    backgroundColor: palette.surfaceMuted,
                     borderColor: palette.border,
+                    backgroundColor: palette.surfaceMuted,
                   },
                 ]}
                 onPress={onCancel}
               >
-                <Text style={[styles.secondaryButtonText, { color: palette.textPrimary }]}>
+                <Text style={[styles.secondaryActionText, { color: palette.textPrimary }]}>
                   Cancel
                 </Text>
               </Pressable>
@@ -367,32 +750,336 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
 
             <Pressable
               style={[
-                styles.button,
+                styles.primaryAction,
                 {
                   backgroundColor: palette.primary,
-                  borderColor: palette.primary,
+                  opacity: loading || savingSkills ? 0.7 : 1,
                 },
-                loading && styles.buttonDisabled,
               ]}
-              onPress={handleSave}
-              disabled={loading}
+              onPress={() => void handleSave()}
+              disabled={loading || savingSkills}
             >
-              {loading ? (
-                <ActivityIndicator color={palette.textInverse} />
+              {loading || savingSkills ? (
+                <ActivityIndicator color={palette.surface} />
               ) : (
-                <Text style={[styles.primaryButtonText, { color: palette.textInverse }]}>
-                  Save changes
+                <Text style={[styles.primaryActionText, { color: palette.surface }]}>
+                  Save profile
                 </Text>
               )}
             </Pressable>
           </Row>
         </ScrollView>
       </Stack>
+
+      <AppModal
+        visible={skillsModalVisible}
+        title="Skills & experience"
+        onClose={() => setSkillsModalVisible(false)}
+        showCloseButton
+        scrollable
+      >
+        <Text style={[styles.modalDescription, { color: palette.textSecondary }]}>
+          Add up to 15 skills and mark up to 3 as primary.
+        </Text>
+
+        {availableSkills.length === 0 ? (
+          <ModalEmptyState
+            title="No skills available right now"
+            description="Try again shortly. Available skills are loaded from the server before you can select them."
+          />
+        ) : null}
+
+        <View style={styles.skillWrap}>
+          {availableSkills.map((skill) => {
+            const selected = selectedSkills.some((item) => item.skillId === skill.id);
+
+            return (
+              <SelectablePill
+                key={skill.id}
+                selected={selected}
+                label={skill.name}
+                onPress={() => handleToggleSkill(skill)}
+              />
+            );
+          })}
+        </View>
+
+        {selectedSkills.length === 0 ? (
+          <ModalEmptyState
+            title="No skills selected"
+            description="Pick a few skills above, then set experience level and mark the ones you want highlighted as primary."
+          />
+        ) : (
+          selectedSkills.map((selectedSkill) => {
+            const skillMeta = availableSkills.find((item) => item.id === selectedSkill.skillId);
+
+            return (
+              <View
+                key={selectedSkill.skillId}
+                style={[
+                  styles.skillCard,
+                  {
+                    backgroundColor: palette.surfaceMuted,
+                    borderColor: palette.border,
+                  },
+                ]}
+              >
+                <Row justify="space-between" align="center" gap="sm">
+                  <Text style={[styles.skillTitle, { color: palette.textPrimary }]}>
+                    {skillMeta?.name || "Selected skill"}
+                  </Text>
+
+                  <Pressable onPress={() => handleTogglePrimarySkill(selectedSkill.skillId)}>
+                    <Text
+                      style={[
+                        styles.primaryToggle,
+                        {
+                          color: selectedSkill.isPrimary ? palette.primary : palette.textSecondary,
+                        },
+                      ]}
+                    >
+                      {selectedSkill.isPrimary ? "Primary" : "Mark primary"}
+                    </Text>
+                  </Pressable>
+                </Row>
+
+                <Row gap="xs" style={styles.wrapRow}>
+                  {experienceLevels.map((level) => (
+                    <SelectablePill
+                      key={level}
+                      selected={selectedSkill.experienceLevel === level}
+                      label={formatEnumLabel(level)}
+                      onPress={() =>
+                        updateSelectedSkill(selectedSkill.skillId, (current) => ({
+                          ...current,
+                          experienceLevel: level,
+                        }))
+                      }
+                    />
+                  ))}
+                </Row>
+
+                <TextInput
+                  value={
+                    typeof selectedSkill.yearsExperience === "number"
+                      ? String(selectedSkill.yearsExperience)
+                      : ""
+                  }
+                  onChangeText={(value) =>
+                    updateSelectedSkill(selectedSkill.skillId, (current) => ({
+                      ...current,
+                      yearsExperience: value.trim() ? Number(value.replace(/\D/g, "")) : null,
+                    }))
+                  }
+                  keyboardType="number-pad"
+                  placeholder="Years of experience"
+                  style={[
+                    styles.input,
+                    styles.compactInput,
+                    {
+                      backgroundColor: palette.surface,
+                      borderColor: palette.border,
+                      color: palette.textPrimary,
+                    },
+                  ]}
+                  placeholderTextColor={palette.textSecondary}
+                />
+              </View>
+            );
+          })
+        )}
+      </AppModal>
+
+      <AppModal
+        visible={certificationsModalVisible}
+        title="Certifications"
+        onClose={() => setCertificationsModalVisible(false)}
+        showCloseButton
+        scrollable
+      >
+        <Text style={[styles.modalDescription, { color: palette.textSecondary }]}>
+          Upload proof images and track the review state for each certification.
+        </Text>
+
+        <Field label="Certification name">
+          <TextInput
+            value={certificationName}
+            onChangeText={setCertificationName}
+            placeholder="Example: First Aid Basics"
+            style={[
+              styles.input,
+              {
+                backgroundColor: palette.surfaceMuted,
+                borderColor: palette.border,
+                color: palette.textPrimary,
+              },
+            ]}
+            placeholderTextColor={palette.textSecondary}
+          />
+        </Field>
+
+        <Field label="Issuer">
+          <TextInput
+            value={certificationIssuer}
+            onChangeText={setCertificationIssuer}
+            placeholder="Organization or institution"
+            style={[
+              styles.input,
+              {
+                backgroundColor: palette.surfaceMuted,
+                borderColor: palette.border,
+                color: palette.textPrimary,
+              },
+            ]}
+            placeholderTextColor={palette.textSecondary}
+          />
+        </Field>
+
+        <Field label="Credential ID">
+          <TextInput
+            value={certificationCredentialId}
+            onChangeText={setCertificationCredentialId}
+            placeholder="Optional credential number"
+            style={[
+              styles.input,
+              {
+                backgroundColor: palette.surfaceMuted,
+                borderColor: palette.border,
+                color: palette.textPrimary,
+              },
+            ]}
+            placeholderTextColor={palette.textSecondary}
+          />
+        </Field>
+
+        <DatePickerField
+          label="Issued at"
+          value={certificationIssuedAt}
+          onChangeText={setCertificationIssuedAt}
+        />
+
+        <DatePickerField
+          label="Expires at"
+          value={certificationExpiresAt}
+          onChangeText={setCertificationExpiresAt}
+        />
+
+        <Pressable
+          style={[
+            styles.uploadButton,
+            {
+              backgroundColor: palette.primarySoft,
+              borderColor: palette.primary,
+              opacity: uploadingCertification ? 0.7 : 1,
+            },
+          ]}
+          onPress={() => void handleUploadCertificationProof()}
+          disabled={uploadingCertification}
+        >
+          {uploadingCertification ? (
+            <ActivityIndicator color={palette.primary} />
+          ) : (
+            <Text style={[styles.uploadButtonText, { color: palette.primary }]}>
+              Upload proof image
+            </Text>
+          )}
+        </Pressable>
+
+        {currentCertifications.length === 0 ? (
+          <ModalEmptyState
+            title="No certifications uploaded"
+            description="Add a certification name, issuer, and proof image to start the review process."
+          />
+        ) : null}
+
+        <Stack gap="sm">
+          {currentCertifications.map((certification) => {
+            const tone = getStatusTone(certification.status, palette);
+            const busy = certificationBusyId === certification.id;
+
+            return (
+              <View
+                key={certification.id}
+                style={[
+                  styles.certificationCard,
+                  {
+                    backgroundColor: palette.surfaceMuted,
+                    borderColor: palette.border,
+                  },
+                ]}
+              >
+                <Row justify="space-between" align="center" gap="sm">
+                  <View style={styles.certificationCopy}>
+                    <Text style={[styles.certificationTitle, { color: palette.textPrimary }]}>
+                      {certification.name}
+                    </Text>
+                    <Text style={[styles.certificationMeta, { color: palette.textSecondary }]}>
+                      {certification.issuer}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: tone.backgroundColor },
+                    ]}
+                  >
+                    <Text style={[styles.statusBadgeText, { color: tone.textColor }]}>
+                      {formatEnumLabel(certification.status)}
+                    </Text>
+                  </View>
+                </Row>
+
+                {certification.credentialId ? (
+                  <Text style={[styles.certificationMeta, { color: palette.textSecondary }]}>
+                    Credential ID: {certification.credentialId}
+                  </Text>
+                ) : null}
+
+                {certification.rejectionReason ? (
+                  <Text style={[styles.certificationNote, { color: palette.danger }]}>
+                    Rejection note: {certification.rejectionReason}
+                  </Text>
+                ) : null}
+
+                {certification.reviewNote ? (
+                  <Text style={[styles.certificationMeta, { color: palette.textSecondary }]}>
+                    Review note: {certification.reviewNote}
+                  </Text>
+                ) : null}
+
+                <Row justify="space-between" align="center">
+                  <Text style={[styles.certificationMeta, { color: palette.textSecondary }]}>
+                    {certification.proofUrl ? "Proof uploaded" : "No proof URL"}
+                  </Text>
+
+                  <Pressable
+                    onPress={() => void handleDeleteCertificationItem(certification)}
+                    disabled={busy}
+                  >
+                    {busy ? (
+                      <ActivityIndicator color={palette.danger} />
+                    ) : (
+                      <Text style={[styles.deleteText, { color: palette.danger }]}>Delete</Text>
+                    )}
+                  </Pressable>
+                </Row>
+              </View>
+            );
+          })}
+        </Stack>
+      </AppModal>
     </Card>
   );
 };
 
-const Field = ({ label, children }: { label: string; children: React.ReactNode }) => {
+const Field = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => {
   const { palette } = useThemeContext();
 
   return (
@@ -403,69 +1090,384 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
   );
 };
 
+const SectionTitle = ({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <Stack gap="xxs" style={styles.sectionTitleWrap}>
+      <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>{title}</Text>
+      <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
+    </Stack>
+  );
+};
+
+const SectionCard = ({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <View
+      style={[
+        styles.sectionCard,
+        {
+          backgroundColor: palette.surface,
+          borderColor: palette.border,
+        },
+      ]}
+    >
+      <SectionTitle title={title} subtitle={subtitle} />
+      <Stack gap="md" style={styles.sectionCardBody}>
+        {children}
+      </Stack>
+    </View>
+  );
+};
+
+const ModalEmptyState = ({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <View
+      style={[
+        styles.modalEmptyState,
+        {
+          backgroundColor: palette.surfaceMuted,
+          borderColor: palette.border,
+        },
+      ]}
+    >
+      <Text style={[styles.modalEmptyTitle, { color: palette.textPrimary }]}>{title}</Text>
+      <Text style={[styles.modalEmptyText, { color: palette.textSecondary }]}>{description}</Text>
+    </View>
+  );
+};
+
+const SelectablePill = ({
+  selected,
+  label,
+  onPress,
+}: {
+  selected: boolean;
+  label: string;
+  onPress: () => void;
+}) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.pill,
+        {
+          backgroundColor: selected ? palette.primarySoft : palette.surfaceMuted,
+          borderColor: selected ? palette.primary : palette.border,
+        },
+      ]}
+    >
+      <Text
+        numberOfLines={2}
+        style={[
+          styles.pillText,
+          { color: selected ? palette.primary : palette.textPrimary },
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+};
+
+
+
 const styles = StyleSheet.create({
+  formCard: {
+    borderRadius: theme.radius.xl,
+    overflow: "hidden",
+  },
+  headerBlock: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+    gap: theme.spacing.xxs,
+  },
   title: {
     fontSize: theme.typography.fontSize.lg,
     lineHeight: theme.typography.lineHeight.lg,
     fontWeight: theme.typography.fontWeight.bold,
   },
+  formSubtitle: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+  },
   content: {
     gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.lg,
   },
   label: {
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: theme.typography.lineHeight.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  input: {
+    minHeight: 50,
+    borderWidth: 1,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.md,
+    fontSize: theme.typography.fontSize.sm,
+  },
+  compactInput: {
+    minHeight: 46,
+  },
+  textArea: {
+    minHeight: 110,
+    paddingTop: theme.spacing.md,
+  },
+  sectionTitleWrap: {
+    gap: theme.spacing.xxs,
+  },
+  sectionCard: {
+    borderWidth: 1,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.md,
+  },
+  sectionCardBody: {
+    marginTop: theme.spacing.md,
+  },
+  sectionTitle: {
+    fontSize: theme.typography.fontSize.md,
+    lineHeight: theme.typography.lineHeight.md,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  sectionSubtitle: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+  },
+  summaryCard: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+  },
+  summaryCopy: {
+    flex: 1,
+    gap: theme.spacing.sm,
+  },
+  summaryLabel: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  summaryTitle: {
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
     fontWeight: theme.typography.fontWeight.semibold,
   },
-  input: {
-    minHeight: 52,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: theme.spacing.md,
-    fontSize: theme.typography.fontSize.sm,
-  },
-  textArea: {
-    minHeight: 110,
-    paddingTop: theme.spacing.sm,
-  },
-  optionRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing.xs,
-  },
-  optionChip: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 10,
-    borderRadius: theme.radius.fill,
-    borderWidth: 1,
-  },
-  optionText: {
+  summaryText: {
     fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+  },
+  summaryActionText: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
     fontWeight: theme.typography.fontWeight.semibold,
   },
-  actions: {
+  summaryPreviewWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+  },
+  previewChip: {
+    width: "48%",
+    maxWidth: 164,
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.xxs,
+  },
+  previewChipTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  previewChipMeta: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+  },
+  summaryRows: {
     marginTop: theme.spacing.xxs,
   },
-  button: {
-    flex: 1,
-    minHeight: 50,
+  summaryRow: {
+    borderWidth: 1,
     borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xxs,
+  },
+  summaryRowTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  summaryRowMeta: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+  },
+  modalDescription: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+  },
+  modalEmptyState: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xxs,
+  },
+  modalEmptyTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  modalEmptyText: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+  },
+  skillWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+  },
+  wrapRow: {
+    flexWrap: "wrap",
+    columnGap: theme.spacing.sm,
+    rowGap: theme.spacing.sm,
+  },
+  pill: {
+    maxWidth: 168,
+    minHeight: 38,
+    borderWidth: 1,
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    justifyContent: "center",
+  },
+  pillText: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 2,
+    fontWeight: theme.typography.fontWeight.medium,
+    textAlign: "center",
+  },
+  skillCard: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  skillTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  primaryToggle: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 2,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  uploadButton: {
+    minHeight: 52,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: theme.spacing.md,
+  },
+  uploadButtonText: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  certificationCard: {
     borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xs,
   },
-  primaryButtonText: {
+  certificationCopy: {
+    flex: 1,
+    gap: theme.spacing.xxs,
+  },
+  certificationTitle: {
     fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.bold,
+    lineHeight: theme.typography.lineHeight.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
-  secondaryButtonText: {
+  certificationMeta: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+  },
+  emptyQualificationText: {
     fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.bold,
+    lineHeight: theme.typography.lineHeight.sm,
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  certificationNote: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  statusBadge: {
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xxs,
+  },
+  statusBadgeText: {
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: theme.typography.lineHeight.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  deleteText: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 2,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   errorText: {
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: theme.typography.lineHeight.xs + 2,
+  },
+  primaryAction: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryActionText: {
     fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  secondaryAction: {
+    minWidth: 108,
+    minHeight: 52,
+    borderWidth: 1,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: theme.spacing.md,
+  },
+  secondaryActionText: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
 });
