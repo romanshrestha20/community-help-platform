@@ -1,5 +1,7 @@
 // src/types/bid.types.ts
 
+import type { VerificationBadge } from "@/features/user/types/user.types";
+
 export type BidStatus = "PENDING" | "ACCEPTED" | "REJECTED";
 
 export interface Bid {
@@ -43,6 +45,7 @@ export interface Bid {
         expiresAt?: string | null;
         reviewedAt?: string | null;
     }[];
+    helperVerificationBadges?: VerificationBadge[];
 
     createdAt: string;
     updatedAt?: string;

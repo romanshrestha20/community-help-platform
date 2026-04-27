@@ -4,6 +4,7 @@ import { AppLocation } from "@/features/location/types/location.types";
 import type {
   UserCertification,
   UserSkill,
+  VerificationBadge,
 } from "@/features/user/types/user.types";
 
 export interface LoginDto {
@@ -85,6 +86,7 @@ export interface User {
   isVerified: boolean;
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
+  verificationBadges?: VerificationBadge[];
   profile?: UserProfile | null;
   avatarUrl?: string | null;
   createdAt: string;
