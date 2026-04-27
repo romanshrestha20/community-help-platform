@@ -20,6 +20,11 @@ export const Card = ({ padded = true, style, children, ...props }: CardProps) =>
           borderColor: palette.border,
           borderRadius: theme.radius.lg,
           padding: padded ? theme.spacing.md : 0,
+          shadowColor: palette.shadow,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 1,
+          shadowRadius: 2,
+          elevation: 1,
         },
         style,
       ]}
