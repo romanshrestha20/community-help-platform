@@ -1,6 +1,10 @@
 // auth.types.ts
 // src/features/auth/auth.types.ts
 import { AppLocation } from "@/features/location/types/location.types";
+import type {
+  UserCertification,
+  UserSkill,
+} from "@/features/user/types/user.types";
 
 export interface LoginDto {
   email: string;
@@ -65,6 +69,8 @@ export interface UserProfile {
   searchRadiusMeters?: number | null;
   addressId?: string | null;
   address: AppLocation | null;
+  skills?: UserSkill[];
+  certifications?: UserCertification[];
 
   createdAt: string;
   updatedAt: string;
