@@ -73,6 +73,12 @@ export const lightColors = {
   overlay: "rgba(16, 16, 14, 0.42)",
   shadow: "rgba(18, 22, 18, 0.12)",
   scrim: "rgba(22, 21, 17, 0.08)",
+
+  // ─── Trust / Verification ──────────────────────────────────────────────────
+  trust: "#CBA258",
+  trustPressed: "#A9843F",
+  trustLight: "#F8EFD8",
+  trustSoft: "rgba(203, 162, 88, 0.14)",
 };
 
 export const darkColors: typeof lightColors = {
@@ -148,6 +154,12 @@ export const darkColors: typeof lightColors = {
   overlay: "rgba(0, 0, 0, 0.58)",
   shadow: "rgba(0, 0, 0, 0.34)",
   scrim: "rgba(0, 0, 0, 0.22)",
+
+  // ─── Trust / Verification ──────────────────────────────────────────────────
+  trust: "#DDB76D",
+  trustPressed: "#C79F52",
+  trustLight: "#3A2D16",
+  trustSoft: "rgba(221, 183, 109, 0.16)",
 };
 
 // Backward-compatible export for modules importing { colors } directly.
