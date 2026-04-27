@@ -16,6 +16,7 @@ import {
   ownerProfileQualificationInclude,
   serializeProfileQualifications,
 } from "../utils/profile-qualifications.js";
+import { buildVerificationBadges } from "../utils/verification-badges.js";
 
 export const getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
@@ -49,6 +50,10 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
       isVerified: user.isVerified,
       isEmailVerified: user.isEmailVerified,
       isPhoneVerified: user.isPhoneVerified,
+      verificationBadges: buildVerificationBadges({
+        user,
+        profile: user.profile,
+      }),
       profile: user.profile ? serializeProfileQualifications(user.profile) : null,
     });
   } catch (error) {
@@ -179,6 +184,10 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
       isVerified: updatedUser.isVerified,
       isEmailVerified: updatedUser.isEmailVerified,
       isPhoneVerified: updatedUser.isPhoneVerified,
+      verificationBadges: buildVerificationBadges({
+        user: updatedUser,
+        profile: updatedProfile,
+      }),
       profile: serializeProfileQualifications(updatedProfile),
     });
   } catch (error) {
@@ -218,6 +227,13 @@ export const uploadUserAvatar = async (req: Request, res: Response, next: NextFu
       `thesis-app/users/${userId}/avatar`
     );
 
+    const userFlags = await prisma.userModel.findUnique({
+      where: { id: userId },
+      select: {
+        isPhoneVerified: true,
+      },
+    });
+
     if (profile.avatarPublicId) {
       try {
         await deleteImageFromCloudinary(profile.avatarPublicId);
@@ -242,6 +258,10 @@ export const uploadUserAvatar = async (req: Request, res: Response, next: NextFu
     res.json({
       status: "success",
       message: "Avatar updated successfully",
+      verificationBadges: buildVerificationBadges({
+        user: userFlags,
+        profile: safeProfile,
+      }),
       profile: serializeProfileQualifications(safeProfile),
     });
 
@@ -263,6 +283,13 @@ export const deleteUserAvatar = async (req: Request, res: Response, next: NextFu
       include: {
         address: true,
         ...ownerProfileQualificationInclude(),
+      },
+    });
+
+    const userFlags = await prisma.userModel.findUnique({
+      where: { id: userId },
+      select: {
+        isPhoneVerified: true,
       },
     });
 
@@ -297,6 +324,10 @@ export const deleteUserAvatar = async (req: Request, res: Response, next: NextFu
     res.status(200).json({
       status: "success",
       message: "Avatar deleted successfully",
+      verificationBadges: buildVerificationBadges({
+        user: userFlags,
+        profile: updatedProfile,
+      }),
       profile: serializeProfileQualifications(updatedProfile),
     });
   } catch (error) {

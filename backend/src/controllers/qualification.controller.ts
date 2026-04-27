@@ -13,6 +13,7 @@ import {
   ownerProfileQualificationInclude,
   serializeProfileQualifications,
 } from "../utils/profile-qualifications.js";
+import { buildVerificationBadges } from "../utils/verification-badges.js";
 import {
   deleteImageFromCloudinary,
   uploadImageToCloudinary,
@@ -40,19 +41,30 @@ const parseOptionalDate = (value?: string) => {
 };
 
 const getOwnerProfilePayload = async (userId: string) => {
-  const profile = await prisma.profile.findUnique({
-    where: { userId },
-    include: {
-      address: true,
-      ...ownerProfileQualificationInclude(),
+  const user = await prisma.userModel.findUnique({
+    where: { id: userId },
+    select: {
+      isPhoneVerified: true,
+      profile: {
+        include: {
+          address: true,
+          ...ownerProfileQualificationInclude(),
+        },
+      },
     },
   });
 
-  if (!profile) {
+  if (!user?.profile) {
     throw new AppError("Profile not found", 404);
   }
 
-  return serializeProfileQualifications(profile);
+  return {
+    profile: serializeProfileQualifications(user.profile),
+    verificationBadges: buildVerificationBadges({
+      user,
+      profile: user.profile,
+    }),
+  };
 };
 
 export const listSkills = async (_req: Request, res: Response, next: NextFunction) => {
@@ -146,12 +158,13 @@ export const replaceUserSkills = async (req: Request, res: Response, next: NextF
       }
     });
 
-    const nextProfile = await getOwnerProfilePayload(userId);
+    const nextPayload = await getOwnerProfilePayload(userId);
 
     res.status(200).json({
       status: "success",
       message: "Skills updated successfully",
-      profile: nextProfile,
+      verificationBadges: nextPayload.verificationBadges,
+      profile: nextPayload.profile,
     });
   } catch (error) {
     next(error);
@@ -211,12 +224,13 @@ export const uploadUserCertification = async (req: Request, res: Response, next:
       },
     });
 
-    const nextProfile = await getOwnerProfilePayload(userId);
+    const nextPayload = await getOwnerProfilePayload(userId);
 
     res.status(201).json({
       status: "success",
       message: "Certification uploaded successfully",
-      profile: nextProfile,
+      verificationBadges: nextPayload.verificationBadges,
+      profile: nextPayload.profile,
     });
   } catch (error) {
     next(error);
@@ -257,12 +271,13 @@ export const deleteUserCertification = async (req: Request, res: Response, next:
       await deleteImageFromCloudinary(certification.proofPublicId).catch(() => undefined);
     }
 
-    const nextProfile = await getOwnerProfilePayload(userId);
+    const nextPayload = await getOwnerProfilePayload(userId);
 
     res.status(200).json({
       status: "success",
       message: "Certification deleted successfully",
-      profile: nextProfile,
+      verificationBadges: nextPayload.verificationBadges,
+      profile: nextPayload.profile,
     });
   } catch (error) {
     next(error);

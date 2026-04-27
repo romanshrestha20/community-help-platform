@@ -5,6 +5,7 @@ import { createNotification } from "../services/notification.service.js";
 import { ensureConversationForRequestInTransaction } from "../services/conversation.service.js";
 import { NotificationType, Prisma } from "../../generated/prisma/client.js";
 import { getZodErrorMessage } from "../utils/zod.js";
+import { buildVerificationBadges } from "../utils/verification-badges.js";
 import {
   placeBidBodySchema,
   respondToBidBodySchema,
@@ -148,6 +149,10 @@ const formatBid = (bid: any) => ({
     expiresAt: certification.expiresAt,
     reviewedAt: certification.reviewedAt,
   })),
+  helperVerificationBadges: buildVerificationBadges({
+    user: bid.helper,
+    profile: bid.helper?.profile,
+  }),
   createdAt: bid.createdAt,
   updatedAt: bid.updatedAt || bid.createdAt,
 });
@@ -183,6 +188,7 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
           select: {
             id: true,
             email: true,
+            isPhoneVerified: true,
             profile: { select: buildHelperProfileSelect() },
           },
         },
@@ -254,6 +260,7 @@ export const getBidsForHelpRequest = async (req: Request, res: Response, next: N
           select: {
             id: true,
             email: true,
+            isPhoneVerified: true,
             profile: { select: buildHelperProfileSelect() },
           },
         },
@@ -514,6 +521,7 @@ export const updateBid = async (req: Request, res: Response, next: NextFunction)
           select: {
             id: true,
             email: true,
+            isPhoneVerified: true,
             profile: { select: buildHelperProfileSelect() },
           },
         },
@@ -544,6 +552,7 @@ export const getBidById = async (req: Request, res: Response, next: NextFunction
           select: {
             id: true,
             email: true,
+            isPhoneVerified: true,
             profile: { select: buildHelperProfileSelect() },
           },
         },

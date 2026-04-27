@@ -50,6 +50,7 @@ import {
   publicProfileQualificationInclude,
   serializeProfileQualifications,
 } from "../utils/profile-qualifications.js";
+import { buildVerificationBadges } from "../utils/verification-badges.js";
 
 const PASSWORD_RESET_SUCCESS_MESSAGE =
   "If an account exists for this email, we sent a password reset link.";
@@ -186,6 +187,10 @@ const getPublicUserById = async (userId: string) => {
 
   return {
     ...publicUser,
+    verificationBadges: buildVerificationBadges({
+      user: publicUser,
+      profile: publicUser.profile,
+    }),
     profile: publicUser.profile
       ? serializeProfileQualifications(publicUser.profile, { publicView: true })
       : null,
