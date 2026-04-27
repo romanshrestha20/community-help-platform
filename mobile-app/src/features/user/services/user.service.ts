@@ -46,7 +46,14 @@ const buildUploadFormData = async (
 export const fetchUserProfile = async (
   currentUser?: Pick<
     User,
-    "id" | "email" | "phone" | "hasPassword" | "isVerified" | "isEmailVerified" | "isPhoneVerified"
+    | "id"
+    | "email"
+    | "phone"
+    | "hasPassword"
+    | "isVerified"
+    | "isEmailVerified"
+    | "isPhoneVerified"
+    | "verificationBadges"
   > |
     AuthUser |
     null

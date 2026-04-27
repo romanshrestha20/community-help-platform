@@ -10,7 +10,14 @@ import { User as AuthUser } from "@/features/auth/types/auth.types";
 
 type UserIdentityBase = Pick<
   User,
-  "id" | "email" | "phone" | "hasPassword" | "isVerified" | "isEmailVerified" | "isPhoneVerified"
+  | "id"
+  | "email"
+  | "phone"
+  | "hasPassword"
+  | "isVerified"
+  | "isEmailVerified"
+  | "isPhoneVerified"
+  | "verificationBadges"
 > |
   AuthUser;
 
@@ -25,6 +32,7 @@ export const mapProfileToUser = (
   profile: UserProfile,
   base?: Partial<
     Pick<User, "id" | "email" | "phone" | "hasPassword" | "isVerified" | "isEmailVerified" | "isPhoneVerified">
+      & Pick<User, "verificationBadges">
   >
 ): User => {
   return {
@@ -47,6 +55,7 @@ export const mapProfileToUser = (
     address: profile.address ?? null,
     skills: profile.skills ?? [],
     certifications: profile.certifications ?? [],
+    verificationBadges: base?.verificationBadges ?? [],
   };
 };
 
@@ -64,6 +73,7 @@ export const mapGetProfileResponseToUser = (
     isVerified: response.isVerified ?? currentUser?.isVerified ?? true,
     isEmailVerified: response.isEmailVerified ?? currentUser?.isEmailVerified ?? true,
     isPhoneVerified: response.isPhoneVerified ?? currentUser?.isPhoneVerified ?? false,
+    verificationBadges: response.verificationBadges ?? currentUser?.verificationBadges ?? [],
   });
 };
 
@@ -82,5 +92,6 @@ export const mapProfileMutationResponseToUser = (
     isVerified: response.isVerified ?? currentUser?.isVerified ?? true,
     isEmailVerified: response.isEmailVerified ?? currentUser?.isEmailVerified ?? true,
     isPhoneVerified: response.isPhoneVerified ?? currentUser?.isPhoneVerified ?? false,
+    verificationBadges: response.verificationBadges ?? currentUser?.verificationBadges ?? [],
   });
 };

@@ -23,6 +23,20 @@ export enum CertificationStatus {
   REJECTED = "REJECTED",
 }
 
+export type VerificationBadgeLevel = "basic" | "trust" | "qualification";
+
+export type VerificationBadgeKey =
+  | "PHONE_VERIFIED"
+  | "EMAIL_VERIFIED"
+  | "TRUSTED_HELPER"
+  | "CERTIFIED_HELPER";
+
+export interface VerificationBadge {
+  key: VerificationBadgeKey;
+  label: string;
+  level: VerificationBadgeLevel;
+}
+
 export interface Address {
   id?: string;
   latitude: number;
@@ -60,6 +74,7 @@ export interface User {
   address?: Address | null;
   skills: UserSkill[];
   certifications: UserCertification[];
+  verificationBadges: VerificationBadge[];
 }
 
 export interface UserResponse {
@@ -150,6 +165,7 @@ export interface GetUserProfileApiResponse {
   isVerified?: boolean;
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
+  verificationBadges?: VerificationBadge[];
   profile: UserProfile | null;
 }
 
@@ -160,6 +176,7 @@ export interface UpdateUserProfileApiResponse {
   isVerified?: boolean;
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
+  verificationBadges?: VerificationBadge[];
   profile: UserProfile;
 }
 
@@ -170,6 +187,7 @@ export interface UploadAvatarApiResponse {
   isVerified?: boolean;
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
+  verificationBadges?: VerificationBadge[];
   profile: UserProfile;
 }
 
@@ -180,6 +198,7 @@ export interface DeleteAvatarApiResponse {
   isVerified?: boolean;
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
+  verificationBadges?: VerificationBadge[];
   profile: UserProfile;
 }
 
