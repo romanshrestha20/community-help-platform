@@ -39,6 +39,16 @@ const SectionHeader = ({
   );
 };
 
+const formatEnumLabel = (value?: string | null) => {
+  if (!value) return "Not available";
+
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
 const InfoTile = ({
   label,
   value,
@@ -100,8 +110,6 @@ export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
   const summary = getCachedSummary(bid.helperId);
   const reviews = getCachedReviews(bid.helperId);
   const reviewsLoading = Boolean(loadingByUserId[bid.helperId]);
-  const locationLabel = bid.helperLocation || "Location not available";
-
   const quickFacts = [
     displayGender !== "Not available" ? displayGender : null,
     typeof bid.helperAge === "number" ? `${bid.helperAge} yrs` : null,
@@ -112,6 +120,8 @@ export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
     summary.totalReviews > 0
       ? `${summary.rating.toFixed(1)} average across ${summary.totalReviews} review${summary.totalReviews === 1 ? "" : "s"}`
       : "New to the platform. Reviews will appear here after completed requests.";
+  const helperSkills = bid.helperSkills ?? [];
+  const approvedCertifications = bid.helperApprovedCertifications ?? [];
 
   return (
     <AppModal
@@ -289,6 +299,80 @@ export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
         </Text>
       </View>
 
+      {helperSkills.length > 0 ? (
+        <>
+          <SectionHeader
+            title="Skills & experience"
+            subtitle="Structured qualifications shared by this helper."
+          />
+
+          <Card style={styles.sectionCard}>
+            <View style={styles.qualificationsWrap}>
+              {helperSkills.map((entry) => (
+                <View
+                  key={entry.id}
+                  style={[
+                    styles.qualificationChip,
+                    {
+                      backgroundColor: entry.isPrimary ? palette.primarySoft : palette.surfaceMuted,
+                      borderColor: entry.isPrimary ? palette.primary : palette.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.qualificationTitle, { color: palette.textPrimary }]}>
+                    {entry.skill?.name || "Skill"}
+                  </Text>
+                  <Text style={[styles.qualificationMeta, { color: palette.textSecondary }]}>
+                    {entry.isPrimary ? "Primary" : formatEnumLabel(entry.experienceLevel)}
+                    {typeof entry.yearsExperience === "number"
+                      ? ` · ${entry.yearsExperience} yr${entry.yearsExperience === 1 ? "" : "s"}`
+                      : ""}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        </>
+      ) : null}
+
+      {approvedCertifications.length > 0 ? (
+        <>
+          <SectionHeader
+            title="Approved certifications"
+            subtitle="Verified proof submitted through the profile."
+          />
+
+          <Card style={styles.sectionCard}>
+            <Stack gap="sm">
+              {approvedCertifications.map((certification) => (
+                <View
+                  key={certification.id}
+                  style={[
+                    styles.certificationItem,
+                    {
+                      backgroundColor: palette.surfaceMuted,
+                      borderColor: palette.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.certificationTitle, { color: palette.textPrimary }]}>
+                    {certification.name}
+                  </Text>
+                  <Text style={[styles.certificationIssuer, { color: palette.textSecondary }]}>
+                    {certification.issuer}
+                  </Text>
+                  {certification.credentialId ? (
+                    <Text style={[styles.certificationIssuer, { color: palette.textSecondary }]}>
+                      Credential ID: {certification.credentialId}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </Stack>
+          </Card>
+        </>
+      ) : null}
+
       <SectionHeader
         title="Trust summary"
         subtitle={trustSubtitle}
@@ -437,6 +521,40 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.xl,
     padding: theme.spacing.md,
     gap: theme.spacing.sm,
+  },
+  qualificationsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+  },
+  qualificationChip: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.xxs,
+  },
+  qualificationTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  qualificationMeta: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+  },
+  certificationItem: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xxs,
+  },
+  certificationTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  certificationIssuer: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
   },
   sectionEyebrow: {
     fontSize: theme.typography.fontSize.xs,

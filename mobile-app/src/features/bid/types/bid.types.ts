@@ -20,6 +20,29 @@ export interface Bid {
     helperGender?: string;
     helperAvatarUrl?: string | null;
     helperLocation?: string;
+    helperSkills?: {
+        id: string;
+        skillId: string;
+        experienceLevel: string;
+        yearsExperience?: number | null;
+        isPrimary: boolean;
+        skill: {
+            id: string;
+            name: string;
+            slug: string;
+        } | null;
+    }[];
+    helperPrimarySkills?: string[];
+    helperApprovedCertifications?: {
+        id: string;
+        name: string;
+        issuer: string;
+        credentialId?: string | null;
+        status: string;
+        issuedAt?: string | null;
+        expiresAt?: string | null;
+        reviewedAt?: string | null;
+    }[];
 
     createdAt: string;
     updatedAt?: string;
