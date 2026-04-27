@@ -10,6 +10,19 @@ export enum UserType {
   DISABLED = "DISABLED",
 }
 
+export enum ExperienceLevel {
+  BEGINNER = "BEGINNER",
+  INTERMEDIATE = "INTERMEDIATE",
+  ADVANCED = "ADVANCED",
+  EXPERT = "EXPERT",
+}
+
+export enum CertificationStatus {
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
+}
+
 export interface Address {
   id?: string;
   latitude: number;
@@ -45,6 +58,8 @@ export interface User {
   helpCount: number;
   avatarUrl?: string | null;
   address?: Address | null;
+  skills: UserSkill[];
+  certifications: UserCertification[];
 }
 
 export interface UserResponse {
@@ -61,6 +76,52 @@ export interface UpdateUserProfilePayload {
   gender?: Gender;
   userType?: UserType;
   address?: Address | null;
+  skills?: UpdateUserSkillInput[];
+}
+
+export interface Skill {
+  id: string;
+  name: string;
+  slug: string;
+  categoryId?: string | null;
+  isActive: boolean;
+}
+
+export interface UserSkill {
+  id: string;
+  skillId: string;
+  experienceLevel: ExperienceLevel;
+  yearsExperience?: number | null;
+  isPrimary: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  skill: Skill | null;
+}
+
+export interface UpdateUserSkillInput {
+  skillId: string;
+  experienceLevel: ExperienceLevel;
+  yearsExperience?: number | null;
+  isPrimary: boolean;
+}
+
+export interface UserCertification {
+  id: string;
+  userId?: string;
+  profileId?: string;
+  name: string;
+  issuer: string;
+  credentialId?: string | null;
+  proofUrl?: string;
+  status: CertificationStatus;
+  issuedAt?: string | null;
+  expiresAt?: string | null;
+  reviewNote?: string | null;
+  rejectionReason?: string | null;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UserProfile {
@@ -75,6 +136,8 @@ export interface UserProfile {
   helpCount: number;
   avatarUrl?: string | null;
   address?: Address | null;
+  skills: UserSkill[];
+  certifications: UserCertification[];
   createdAt: string;
   updatedAt: string;
 }
@@ -125,4 +188,12 @@ export interface AvatarUploadInput {
   name?: string;
   type?: string;
   webFile?: File | Blob;
+}
+
+export interface CertificationUploadInput extends AvatarUploadInput {
+  certificationName: string;
+  issuer: string;
+  credentialId?: string;
+  issuedAt?: string;
+  expiresAt?: string;
 }

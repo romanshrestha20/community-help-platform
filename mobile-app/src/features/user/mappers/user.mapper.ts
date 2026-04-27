@@ -45,6 +45,8 @@ export const mapProfileToUser = (
     helpCount: profile.helpCount ?? 0,
     avatarUrl: profile.avatarUrl ?? null,
     address: profile.address ?? null,
+    skills: profile.skills ?? [],
+    certifications: profile.certifications ?? [],
   };
 };
 

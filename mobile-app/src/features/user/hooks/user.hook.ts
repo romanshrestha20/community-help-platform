@@ -3,13 +3,20 @@ import { useUserStore } from "../store/user.store";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { clearTokens } from "@/utils/token";
 import {
+  deleteUserCertificationService,
   deleteUserAvatarService,
   deleteUserProfileService,
   fetchUserProfile,
+  replaceUserSkillsService,
   updateUserProfileService,
+  uploadUserCertificationService,
   uploadUserAvatarService,
 } from "../services/user.service";
-import { AvatarUploadInput, UpdateUserProfilePayload } from "../types/user.types";
+import {
+  AvatarUploadInput,
+  CertificationUploadInput,
+  UpdateUserProfilePayload,
+} from "../types/user.types";
 
 export const useUser = () => {
   const logout = useAuthStore((state) => state.logout);
@@ -58,6 +65,8 @@ export const useUser = () => {
                   helpCount: nextUser.helpCount,
                   avatarUrl: nextUser.avatarUrl ?? null,
                   address: nextUser.address ?? null,
+                  skills: nextUser.skills ?? [],
+                  certifications: nextUser.certifications ?? [],
                 }
               : null,
           },
@@ -148,6 +157,66 @@ export const useUser = () => {
     return result.success;
   }, [user, setUser, setLoading, setError, syncAuthUser]);
 
+  const handleReplaceUserSkills = useCallback(
+    async (skills: NonNullable<UpdateUserProfilePayload["skills"]>) => {
+      setLoading(true);
+      setError(null);
+
+      const result = await replaceUserSkillsService(skills, user);
+
+      if (result.success && result.data) {
+        setUser(result.data);
+        syncAuthUser(result.data);
+      } else {
+        setError(result.message || "Failed to update skills");
+      }
+
+      setLoading(false);
+      return result;
+    },
+    [setError, setLoading, setUser, syncAuthUser, user]
+  );
+
+  const handleUploadCertification = useCallback(
+    async (file: CertificationUploadInput) => {
+      setLoading(true);
+      setError(null);
+
+      const result = await uploadUserCertificationService(file, user);
+
+      if (result.success && result.data) {
+        setUser(result.data);
+        syncAuthUser(result.data);
+      } else {
+        setError(result.message || "Failed to upload certification");
+      }
+
+      setLoading(false);
+      return result;
+    },
+    [setError, setLoading, setUser, syncAuthUser, user]
+  );
+
+  const handleDeleteCertification = useCallback(
+    async (certificationId: string) => {
+      setLoading(true);
+      setError(null);
+
+      const result = await deleteUserCertificationService(certificationId, user);
+
+      if (result.success && result.data) {
+        setUser(result.data);
+        syncAuthUser(result.data);
+      } else {
+        setError(result.message || "Failed to delete certification");
+      }
+
+      setLoading(false);
+      return result;
+    },
+    [setError, setLoading, setUser, syncAuthUser, user]
+  );
+
   const handleDeleteProfile = useCallback(async (password?: string) => {
     setLoading(true);
     setError(null);
@@ -174,6 +243,9 @@ export const useUser = () => {
     handleUpdateProfile,
     handleUploadAvatar,
     handleDeleteAvatar,
+    handleReplaceUserSkills,
+    handleUploadCertification,
+    handleDeleteCertification,
     handleDeleteProfile,
   };
 };

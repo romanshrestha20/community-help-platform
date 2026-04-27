@@ -2,6 +2,8 @@ import { Platform } from "react-native";
 import * as userApi from "../api/user.api";
 import {
   AvatarUploadInput,
+  CertificationUploadInput,
+  Skill,
   UpdateUserProfilePayload,
   User,
   UserResponse,
@@ -14,24 +16,27 @@ import {
 
 import { showToast } from "@/utils/toast";
 
-const buildAvatarFormData = async (file: AvatarUploadInput): Promise<FormData> => {
+const buildUploadFormData = async (
+  fieldName: string,
+  file: AvatarUploadInput
+): Promise<FormData> => {
   const formData = new FormData();
 
   if (Platform.OS === "web") {
     if (file.webFile) {
-      formData.append("avatar", file.webFile, file.name ?? `avatar-${Date.now()}.jpg`);
+      formData.append(fieldName, file.webFile, file.name ?? `${fieldName}-${Date.now()}.jpg`);
       return formData;
     }
 
     const response = await fetch(file.uri);
     const blob = await response.blob();
-    formData.append("avatar", blob, file.name ?? `avatar-${Date.now()}.jpg`);
+    formData.append(fieldName, blob, file.name ?? `${fieldName}-${Date.now()}.jpg`);
     return formData;
   }
 
-  formData.append("avatar", {
+  formData.append(fieldName, {
     uri: file.uri,
-    name: file.name ?? `avatar-${Date.now()}.jpg`,
+    name: file.name ?? `${fieldName}-${Date.now()}.jpg`,
     type: file.type ?? "image/jpeg",
   } as any);
 
@@ -135,7 +140,7 @@ export const uploadUserAvatarService = async (
       };
     }
 
-    const formData = await buildAvatarFormData(file);
+    const formData = await buildUploadFormData("avatar", file);
     const data = await userApi.uploadUserAvatar(formData);
 
     showToast("success", "Avatar updated successfully");
@@ -154,6 +159,123 @@ export const uploadUserAvatarService = async (
 
     console.error("Upload avatar error:", error);
     showToast("error", "Failed to upload avatar");
+    return {
+      success: false,
+      data: null,
+      message: backendMessage,
+    };
+  }
+};
+
+export const fetchAvailableSkills = async (): Promise<Skill[]> => {
+  try {
+    return await userApi.getSkills();
+  } catch (error) {
+    console.error("Fetch skills error:", error);
+    return [];
+  }
+};
+
+export const replaceUserSkillsService = async (
+  skills: NonNullable<UpdateUserProfilePayload["skills"]>,
+  currentUser: User | null
+): Promise<UserResponse> => {
+  try {
+    const data = await userApi.replaceUserSkills(skills);
+
+    return {
+      success: true,
+      data: mapProfileMutationResponseToUser(data, currentUser),
+      message: data.message || "Skills updated successfully",
+    };
+  } catch (error: any) {
+    const backendMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.error?.message ||
+      error?.message ||
+      "Failed to update skills";
+
+    console.error("Replace user skills error:", error);
+    return {
+      success: false,
+      data: null,
+      message: backendMessage,
+    };
+  }
+};
+
+export const uploadUserCertificationService = async (
+  file: CertificationUploadInput,
+  currentUser: User | null
+): Promise<UserResponse> => {
+  try {
+    if (!file?.uri) {
+      return {
+        success: false,
+        data: null,
+        message: "Certification proof is required",
+      };
+    }
+
+    const formData = await buildUploadFormData("proof", file);
+    formData.append("name", file.certificationName.trim());
+    formData.append("issuer", file.issuer.trim());
+
+    if (file.credentialId?.trim()) {
+      formData.append("credentialId", file.credentialId.trim());
+    }
+
+    if (file.issuedAt?.trim()) {
+      formData.append("issuedAt", file.issuedAt.trim());
+    }
+
+    if (file.expiresAt?.trim()) {
+      formData.append("expiresAt", file.expiresAt.trim());
+    }
+
+    const data = await userApi.uploadUserCertification(formData);
+
+    return {
+      success: true,
+      data: mapProfileMutationResponseToUser(data, currentUser),
+      message: data.message || "Certification uploaded successfully",
+    };
+  } catch (error: any) {
+    const backendMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.error?.message ||
+      error?.message ||
+      "Failed to upload certification";
+
+    console.error("Upload certification error:", error);
+    return {
+      success: false,
+      data: null,
+      message: backendMessage,
+    };
+  }
+};
+
+export const deleteUserCertificationService = async (
+  certificationId: string,
+  currentUser: User | null
+): Promise<UserResponse> => {
+  try {
+    const data = await userApi.deleteUserCertification(certificationId);
+
+    return {
+      success: true,
+      data: mapProfileMutationResponseToUser(data, currentUser),
+      message: data.message || "Certification deleted successfully",
+    };
+  } catch (error: any) {
+    const backendMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.error?.message ||
+      error?.message ||
+      "Failed to delete certification";
+
+    console.error("Delete certification error:", error);
     return {
       success: false,
       data: null,
