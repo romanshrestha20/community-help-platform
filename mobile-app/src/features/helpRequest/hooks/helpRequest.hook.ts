@@ -37,7 +37,7 @@ export const useHelpRequest = () => {
     }, [run]);
 
     const updateHelpRequestStatus = useCallback((id: string, status: HelpRequestStatus) => {
-        return run(() => helpRequestService.updateHelpRequest(id, { status }));
+        return run(() => helpRequestService.updateHelpRequestStatus(id, status));
     }, [run]);
 
     const deleteHelpRequest = useCallback((id: string) => {
