@@ -37,6 +37,7 @@ import { BidRequestModal } from "@/features/bid/components/BidRequestModal";
 import { useBidRequestFlow } from "@/features/bid/hooks";
 import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
 import { useDebounce } from "@/hooks/useDebounce";
+import { RadiusSlider } from "@/features/map/components/RadiusSlider";
 
 type ChipProps = {
   active?: boolean;
@@ -216,20 +217,9 @@ const FiltersModal = ({
             })),
           ]}
         />
-        <AppDropdown
-          label="Radius"
+        <RadiusSlider
           value={filters.radiusKm}
-          onSelect={(v) =>
-            updateFilter("radiusKm", v as GlobalFilters["radiusKm"])
-          }
-          options={[
-            { label: "Any distance", value: "ANY" },
-            { label: "Within 5 km", value: "5" },
-            { label: "Within 10 km", value: "10" },
-            { label: "Within 25 km", value: "25" },
-            { label: "Within 50 km", value: "50" },
-            { label: "Within 100 km", value: "100" },
-          ]}
+          onChange={(value) => updateFilter("radiusKm", value)}
         />
       </View>
     </AppModal>
@@ -470,6 +460,7 @@ export const BrowseRequestsScreen = () => {
           ) : null}
         </View>
 
+
         <View style={styles.secondaryActionsRow}>
           <ViewModeToggle value={viewMode} onChange={handleChangeViewMode} />
 
@@ -669,6 +660,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     columnGap: 12,
+  },
+  inlineRadiusWrap: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: theme.spacing.sm,
+    marginBottom: 12,
   },
   secondaryAction: {
     flexDirection: "row",
