@@ -63,7 +63,11 @@ describe("user.controller", () => {
         await getUserProfile(req, res, next);
 
         expect(res.json).toHaveBeenCalledWith(
-            expect.objectContaining({ userId: "user-1", email: "user@example.com", profile: { fullName: "Roman" } }),
+            expect.objectContaining({
+                userId: "user-1",
+                email: "user@example.com",
+                profile: expect.objectContaining({ fullName: "Roman" }),
+            }),
         );
         expect(next).not.toHaveBeenCalled();
     });
@@ -137,6 +141,33 @@ describe("user.controller", () => {
             expect.objectContaining({ where: { email: "user@example.com" } }),
         );
         expect(prismaMock.userModel.delete).toHaveBeenCalledWith({ where: { id: "user-1" } });
+        expect(res.json).toHaveBeenCalledWith({
+            status: "success",
+            message: "User account deleted successfully",
+        });
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("deleteUserAccount: deletes oauth-only user without password", async () => {
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-2",
+            email: "oauth@example.com",
+            passwordHash: null,
+        });
+        prismaMock.deletedAccount.upsert.mockResolvedValue({ id: "deleted-2" });
+        prismaMock.userModel.delete.mockResolvedValue({ id: "user-2" });
+        prismaMock.$transaction.mockResolvedValue([]);
+
+        const req = makeReq({
+            user: { userId: "user-2" },
+            body: {},
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await deleteUserAccount(req, res, next);
+
+        expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
         expect(res.json).toHaveBeenCalledWith({
             status: "success",
             message: "User account deleted successfully",

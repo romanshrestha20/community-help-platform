@@ -337,15 +337,11 @@ export const deleteUserAvatar = async (req: Request, res: Response, next: NextFu
 
 export const deleteUserAccount = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
-  const { password } = req.body;
+  const { password } = req.body ?? {};
 
   try {
     if (!userId) {
       return next(new AppError("Unauthorized", 401));
-    }
-
-    if (!password) {
-      return next(new AppError("Password is required", 400));
     }
 
     const user = await prisma.userModel.findUnique({
@@ -356,14 +352,16 @@ export const deleteUserAccount = async (req: Request, res: Response, next: NextF
       return next(new AppError("User not found", 404));
     }
 
-    if (!user.passwordHash) {
-      return next(new AppError("This account does not support password deletion", 400));
-    }
+    if (user.passwordHash) {
+      if (!password || typeof password !== "string") {
+        return next(new AppError("Password is required", 400));
+      }
 
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
-    if (!isPasswordValid) {
-      return next(new AppError("Incorrect password", 401));
+      if (!isPasswordValid) {
+        return next(new AppError("Incorrect password", 401));
+      }
     }
 
     await prisma.$transaction([
