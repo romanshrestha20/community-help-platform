@@ -22,6 +22,14 @@ import { validateLoginFormFields } from "@/features/auth/utils/authValidation";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { useGoogleAuth } from "@/features/auth/google";
 
+const shouldRouteToCompleteProfile = (user: any) => {
+  const fullName = user?.fullName || user?.profile?.fullName;
+  const hasPhone = Boolean(user?.phone);
+  const hasDateOfBirth = Boolean(user?.profile?.dateOfBirth);
+  const hasLocation = Boolean(user?.profile?.address);
+  return !fullName || !hasPhone || !hasDateOfBirth || !hasLocation;
+};
+
 export default function LoginScreen() {
   const router = useRouter();
   const { palette } = useThemeContext();
@@ -74,7 +82,17 @@ export default function LoginScreen() {
       return;
     }
 
-    await handleGoogleLogin(result.idToken);
+    const authResult = await handleGoogleLogin(result.idToken);
+    if (!authResult?.success) {
+      return;
+    }
+
+    if (shouldRouteToCompleteProfile(authResult.data)) {
+      router.replace(APP_ROUTES.AUTH_COMPLETE_PROFILE);
+      return;
+    }
+
+    router.replace("/(tabs)/home");
   };
 
   return (
