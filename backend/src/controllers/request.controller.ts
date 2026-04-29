@@ -110,6 +110,8 @@ const formatHelpRequest = (r: any) => ({
   budget: r.budget,
   status: r.status,
   isPaid: r.isPaid,
+  isUrgent: r.isUrgent === true,
+  urgentExpiresAt: r.urgentExpiresAt ?? null,
   serviceRadiusMeters: r.serviceRadiusMeters ?? null,
   location: r.location ?? null,
   city: r.location?.city ?? null,
@@ -132,6 +134,95 @@ const formatHelpRequest = (r: any) => ({
   createdAt: r.createdAt,
   updatedAt: r.updatedAt,
 });
+
+const URGENT_DURATION_MINUTES_DEFAULT = 120;
+
+const resolveUrgentExpiry = (
+  isUrgent: boolean,
+  urgentDurationMinutes?: number
+) => {
+  if (!isUrgent) return null;
+  const minutes =
+    typeof urgentDurationMinutes === "number" &&
+      Number.isFinite(urgentDurationMinutes) &&
+      urgentDurationMinutes >= 5
+      ? urgentDurationMinutes
+      : URGENT_DURATION_MINUTES_DEFAULT;
+  return new Date(Date.now() + minutes * 60 * 1000);
+};
+
+const isMissingUrgentColumnError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: string; message?: string; meta?: { message?: string } };
+  const combinedMessage = `${candidate.message ?? ""} ${candidate.meta?.message ?? ""}`.toLowerCase();
+  return (
+    candidate.code === "P2022" &&
+    (combinedMessage.includes("isurgent") || combinedMessage.includes("urgentexpiresat"))
+  );
+};
+
+const maybeBroadcastUrgentRequest = async ({
+  requestId,
+  requesterId,
+  title,
+  location,
+  radiusMeters,
+}: {
+  requestId: string;
+  requesterId: string;
+  title: string;
+  location: { latitude: number; longitude: number } | null;
+  radiusMeters?: number | null;
+}) => {
+  if (!location) return;
+
+  const radiusKm = Math.max((radiusMeters ?? 10000) / 1000, 1);
+  const latDelta = radiusKm / 111;
+  const lngDelta = radiusKm / Math.max(Math.cos((location.latitude * Math.PI) / 180) * 111, 0.01);
+
+  const nearbyUsers = await prisma.userModel.findMany({
+    where: {
+      id: { not: requesterId },
+      profile: {
+        is: {
+          address: {
+            is: {
+              latitude: {
+                gte: location.latitude - latDelta,
+                lte: location.latitude + latDelta,
+              },
+              longitude: {
+                gte: location.longitude - lngDelta,
+                lte: location.longitude + lngDelta,
+              },
+            },
+          },
+        },
+      },
+    },
+    select: { id: true },
+    take: 200,
+  });
+
+  if (!nearbyUsers.length) return;
+
+  await Promise.all(
+    nearbyUsers.map((user) =>
+      createNotification({
+        userId: user.id,
+        actorId: requesterId,
+        type: NotificationType.SYSTEM,
+        title: "Urgent request nearby",
+        body: `A nearby request needs help now: "${title}"`,
+        requestId,
+        data: {
+          priority: "urgent",
+          requestTitle: title,
+        },
+      })
+    )
+  );
+};
 
 const ensureActiveCategory = async (categoryId: string) => {
   const category = await prisma.category.findFirst({
@@ -178,6 +269,8 @@ export const createHelpRequest = async (
       categoryId,
       budget,
       isPaid,
+      isUrgent,
+      urgentDurationMinutes,
       serviceRadiusMeters,
     } = parsedBody.data;
 
@@ -199,26 +292,50 @@ export const createHelpRequest = async (
 
     await ensureActiveCategory(categoryId);
 
-    const newRequest = await prisma.helpRequest.create({
-      data: {
-        title,
-        description,
-        category: {
-          connect: { id: categoryId },
-        },
-        budget: budget ?? null,
-        isPaid: isPaid ?? false,
-        ...(serviceRadiusMeters !== undefined && {
-          serviceRadiusMeters,
-        }),
-        requester: {
-          connect: { id: userId },
-        },
-        location: {
-          create: toLocationCreateInput(location),
-        },
+    const createData: any = {
+      title,
+      description,
+      category: {
+        connect: { id: categoryId },
       },
-    });
+      budget: budget ?? null,
+      isPaid: isPaid ?? false,
+      isUrgent: isUrgent ?? false,
+      urgentExpiresAt: resolveUrgentExpiry(Boolean(isUrgent), urgentDurationMinutes),
+      ...(serviceRadiusMeters !== undefined && {
+        serviceRadiusMeters,
+      }),
+      requester: {
+        connect: { id: userId },
+      },
+      location: {
+        create: toLocationCreateInput(location),
+      },
+    };
+
+    let newRequest: any;
+    try {
+      newRequest = await prisma.helpRequest.create({ data: createData });
+    } catch (error) {
+      if (!isMissingUrgentColumnError(error)) {
+        throw error;
+      }
+
+      const { isUrgent: _isUrgent, urgentExpiresAt: _urgentExpiresAt, ...fallbackCreateData } = createData;
+      newRequest = await prisma.helpRequest.create({ data: fallbackCreateData });
+    }
+
+    if (newRequest.isUrgent) {
+      await maybeBroadcastUrgentRequest({
+        requestId: newRequest.id,
+        requesterId: userId,
+        title: newRequest.title,
+        location: location
+          ? { latitude: location.latitude, longitude: location.longitude }
+          : null,
+        radiusMeters: newRequest.serviceRadiusMeters,
+      });
+    }
 
     let createdImages: any[] = [];
 
@@ -570,6 +687,8 @@ export const updateHelpRequest = async (
       categoryId,
       budget,
       isPaid,
+      isUrgent,
+      urgentDurationMinutes,
       serviceRadiusMeters,
     } = parsedBody.data;
 
@@ -594,6 +713,10 @@ export const updateHelpRequest = async (
       ...(categoryId !== undefined && { categoryId }),
       ...(budget !== undefined && { budget }),
       ...(isPaid !== undefined && { isPaid }),
+      ...(isUrgent !== undefined && {
+        isUrgent,
+        urgentExpiresAt: resolveUrgentExpiry(Boolean(isUrgent), urgentDurationMinutes),
+      }),
       ...(serviceRadiusMeters !== undefined && {
         serviceRadiusMeters,
       }),
@@ -611,11 +734,40 @@ export const updateHelpRequest = async (
       }
     }
 
-    const updatedRequest = await prisma.helpRequest.update({
-      where: { id },
-      data: updateData,
-      include: HELP_REQUEST_INCLUDE,
-    });
+    let updatedRequest: any;
+    try {
+      updatedRequest = await prisma.helpRequest.update({
+        where: { id },
+        data: updateData,
+        include: HELP_REQUEST_INCLUDE,
+      });
+    } catch (error) {
+      if (!isMissingUrgentColumnError(error)) {
+        throw error;
+      }
+
+      const { isUrgent: _isUrgent, urgentExpiresAt: _urgentExpiresAt, ...fallbackUpdateData } = updateData;
+      updatedRequest = await prisma.helpRequest.update({
+        where: { id },
+        data: fallbackUpdateData,
+        include: HELP_REQUEST_INCLUDE,
+      });
+    }
+
+    if (updatedRequest.isUrgent) {
+      const broadcastLocation = location
+        ? { latitude: location.latitude, longitude: location.longitude }
+        : request.location
+          ? { latitude: request.location.latitude, longitude: request.location.longitude }
+          : null;
+      await maybeBroadcastUrgentRequest({
+        requestId: updatedRequest.id,
+        requesterId: userId,
+        title: updatedRequest.title,
+        location: broadcastLocation,
+        radiusMeters: updatedRequest.serviceRadiusMeters,
+      });
+    }
 
     sendResponse(
       res,

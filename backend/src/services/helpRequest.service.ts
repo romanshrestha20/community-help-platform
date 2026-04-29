@@ -70,6 +70,8 @@ type NearbyHelpRequestRow = {
   bidCount: bigint | number;
   isFavorited: boolean;
   distanceMeters: number;
+  isUrgent: boolean;
+  urgentExpiresAt: Date | null;
 };
 
 const parseFiniteNumber = (value: unknown) => {
@@ -104,6 +106,15 @@ const calculateDistanceKm = (
       Math.sin(deltaLon / 2);
 
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const isActiveUrgentRequest = (request: {
+  isUrgent?: boolean | null;
+  urgentExpiresAt?: Date | string | null;
+}) => {
+  if (!request.isUrgent) return false;
+  if (!request.urgentExpiresAt) return true;
+  return new Date(request.urgentExpiresAt).getTime() > Date.now();
 };
 
 const isNearbySqlUnavailableError = (error: unknown) => {
@@ -328,6 +339,8 @@ export const getHelpRequests = async (query: HelpRequestQuery) => {
         budget: r.budget,
         status: r.status,
         isPaid: r.isPaid,
+        isUrgent: r.isUrgent === true,
+        urgentExpiresAt: r.urgentExpiresAt ?? null,
         serviceRadiusMeters: r.serviceRadiusMeters ?? null,
         location: r.location
           ? {
@@ -398,12 +411,20 @@ export const getHelpRequests = async (query: HelpRequestQuery) => {
   const sorted =
     shouldCalculateDistance && !hasBounds
       ? [...withDistance].sort((left, right) => {
+          const leftUrgent = isActiveUrgentRequest(left);
+          const rightUrgent = isActiveUrgentRequest(right);
+          if (leftUrgent !== rightUrgent) return leftUrgent ? -1 : 1;
           if (left.distanceKm === null && right.distanceKm === null) return 0;
           if (left.distanceKm === null) return 1;
           if (right.distanceKm === null) return -1;
           return left.distanceKm - right.distanceKm;
         })
-      : withDistance;
+      : [...withDistance].sort((left, right) => {
+          const leftUrgent = isActiveUrgentRequest(left);
+          const rightUrgent = isActiveUrgentRequest(right);
+          if (leftUrgent !== rightUrgent) return leftUrgent ? -1 : 1;
+          return 0;
+        });
 
   const total = sorted.length;
   const formatted = sorted.slice(skip, skip + limit);
@@ -495,6 +516,9 @@ export const getNearbyHelpRequests = async (query: NearbyHelpRequestQuery) => {
   const filteredRequests = fallback.requests
     .filter((request) => request.requesterId !== userId)
     .sort((left, right) => {
+      const leftUrgent = isActiveUrgentRequest(left);
+      const rightUrgent = isActiveUrgentRequest(right);
+      if (leftUrgent !== rightUrgent) return leftUrgent ? -1 : 1;
       if (left.distanceKm == null && right.distanceKm == null) return 0;
       if (left.distanceKm == null) return 1;
       if (right.distanceKm == null) return -1;

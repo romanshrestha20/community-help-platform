@@ -137,6 +137,8 @@ export const createHelpRequestBodySchema = z.object({
   categoryId: categoryIdSchema,
   budget: optionalPositiveNumber("Budget must be a valid number greater than 0."),
   isPaid: optionalBoolean,
+  isUrgent: optionalBoolean,
+  urgentDurationMinutes: z.coerce.number().int().min(5).max(240).optional(),
   serviceRadiusMeters: optionalPositiveInteger("Service radius must be a positive whole number."),
   location: optionalLocationPayload,
 });
@@ -147,6 +149,8 @@ export const updateHelpRequestBodySchema = z.object({
   categoryId: categoryIdSchema.optional(),
   budget: optionalPositiveNumber("Budget must be a valid number greater than 0.").optional(),
   isPaid: optionalBoolean.optional(),
+  isUrgent: optionalBoolean.optional(),
+  urgentDurationMinutes: z.coerce.number().int().min(5).max(240).optional(),
   serviceRadiusMeters: optionalPositiveInteger("Service radius must be a positive whole number.").optional(),
   location: optionalLocationPayload,
 });
