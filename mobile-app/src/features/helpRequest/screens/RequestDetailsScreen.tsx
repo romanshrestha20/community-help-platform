@@ -460,6 +460,13 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     request?.assignedHelperId,
   ]);
 
+  useEffect(() => {
+    if (!request || request.status !== "COMPLETED") return;
+    if (!isOwner) return;
+
+    void syncHelperReviews();
+  }, [isOwner, request, syncHelperReviews]);
+
   const handleOpenReviewModal = useCallback(async () => {
     if (request?.status !== "COMPLETED") {
       const latest = await fetchDetails();
