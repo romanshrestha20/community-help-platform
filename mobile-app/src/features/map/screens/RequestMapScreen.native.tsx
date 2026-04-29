@@ -14,7 +14,7 @@ import type MapView from "react-native-maps";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { SearchField } from "@/components/ui/SearchField";
-import { ScreenView, theme } from "@/design-system";
+import { Row, ScreenView, theme } from "@/design-system";
 import { APP_ROUTES } from "@/config/routes";
 import { useCategories } from "@/features/category/hooks/category.hook";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
@@ -31,6 +31,8 @@ type CategoryChipProps = {
   active?: boolean;
   onPress: () => void;
 };
+
+const RADIUS_OPTIONS_KM = [5, 10, 25, 50, 100] as const;
 
 function CategoryChip({ label, active = false, onPress }: CategoryChipProps) {
   const { palette } = useThemeContext();
@@ -242,40 +244,89 @@ export default function RequestMapScreen() {
         </ScrollView>
 
         <View style={styles.secondaryActionsRow}>
-          <Pressable
-            onPress={() =>
-              updateFilter(
-                "radiusKm",
-                searchFilters.radiusKm === "10" ? "ANY" : "10"
-              )
-            }
-            style={({ pressed }) => [
-              styles.secondaryActionButton,
-              {
-                backgroundColor:
-                  searchFilters.radiusKm === "10"
-                    ? `${palette.primary}14`
-                    : palette.surfaceMuted,
-                borderColor:
-                  searchFilters.radiusKm === "10" ? palette.primary : palette.border,
-                opacity: pressed ? 0.92 : 1,
-              },
+          <View
+            style={[
+              styles.radiusControl,
+              { backgroundColor: palette.surfaceMuted, borderColor: palette.border },
             ]}
           >
-            <Text
-              style={[
-                styles.secondaryActionText,
+            <Row justify="space-between" align="center" gap="sm">
+              <Text style={[styles.radiusTitle, { color: palette.textPrimary }]}>
+                Radius
+              </Text>
+              <Text style={[styles.radiusValue, { color: palette.primary }]}>
+                {searchFilters.radiusKm === "ANY"
+                  ? "Anywhere"
+                  : `${searchFilters.radiusKm} km`}
+              </Text>
+            </Row>
+
+            <View style={styles.radiusTrackRow}>
+              {RADIUS_OPTIONS_KM.map((radius) => {
+                const radiusValue = String(radius) as
+                  | "5"
+                  | "10"
+                  | "25"
+                  | "50"
+                  | "100";
+                const active = searchFilters.radiusKm === radiusValue;
+
+                return (
+                  <Pressable
+                    key={radius}
+                    onPress={() => updateFilter("radiusKm", radiusValue)}
+                    style={({ pressed }) => [
+                      styles.radiusStep,
+                      {
+                        backgroundColor: active ? palette.primary : palette.surface,
+                        borderColor: active ? palette.primary : palette.border,
+                        opacity: pressed ? 0.88 : 1,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.radiusStepText,
+                        { color: active ? palette.textInverse : palette.textSecondary },
+                      ]}
+                    >
+                      {radius}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Pressable
+              onPress={() => updateFilter("radiusKm", "ANY")}
+              style={({ pressed }) => [
+                styles.anywhereButton,
                 {
-                  color:
-                    searchFilters.radiusKm === "10"
-                      ? palette.primary
-                      : palette.textSecondary,
+                  backgroundColor:
+                    searchFilters.radiusKm === "ANY"
+                      ? `${palette.primary}14`
+                      : palette.surface,
+                  borderColor:
+                    searchFilters.radiusKm === "ANY" ? palette.primary : palette.border,
+                  opacity: pressed ? 0.92 : 1,
                 },
               ]}
             >
-              10 km radius
-            </Text>
-          </Pressable>
+              <Text
+                style={[
+                  styles.anywhereText,
+                  {
+                    color:
+                      searchFilters.radiusKm === "ANY"
+                        ? palette.primary
+                        : palette.textSecondary,
+                  },
+                ]}
+              >
+                Anywhere
+              </Text>
+            </Pressable>
+          </View>
 
           <View
             style={[
@@ -499,6 +550,52 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexWrap: "wrap",
     gap: theme.spacing.sm,
+  },
+  radiusControl: {
+    width: "100%",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  radiusTitle: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.bold,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  radiusValue: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  radiusTrackRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  radiusStep: {
+    flex: 1,
+    minHeight: 34,
+    borderWidth: 1,
+    borderRadius: theme.radius.fill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radiusStepText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  anywhereButton: {
+    alignSelf: "flex-start",
+    minHeight: 30,
+    borderWidth: 1,
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: 10,
+    justifyContent: "center",
+  },
+  anywhereText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   selectionSummary: {
     flex: 1,
