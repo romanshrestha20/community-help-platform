@@ -71,6 +71,7 @@ export interface User {
   rating: number;
   helpCount: number;
   avatarUrl?: string | null;
+  searchRadiusMeters?: number | null;
   address?: Address | null;
   skills: UserSkill[];
   certifications: UserCertification[];
@@ -90,6 +91,7 @@ export interface UpdateUserProfilePayload {
   dateOfBirth?: string;
   gender?: Gender;
   userType?: UserType;
+  searchRadiusMeters?: number;
   address?: Address | null;
   skills?: UpdateUserSkillInput[];
 }
@@ -150,6 +152,7 @@ export interface UserProfile {
   rating: number;
   helpCount: number;
   avatarUrl?: string | null;
+  searchRadiusMeters?: number | null;
   address?: Address | null;
   skills: UserSkill[];
   certifications: UserCertification[];

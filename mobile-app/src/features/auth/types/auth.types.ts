@@ -34,14 +34,13 @@ export interface VerifyPhoneCodeDto {
 }
 
 export interface RegisterDto {
-  fullName: string;
   email: string;
   password: string;
-  phone: string;
-  gender: string;
-  location: AppLocation;
-  dateOfBirth: string;
-
+  fullName?: string;
+  phone?: string;
+  gender?: string;
+  location?: AppLocation;
+  dateOfBirth?: string;
 }
 export interface AuthResponse {
   success: boolean;
