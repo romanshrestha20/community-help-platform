@@ -264,12 +264,16 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
       : APP_ROUTES.HOME_REQUESTS;
 
   const currentUserId = authUser?.id || authUser?.profile?.userId || null;
-  const helperId = request?.assignedHelperId ?? null;
-  const requestIdValue = request?.id ?? "";
   const acceptedBid = useMemo(
     () => bids.find((bid) => bid.status === "ACCEPTED") ?? null,
     [bids]
   );
+  const helperId =
+    request?.assignedHelperId ??
+    acceptedBid?.helperId ??
+    (myBid?.status === "ACCEPTED" ? myBid.helperId : null) ??
+    null;
+  const requestIdValue = request?.id ?? "";
   const helperReviews = useMemo(
     () => (helperId ? getCachedReviews(helperId) : []),
     [getCachedReviews, helperId]
@@ -309,6 +313,12 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
   useEffect(() => {
     setPreviewReviewRating(existingReview?.rating ?? 0);
   }, [existingReview]);
+
+  useEffect(() => {
+    if (reviewModalVisible && request?.status !== "COMPLETED") {
+      setReviewModalVisible(false);
+    }
+  }, [request?.status, reviewModalVisible]);
 
   const handleBack = useCallback(() => {
     goBackOrFallback({
@@ -452,7 +462,14 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
   const handleOpenReviewModal = useCallback(async () => {
     if (request?.status !== "COMPLETED") {
-      await fetchDetails();
+      const latest = await fetchDetails();
+      const latestStatus = latest?.status ?? request?.status;
+      if (latestStatus !== "COMPLETED") {
+        showErrorToast(
+          "Request not completed",
+          "Mark the request as completed first, then submit the review."
+        );
+      }
       return;
     }
 
@@ -840,8 +857,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
   const renderActivityCard = () => (
     <AccordionSection
-      title="Timeline"
-      subtitle="Recent request status and bidding activity."
+      title="Activity"
+      subtitle="Request history and completion events."
       icon="time-outline"
       expanded={expandedSections.activity}
       onToggle={() => toggleSection("activity")}
@@ -870,6 +887,84 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
       </Stack>
     </AccordionSection>
   );
+
+  const renderAcceptedOfferCard = () => {
+    const bid = acceptedBid ?? (myBid?.status === "ACCEPTED" ? myBid : null);
+
+    if (!bid) return null;
+
+    return (
+      <SurfaceSection>
+        <Stack gap="md">
+          <Row justify="space-between" align="flex-start" gap="sm">
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                Accepted Offer
+              </Text>
+              <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                Final helper and agreed offer for this completed request.
+              </Text>
+            </View>
+
+            <View style={[styles.statusPill, { backgroundColor: palette.successSoft ?? palette.surfaceMuted }]}>
+              <Ionicons name="checkmark-circle-outline" size={14} color={palette.success} />
+              <Text style={[styles.statusPillText, { color: palette.success }]}>
+                Completed
+              </Text>
+            </View>
+          </Row>
+
+          <View
+            style={[
+              styles.acceptedOfferCard,
+              {
+                backgroundColor: palette.surfaceMuted,
+                borderColor: palette.border,
+              },
+            ]}
+          >
+            <Row gap="sm" align="center">
+              <ProfileAvatar
+                uri={bid.helperAvatarUrl}
+                fullName={bid.helperName}
+                size={46}
+              />
+
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.acceptedOfferName, { color: palette.textPrimary }]}>
+                  {bid.helperName}
+                </Text>
+
+                <Text style={[styles.helperText, { color: palette.textSecondary }]}>
+                  {formatRatingLabel(bid.helperRating)} · Selected helper
+                </Text>
+              </View>
+
+              <Text style={[styles.acceptedOfferAmount, { color: palette.primary }]}>
+                €{bid.amount.toFixed(2)}
+              </Text>
+            </Row>
+
+            {bid.message ? (
+              <Text style={[styles.acceptedOfferMessage, { color: palette.textSecondary }]}>
+                “{bid.message}”
+              </Text>
+            ) : null}
+
+            <Row gap="sm">
+              <View style={{ flex: 1 }}>
+                <AppButton
+                  title="Message"
+                  variant="secondary"
+                  onPress={() => handleOpenBidChat(request.id)}
+                />
+              </View>
+            </Row>
+          </View>
+        </Stack>
+      </SurfaceSection>
+    );
+  };
 
   const renderManageCard = (buttons: React.ReactNode, description: string) => (
     <AccordionSection
@@ -903,7 +998,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         }}
       />
 
-      <Stack gap="md">
+      <Stack gap="lg">
         <DetailHero
           request={request}
           tone={headerConfig.tone}
@@ -912,7 +1007,13 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           titleMuted={headerConfig.titleMuted}
           chips={headerConfig.chips}
           footer={headerConfig.footer}
-          perspective={isOwner ? "Owner view" : "Helper view"}
+          perspective={
+            request.status === "COMPLETED"
+              ? "Completed request"
+              : isOwner
+                ? "Your request"
+                : "Helper view"
+          }
         />
 
         {renderInlineError()}
@@ -938,13 +1039,6 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                     onPress={handleDeleteRequest}
                     loading={deleting}
                     disabled={deleting || loading}
-                  />
-                </View>
-                <View style={styles.buttonCell}>
-                  <AppButton
-                    title="Mark Assigned"
-                    onPress={() => void handleStatusUpdate("ASSIGNED")}
-                    disabled={loading}
                   />
                 </View>
                 <View style={styles.buttonCell}>
@@ -1033,6 +1127,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
               </Pressable>
               <AppButton
                 title="Leave a review"
+                variant="ghost"
                 onPress={() => void handleOpenReviewModal()}
                 loading={reviewLoading}
                 disabled={reviewLoading}
@@ -1054,7 +1149,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
               ) : null}
               <AppButton
                 title="Edit review"
-                variant="secondary"
+                variant="ghost"
                 onPress={() => void handleOpenReviewModal()}
                 loading={reviewLoading}
                 disabled={reviewLoading}
@@ -1065,7 +1160,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
         {viewState === "owner-completed-no-review" || viewState === "owner-completed-reviewed" ? (
           <>
-            {renderOffersCard()}
+            {renderAcceptedOfferCard()}
             {renderPhotosCard()}
             {renderActivityCard()}
           </>
@@ -1293,7 +1388,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
       />
 
       <ReviewComposerModal
-        visible={reviewModalVisible}
+        visible={reviewModalVisible && request.status === "COMPLETED"}
         onClose={() => setReviewModalVisible(false)}
         helpRequestId={request.id}
         requestTitle={request.title}
@@ -1303,11 +1398,13 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         error={reviewError}
         onSubmit={async (payload) => {
           const latest = await fetchDetails();
-          if (!latest || latest.status !== "COMPLETED") {
+          const latestStatus = latest?.status ?? request.status;
+          if (latestStatus !== "COMPLETED") {
             showErrorToast(
               "Request not completed",
               "Mark the request as completed first, then submit the review."
             );
+            setReviewModalVisible(false);
             return;
           }
 
@@ -1739,7 +1836,7 @@ const styles = StyleSheet.create({
   detailHero: {
     position: "relative",
     overflow: "hidden",
-    borderRadius: theme.radius.xl + 6,
+    borderRadius: 18,
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
   },
@@ -1821,9 +1918,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.sm,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: "rgba(255,255,255,0.14)",
-    borderRadius: theme.radius.xl,
+    borderRadius: 18,
     padding: theme.spacing.sm,
     backgroundColor: "rgba(255,255,255,0.08)",
   },
@@ -1843,9 +1940,9 @@ const styles = StyleSheet.create({
   },
   heroDescriptionPanel: {
     zIndex: 1,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: "rgba(255,255,255,0.14)",
-    borderRadius: theme.radius.xl,
+    borderRadius: 18,
     padding: theme.spacing.md,
     backgroundColor: "rgba(255,255,255,0.08)",
   },
@@ -1866,14 +1963,20 @@ const styles = StyleSheet.create({
   },
   heroDescriptionText: {
     flex: 1,
-    color: "rgba(246,250,247,0.78)",
+    color: "rgba(246,250,247,0.68)",
     fontSize: theme.typography.fontSize.sm,
     lineHeight: 21,
+    fontStyle: "italic",
   },
   surfaceSection: {
-    borderWidth: 1,
-    borderRadius: theme.radius.xl,
+    borderWidth: 0.5,
+    borderRadius: 18,
     padding: theme.spacing.md,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   accordionCopy: {
     flex: 1,
@@ -1881,7 +1984,7 @@ const styles = StyleSheet.create({
   accordionIcon: {
     width: 36,
     height: 36,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
@@ -1904,7 +2007,7 @@ const styles = StyleSheet.create({
   timelineIcon: {
     width: 32,
     height: 32,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
@@ -1921,7 +2024,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   inlineErrorCard: {
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderRadius: 14,
     padding: theme.spacing.md,
   },
@@ -1937,14 +2040,19 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   infoBanner: {
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
   },
   statePanel: {
-    borderWidth: 1,
-    borderRadius: theme.radius.xl,
+    borderWidth: 0.5,
+    borderRadius: 18,
     padding: theme.spacing.md,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   stateIcon: {
     width: 46,
@@ -1976,6 +2084,37 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  statusPillText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  acceptedOfferCard: {
+    borderWidth: 0.5,
+    borderRadius: 16,
+    padding: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  acceptedOfferName: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: "800",
+  },
+  acceptedOfferAmount: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: "800",
+  },
+  acceptedOfferMessage: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: 21,
+    fontStyle: "italic",
+  },
   sectionTitle: {
     fontSize: theme.typography.fontSize.lg,
     fontWeight: theme.typography.fontWeight.bold,
@@ -1990,7 +2129,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   emptySection: {
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderRadius: 16,
     alignItems: "center",
     padding: theme.spacing.lg,
@@ -2020,7 +2159,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   messageBlock: {
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderRadius: 14,
     padding: theme.spacing.md,
     gap: theme.spacing.xxs,

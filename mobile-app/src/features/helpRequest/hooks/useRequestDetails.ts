@@ -44,11 +44,11 @@ export const useRequestDetails = (requestId: string) => {
     const isOwner = Boolean(currentUserId && request?.requesterId && request.requesterId === currentUserId);
 
     const fetchDetails = useCallback(async () => {
-        if (!requestId) return;
+        if (!requestId) return null;
         setActionError(null);
 
         const requestResult = await getHelpRequestById(requestId);
-        if (!requestResult) return;
+        if (!requestResult) return null;
 
         setRequest(requestResult);
 
@@ -58,7 +58,7 @@ export const useRequestDetails = (requestId: string) => {
         if (isRequestOwner) {
             const ownerBids = await getBidsByHelpRequestId(requestId, { forceRefresh: true });
             setBids(ownerBids ?? []);
-            return;
+            return requestResult;
         }
 
         // Non-owners should only fetch their own bids to avoid forbidden access on owner-only endpoints.
@@ -80,6 +80,7 @@ export const useRequestDetails = (requestId: string) => {
             .slice(0, 1);
 
         setBids(latestMyBid);
+        return requestResult;
     }, [currentUserId, getHelpRequestById, getBidsByHelpRequestId, getMyBids, requestId]);
 
     const acceptBid = useCallback(async (bidId: string) => {
