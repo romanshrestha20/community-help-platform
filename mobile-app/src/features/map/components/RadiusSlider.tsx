@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Slider, Theme, XStack } from "tamagui";
 
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
@@ -15,6 +16,7 @@ type Props = {
 
 export const RadiusSlider = ({ value, onChange, label = "Radius" }: Props) => {
   const { palette } = useThemeContext();
+  const selectedIndex = Math.max(0, RADIUS_OPTIONS.indexOf(value === "ANY" ? "10" : value));
 
   return (
     <View style={styles.wrap}>
@@ -24,6 +26,40 @@ export const RadiusSlider = ({ value, onChange, label = "Radius" }: Props) => {
           {value === "ANY" ? "Anywhere" : `${value} km`}
         </Text>
       </View>
+
+      <XStack alignItems="center">
+        <Theme name="light">
+          <Slider
+            value={[selectedIndex]}
+            min={0}
+            max={RADIUS_OPTIONS.length - 1}
+            step={1}
+            width="100%"
+            onValueChange={(next) => {
+              const index = Math.round(next[0] ?? selectedIndex);
+              const radius = RADIUS_OPTIONS[index];
+              if (radius) {
+                onChange(radius);
+              }
+            }}
+          >
+            <Slider.Track
+              backgroundColor={palette.surface}
+              borderColor={palette.border}
+              borderWidth={1}
+            >
+              <Slider.TrackActive backgroundColor={palette.primary} />
+            </Slider.Track>
+            <Slider.Thumb
+              circular
+              size="$2"
+              backgroundColor={palette.primary}
+              borderColor={palette.surface}
+              borderWidth={2}
+            />
+          </Slider>
+        </Theme>
+      </XStack>
 
       <View style={styles.optionsRow}>
         {RADIUS_OPTIONS.map((radius) => {
@@ -102,6 +138,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    marginTop: 2,
   },
   optionChip: {
     borderWidth: 1,
