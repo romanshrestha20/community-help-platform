@@ -442,6 +442,7 @@ export default function PrivacySecurityScreen() {
 
       <DeleteAccountModal
         visible={deleteAccountVisible}
+        requiresPassword={hasPasswordSignIn}
         loading={loadingProfile}
         error={profileError}
         onClose={() => setDeleteAccountVisible(false)}

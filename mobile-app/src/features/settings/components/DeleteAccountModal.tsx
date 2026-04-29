@@ -16,6 +16,7 @@ import { useFormValidation } from "@/utils/validation/useFormValidation";
 
 type Props = {
   visible: boolean;
+  requiresPassword?: boolean;
   loading?: boolean;
   error?: string | null;
   onClose: () => void;
@@ -24,6 +25,7 @@ type Props = {
 
 export const DeleteAccountModal = ({
   visible,
+  requiresPassword = true,
   loading = false,
   error,
   onClose,
@@ -49,11 +51,13 @@ export const DeleteAccountModal = ({
   }, [visible, clearFieldError, clearValidationError]);
 
   const handleConfirm = async () => {
-    const validation = validatePasswordConfirmation(password);
-    if (validation) {
-      setValidationError(validation);
-      setFieldError("password", validation);
-      return;
+    if (requiresPassword) {
+      const validation = validatePasswordConfirmation(password);
+      if (validation) {
+        setValidationError(validation);
+        setFieldError("password", validation);
+        return;
+      }
     }
 
     clearFieldError("password");
@@ -81,22 +85,26 @@ export const DeleteAccountModal = ({
             </Text>
 
             <Text style={[styles.description, { color: palette.textSecondary }]}>
-              This action is permanent. Enter your password to confirm account deletion.
+              {requiresPassword
+                ? "This action is permanent. Enter your password to confirm account deletion."
+                : "This action is permanent. Confirm to permanently delete your account."}
             </Text>
 
-            <AppInput
-              label="Password"
-              placeholder="Enter your password"
-              value={password}
-              error={fieldErrors.password ?? null}
-              onChangeText={(value) => {
-                clearFieldError("password");
-                clearValidationError();
-                setPassword(value);
-              }}
-              secureTextEntry
-              editable={!loading}
-            />
+            {requiresPassword ? (
+              <AppInput
+                label="Password"
+                placeholder="Enter your password"
+                value={password}
+                error={fieldErrors.password ?? null}
+                onChangeText={(value) => {
+                  clearFieldError("password");
+                  clearValidationError();
+                  setPassword(value);
+                }}
+                secureTextEntry
+                editable={!loading}
+              />
+            ) : null}
 
             {validationError ? (
               <Text style={[styles.errorText, { color: palette.danger }]}>
