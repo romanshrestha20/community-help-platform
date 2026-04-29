@@ -39,7 +39,7 @@ import { useAuthStore } from "@/features/auth/store/auth.store";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { goBackOrFallback } from "@/utils/navigation";
 import { APP_ROUTES } from "@/config/routes";
-import { showSuccessToast } from "@/utils/toast";
+import { showErrorToast, showSuccessToast } from "@/utils/toast";
 
 type Props = {
   requestId?: string;
@@ -375,14 +375,27 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
   );
 
   const handleCompleteRequest = useCallback(async () => {
+    const resolvedHelperId =
+      request?.assignedHelperId ||
+      helperId ||
+      acceptedBid?.helperId ||
+      myBid?.helperId ||
+      null;
+
+    if (!resolvedHelperId) {
+      Alert.alert(
+        "Assign a helper first",
+        "Accept a bidder before marking this request as completed so you can leave a review."
+      );
+      return;
+    }
+
     const updated = await setRequestStatus("COMPLETED");
     if (!updated) return;
 
     const completedHelperId =
       updated.assignedHelperId ||
-      helperId ||
-      acceptedBid?.helperId ||
-      myBid?.helperId ||
+      resolvedHelperId ||
       null;
 
     await fetchDetails();
@@ -411,6 +424,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     getUserReviews,
     helperId,
     myBid?.helperId,
+    request?.assignedHelperId,
     setRequestStatus,
   ]);
 
@@ -959,7 +973,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 <View style={styles.buttonCell}>
                   <AppButton
                     title="Mark Complete"
-                    onPress={() => void handleStatusUpdate("COMPLETED")}
+                    onPress={() => void handleCompleteRequest()}
                     disabled={loading}
                   />
                 </View>
@@ -1288,6 +1302,15 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         loading={reviewLoading}
         error={reviewError}
         onSubmit={async (payload) => {
+          const latest = await fetchDetails();
+          if (!latest || latest.status !== "COMPLETED") {
+            showErrorToast(
+              "Request not completed",
+              "Mark the request as completed first, then submit the review."
+            );
+            return;
+          }
+
           if (existingReview) {
             await updateReview(existingReview.id, payload);
           } else {
