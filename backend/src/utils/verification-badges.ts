@@ -5,8 +5,8 @@ export type VerificationBadgeLevel = "basic" | "trust" | "qualification";
 export type VerificationBadgeKey =
   | "PHONE_VERIFIED"
   | "EMAIL_VERIFIED"
-  | "TRUSTED_HELPER"
-  | "CERTIFIED_HELPER";
+  | "ID_VERIFIED"
+  | "TOP_RATED_HELPER";
 
 export type VerificationBadge = {
   key: VerificationBadgeKey;
@@ -31,7 +31,7 @@ type Input = {
 
 const TRUSTED_HELPER_MIN_HELP_COUNT = 5;
 const TRUSTED_HELPER_MIN_RATING = 4.5;
-const TRUSTED_HELPER_MIN_REVIEWS = 3;
+const TOP_RATED_HELPER_MIN_REVIEWS = 3;
 
 export const buildVerificationBadges = ({
   user,
@@ -60,13 +60,14 @@ export const buildVerificationBadges = ({
   const totalReviews = profile?.totalReviews ?? 0;
 
   if (
+    Boolean(user?.isPhoneVerified) &&
     helpCount >= TRUSTED_HELPER_MIN_HELP_COUNT &&
-    rating >= TRUSTED_HELPER_MIN_RATING &&
-    totalReviews >= TRUSTED_HELPER_MIN_REVIEWS
+    rating > TRUSTED_HELPER_MIN_RATING &&
+    totalReviews >= TOP_RATED_HELPER_MIN_REVIEWS
   ) {
     badges.push({
-      key: "TRUSTED_HELPER",
-      label: "Trusted Helper",
+      key: "TOP_RATED_HELPER",
+      label: "Top-rated Helper",
       level: "trust",
     });
   }
@@ -79,8 +80,8 @@ export const buildVerificationBadges = ({
 
   if (hasApprovedCertification) {
     badges.push({
-      key: "CERTIFIED_HELPER",
-      label: "Certified",
+      key: "ID_VERIFIED",
+      label: "ID Verified",
       level: "qualification",
     });
   }
