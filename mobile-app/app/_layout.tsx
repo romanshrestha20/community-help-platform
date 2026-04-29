@@ -132,6 +132,7 @@ export default function Layout() {
       "verify-email",
       "verify-phone",
       "welcome",
+      "complete-profile",
     ]);
 
     if (isAuthenticated && isRootRoute) {
