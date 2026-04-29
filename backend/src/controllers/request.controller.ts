@@ -710,7 +710,11 @@ export const updateHelpRequest = async (
     const updateData: any = {
       ...(title !== undefined && { title }),
       ...(description !== undefined && { description }),
-      ...(categoryId !== undefined && { categoryId }),
+      ...(categoryId !== undefined && {
+        category: {
+          connect: { id: categoryId },
+        },
+      }),
       ...(budget !== undefined && { budget }),
       ...(isPaid !== undefined && { isPaid }),
       ...(isUrgent !== undefined && {
