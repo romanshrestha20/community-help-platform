@@ -96,6 +96,7 @@ const HELP_REQUEST_INCLUDE = {
 const formatHelpRequest = (r: any) => ({
   id: r.id,
   requesterId: r.requester?.id ?? r.requesterId,
+  assignedHelperId: r.assignedHelperId ?? null,
   title: r.title,
   description: r.description,
   category: r.category
