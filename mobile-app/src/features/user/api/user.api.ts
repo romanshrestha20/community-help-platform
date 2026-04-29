@@ -26,11 +26,9 @@ export const updateUserProfile = async (
   return response.data;
 };
 
-export const deleteUserProfile = async (password: string): Promise<void> => {
+export const deleteUserProfile = async (password?: string): Promise<void> => {
   await apiClient.delete("/auth/profile", {
-    data: {
-      password,
-    },
+    data: password?.trim() ? { password: password.trim() } : {},
   });
 };
 

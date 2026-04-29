@@ -324,13 +324,6 @@ export const deleteUserProfileService = async (password?: string): Promise<{
   message: string;
 }> => {
   try {
-    if (!password?.trim()) {
-      return {
-        success: false,
-        message: "Password is required",
-      };
-    }
-
     await userApi.deleteUserProfile(password);
 
     return {

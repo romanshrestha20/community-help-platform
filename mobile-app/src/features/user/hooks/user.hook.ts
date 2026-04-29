@@ -21,6 +21,7 @@ import {
 export const useUser = () => {
   const logout = useAuthStore((state) => state.logout);
   const authUser = useAuthStore((state) => state.user);
+  const authUserId = useAuthStore((state) => state.user?.id);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const {
     user,
@@ -34,20 +35,23 @@ export const useUser = () => {
 
   const syncAuthUser = useCallback(
     (nextUser: typeof user) => {
-      if (!nextUser || !authUser) return;
+      if (!nextUser) return;
 
       useAuthStore.setState((state) => {
-        const currentProfile = state.user?.profile ?? authUser.profile ?? null;
+        if (!state.user) {
+          return state;
+        }
+
+        const currentProfile = state.user.profile ?? null;
 
         return {
           ...state,
           user: {
             ...state.user,
-            ...authUser,
             id: nextUser.id,
             email: nextUser.email,
             phone: nextUser.phone,
-            hasPassword: nextUser.hasPassword ?? state.user?.hasPassword ?? authUser?.hasPassword,
+            hasPassword: nextUser.hasPassword ?? state.user.hasPassword,
             isVerified: nextUser.isVerified,
             isEmailVerified: nextUser.isEmailVerified,
             isPhoneVerified: nextUser.isPhoneVerified,
@@ -73,11 +77,11 @@ export const useUser = () => {
         };
       });
     },
-    [authUser]
+    []
   );
 
   const loadUserProfile = useCallback(async () => {
-    if (!isAuthenticated || !authUser) {
+    if (!isAuthenticated || !authUserId) {
       clearUser();
       return;
     }
@@ -85,7 +89,8 @@ export const useUser = () => {
     setLoading(true);
     setError(null);
 
-    const result = await fetchUserProfile(authUser);
+    const latestAuthUser = useAuthStore.getState().user;
+    const result = await fetchUserProfile(latestAuthUser);
 
       if (result.success && result.data) {
         setUser(result.data);
@@ -95,7 +100,7 @@ export const useUser = () => {
       }
 
     setLoading(false);
-  }, [authUser, clearUser, isAuthenticated, setError, setLoading, setUser, syncAuthUser]);
+  }, [authUserId, clearUser, isAuthenticated, setError, setLoading, setUser, syncAuthUser]);
 
   const handleUpdateProfile = useCallback(
     async (profileData: Partial<UpdateUserProfilePayload>) => {
