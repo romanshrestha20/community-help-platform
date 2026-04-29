@@ -68,6 +68,7 @@ export const useUser = () => {
                   rating: nextUser.rating,
                   helpCount: nextUser.helpCount,
                   avatarUrl: nextUser.avatarUrl ?? null,
+                  searchRadiusMeters: nextUser.searchRadiusMeters ?? null,
                   address: nextUser.address ?? null,
                   skills: nextUser.skills ?? [],
                   certifications: nextUser.certifications ?? [],
