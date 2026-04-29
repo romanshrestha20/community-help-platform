@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -9,7 +9,7 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { VerificationBadgeList } from "@/features/user/components/VerificationBadgeList";
 import { useReviews } from "@/features/reviews/hooks/useReviews";
-import { ReviewList, ReviewSummaryCard } from "@/features/reviews/components";
+import { ReviewCard, ReviewSummaryCard } from "@/features/reviews/components";
 import { formatBidAmount } from "../utils/bidDisplay";
 import { Bid } from "../types/bid.types";
 
@@ -17,27 +17,9 @@ type Props = {
   visible: boolean;
   bid: Bid;
   onClose: () => void;
-};
-
-const SectionHeader = ({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string;
-}) => {
-  const { palette } = useThemeContext();
-
-  return (
-    <View style={styles.sectionHeader}>
-      <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>{title}</Text>
-      {subtitle ? (
-        <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
-          {subtitle}
-        </Text>
-      ) : null}
-    </View>
-  );
+  onMessage?: (bid: Bid) => void;
+  onAccept?: (bid: Bid) => void;
+  accepting?: boolean;
 };
 
 const formatEnumLabel = (value?: string | null) => {
@@ -50,58 +32,212 @@ const formatEnumLabel = (value?: string | null) => {
     .join(" ");
 };
 
-const InfoTile = ({
-  label,
-  value,
-  icon,
+const formatHelperAge = (age?: number | null) => {
+  if (typeof age !== "number" || Number.isNaN(age)) return "Not shared";
+  return `${age} yrs`;
+};
+
+const formatLocationLabel = (value?: string | null) => {
+  if (!value) return null;
+
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    return `${parts[parts.length - 2]}, ${parts[parts.length - 1]}`;
+  }
+
+  return value;
+};
+
+const SectionHeader = ({
+  title,
+  subtitle,
+  actionLabel,
+  onAction,
 }: {
-  label: string;
-  value: string;
+  title: string;
+  subtitle?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <Row justify="space-between" align="flex-end" gap="md" style={styles.sectionHeader}>
+      <View style={styles.sectionHeaderCopy}>
+        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>{title}</Text>
+        {subtitle ? (
+          <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      {actionLabel && onAction ? (
+        <Pressable onPress={onAction} hitSlop={8}>
+          <Text style={[styles.sectionAction, { color: palette.primary }]}>{actionLabel}</Text>
+        </Pressable>
+      ) : null}
+    </Row>
+  );
+};
+
+const TrustStat = ({
+  icon,
+  value,
+  label,
+  tone = "neutral",
+}: {
   icon: keyof typeof Ionicons.glyphMap;
+  value: string;
+  label: string;
+  tone?: "neutral" | "primary" | "trust";
+}) => {
+  const { palette } = useThemeContext();
+  const color =
+    tone === "primary"
+      ? palette.primary
+      : tone === "trust" && "trust" in palette
+        ? palette.trust
+        : palette.textSecondary;
+  const backgroundColor =
+    tone === "primary"
+      ? palette.primarySoft
+      : tone === "trust" && "trustSoft" in palette
+        ? palette.trustSoft
+        : palette.surfaceMuted;
+
+  return (
+    <View
+      style={[
+        styles.trustStat,
+        {
+          backgroundColor,
+          borderColor: palette.border,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={16} color={color} />
+      <Text style={[styles.trustStatValue, { color: palette.textPrimary }]}>{value}</Text>
+      <Text style={[styles.trustStatLabel, { color: palette.textSecondary }]}>{label}</Text>
+    </View>
+  );
+};
+
+const FactPill = ({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <View
+      style={[
+        styles.factPill,
+        {
+          backgroundColor: palette.surface,
+          borderColor: palette.border,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={14} color={palette.textSecondary} />
+      <Text style={[styles.factPillText, { color: palette.textPrimary }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+};
+
+type QuickFact = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+};
+
+const ExpertiseCard = ({
+  title,
+  meta,
+  primary,
+}: {
+  title: string;
+  meta: string;
+  primary?: boolean;
 }) => {
   const { palette } = useThemeContext();
 
   return (
     <View
       style={[
-        styles.infoTile,
+        styles.expertiseCard,
         {
-          backgroundColor: palette.surfaceMuted,
-          borderColor: palette.border,
+          backgroundColor: primary ? palette.primarySoft : palette.surfaceMuted,
+          borderColor: primary ? palette.primary : palette.border,
         },
       ]}
     >
-      <Ionicons name={icon} size={16} color={palette.textSecondary} />
-      <Text style={[styles.infoTileLabel, { color: palette.textSecondary }]}>{label}</Text>
-      <Text style={[styles.infoTileValue, { color: palette.textPrimary }]}>{value}</Text>
+      <Row gap="xs" align="center">
+        <Ionicons
+          name={primary ? "checkmark-circle" : "checkmark-circle-outline"}
+          size={17}
+          color={primary ? palette.primary : palette.textSecondary}
+        />
+        <Text style={[styles.expertiseTitle, { color: palette.textPrimary }]} numberOfLines={1}>
+          {title}
+        </Text>
+      </Row>
+      <Text style={[styles.expertiseMeta, { color: palette.textSecondary }]}>{meta}</Text>
     </View>
   );
 };
 
-export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
+const CertificationCard = ({
+  name,
+  issuer,
+  credentialId,
+}: {
+  name: string;
+  issuer: string;
+  credentialId?: string | null;
+}) => {
   const { palette } = useThemeContext();
-  const {
-    getCachedReviews,
-    getCachedSummary,
-    getUserReviews,
-    loadingByUserId,
-  } = useReviews();
+
+
+  return (
+    <View
+      style={[
+        styles.certificationCard,
+        {
+    
+        },
+      ]}
+    >
+      <View style={[styles.certIcon, { backgroundColor: palette.surface }]}>
+      </View>
+      <View style={styles.certCopy}>
+        <Text style={[styles.certTitle, { color: palette.textPrimary }]}>{name}</Text>
+        <Text style={[styles.certIssuer, { color: palette.textSecondary }]}>{issuer}</Text>
+        {credentialId ? (
+          <Text style={[styles.certIssuer, { color: palette.textSecondary }]}>
+            Credential ID: {credentialId}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+};
+
+export const BidderProfileModal = ({
+  visible,
+  bid,
+  onClose,
+  onMessage,
+  onAccept,
+  accepting = false,
+}: Props) => {
+  const { palette } = useThemeContext();
+  const { getCachedReviews, getCachedSummary, getUserReviews, loadingByUserId } = useReviews();
   const helperId = bid.helperId?.trim() ?? "";
 
-  const displayGender = useMemo(() => {
-    if (!bid.helperGender) return "Not available";
-
-    return bid.helperGender
-      .toLowerCase()
-      .split("_")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-  }, [bid.helperGender]);
-
   useEffect(() => {
-    if (!visible || !helperId) {
-      return;
-    }
+    if (!visible || !helperId) return;
 
     void getUserReviews(helperId, {
       limit: 3,
@@ -109,245 +245,207 @@ export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
     });
   }, [getUserReviews, helperId, visible]);
 
-  const summary = helperId ? getCachedSummary(helperId) : { rating: 0, totalReviews: 0, completedHelps: 0 };
+  const summary = helperId
+    ? getCachedSummary(helperId)
+    : { rating: 0, totalReviews: 0, completedHelps: 0 };
   const reviews = helperId ? getCachedReviews(helperId) : [];
   const reviewsLoading = helperId ? Boolean(loadingByUserId[helperId]) : false;
-  const quickFacts = [
-    displayGender !== "Not available" ? displayGender : null,
-    typeof bid.helperAge === "number" ? `${bid.helperAge} yrs` : null,
-    bid.helperLocation || null,
-  ].filter((value): value is string => Boolean(value));
 
-  const trustSubtitle =
-    summary.totalReviews > 0
-      ? `${summary.rating.toFixed(1)} average across ${summary.totalReviews} review${summary.totalReviews === 1 ? "" : "s"}`
-      : "New to the platform. Reviews will appear here after completed requests.";
   const helperSkills = bid.helperSkills ?? [];
   const approvedCertifications = bid.helperApprovedCertifications ?? [];
   const helperVerificationBadges = bid.helperVerificationBadges ?? [];
+
+  const displayGender = useMemo(() => formatEnumLabel(bid.helperGender), [bid.helperGender]);
+
+  const quickFacts: QuickFact[] = [];
+  const locationLabel = formatLocationLabel(bid.helperLocation);
+  if (locationLabel) {
+    quickFacts.push({ icon: "location-outline", label: locationLabel });
+  }
+  if (bid.helperGender) {
+    quickFacts.push({ icon: "person-outline", label: displayGender });
+  }
+  if (typeof bid.helperAge === "number") {
+    quickFacts.push({ icon: "calendar-outline", label: formatHelperAge(bid.helperAge) });
+  }
+
+  const hasTrustBadges = helperVerificationBadges.length > 0;
+  const completedHelps = summary.completedHelps ?? 0;
+  const ratingLabel = summary.totalReviews > 0 ? summary.rating.toFixed(1) : "New";
+  const reviewsLabel = `${summary.totalReviews} review${summary.totalReviews === 1 ? "" : "s"}`;
+  const completedLabel = `${completedHelps} completed`;
+  const trustSubtitle =
+    summary.totalReviews > 0
+      ? `${summary.rating.toFixed(1)} average from ${reviewsLabel}`
+      : "This helper is building their review history.";
+  const heroTextColor = palette.textInverse;
+  const heroMutedTextColor = `${palette.textInverse}CC`;
+  const heroBorderColor = `${palette.textInverse}2A`;
+  const heroSoftBg = `${palette.textInverse}14`;
 
   return (
     <AppModal
       visible={visible}
       title="Helper Profile"
       onClose={onClose}
-      showCloseButton
       scrollable
-      actions={(
-        <AppButton
-          title="Done"
-          variant="ghost"
-          fullWidth={false}
-          onPress={onClose}
-        />
-      )}
+      actions={
+        <View style={styles.footerActions}>
+          {onMessage ? (
+            <View style={styles.footerActionCell}>
+              <AppButton
+                title="Message"
+                variant="secondary"
+                onPress={() => onMessage(bid)}
+              />
+            </View>
+          ) : null}
+          {onAccept ? (
+            <View style={styles.footerActionCell}>
+              <AppButton
+                title="Accept bid"
+                loading={accepting}
+                disabled={accepting}
+                onPress={() => onAccept(bid)}
+              />
+            </View>
+          ) : (
+            <AppButton title="Done" variant="ghost" fullWidth={false} onPress={onClose} />
+          )}
+        </View>
+      }
     >
       <View
         style={[
           styles.heroCard,
           {
-            backgroundColor: palette.surfaceMuted,
-            borderColor: palette.border,
+            backgroundColor: palette.primaryDark,
           },
         ]}
       >
-        <View style={styles.profileAvatarWrap}>
-          <ProfileAvatar
-            uri={bid.helperAvatarUrl}
-            fullName={bid.helperName}
-            size={92}
-          />
+        <View style={styles.heroGlow} />
+        <ProfileAvatar uri={bid.helperAvatarUrl} fullName={bid.helperName} size={88} />
+
+        <View style={styles.heroCopy}>
+          <Text style={[styles.heroEyebrow, { color: heroMutedTextColor }]}>Helper proposal</Text>
+          <Text style={[styles.heroName, { color: heroTextColor }]}>{bid.helperName || "Community helper"}</Text>
+          <Row gap="xs" align="center" justify="center">
+            <Ionicons name="star" size={15} color={palette.warning} />
+            <Text style={[styles.heroRating, { color: heroTextColor }]}>{ratingLabel}</Text>
+            <Text style={[styles.heroMeta, { color: heroMutedTextColor }]}>· {reviewsLabel}</Text>
+          </Row>
         </View>
 
-        <Text style={[styles.heroName, { color: palette.textPrimary }]}>
-          {bid.helperName || "Community helper"}
-        </Text>
-
-        {helperVerificationBadges.length > 0 ? (
-          <VerificationBadgeList badges={helperVerificationBadges} />
+        {hasTrustBadges ? (
+          <VerificationBadgeList badges={helperVerificationBadges} compact />
         ) : (
-          <View style={{ marginTop: 4, marginBottom: 4 }}>
-            <Row gap="xs" align="center" justify="center">
-              <Ionicons name="close-circle-outline" size={16} color={palette.error} />
-              <Text style={{ color: palette.textSecondary, fontSize: 13, fontWeight: "500" }}>
-                Not verified
-              </Text>
-            </Row>
-          </View>
-        )}
-
-        <Row gap="xs" align="center" justify="center">
-          <Ionicons
-            name="star"
-            size={15}
-            color={palette.warning ?? "#F59E0B"}
-          />
-          <Text style={[styles.heroRating, { color: palette.textPrimary }]}>
-            {summary.rating.toFixed(1)}
-          </Text>
-          <Text style={[styles.heroRatingMeta, { color: palette.textSecondary }]}>
-            · {summary.totalReviews} review{summary.totalReviews === 1 ? "" : "s"}
-          </Text>
-        </Row>
-
-        {/* <Row gap="xs" align="center" justify="center">
-          <Ionicons
-            name="location-outline"
-            size={14}
-            color={palette.textSecondary}
-          />
-          <Text style={[styles.heroLocation, { color: palette.textSecondary }]}>
-            {locationLabel}
-          </Text>
-        </Row> */}
-
-        {quickFacts.length > 0 ? (
-          <View style={styles.factsWrap}>
-            {quickFacts.map((fact) => (
-              <View
-                key={fact}
-                style={[
-                  styles.factChip,
-                  {
-                    backgroundColor: palette.surface,
-                    borderColor: palette.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.factChipText, { color: palette.textPrimary }]}>
-                  {fact}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-      </View>
-
-      <SectionHeader
-        title="About helper"
-        subtitle="Quick details to help you decide with confidence."
-      />
-
-      <Card style={styles.sectionCard}>
-        <View style={styles.quickFactsGrid}>
-          <InfoTile
-            label="Gender"
-            value={displayGender}
-            icon="person-outline"
-          />
-          <InfoTile
-            label="Age"
-            value={typeof bid.helperAge === "number" ? `${bid.helperAge}` : "Not available"}
-            icon="calendar-outline"
-          />
-        </View>
-
-        {bid.helperEmail ? (
           <View
             style={[
-              styles.inlineMetaRow,
+              styles.unverifiedPill,
               {
-                borderTopColor: palette.border,
+                borderColor: heroBorderColor,
+                backgroundColor: heroSoftBg,
               },
             ]}
           >
-            <Ionicons name="mail-outline" size={14} color={palette.textSecondary} />
-            <Text
-              numberOfLines={1}
-              style={[styles.inlineMetaText, { color: palette.textSecondary }]}
-            >
-              {bid.helperEmail}
-            </Text>
+            <Ionicons name="alert-circle-outline" size={14} color={heroMutedTextColor} />
+            <Text style={[styles.unverifiedText, { color: heroMutedTextColor }]}>No verification badges yet</Text>
           </View>
-        ) : null}
-      </Card>
+        )}
 
-      <SectionHeader
-        title="Bid details"
-        subtitle="Offer and message for this request."
-      />
-
-      <View
-        style={[
-          styles.featuredAmountCard,
-          {
-            backgroundColor: palette.primarySoft,
-            borderColor: `${palette.primary}33`,
-          },
-        ]}
-      >
-        <Row gap="sm" align="center">
-          <View style={[styles.amountIconWrap, { backgroundColor: palette.surface }]}>
-            <Ionicons name="cash-outline" size={18} color={palette.primary} />
-          </View>
-          <View style={styles.amountCopy}>
-            <Text style={[styles.amountLabel, { color: palette.textSecondary }]}>
-              Bid amount
-            </Text>
-            <Text style={[styles.amountValue, { color: palette.primary }]}>
-              {formatBidAmount(bid.amount)}
-            </Text>
-          </View>
-        </Row>
+        <View style={styles.heroStatsGrid}>
+          <TrustStat icon="star" value={ratingLabel} label="Rating" tone="trust" />
+          <TrustStat icon="checkmark-done-outline" value={`${completedHelps}`} label="Completed" tone="primary" />
+          <TrustStat icon="shield-checkmark-outline" value={hasTrustBadges ? "Yes" : "New"} label="Verified" />
+        </View>
       </View>
 
       <View
         style={[
-          styles.messageCard,
+          styles.offerCard,
           {
-            backgroundColor: palette.surfaceMuted,
+            backgroundColor: palette.surface,
             borderColor: palette.border,
           },
         ]}
       >
-        <Row gap="xs" align="center">
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={15}
-            color={palette.textSecondary}
-          />
-          <Text style={[styles.sectionEyebrow, { color: palette.textSecondary }]}>
-            Helper&apos;s message
-          </Text>
+        <Row justify="space-between" align="flex-start" gap="md">
+          <View style={styles.offerCopy}>
+            <Text style={[styles.offerLabel, { color: palette.textSecondary }]}>Submitted offer</Text>
+            <Text style={[styles.offerAmount, { color: palette.primary }]}>
+              {formatBidAmount(bid.amount)}
+            </Text>
+          </View>
+          <View style={[styles.offerIcon, { backgroundColor: palette.primarySoft }]}>
+            <Ionicons name="cash-outline" size={20} color={palette.primary} />
+          </View>
         </Row>
-        <Text style={[styles.profileMessage, { color: palette.textPrimary }]}>
-          “{bid.message || "No message provided."}”
-        </Text>
+        <View
+          style={[
+            styles.messageBubble,
+            {
+              backgroundColor: palette.surfaceMuted,
+              borderColor: palette.border,
+            },
+          ]}
+        >
+          <Text style={[styles.messageEyebrow, { color: palette.textSecondary }]}>Message</Text>
+          <Text style={[styles.offerMessage, { color: palette.textPrimary }]}>
+            “{bid.message || "No message provided."}”
+          </Text>
+        </View>
+      </View>
+
+      {quickFacts.length > 0 ? (
+        <View style={styles.factWrap}>
+          {quickFacts.map((fact) => (
+            <FactPill key={`${fact.icon}-${fact.label}`} icon={fact.icon} label={fact.label} />
+          ))}
+        </View>
+      ) : null}
+
+      <SectionHeader
+        title="Why choose this helper"
+        subtitle="A quick snapshot of reliability, experience, and social proof."
+      />
+
+      <View style={styles.trustGrid}>
+        <TrustStat icon="checkmark-circle-outline" value={completedLabel} label="Jobs" tone="primary" />
+        <TrustStat icon="chatbubble-ellipses-outline" value={reviewsLabel} label="Feedback" />
+        <TrustStat
+          icon="ribbon-outline"
+          value={`${approvedCertifications.length}`}
+          label="Certified"
+          tone="trust"
+        />
       </View>
 
       {helperSkills.length > 0 ? (
         <>
           <SectionHeader
             title="Skills & experience"
-            subtitle="Structured qualifications shared by this helper."
+            subtitle="Relevant expertise this helper has added to their profile."
           />
+          <View style={styles.expertiseGrid}>
+            {helperSkills.map((entry) => {
+              const years =
+                typeof entry.yearsExperience === "number"
+                  ? ` · ${entry.yearsExperience} yr${entry.yearsExperience === 1 ? "" : "s"}`
+                  : "";
+              const meta = entry.isPrimary
+                ? `Primary skill${years}`
+                : `${formatEnumLabel(entry.experienceLevel)}${years}`;
 
-          <Card style={styles.sectionCard}>
-            <View style={styles.qualificationsWrap}>
-              {helperSkills.map((entry) => (
-                <View
+              return (
+                <ExpertiseCard
                   key={entry.id}
-                  style={[
-                    styles.qualificationChip,
-                    {
-                      backgroundColor: entry.isPrimary ? palette.primarySoft : palette.surfaceMuted,
-                      borderColor: entry.isPrimary ? palette.primary : palette.border,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.qualificationTitle, { color: palette.textPrimary }]}>
-                    {entry.skill?.name || "Skill"}
-                  </Text>
-                  <Text style={[styles.qualificationMeta, { color: palette.textSecondary }]}>
-                    {entry.isPrimary ? "Primary" : formatEnumLabel(entry.experienceLevel)}
-                    {typeof entry.yearsExperience === "number"
-                      ? ` · ${entry.yearsExperience} yr${entry.yearsExperience === 1 ? "" : "s"}`
-                      : ""}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </Card>
+                  title={entry.skill?.name || "Skill"}
+                  meta={meta}
+                  primary={entry.isPrimary}
+                />
+              );
+            })}
+          </View>
         </>
       ) : null}
 
@@ -355,45 +453,22 @@ export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
         <>
           <SectionHeader
             title="Approved certifications"
-            subtitle="Verified proof submitted through the profile."
+            subtitle="Verified proof submitted through the helper profile."
           />
-
-          <Card style={styles.sectionCard}>
-            <Stack gap="sm">
-              {approvedCertifications.map((certification) => (
-                <View
-                  key={certification.id}
-                  style={[
-                    styles.certificationItem,
-                    {
-                      backgroundColor: palette.surfaceMuted,
-                      borderColor: palette.border,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.certificationTitle, { color: palette.textPrimary }]}>
-                    {certification.name}
-                  </Text>
-                  <Text style={[styles.certificationIssuer, { color: palette.textSecondary }]}>
-                    {certification.issuer}
-                  </Text>
-                  {certification.credentialId ? (
-                    <Text style={[styles.certificationIssuer, { color: palette.textSecondary }]}>
-                      Credential ID: {certification.credentialId}
-                    </Text>
-                  ) : null}
-                </View>
-              ))}
-            </Stack>
-          </Card>
+          <Stack gap="sm">
+            {approvedCertifications.map((certification) => (
+              <CertificationCard
+                key={certification.id}
+                name={certification.name}
+                issuer={certification.issuer}
+                credentialId={certification.credentialId}
+              />
+            ))}
+          </Stack>
         </>
       ) : null}
 
-      <SectionHeader
-        title="Trust summary"
-        subtitle={trustSubtitle}
-      />
-
+      <SectionHeader title="Trust summary" subtitle={trustSubtitle} />
       <ReviewSummaryCard summary={summary} title="Ratings & reviews" />
 
       <SectionHeader
@@ -401,185 +476,280 @@ export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
         subtitle="Feedback from completed requests."
       />
 
-      <ReviewList
-        reviews={reviews}
-        loading={reviewsLoading}
-        title=""
-        emptyMessage="This helper has not received any reviews yet."
-        showRequestContext
-      />
+      {reviews.length > 0 ? (
+        <Stack gap="sm">
+          {reviews.slice(0, 3).map((review) => (
+            <ReviewCard key={review.id} review={review} showRequestContext />
+          ))}
+        </Stack>
+      ) : (
+        <Card style={styles.emptyReviewCard}>
+          <Ionicons name="chatbox-outline" size={22} color={palette.textSecondary} />
+          <Text style={[styles.emptyReviewTitle, { color: palette.textPrimary }]}>No reviews yet</Text>
+          <Text style={[styles.emptyReviewText, { color: palette.textSecondary }]}>
+            This helper has not received feedback from completed requests yet.
+          </Text>
+        </Card>
+      )}
+
+      {reviewsLoading ? (
+        <Row gap="xs" align="center" justify="center" style={styles.loadingRow}>
+          <Ionicons name="refresh-outline" size={14} color={palette.textSecondary} />
+          <Text style={[styles.loadingText, { color: palette.textSecondary }]}>Loading reviews...</Text>
+        </Row>
+      ) : null}
     </AppModal>
   );
 };
 
 const styles = StyleSheet.create({
   heroCard: {
-    borderWidth: 1,
+    position: "relative",
+    overflow: "hidden",
     borderRadius: theme.radius.xl,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.lg,
+    padding: theme.spacing.lg,
     alignItems: "center",
     gap: theme.spacing.sm,
   },
-  profileAvatarWrap: {
+  heroGlow: {
+    position: "absolute",
+    top: -64,
+    right: -52,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: "rgba(255,255,255,0.10)",
+  },
+  heroCopy: {
     alignItems: "center",
+    gap: 4,
+  },
+  heroEyebrow: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   heroName: {
     fontSize: theme.typography.fontSize.xl,
     lineHeight: theme.typography.lineHeight.xl,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontWeight: "800",
     textAlign: "center",
   },
   heroRating: {
-    fontSize: theme.typography.fontSize.md,
+    fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.bold,
   },
-  heroRatingMeta: {
+  heroMeta: {
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
   },
-  heroLocation: {
-    fontSize: theme.typography.fontSize.sm,
-  },
-  factsWrap: {
+  unverifiedPill: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: theme.spacing.xs,
-    marginTop: theme.spacing.xxs,
-  },
-  factChip: {
-    borderWidth: 1,
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 0.5,
     borderRadius: theme.radius.fill,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 7,
+    backgroundColor: "transparent",
   },
-  factChipText: {
+  unverifiedText: {
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
   },
+  heroStatsGrid: {
+    width: "100%",
+    flexDirection: "row",
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.xs,
+  },
+  trustGrid: {
+    flexDirection: "row",
+    gap: theme.spacing.xs,
+  },
+  trustStat: {
+    flex: 1,
+    minHeight: 82,
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.sm,
+    justifyContent: "center",
+    gap: 3,
+  },
+  trustStatValue: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: "800",
+  },
+  trustStatLabel: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  offerCard: {
+    borderWidth: 1,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  offerCopy: {
+    flex: 1,
+  },
+  offerLabel: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  offerAmount: {
+    marginTop: 2,
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  offerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  messageBubble: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xs,
+  },
+  messageEyebrow: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  offerMessage: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: 22,
+  },
+  factWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.xs,
+  },
+  factPill: {
+    maxWidth: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 8,
+  },
+  factPillText: {
+    maxWidth: 230,
+    fontSize: theme.typography.fontSize.xs + 1,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
   sectionHeader: {
-    gap: theme.spacing.xxs,
     marginTop: theme.spacing.sm,
   },
+  sectionHeaderCopy: {
+    flex: 1,
+    gap: 3,
+  },
   sectionTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: theme.typography.fontSize.lg,
+    lineHeight: theme.typography.lineHeight.lg,
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
   sectionSubtitle: {
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
   },
-  sectionCard: {
-    borderRadius: theme.radius.xl,
-  },
-  quickFactsGrid: {
-    flexDirection: "row",
-    gap: theme.spacing.sm,
-  },
-  infoTile: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
-    gap: theme.spacing.xxs,
-  },
-  infoTileLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  infoTileValue: {
+  sectionAction: {
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.bold,
   },
-  inlineMetaRow: {
-    marginTop: theme.spacing.md,
-    paddingTop: theme.spacing.md,
-    borderTopWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing.xs,
-  },
-  inlineMetaText: {
-    flex: 1,
-    fontSize: theme.typography.fontSize.sm,
-  },
-  featuredAmountCard: {
-    borderWidth: 1,
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.md,
-  },
-  amountIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  amountCopy: {
-    flex: 1,
-  },
-  amountLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  amountValue: {
-    marginTop: theme.spacing.xxs,
-    fontSize: theme.typography.fontSize.xl,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  messageCard: {
-    borderWidth: 1,
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.md,
-    gap: theme.spacing.sm,
-  },
-  qualificationsWrap: {
+  expertiseGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: theme.spacing.sm,
   },
-  qualificationChip: {
-    borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    gap: theme.spacing.xxs,
-  },
-  qualificationTitle: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-  },
-  qualificationMeta: {
-    fontSize: theme.typography.fontSize.xs + 1,
-    lineHeight: theme.typography.lineHeight.xs + 3,
-  },
-  certificationItem: {
+  expertiseCard: {
+    width: "48%",
+    minWidth: 145,
+    flexGrow: 1,
     borderWidth: 1,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
-    gap: theme.spacing.xxs,
+    gap: theme.spacing.xs,
   },
-  certificationTitle: {
+  expertiseTitle: {
+    flex: 1,
     fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
+    fontWeight: "800",
   },
-  certificationIssuer: {
+  expertiseMeta: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 3,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  certificationCard: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+  },
+  certIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  certCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  certTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: "800",
+  },
+  certIssuer: {
     fontSize: theme.typography.fontSize.xs + 1,
     lineHeight: theme.typography.lineHeight.xs + 3,
   },
-  sectionEyebrow: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
+  emptyReviewCard: {
+    alignItems: "center",
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.lg,
   },
-  profileMessage: {
+  emptyReviewTitle: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  emptyReviewText: {
     fontSize: theme.typography.fontSize.sm,
-    lineHeight: 22,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  loadingRow: {
+    paddingVertical: theme.spacing.sm,
+  },
+  loadingText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  footerActions: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  footerActionCell: {
+    flex: 1,
   },
 });
