@@ -12,8 +12,5 @@
   "include": [
     "**/*.ts",
     "**/*.tsx"
-  ],
-  "exclude": [
-    "tamagui.config.ts"
   ]
 }

@@ -20,6 +20,8 @@ import { configureToast } from "@/utils/toast";
 import { enableScreens } from "react-native-screens";
 import { usePushNotifications } from "../src/features/notifications/hooks/usePushNotifications";
 import { useFavorites } from "@/features/favorites/hooks/favorite.hook";
+import { TamaguiProvider } from "tamagui";
+import appTamaguiConfig from "../tamagui.config";
 
 // Temporary iOS Expo Go workaround: bypass native RNSScreen host views.
 enableScreens(false);
@@ -179,10 +181,12 @@ export default function Layout() {
 
   return (
 
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <Slot />
-      <Toast config={toastConfig} />
-    </GestureHandlerRootView>
+    <TamaguiProvider config={appTamaguiConfig} defaultTheme="light">
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Slot />
+        <Toast config={toastConfig} />
+      </GestureHandlerRootView>
+    </TamaguiProvider>
   );
 }
 
