@@ -96,6 +96,7 @@ export const updateUserProfileService = async (
       dateOfBirth: profileData.dateOfBirth,
       gender: profileData.gender,
       userType: profileData.userType,
+      searchRadiusMeters: profileData.searchRadiusMeters,
       location: profileData.address
         ? {
           latitude: profileData.address.latitude,
