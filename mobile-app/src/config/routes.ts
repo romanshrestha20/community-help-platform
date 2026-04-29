@@ -24,5 +24,6 @@ export const APP_ROUTES = {
     AUTH_VERIFY_EMAIL: "/(auth)/verify-email",
     AUTH_VERIFY_PHONE: "/(auth)/verify-phone",
     AUTH_WELCOME: "/(auth)/welcome",
+    AUTH_COMPLETE_PROFILE: "/(auth)/complete-profile",
     LOCATION_PICKER: "/location/picker",
 } as const;
