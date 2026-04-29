@@ -52,6 +52,7 @@ export const mapProfileToUser = (
     rating: profile.rating ?? 0,
     helpCount: profile.helpCount ?? 0,
     avatarUrl: profile.avatarUrl ?? null,
+    searchRadiusMeters: profile.searchRadiusMeters ?? null,
     address: profile.address ?? null,
     skills: profile.skills ?? [],
     certifications: profile.certifications ?? [],
