@@ -28,8 +28,8 @@ export type VerificationBadgeLevel = "basic" | "trust" | "qualification";
 export type VerificationBadgeKey =
   | "PHONE_VERIFIED"
   | "EMAIL_VERIFIED"
-  | "TRUSTED_HELPER"
-  | "CERTIFIED_HELPER";
+  | "ID_VERIFIED"
+  | "TOP_RATED_HELPER";
 
 export interface VerificationBadge {
   key: VerificationBadgeKey;
