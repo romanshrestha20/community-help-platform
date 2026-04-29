@@ -93,20 +93,20 @@ const resolveViewState = (args: {
 
   const assignedToCurrentHelper = Boolean(
     !isOwner &&
-      currentUserId &&
-      helperId &&
-      helperId === currentUserId &&
-      (request.status === "ASSIGNED" || request.status === "COMPLETED")
+    currentUserId &&
+    helperId &&
+    helperId === currentUserId &&
+    (request.status === "ASSIGNED" || request.status === "COMPLETED")
   );
 
   const helperRejected = Boolean(
     !isOwner &&
-      myBid &&
-      (myBid.status === "REJECTED" ||
-        ((request.status === "ASSIGNED" || request.status === "COMPLETED") &&
-          helperId &&
-          helperId !== currentUserId &&
-          myBid.status !== "ACCEPTED"))
+    myBid &&
+    (myBid.status === "REJECTED" ||
+      ((request.status === "ASSIGNED" || request.status === "COMPLETED") &&
+        helperId &&
+        helperId !== currentUserId &&
+        myBid.status !== "ACCEPTED"))
   );
 
   if (isOwner) {
@@ -365,33 +365,86 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
   const handleStatusUpdate = useCallback(
     async (status: HelpRequestStatus) => {
-      const updated = await setRequestStatus(status);
-
-      if (
-        updated &&
-        status === "COMPLETED" &&
-        (updated.assignedHelperId || helperId)
-      ) {
-        const reviewResult = await getUserReviews(updated.assignedHelperId || helperId!, {
-          limit: 10,
-          forceRefresh: true,
-        });
-
-        const alreadyReviewed = reviewResult?.reviews?.some(
-          (review) =>
-            review.helpRequest.id === requestIdValue &&
-            review.reviewer.id === currentUserId
-        );
-
-        if (!alreadyReviewed) {
-          setReviewModalVisible(true);
-        }
+      if (status === "COMPLETED") {
+        return null;
       }
 
-      return updated;
+      return setRequestStatus(status);
     },
-    [currentUserId, getUserReviews, helperId, requestIdValue, setRequestStatus]
+    [setRequestStatus]
   );
+
+  const handleCompleteRequest = useCallback(async () => {
+    const updated = await setRequestStatus("COMPLETED");
+    if (!updated) return;
+
+    const completedHelperId =
+      updated.assignedHelperId ||
+      helperId ||
+      acceptedBid?.helperId ||
+      myBid?.helperId ||
+      null;
+
+    await fetchDetails();
+
+    if (!completedHelperId || !currentUserId) return;
+
+    const reviewResult = await getUserReviews(completedHelperId, {
+      limit: 10,
+      forceRefresh: true,
+    });
+
+    const alreadyReviewed = reviewResult?.reviews?.some(
+      (review) =>
+        review.helpRequest.id === updated.id &&
+        review.reviewer.id === currentUserId
+    );
+
+    if (!alreadyReviewed) {
+      setPreviewReviewRating(0);
+      setReviewModalVisible(true);
+    }
+  }, [
+    acceptedBid?.helperId,
+    currentUserId,
+    fetchDetails,
+    getUserReviews,
+    helperId,
+    myBid?.helperId,
+    setRequestStatus,
+  ]);
+
+  const syncHelperReviews = useCallback(async () => {
+    const targetHelperId =
+      request?.assignedHelperId ||
+      helperId ||
+      acceptedBid?.helperId ||
+      myBid?.helperId ||
+      null;
+
+    if (!targetHelperId) return null;
+
+    return getUserReviews(targetHelperId, {
+      limit: 10,
+      forceRefresh: true,
+    });
+  }, [
+    acceptedBid?.helperId,
+    getUserReviews,
+    helperId,
+    myBid?.helperId,
+    request?.assignedHelperId,
+  ]);
+
+  const handleOpenReviewModal = useCallback(async () => {
+    if (request?.status !== "COMPLETED") {
+      await fetchDetails();
+      return;
+    }
+
+    await syncHelperReviews();
+    setReviewModalVisible(true);
+  }, [fetchDetails, request?.status, syncHelperReviews]);
 
   const handleOpenBidModal = useCallback(() => {
     if (!request) return;
@@ -436,20 +489,6 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     },
     [editingBid, updateMyBid]
   );
-
-  const syncHelperReviews = useCallback(async () => {
-    if (!helperId) return null;
-
-    return getUserReviews(helperId, {
-      limit: 10,
-      forceRefresh: true,
-    });
-  }, [getUserReviews, helperId]);
-
-  const handleOpenReviewModal = useCallback(async () => {
-    await syncHelperReviews();
-    setReviewModalVisible(true);
-  }, [syncHelperReviews]);
 
   const renderInlineError = () =>
     actionError ? (
@@ -1033,10 +1072,10 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 <Text style={[styles.helperText, { color: palette.textSecondary }]}>
                   Repost the request with updated timing or details so new helpers can discover it.
                 </Text>
-              <AppButton
-                title="Repost Request"
-                onPress={() => router.push(requestEditRoute(request.id))}
-              />
+                <AppButton
+                  title="Repost Request"
+                  onPress={() => router.push(requestEditRoute(request.id))}
+                />
               </Stack>
             </SurfaceSection>
             {renderPhotosCard()}
@@ -1054,21 +1093,21 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 <Text style={[styles.helperText, { color: palette.textSecondary }]}>
                   Keep it in your saved list so you can come back if you need more time.
                 </Text>
-              <AppButton
-                title={favorited ? "Saved request" : "Save request"}
-                variant="secondary"
-                loading={favoriteLoading}
-                onPress={() => {
-                  void toggleFavorite(request);
-                }}
-                icon={
-                  <Ionicons
-                    name={favorited ? "heart" : "heart-outline"}
-                    size={16}
-                    color={palette.textPrimary}
-                  />
-                }
-              />
+                <AppButton
+                  title={favorited ? "Saved request" : "Save request"}
+                  variant="secondary"
+                  loading={favoriteLoading}
+                  onPress={() => {
+                    void toggleFavorite(request);
+                  }}
+                  icon={
+                    <Ionicons
+                      name={favorited ? "heart" : "heart-outline"}
+                      size={16}
+                      color={palette.textPrimary}
+                    />
+                  }
+                />
               </Stack>
             </SurfaceSection>
             <StatePanel
@@ -1091,21 +1130,21 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
                   Save this request
                 </Text>
-              <AppButton
-                title={favorited ? "Saved request" : "Save request"}
-                variant="secondary"
-                loading={favoriteLoading}
-                onPress={() => {
-                  void toggleFavorite(request);
-                }}
-                icon={
-                  <Ionicons
-                    name={favorited ? "heart" : "heart-outline"}
-                    size={16}
-                    color={palette.textPrimary}
-                  />
-                }
-              />
+                <AppButton
+                  title={favorited ? "Saved request" : "Save request"}
+                  variant="secondary"
+                  loading={favoriteLoading}
+                  onPress={() => {
+                    void toggleFavorite(request);
+                  }}
+                  icon={
+                    <Ionicons
+                      name={favorited ? "heart" : "heart-outline"}
+                      size={16}
+                      color={palette.textPrimary}
+                    />
+                  }
+                />
               </Stack>
             </SurfaceSection>
             <StatePanel
@@ -1121,40 +1160,40 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 <Text style={[styles.helperText, { color: palette.textSecondary }]}>
                   {myBid.message}
                 </Text>
-              <View
-                style={[
-                  styles.messageBlock,
-                  {
-                    backgroundColor: palette.surface,
-                    borderColor: palette.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.messageLabel, { color: palette.textSecondary }]}>
-                  Pending
-                </Text>
-                <Text style={[styles.messageText, { color: palette.textPrimary }]}>
-                  Waiting for the requester to choose a helper.
-                </Text>
-              </View>
-              <View style={styles.buttonGrid}>
-                <View style={styles.buttonCell}>
-                  <AppButton
-                    title="Edit Bid"
-                    variant="secondary"
-                    onPress={() => handleOpenEditBidModal(myBid)}
-                    disabled={Boolean(actionLoadingByBidId[myBid.id])}
-                  />
+                <View
+                  style={[
+                    styles.messageBlock,
+                    {
+                      backgroundColor: palette.surface,
+                      borderColor: palette.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.messageLabel, { color: palette.textSecondary }]}>
+                    Pending
+                  </Text>
+                  <Text style={[styles.messageText, { color: palette.textPrimary }]}>
+                    Waiting for the requester to choose a helper.
+                  </Text>
                 </View>
-                <View style={styles.buttonCell}>
-                  <AppButton
-                    title="Withdraw"
-                    variant="ghost"
-                    onPress={() => deleteMyBid(myBid.id)}
-                    disabled={Boolean(actionLoadingByBidId[myBid.id])}
-                  />
+                <View style={styles.buttonGrid}>
+                  <View style={styles.buttonCell}>
+                    <AppButton
+                      title="Edit Bid"
+                      variant="secondary"
+                      onPress={() => handleOpenEditBidModal(myBid)}
+                      disabled={Boolean(actionLoadingByBidId[myBid.id])}
+                    />
+                  </View>
+                  <View style={styles.buttonCell}>
+                    <AppButton
+                      title="Withdraw"
+                      variant="ghost"
+                      onPress={() => deleteMyBid(myBid.id)}
+                      disabled={Boolean(actionLoadingByBidId[myBid.id])}
+                    />
+                  </View>
                 </View>
-              </View>
               </Stack>
             </StatePanel>
             {renderPhotosCard()}
@@ -1208,10 +1247,10 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 <Text style={[styles.helperText, { color: palette.textSecondary }]}>
                   Browse other requests nearby and put your energy into the next opportunity.
                 </Text>
-              <AppButton
-                title="Browse Requests"
-                onPress={() => router.replace(APP_ROUTES.HOME_REQUESTS)}
-              />
+                <AppButton
+                  title="Browse Requests"
+                  onPress={() => router.replace(APP_ROUTES.HOME_REQUESTS)}
+                />
               </Stack>
             </SurfaceSection>
             {renderPhotosCard()}
