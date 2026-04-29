@@ -63,7 +63,7 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
 
 export const updateUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
-  const { fullName, phone, bio, dateOfBirth, gender, userType } = req.body;
+  const { fullName, phone, bio, dateOfBirth, gender, userType, searchRadiusMeters } = req.body;
   const location = normalizeIncomingLocation(req.body as Record<string, unknown>);
   const hasLocationPayload = Object.prototype.hasOwnProperty.call(req.body, "location");
 
@@ -117,6 +117,15 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
       normalizedPhone = parsedPhone.toString();
     }
 
+    let parsedSearchRadiusMeters: number | undefined;
+    if (searchRadiusMeters !== undefined) {
+      const numericRadius = Number(searchRadiusMeters);
+      if (!Number.isFinite(numericRadius) || numericRadius <= 0 || !Number.isInteger(numericRadius)) {
+        return next(new AppError("searchRadiusMeters must be a positive whole number", 400));
+      }
+      parsedSearchRadiusMeters = numericRadius;
+    }
+
     const shouldResetPhoneVerification =
       normalizedPhone !== undefined && normalizedPhone !== existingUser.phone;
 
@@ -127,6 +136,7 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
     if (parsedDateOfBirth !== undefined) updateData.dateOfBirth = parsedDateOfBirth;
     if (gender !== undefined) updateData.gender = gender;
     if (userType !== undefined) updateData.userType = userType;
+    if (parsedSearchRadiusMeters !== undefined) updateData.searchRadiusMeters = parsedSearchRadiusMeters;
 
     if (location) {
       if (existingProfile.addressId) {

@@ -228,26 +228,21 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     }
 
     const { email, password, phone, fullName, gender, dateOfBirth } = parsedBody.data;
+    const normalizedPhone = phone ? normalizePhoneNumber(phone) : null;
 
-    if (!location) {
-      return next(new AppError("A valid location is required", 400));
-    }
-
-    const normalizedPhone = normalizePhoneNumber(phone);
-
-    if (!normalizedPhone) {
+    if (phone && !normalizedPhone) {
       return next(new AppError("Please enter a valid phone number", 400));
     }
 
-    const parsedDateOfBirth = new Date(dateOfBirth);
+    const parsedDateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
 
-    if (Number.isNaN(parsedDateOfBirth.getTime())) {
+    if (dateOfBirth && (!parsedDateOfBirth || Number.isNaN(parsedDateOfBirth.getTime()))) {
       return next(new AppError("Invalid dateOfBirth format. Use YYYY-MM-DD", 400));
     }
 
     const existingUser = await prisma.userModel.findFirst({
       where: {
-        OR: [{ email }, { phone: normalizedPhone }],
+        OR: normalizedPhone ? [{ email }, { phone: normalizedPhone }] : [{ email }],
       },
     });
 
@@ -261,15 +256,19 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       data: {
         email,
         passwordHash,
-        phone: normalizedPhone,
+        phone: normalizedPhone ?? null,
         profile: {
           create: {
-            fullName,
-            gender,
-            dateOfBirth: parsedDateOfBirth,
-            address: {
-              create: toLocationCreateInput(location),
-            },
+            fullName: fullName || email.split("@")[0],
+            ...(gender ? { gender } : {}),
+            ...(parsedDateOfBirth ? { dateOfBirth: parsedDateOfBirth } : {}),
+            ...(location
+              ? {
+                address: {
+                  create: toLocationCreateInput(location),
+                },
+              }
+              : {}),
           },
         },
       },
