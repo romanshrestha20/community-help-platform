@@ -23,6 +23,7 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import {
   ProfileAvatarPickerModal,
   ProfileEditForm,
+  VerificationBadgeList,
 } from "@/features/user/components/";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { useUser } from "@/features/user/hooks/user.hook";
@@ -242,12 +243,6 @@ export default function ProfileTabScreen() {
     [user?.certifications]
   );
 
-  const verificationLabel = user?.isPhoneVerified
-    ? "Phone verified"
-    : user?.phone
-      ? "Phone pending"
-      : "Phone missing";
-
   const handleConfirmLogout = async () => {
     if (loadingLogout) return;
 
@@ -327,15 +322,9 @@ export default function ProfileTabScreen() {
                   </View>
                 </Pressable>
 
-                <TrustPill
-                  icon={
-                    user?.isPhoneVerified
-                      ? "checkmark-circle"
-                      : "alert-circle-outline"
-                  }
-                  label={verificationLabel}
-                  tone={user?.isPhoneVerified ? "success" : "warning"}
-                />
+                <View style={styles.heroBadgeWrap}>
+                  <VerificationBadgeList badges={user?.verificationBadges} compact />
+                </View>
               </Row>
 
               <Stack gap="xs" style={styles.heroCopy}>
@@ -353,6 +342,7 @@ export default function ProfileTabScreen() {
                     ? user.bio
                     : "Add a short bio so neighbors know how you prefer to help and connect."}
                 </Text>
+                <VerificationBadgeList badges={user?.verificationBadges} />
               </Stack>
 
               <View style={styles.heroStatsCompact}>
@@ -810,28 +800,6 @@ const StatChip = ({ label, value }: { label: string; value: string }) => {
   );
 };
 
-const TrustPill = ({
-  icon,
-  label,
-  tone,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  tone: "success" | "warning";
-}) => {
-  const { palette } = useThemeContext();
-  const backgroundColor =
-    tone === "success" ? palette.successSurface : palette.warningSurface;
-  const color = tone === "success" ? palette.primary : palette.secondary;
-
-  return (
-    <View style={[styles.trustPill, { backgroundColor }]}>
-      <Ionicons name={icon} size={15} color={color} />
-      <Text style={[styles.trustPillText, { color }]}>{label}</Text>
-    </View>
-  );
-};
-
 const styles = StyleSheet.create({
   screenIntro: {
     gap: theme.spacing.xxs,
@@ -880,6 +848,10 @@ const styles = StyleSheet.create({
   },
   heroTop: {
     zIndex: 1,
+  },
+  heroBadgeWrap: {
+    flexShrink: 1,
+    alignItems: "flex-end",
   },
   avatarButton: {
     position: "relative",
@@ -936,18 +908,6 @@ const styles = StyleSheet.create({
   statChipLabel: {
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
-  },
-  trustPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing.xxs,
-    borderRadius: theme.radius.fill,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 8,
-  },
-  trustPillText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: "800",
   },
   verifyBanner: {
     minHeight: 82,

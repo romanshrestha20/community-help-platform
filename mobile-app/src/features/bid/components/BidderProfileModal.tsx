@@ -7,6 +7,7 @@ import { AppModal } from "@/components/ui/AppModal";
 import { Card, Row, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
+import { VerificationBadgeList } from "@/features/user/components/VerificationBadgeList";
 import { useReviews } from "@/features/reviews/hooks/useReviews";
 import { ReviewList, ReviewSummaryCard } from "@/features/reviews/components";
 import { formatBidAmount } from "../utils/bidDisplay";
@@ -122,6 +123,7 @@ export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
       : "New to the platform. Reviews will appear here after completed requests.";
   const helperSkills = bid.helperSkills ?? [];
   const approvedCertifications = bid.helperApprovedCertifications ?? [];
+  const helperVerificationBadges = bid.helperVerificationBadges ?? [];
 
   return (
     <AppModal
@@ -159,6 +161,19 @@ export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
         <Text style={[styles.heroName, { color: palette.textPrimary }]}>
           {bid.helperName || "Community helper"}
         </Text>
+
+        {helperVerificationBadges.length > 0 ? (
+          <VerificationBadgeList badges={helperVerificationBadges} />
+        ) : (
+          <View style={{ marginTop: 4, marginBottom: 4 }}>
+            <Row gap="xs" align="center" justify="center">
+              <Ionicons name="close-circle-outline" size={16} color={palette.error} />
+              <Text style={{ color: palette.textSecondary, fontSize: 13, fontWeight: "500" }}>
+                Not verified
+              </Text>
+            </Row>
+          </View>
+        )}
 
         <Row gap="xs" align="center" justify="center">
           <Ionicons

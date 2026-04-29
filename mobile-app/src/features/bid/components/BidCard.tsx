@@ -6,6 +6,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { Card, Row, Stack, spacing, typography } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
+import { VerificationBadgeList } from "@/features/user/components/VerificationBadgeList";
 import { Bid } from "../types/bid.types";
 import { BidStatusBadge } from "./BidStatusBadge";
 import { BidderProfileModal } from "./BidderProfileModal";
@@ -67,6 +68,7 @@ export const BidCard = ({
   const helperTotalReviews = bid.helperTotalReviews ?? 0;
   const helperCompletedHelps = bid.helperCompletedHelps ?? 0;
   const hasReviewSummary = helperTotalReviews > 0;
+  const helperVerificationBadges = bid.helperVerificationBadges ?? [];
 
   const requesterActions = isRequestOwner || canRespond;
   const helperActions = !requesterActions && canModify;
@@ -267,6 +269,8 @@ export const BidCard = ({
                   >
                     {helperName}
                   </Text>
+
+                  <VerificationBadgeList badges={helperVerificationBadges} compact />
 
                   {hasReviewSummary ? (
                     <Text
