@@ -321,10 +321,6 @@ export default function ProfileTabScreen() {
                     />
                   </View>
                 </Pressable>
-
-                <View style={styles.heroBadgeWrap}>
-                  <VerificationBadgeList badges={user?.verificationBadges} compact />
-                </View>
               </Row>
 
               <Stack gap="xs" style={styles.heroCopy}>
@@ -848,10 +844,6 @@ const styles = StyleSheet.create({
   },
   heroTop: {
     zIndex: 1,
-  },
-  heroBadgeWrap: {
-    flexShrink: 1,
-    alignItems: "flex-end",
   },
   avatarButton: {
     position: "relative",

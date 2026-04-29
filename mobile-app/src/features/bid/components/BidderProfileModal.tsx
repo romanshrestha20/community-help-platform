@@ -86,6 +86,7 @@ export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
     getUserReviews,
     loadingByUserId,
   } = useReviews();
+  const helperId = bid.helperId?.trim() ?? "";
 
   const displayGender = useMemo(() => {
     if (!bid.helperGender) return "Not available";
@@ -98,19 +99,19 @@ export const BidderProfileModal = ({ visible, bid, onClose }: Props) => {
   }, [bid.helperGender]);
 
   useEffect(() => {
-    if (!visible || !bid.helperId) {
+    if (!visible || !helperId) {
       return;
     }
 
-    void getUserReviews(bid.helperId, {
+    void getUserReviews(helperId, {
       limit: 3,
       forceRefresh: true,
     });
-  }, [bid.helperId, getUserReviews, visible]);
+  }, [getUserReviews, helperId, visible]);
 
-  const summary = getCachedSummary(bid.helperId);
-  const reviews = getCachedReviews(bid.helperId);
-  const reviewsLoading = Boolean(loadingByUserId[bid.helperId]);
+  const summary = helperId ? getCachedSummary(helperId) : { rating: 0, totalReviews: 0, completedHelps: 0 };
+  const reviews = helperId ? getCachedReviews(helperId) : [];
+  const reviewsLoading = helperId ? Boolean(loadingByUserId[helperId]) : false;
   const quickFacts = [
     displayGender !== "Not available" ? displayGender : null,
     typeof bid.helperAge === "number" ? `${bid.helperAge} yrs` : null,
