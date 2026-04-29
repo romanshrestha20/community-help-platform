@@ -24,12 +24,21 @@ const getBadgeAppearance = (
     };
   }
 
-  if (badge.key === "CERTIFIED_HELPER") {
+  if (badge.key === "ID_VERIFIED") {
     return {
-      icon: "ribbon-outline" as const,
+      icon: "card-outline" as const,
       backgroundColor: palette.trustSoft,
       borderColor: `${palette.trust}33`,
       textColor: palette.trust,
+    };
+  }
+
+  if (badge.key === "TOP_RATED_HELPER") {
+    return {
+      icon: "star-outline" as const,
+      backgroundColor: palette.warningSoft ?? palette.surfaceMuted,
+      borderColor: `${palette.warning}33`,
+      textColor: palette.warning,
     };
   }
 
