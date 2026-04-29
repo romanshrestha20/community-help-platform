@@ -73,10 +73,10 @@ const optionalLocationPayload = z.unknown().optional();
 export const registerUserBodySchema = z.object({
   email: emailSchema,
   password: passwordSchema(),
-  phone: phoneSchema,
-  fullName: z.string().trim().min(1, "Full name is required."),
-  gender: genderSchema,
-  dateOfBirth: dateOfBirthSchema,
+  phone: phoneSchema.optional(),
+  fullName: z.string().trim().min(1, "Full name is required.").optional(),
+  gender: genderSchema.optional(),
+  dateOfBirth: dateOfBirthSchema.optional(),
 });
 
 export const loginBodySchema = z.object({
