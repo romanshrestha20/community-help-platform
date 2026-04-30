@@ -11,6 +11,7 @@ import {
   formatRequestBudget,
   getRequestCategoryLabel,
 } from "@/features/helpRequest/utils/requestDisplay";
+import { isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
 
 type Props = {
   userLocation: Coordinates | null;
@@ -225,6 +226,9 @@ export const RequestMap = ({
 
     validRequests.forEach((request) => {
       const isSelected = request.id === selectedRequestId;
+      const isUrgentActive = isUrgentRequestActive(request);
+      const markerFill = isUrgentActive ? "#DC2626" : isSelected ? "#F4A261" : "#2E9D74";
+      const markerStroke = isUrgentActive ? "#991B1B" : isSelected ? "#C46A2D" : "#1F7A58";
       const marker = leaflet.marker(
         [request.location!.latitude!, request.location!.longitude!],
         {
@@ -235,8 +239,8 @@ export const RequestMap = ({
                 width:${isSelected ? 24 : 20}px;
                 height:${isSelected ? 24 : 20}px;
                 border-radius:999px;
-                background:${isSelected ? "#F4A261" : "#2E9D74"};
-                border:3px solid ${isSelected ? "#C46A2D" : "#1F7A58"};
+                background:${markerFill};
+                border:3px solid ${markerStroke};
                 box-shadow:0 6px 18px rgba(18,32,19,0.22);
               "></div>
             `,

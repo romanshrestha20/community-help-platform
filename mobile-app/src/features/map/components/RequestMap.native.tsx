@@ -8,6 +8,7 @@ import MapView, {
 
 import { Coordinates, MapRequestItem } from "@/features/map/types/map.types";
 import { getRegionForCoordinates } from "@/features/map/utils/getRegionForCoordinates";
+import { isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
 
 type Props = {
   userLocation: Coordinates | null;
@@ -83,7 +84,9 @@ export const RequestMap: React.FC<Props> = ({
           onRegionChangeComplete?.(region, details?.isGesture);
         }}
       >
-        {validRequests.map((request) => (
+        {validRequests.map((request) => {
+          const isUrgentActive = isUrgentRequestActive(request);
+          return (
           <Marker
             key={request.id}
             coordinate={{
@@ -92,9 +95,11 @@ export const RequestMap: React.FC<Props> = ({
             }}
             title={request.title}
             description={request.location?.formattedAddress ?? ""}
+            pinColor={isUrgentActive ? "#DC2626" : undefined}
             onPress={() => onSelectRequest(request)}
           />
-        ))}
+          );
+        })}
       </MapView>
     </View>
   );
