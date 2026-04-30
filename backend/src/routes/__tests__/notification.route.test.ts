@@ -118,6 +118,10 @@ describe("notification routes integration", () => {
             bidsEnabled: true,
             requestUpdatesEnabled: true,
             savedRequestsEnabled: false,
+            nearbyAlertsEnabled: false,
+            nearbyAlertRadiusKm: 5,
+            nearbyAlertsUrgentOnly: false,
+            nearbyAlertCategorySlugs: [],
         });
 
         const res = await request(app)
@@ -143,6 +147,10 @@ describe("notification routes integration", () => {
             bidsEnabled: true,
             requestUpdatesEnabled: true,
             savedRequestsEnabled: false,
+            nearbyAlertsEnabled: false,
+            nearbyAlertRadiusKm: 5,
+            nearbyAlertsUrgentOnly: false,
+            nearbyAlertCategorySlugs: [],
         });
 
         const res = await request(app)

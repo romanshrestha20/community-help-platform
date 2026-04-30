@@ -161,63 +161,162 @@ const isMissingUrgentColumnError = (error: unknown) => {
   );
 };
 
-const maybeBroadcastUrgentRequest = async ({
+const nearbyCategoryAllowlist = new Set([
+  "errands",
+  "moving",
+  "transportation",
+  "shopping",
+]);
+
+const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+
+const getDistanceKm = (
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number }
+) => {
+  const earthRadiusKm = 6371;
+  const latDelta = toRadians(to.latitude - from.latitude);
+  const lonDelta = toRadians(to.longitude - from.longitude);
+  const fromLat = toRadians(from.latitude);
+  const toLat = toRadians(to.latitude);
+
+  const a =
+    Math.sin(latDelta / 2) * Math.sin(latDelta / 2) +
+    Math.cos(fromLat) * Math.cos(toLat) * Math.sin(lonDelta / 2) * Math.sin(lonDelta / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusKm * c;
+};
+
+const maybeBroadcastNearbyRequestAlert = async ({
   requestId,
   requesterId,
   title,
+  isUrgent,
+  categorySlug,
   location,
-  radiusMeters,
 }: {
   requestId: string;
   requesterId: string;
   title: string;
+  isUrgent: boolean;
+  categorySlug: string;
   location: { latitude: number; longitude: number } | null;
-  radiusMeters?: number | null;
 }) => {
-  if (!location) return;
+  if (!location || !nearbyCategoryAllowlist.has(categorySlug)) return;
 
-  const radiusKm = Math.max((radiusMeters ?? 10000) / 1000, 1);
-  const latDelta = radiusKm / 111;
-  const lngDelta = radiusKm / Math.max(Math.cos((location.latitude * Math.PI) / 180) * 111, 0.01);
-
-  const nearbyUsers = await prisma.userModel.findMany({
+  const usersWithNearbyAlerts = await prisma.notificationPreference.findMany({
     where: {
-      id: { not: requesterId },
-      profile: {
-        is: {
-          address: {
-            is: {
-              latitude: {
-                gte: location.latitude - latDelta,
-                lte: location.latitude + latDelta,
-              },
-              longitude: {
-                gte: location.longitude - lngDelta,
-                lte: location.longitude + lngDelta,
+      nearbyAlertsEnabled: true,
+      userId: { not: requesterId },
+    },
+    select: {
+      userId: true,
+      nearbyAlertRadiusKm: true,
+      nearbyAlertsUrgentOnly: true,
+      nearbyAlertCategorySlugs: true,
+      user: {
+        select: {
+          profile: {
+            select: {
+              address: {
+                select: {
+                  latitude: true,
+                  longitude: true,
+                },
               },
             },
           },
         },
       },
     },
-    select: { id: true },
     take: 200,
   });
 
-  if (!nearbyUsers.length) return;
+  if (!usersWithNearbyAlerts.length) return;
+
+  const matchedRecipients = usersWithNearbyAlerts
+    .map((userPreference) => {
+      // Defensive guard: owner should never get their own nearby alert.
+      if (userPreference.userId === requesterId) {
+        return null;
+      }
+
+      if (userPreference.nearbyAlertsUrgentOnly && !isUrgent) {
+        return null;
+      }
+
+      if (
+        userPreference.nearbyAlertCategorySlugs.length > 0 &&
+        !userPreference.nearbyAlertCategorySlugs.includes(categorySlug)
+      ) {
+        return null;
+      }
+
+      // Skip users safely when profile address is missing.
+      const address = userPreference.user.profile?.address;
+      if (!address) {
+        return null;
+      }
+
+      const distanceKm = getDistanceKm(location, {
+        latitude: address.latitude,
+        longitude: address.longitude,
+      });
+
+      if (distanceKm > userPreference.nearbyAlertRadiusKm) {
+        return null;
+      }
+
+      return {
+        userId: userPreference.userId,
+        distanceKm,
+      };
+    })
+    .filter((entry): entry is { userId: string; distanceKm: number } => Boolean(entry));
+
+  if (!matchedRecipients.length) return;
+
+  const notificationTitle = isUrgent ? "Urgent request nearby" : "New request nearby";
+  const nearbyType = isUrgent ? "URGENT_REQUEST_NEARBY" : "REQUEST_NEARBY";
+
+  const existingNearbyNotifications = await prisma.notification.findMany({
+    where: {
+      requestId,
+      type: NotificationType.SYSTEM,
+      title: {
+        in: ["Urgent request nearby", "New request nearby"],
+      },
+      userId: {
+        in: matchedRecipients.map((recipient) => recipient.userId),
+      },
+    },
+    select: {
+      userId: true,
+      requestId: true,
+    },
+  });
+  const existingKeySet = new Set(existingNearbyNotifications.map((item) => `${item.userId}:${item.requestId}`));
+  const recipientsToNotify = matchedRecipients.filter(
+    (recipient) => !existingKeySet.has(`${recipient.userId}:${requestId}`)
+  );
+
+  if (!recipientsToNotify.length) return;
 
   await Promise.all(
-    nearbyUsers.map((user) =>
+    recipientsToNotify.map((recipient) =>
       createNotification({
-        userId: user.id,
+        userId: recipient.userId,
         actorId: requesterId,
         type: NotificationType.SYSTEM,
-        title: "Urgent request nearby",
-        body: `A nearby request needs help now: "${title}"`,
+        title: notificationTitle,
+        body: `${title} · ${recipient.distanceKm.toFixed(1)} km away`,
         requestId,
         data: {
-          priority: "urgent",
+          nearbyType,
+          priority: isUrgent ? "urgent" : "normal",
+          distanceKm: Number(recipient.distanceKm.toFixed(2)),
           requestTitle: title,
+          categorySlug,
         },
       })
     )
@@ -290,7 +389,7 @@ export const createHelpRequest = async (
       return next(new AppError("A valid location is required", 400));
     }
 
-    await ensureActiveCategory(categoryId);
+    const category = await ensureActiveCategory(categoryId);
 
     const createData: any = {
       title,
@@ -325,17 +424,16 @@ export const createHelpRequest = async (
       newRequest = await prisma.helpRequest.create({ data: fallbackCreateData });
     }
 
-    if (newRequest.isUrgent) {
-      await maybeBroadcastUrgentRequest({
-        requestId: newRequest.id,
-        requesterId: userId,
-        title: newRequest.title,
-        location: location
-          ? { latitude: location.latitude, longitude: location.longitude }
-          : null,
-        radiusMeters: newRequest.serviceRadiusMeters,
-      });
-    }
+    await maybeBroadcastNearbyRequestAlert({
+      requestId: newRequest.id,
+      requesterId: userId,
+      title: newRequest.title,
+      isUrgent: Boolean(newRequest.isUrgent),
+      categorySlug: category.slug,
+      location: location
+        ? { latitude: location.latitude, longitude: location.longitude }
+        : null,
+    });
 
     let createdImages: any[] = [];
 
@@ -755,21 +853,6 @@ export const updateHelpRequest = async (
         where: { id },
         data: fallbackUpdateData,
         include: HELP_REQUEST_INCLUDE,
-      });
-    }
-
-    if (updatedRequest.isUrgent) {
-      const broadcastLocation = location
-        ? { latitude: location.latitude, longitude: location.longitude }
-        : request.location
-          ? { latitude: request.location.latitude, longitude: request.location.longitude }
-          : null;
-      await maybeBroadcastUrgentRequest({
-        requestId: updatedRequest.id,
-        requesterId: userId,
-        title: updatedRequest.title,
-        location: broadcastLocation,
-        radiusMeters: updatedRequest.serviceRadiusMeters,
       });
     }
 

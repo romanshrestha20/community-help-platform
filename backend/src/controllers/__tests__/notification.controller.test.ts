@@ -122,6 +122,10 @@ describe("notification.controller", () => {
             bidsEnabled: true,
             requestUpdatesEnabled: true,
             savedRequestsEnabled: false,
+            nearbyAlertsEnabled: false,
+            nearbyAlertRadiusKm: 5,
+            nearbyAlertsUrgentOnly: false,
+            nearbyAlertCategorySlugs: [],
         });
 
         const req = makeReq({ user: { userId: "user-1" } });
@@ -149,6 +153,10 @@ describe("notification.controller", () => {
             bidsEnabled: true,
             requestUpdatesEnabled: true,
             savedRequestsEnabled: false,
+            nearbyAlertsEnabled: false,
+            nearbyAlertRadiusKm: 5,
+            nearbyAlertsUrgentOnly: false,
+            nearbyAlertCategorySlugs: [],
         });
 
         const req = makeReq({
