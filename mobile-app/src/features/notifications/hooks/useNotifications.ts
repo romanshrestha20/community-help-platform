@@ -56,6 +56,10 @@ export const useNotifications = () => {
             bidsEnabled,
             requestUpdatesEnabled,
             savedRequestsEnabled,
+            nearbyAlertsEnabled: false,
+            nearbyAlertRadiusKm: 5 as const,
+            nearbyAlertsUrgentOnly: false,
+            nearbyAlertCategorySlugs: [],
         }),
         [
             pushEnabled,

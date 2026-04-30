@@ -101,6 +101,10 @@ export const usePushNotifications = () => {
                             bidsEnabled: state.bidsEnabled,
                             requestUpdatesEnabled: state.requestUpdatesEnabled,
                             savedRequestsEnabled: state.savedRequestsEnabled,
+                            nearbyAlertsEnabled: state.nearbyAlertsEnabled,
+                            nearbyAlertRadiusKm: state.nearbyAlertRadiusKm,
+                            nearbyAlertsUrgentOnly: state.nearbyAlertsUrgentOnly,
+                            nearbyAlertCategorySlugs: state.nearbyAlertCategorySlugs,
                         })
                         : state.pushEnabled;
 
@@ -292,6 +296,8 @@ const isHydratedNotificationType = (value: string): value is Parameters<
         value === "BID_RECEIVED" ||
         value === "BID_ACCEPTED" ||
         value === "BID_REJECTED" ||
+        value === "REQUEST_NEARBY" ||
+        value === "URGENT_REQUEST_NEARBY" ||
         value === "REQUEST_ASSIGNED" ||
         value === "REQUEST_COMPLETED" ||
         value === "REQUEST_CANCELLED" ||
