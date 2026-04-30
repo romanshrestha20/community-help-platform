@@ -5,6 +5,8 @@ import type {
 import type { NotificationPreferences } from "@/utils/notificationPreference";
 
 const requestUpdateTypes: NotificationType[] = [
+    "REQUEST_NEARBY",
+    "URGENT_REQUEST_NEARBY",
     "REQUEST_ASSIGNED",
     "REQUEST_COMPLETED",
     "REQUEST_CANCELLED",
@@ -38,6 +40,9 @@ export const isNotificationTypeEnabled = (
     }
 
     if (requestUpdateTypes.includes(type)) {
+        if (type === "REQUEST_NEARBY" || type === "URGENT_REQUEST_NEARBY") {
+            return preferences.nearbyAlertsEnabled;
+        }
         return preferences.requestUpdatesEnabled;
     }
 
