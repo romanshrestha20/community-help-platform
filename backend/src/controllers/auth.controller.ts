@@ -1207,7 +1207,13 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
     }
 
     const { idToken } = parsedBody.data;
-    const googlePayload = await verifyGoogleIdToken(idToken);
+    let googlePayload: Awaited<ReturnType<typeof verifyGoogleIdToken>>;
+    try {
+      googlePayload = await verifyGoogleIdToken(idToken);
+    } catch (error) {
+      console.warn("Google token verification failed:", error);
+      return next(new AppError("Invalid Google authentication token", 401));
+    }
 
     if (!googlePayload?.sub || !googlePayload.email) {
       return next(new AppError("Google account information is incomplete", 400));
@@ -1250,14 +1256,32 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
 
       if (existingUser) {
         userId = existingUser.id;
-
-        await prisma.oAuthAccount.create({
-          data: {
+        const linkedOAuth = await prisma.oAuthAccount.upsert({
+          where: {
+            provider_providerId: {
+              provider: "GOOGLE",
+              providerId: googlePayload.sub,
+            },
+          },
+          update: {},
+          create: {
             provider: "GOOGLE",
             providerId: googlePayload.sub,
             userId,
           },
+          select: {
+            userId: true,
+          },
         });
+
+        if (linkedOAuth.userId !== userId) {
+          return next(
+            new AppError(
+              "This Google account is already linked to another user account",
+              409
+            )
+          );
+        }
 
         if (!existingUser.profile) {
           await prisma.profile.create({
@@ -1350,6 +1374,9 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
   } catch (error) {
     if (error instanceof AppError) {
       return next(error);
+    }
+    if ((error as { code?: string }).code === "P2002") {
+      return next(new AppError("Google account link conflict. Please try signing in again.", 409));
     }
     console.error("Error in loginWithGoogle:", error);
     next(new AppError("Failed to authenticate with Google", 500));

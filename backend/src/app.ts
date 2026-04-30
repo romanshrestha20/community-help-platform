@@ -27,6 +27,26 @@ const defaultDevOrigins = [
   "http://localhost:3000",
 ];
 const effectiveOrigins = allowedOrigins.length > 0 ? allowedOrigins : (isProduction ? [] : defaultDevOrigins);
+const isOriginAllowed = (origin?: string) =>
+  Boolean(origin && effectiveOrigins.includes(origin));
+
+const corsOptions: cors.CorsOptions = {
+  origin(origin, callback) {
+    // Allow server-to-server, mobile native, and curl requests with no Origin header.
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (isOriginAllowed(origin)) {
+      return callback(null, true);
+    }
+
+    // Clean deny for browsers without throwing framework errors.
+    return callback(null, false);
+  },
+  credentials: true,
+  optionsSuccessStatus: 204,
+};
 
 app.use(
   helmet({
@@ -34,20 +54,24 @@ app.use(
   })
 );
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin) {
-        return callback(null, true);
-      }
-      if (effectiveOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-  })
-);
+app.use((req, _res, next) => {
+  if (req.method === "OPTIONS") {
+    const requestOrigin = req.headers.origin;
+    const requestMethod = req.headers["access-control-request-method"];
+
+    console.log("[cors] preflight", {
+      path: req.originalUrl,
+      origin: requestOrigin || null,
+      requestMethod: requestMethod || null,
+      allowed: isOriginAllowed(requestOrigin),
+    });
+  }
+
+  next();
+});
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json());
 
 app.get('/', (req, res) => {
