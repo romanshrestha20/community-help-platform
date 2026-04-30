@@ -6,7 +6,6 @@ import { Screen, theme } from "@/design-system";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { BidRequestModal } from "@/features/bid/components";
 import { useCategories } from "@/features/category/hooks/category.hook";
-import { RequestForm } from "@/features/helpRequest/components";
 import { RequestCardSkeleton } from "@/features/helpRequest/components/RequestCardSkeleton";
 import { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
 import { formatRequestBudget } from "@/features/helpRequest/utils/requestDisplay";
@@ -64,9 +63,6 @@ export default function Home() {
     updateFilter,
     helperRequests,
     loading,
-    creatingRequest,
-    createRequestError,
-    handleCreateRequest,
     bidModalVisible,
     selectedRequest,
     submittingBid,
@@ -144,15 +140,6 @@ export default function Home() {
       </ScrollView>
 
       <View style={styles.actionRow}>
-        <View style={styles.inlineCreateWrap}>
-          <RequestForm
-            compactTrigger
-            onSubmit={handleCreateRequest}
-            loading={creatingRequest}
-            error={createRequestError}
-          />
-        </View>
-
         <HomeActionButton
           label="Browse map"
           icon="map-outline"
@@ -262,11 +249,8 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     gap: theme.spacing.sm,
-  },
-  inlineCreateWrap: {
-    flex: 1,
   },
   feedHeader: {
     flexDirection: "row",

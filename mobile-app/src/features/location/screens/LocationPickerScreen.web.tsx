@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Card, ScreenView, theme } from "@/design-system";
 import { APP_ROUTES } from "@/config/routes";
+import { goBackOrFallback } from "@/utils/navigation";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useCurrentLocation } from "@/features/map/hooks/useCurrentLocation";
 import { getRegionForCoordinates } from "@/features/map/utils/getRegionForCoordinates";
@@ -88,7 +88,6 @@ const getInitialZoom = (longitudeDelta: number) => {
 };
 
 export default function LocationPickerScreen() {
-  const router = useRouter();
   const { palette } = useThemeContext();
   const draftLocation = useLocationPickerScreenStore((state) => state.draftLocation);
   const confirmLocation = useLocationPickerScreenStore((state) => state.confirmLocation);
@@ -251,12 +250,10 @@ export default function LocationPickerScreen() {
   const handleConfirm = () => {
     if (!selectedLocation) return;
     confirmLocation(selectedLocation);
-    if (draftReturnRoute) {
-      router.replace(draftReturnRoute as any);
-      return;
-    }
-
-    router.replace(APP_ROUTES.HOME_REQUESTS);
+    goBackOrFallback({
+      fallback: (draftReturnRoute as any) ?? APP_ROUTES.HOME_REQUESTS,
+      replace: true,
+    });
   };
 
   return (
@@ -266,7 +263,7 @@ export default function LocationPickerScreen() {
         subtitle="Pick the exact spot where help is needed."
         showBackButton
         backButtonProps={{
-          fallback: APP_ROUTES.HOME_REQUESTS,
+          fallback: (draftReturnRoute as any) ?? APP_ROUTES.HOME_REQUESTS,
           variant: "secondary",
         }}
       />
