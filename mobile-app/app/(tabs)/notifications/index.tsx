@@ -8,7 +8,7 @@ import {
     View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import Swipeable from "react-native-gesture-handler/Swipeable";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { AppButton } from "@/components/ui/AppButton";
 import { TabScreenContainer } from "@/components/ui/TabScreenContainer";
 import { Card, theme } from "@/design-system";
@@ -29,29 +29,30 @@ type NotificationVisuals = {
     icon: keyof typeof Ionicons.glyphMap;
     tint: string;
     background: string;
+    priority: "high" | "medium" | "low";
 };
 
 const getNotificationVisuals = (item: AppNotification, palette: ReturnType<typeof useThemeContext>["palette"]): NotificationVisuals => {
     switch (item.type) {
         case "BID_RECEIVED":
-            return { icon: "pricetag-outline", tint: palette.primary, background: palette.primarySoft };
+            return { icon: "pricetag", tint: palette.primary, background: palette.primarySoft, priority: "medium" };
         case "BID_ACCEPTED":
-            return { icon: "checkmark-circle-outline", tint: palette.success, background: palette.successSoft ?? palette.surfaceMuted };
+            return { icon: "checkmark-circle", tint: palette.success, background: palette.successSoft ?? palette.surfaceMuted, priority: "high" };
         case "BID_REJECTED":
-            return { icon: "close-circle-outline", tint: palette.danger, background: palette.dangerSoft };
+            return { icon: "close-circle", tint: palette.danger, background: palette.dangerSoft, priority: "medium" };
         case "REQUEST_ASSIGNED":
-            return { icon: "clipboard-outline", tint: palette.secondary, background: palette.secondarySoft };
+            return { icon: "clipboard", tint: palette.secondary, background: palette.secondarySoft, priority: "medium" };
         case "REQUEST_COMPLETED":
-            return { icon: "checkmark-done-outline", tint: palette.success, background: palette.successSoft ?? palette.surfaceMuted };
+            return { icon: "checkmark-done", tint: palette.success, background: palette.successSoft ?? palette.surfaceMuted, priority: "medium" };
         case "REQUEST_CANCELLED":
-            return { icon: "ban-outline", tint: palette.danger, background: palette.dangerSoft };
+            return { icon: "ban", tint: palette.danger, background: palette.dangerSoft, priority: "low" };
         case "MESSAGE_RECEIVED":
-            return { icon: "chatbubble-ellipses-outline", tint: palette.secondary, background: palette.secondarySoft };
+            return { icon: "chatbubble-ellipses", tint: palette.secondary, background: palette.secondarySoft, priority: "medium" };
         case "REVIEW_RECEIVED":
         case "REVIEW_REPLY_RECEIVED":
-            return { icon: "star-outline", tint: palette.accent, background: palette.accentSoft };
+            return { icon: "star", tint: palette.accent, background: palette.accentSoft, priority: "low" };
         default:
-            return { icon: "notifications-outline", tint: palette.primary, background: palette.primarySoft };
+            return { icon: "notifications", tint: palette.textSecondary, background: palette.surfaceMuted, priority: "low" };
     }
 };
 
@@ -71,8 +72,8 @@ const getNotificationCopy = (item: AppNotification) => {
             };
         case "BID_ACCEPTED":
             return {
-                primary: `${actor} accepted your bid`,
-                secondary: `"${title}"`,
+                primary: "Bid accepted",
+                secondary: title,
             };
         case "BID_REJECTED":
             return {
@@ -96,8 +97,8 @@ const getNotificationCopy = (item: AppNotification) => {
             };
         case "MESSAGE_RECEIVED":
             return {
-                primary: `${actor} sent a message`,
-                secondary: item.body,
+                primary: actor,
+                secondary: item.body || "New message",
             };
         case "REVIEW_RECEIVED":
             return {
@@ -117,6 +118,31 @@ const getNotificationCopy = (item: AppNotification) => {
     }
 };
 
+const getNotificationActionLabel = (item: AppNotification) => {
+    switch (item.type) {
+        case "MESSAGE_RECEIVED":
+            return "Reply";
+        case "BID_ACCEPTED":
+            return "View request";
+        case "BID_RECEIVED":
+            return "Open bid";
+        case "REQUEST_ASSIGNED":
+        case "REQUEST_COMPLETED":
+        case "REQUEST_CANCELLED":
+            return "View";
+        default:
+            return "Open";
+    }
+};
+
+const getNotificationTypeLabel = (type: AppNotification["type"]) => {
+    if (type === "MESSAGE_RECEIVED") return "Message";
+    if (type === "BID_ACCEPTED" || type === "BID_RECEIVED" || type === "BID_REJECTED") return "Bid";
+    if (type.startsWith("REQUEST_")) return "Request";
+    if (type.startsWith("REVIEW_")) return "Review";
+    return "System";
+};
+
 const getNotificationDestination = (item: AppNotification) => {
     if (item.type === "MESSAGE_RECEIVED") {
         return "/messages";
@@ -127,11 +153,15 @@ const getNotificationDestination = (item: AppNotification) => {
     }
 
     if (item.type === "BID_ACCEPTED") {
-        return APP_ROUTES.PROFILE_BIDS;
+        return item.requestId
+            ? APP_ROUTES.HOME_REQUEST_DETAILS(item.requestId)
+            : APP_ROUTES.PROFILE_BIDS;
     }
 
     if (item.type === "BID_REJECTED") {
-        return APP_ROUTES.PROFILE_BIDS;
+        return item.requestId
+            ? APP_ROUTES.HOME_REQUEST_DETAILS(item.requestId)
+            : APP_ROUTES.PROFILE_BIDS;
     }
 
     if (
@@ -152,7 +182,7 @@ const getNotificationDestination = (item: AppNotification) => {
 const formatTime = (value: string) => {
     const date = new Date(value);
     const now = new Date();
-    const minutes = Math.round((now.getTime() - date.getTime()) / 60000);
+    const minutes = Math.floor((now.getTime() - date.getTime()) / 60000);
 
     if (minutes < 1) {
         return "Just now";
@@ -163,34 +193,20 @@ const formatTime = (value: string) => {
     }
 
     if (minutes < 24 * 60) {
-        const hours = Math.round(minutes / 60);
+        const hours = Math.floor(minutes / 60);
         return `${hours}h ago`;
     }
 
-    const sameDay = isSameDay(date, now);
-
-    if (sameDay) {
-        return `Today, ${date.toLocaleTimeString([], {
-            hour: "numeric",
-            minute: "2-digit",
-        })}`;
-    }
-
-    return date.toLocaleString([], {
+    return date.toLocaleDateString([], {
         month: "short",
         day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
     });
 };
 
-const isSameDay = (left: Date, right: Date) => {
-    return (
-        left.getFullYear() === right.getFullYear() &&
-        left.getMonth() === right.getMonth() &&
-        left.getDate() === right.getDate()
-    );
-};
+const isSameDay = (left: Date, right: Date) =>
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate();
 
 const styles = StyleSheet.create({
     container: {
@@ -232,19 +248,19 @@ const styles = StyleSheet.create({
     controlRow: {
         flexDirection: "row",
         alignItems: "center",
+        justifyContent: "space-between",
         gap: theme.spacing.xs,
     },
     segmentRow: {
-        flex: 1,
         flexDirection: "row",
         backgroundColor: "transparent",
-        gap: 6,
+        gap: 4,
     },
     segmentChip: {
-        flex: 1,
-        minHeight: 38,
+        minHeight: 32,
+        minWidth: 72,
         paddingHorizontal: theme.spacing.sm,
-        borderRadius: 999,
+        borderRadius: 12,
         borderWidth: 1,
         alignItems: "center",
         justifyContent: "center",
@@ -255,11 +271,19 @@ const styles = StyleSheet.create({
         letterSpacing: theme.typography.letterSpacing.normal,
     },
     badge: {
-        minWidth: 26,
-        paddingHorizontal: 7,
-        paddingVertical: 3,
+        minWidth: 24,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
         borderRadius: 999,
         alignItems: "center",
+    },
+    markAllTextBtn: {
+        paddingHorizontal: 6,
+        paddingVertical: 4,
+    },
+    markAllText: {
+        fontSize: theme.typography.fontSize.sm,
+        fontWeight: theme.typography.fontWeight.semibold,
     },
     emptyTitle: {
         fontSize: theme.typography.fontSize.md,
@@ -319,25 +343,19 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    notificationTitle: {
-        flex: 1,
-        fontSize: theme.typography.fontSize.md,
-        fontWeight: theme.typography.fontWeight.semibold,
-    },
     notificationPrimary: {
         flex: 1,
         fontSize: theme.typography.fontSize.md,
         fontWeight: theme.typography.fontWeight.semibold,
         letterSpacing: theme.typography.letterSpacing.tighter,
     },
+    notificationPrimaryRead: {
+        fontWeight: theme.typography.fontWeight.medium,
+    },
     notificationSecondary: {
         fontSize: theme.typography.fontSize.sm,
         lineHeight: theme.typography.lineHeight.sm,
         fontWeight: theme.typography.fontWeight.medium,
-    },
-    notificationBody: {
-        fontSize: theme.typography.fontSize.sm,
-        lineHeight: theme.typography.lineHeight.sm,
     },
     metaRow: {
         flexDirection: "row",
@@ -357,13 +375,22 @@ const styles = StyleSheet.create({
     metaInline: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
+        gap: 8,
         flexWrap: "wrap",
     },
     unreadDot: {
         width: 7,
         height: 7,
         borderRadius: 3.5,
+    },
+    actionInline: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+    },
+    actionInlineText: {
+        fontSize: theme.typography.fontSize.xs,
+        fontWeight: theme.typography.fontWeight.semibold,
     },
     sectionHeader: {
         marginTop: theme.spacing.xxs,
@@ -460,6 +487,7 @@ export default function NotificationsScreen() {
         const isUnread = !item.isRead;
         const isLoading = actionLoadingId === item.id;
         const visuals = getNotificationVisuals(item, palette);
+        const copy = getNotificationCopy(item);
         const isBidReceived = item.type === "BID_RECEIVED";
 
         const handleDelete = () => {
@@ -546,7 +574,7 @@ export default function NotificationsScreen() {
         );
 
         return (
-            <Swipeable
+            <ReanimatedSwipeable
                 overshootRight={false}
                 renderRightActions={renderRightActions}
             >
@@ -565,8 +593,18 @@ export default function NotificationsScreen() {
                         style={[
                             styles.notificationCard,
                             {
-                                backgroundColor: isUnread ? palette.surfaceSecondary : palette.surface,
-                                borderColor: isUnread ? palette.primarySoft : palette.border,
+                                backgroundColor:
+                                    visuals.priority === "high"
+                                        ? (palette.successSoft ?? palette.surfaceSecondary)
+                                        : isUnread
+                                            ? palette.surfaceSecondary
+                                            : palette.surface,
+                                borderColor:
+                                    visuals.priority === "high"
+                                        ? palette.success
+                                        : isUnread
+                                            ? palette.primarySoft
+                                            : palette.border,
                                 borderWidth: 1,
                             },
                         ]}
@@ -579,12 +617,19 @@ export default function NotificationsScreen() {
                                 <View style={{ flex: 1, gap: theme.spacing.xxs }}>
                                     <View style={styles.metaInline}>
                                         {isUnread ? <View style={[styles.unreadDot, { backgroundColor: palette.primary }]} /> : null}
-                                        <Text style={[styles.notificationPrimary, { color: palette.textPrimary }]} numberOfLines={2}>
-                                            {getNotificationCopy(item).primary}
+                                        <Text
+                                            style={[
+                                                styles.notificationPrimary,
+                                                { color: palette.textPrimary },
+                                                !isUnread ? styles.notificationPrimaryRead : null,
+                                            ]}
+                                            numberOfLines={2}
+                                        >
+                                            {copy.primary}
                                         </Text>
                                     </View>
                                     <Text style={[styles.notificationSecondary, { color: palette.textSecondary }]} numberOfLines={2}>
-                                        {getNotificationCopy(item).secondary}
+                                        {copy.secondary}
                                     </Text>
                                 </View>
                             </View>
@@ -608,6 +653,7 @@ export default function NotificationsScreen() {
                                 <Text style={[styles.metaText, { color: palette.textMuted }]}>
                                     {formatTime(item.createdAt)}
                                 </Text>
+                                <Text style={[styles.metaText, { color: palette.textMuted }]}>•</Text>
                                 <View
                                     style={[
                                         styles.badge,
@@ -615,19 +661,25 @@ export default function NotificationsScreen() {
                                             backgroundColor: palette.surfaceMuted,
                                             borderWidth: 1,
                                             borderColor: palette.border,
-                                            opacity: 0.82,
+                                            opacity: 0.72,
                                         },
                                     ]}
                                 >
                                     <Text style={{ color: palette.textSecondary, fontSize: 10, fontWeight: theme.typography.fontWeight.semibold }} numberOfLines={1}>
-                                        {item.type.replace(/_/g, " ")}
+                                        {getNotificationTypeLabel(item.type)}
                                     </Text>
                                 </View>
+                            </View>
+                            <View style={styles.actionInline}>
+                                <Text style={[styles.actionInlineText, { color: palette.primary }]}>
+                                    {getNotificationActionLabel(item)}
+                                </Text>
+                                <Ionicons name="chevron-forward" size={14} color={palette.primary} />
                             </View>
                         </View>
                     </View>
                 </Pressable>
-            </Swipeable>
+            </ReanimatedSwipeable>
         );
     };
 
@@ -658,7 +710,9 @@ export default function NotificationsScreen() {
                                 <View style={{ flex: 1, gap: theme.spacing.xs }}>
                                     <Text style={[styles.heroTitle, { color: palette.textPrimary }]}>Notifications</Text>
                                     <Text style={[styles.heroSubtitle, { color: palette.textSecondary }]}>
-                                        Track bid updates, request changes, and messages.
+                                        {unreadCount > 0
+                                            ? `${unreadCount} unread update${unreadCount === 1 ? "" : "s"}`
+                                            : "You’re all caught up"}
                                     </Text>
                                 </View>
                                 <View style={[styles.heroIconWrap, { backgroundColor: palette.primarySoft }]}>
@@ -699,14 +753,16 @@ export default function NotificationsScreen() {
                             </View>
 
                             {unreadCount > 0 ? (
-                                <AppButton
-                                    title="Mark all"
+                                <Pressable
                                     onPress={() => void markAllRead()}
-                                    loading={actionLoadingId === "all"}
                                     disabled={actionLoadingId === "all"}
-                                    variant="secondary"
-                                    fullWidth={false}
-                                />
+                                    style={({ pressed }) => [
+                                        styles.markAllTextBtn,
+                                        { opacity: actionLoadingId === "all" ? 0.5 : pressed ? 0.72 : 1 },
+                                    ]}
+                                >
+                                    <Text style={[styles.markAllText, { color: palette.primary }]}>Mark all</Text>
+                                </Pressable>
                             ) : null}
                         </View>
                     </View>
@@ -737,8 +793,8 @@ export default function NotificationsScreen() {
                             <View style={[styles.emptyIcon, { backgroundColor: palette.surfaceMuted }]}>
                                 <Ionicons name="notifications-off-outline" size={26} color={palette.textSecondary} />
                             </View>
-                            <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>No notifications yet</Text>
-                            <Text style={[styles.placeholder, { color: palette.textSecondary }]}>You’ll see bid responses, request updates, and message alerts here as they arrive.</Text>
+                            <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>You&apos;re all caught up</Text>
+                            <Text style={[styles.placeholder, { color: palette.textSecondary }]}>No new updates right now.</Text>
                             <View style={styles.emptyActions}>
                                 <AppButton
                                     title="Go to requests"
