@@ -129,6 +129,12 @@ export const notificationPreferencesBodySchema = z.object({
   bidsEnabled: z.boolean().optional(),
   requestUpdatesEnabled: z.boolean().optional(),
   savedRequestsEnabled: z.boolean().optional(),
+  nearbyAlertsEnabled: z.boolean().optional(),
+  nearbyAlertRadiusKm: z.union([z.literal(1), z.literal(3), z.literal(5), z.literal(10), z.literal(25)]).optional(),
+  nearbyAlertsUrgentOnly: z.boolean().optional(),
+  nearbyAlertCategorySlugs: z
+    .array(z.enum(["errands", "moving", "transportation", "shopping"]))
+    .optional(),
 });
 
 export const createHelpRequestBodySchema = z.object({
