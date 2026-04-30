@@ -46,17 +46,35 @@ const handleResponse = <T>(response: ApiResponse<T>): T => {
     return data;
 };
 
-const normalizeImage = (image: UnknownRecord): HelpRequestImage | null => {
-    if (!image || typeof image !== "object") return null;
+const normalizeImage = (image: unknown): HelpRequestImage | null => {
+    if (!image) return null;
 
-    const resolvedUrl = image.url ?? image.uri ?? image.secureUrl ?? image.secure_url;
-    if (!resolvedUrl) return null;
+    if (typeof image === "string") {
+        const trimmed = image.trim();
+        if (!trimmed) return null;
+        return {
+            id: trimmed,
+            url: trimmed,
+        };
+    }
+
+    if (typeof image !== "object") return null;
+
+    const value = image as UnknownRecord;
+    const resolvedUrl =
+        value.url ??
+        value.uri ??
+        value.imageUrl ??
+        value.imageURL ??
+        value.secureUrl ??
+        value.secure_url;
+    if (!resolvedUrl || typeof resolvedUrl !== "string") return null;
 
     return {
-        id: image.id ?? resolvedUrl,
+        id: (typeof value.id === "string" && value.id) ? value.id : resolvedUrl,
         url: resolvedUrl,
-        type: image.type,
-        requestId: image.requestId,
+        type: typeof value.type === "string" ? value.type : undefined,
+        requestId: typeof value.requestId === "string" ? value.requestId : undefined,
     };
 };
 
@@ -65,6 +83,7 @@ const normalizeRequest = (request: UnknownRecord): HelpRequest => {
         (Array.isArray(request.images) && request.images) ||
         (Array.isArray(request.requestImages) && request.requestImages) ||
         (Array.isArray(request.photos) && request.photos) ||
+        (Array.isArray(request.imageUrls) && request.imageUrls) ||
         [];
 
     return {
