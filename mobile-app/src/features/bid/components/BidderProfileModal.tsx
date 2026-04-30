@@ -9,7 +9,7 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { VerificationBadgeList } from "@/features/user/components/VerificationBadgeList";
 import { useReviews } from "@/features/reviews/hooks/useReviews";
-import { ReviewCard, ReviewSummaryCard } from "@/features/reviews/components";
+import { ReviewCard } from "@/features/reviews/components";
 import { formatBidAmount } from "../utils/bidDisplay";
 import { Bid } from "../types/bid.types";
 
@@ -23,7 +23,7 @@ type Props = {
 };
 
 const formatEnumLabel = (value?: string | null) => {
-  if (!value) return "Not available";
+  if (!value) return "";
 
   return value
     .toLowerCase()
@@ -33,7 +33,7 @@ const formatEnumLabel = (value?: string | null) => {
 };
 
 const formatHelperAge = (age?: number | null) => {
-  if (typeof age !== "number" || Number.isNaN(age)) return "Not shared";
+  if (typeof age !== "number" || Number.isNaN(age)) return "";
   return `${age} yrs`;
 };
 
@@ -205,11 +205,13 @@ const CertificationCard = ({
       style={[
         styles.certificationCard,
         {
-    
+          backgroundColor: palette.surface,
+          borderColor: palette.border,
         },
       ]}
     >
-      <View style={[styles.certIcon, { backgroundColor: palette.surface }]}>
+      <View style={[styles.certIcon, { backgroundColor: palette.primarySoft }]}>
+        <Ionicons name="ribbon-outline" size={18} color={palette.primary} />
       </View>
       <View style={styles.certCopy}>
         <Text style={[styles.certTitle, { color: palette.textPrimary }]}>{name}</Text>
@@ -273,11 +275,10 @@ export const BidderProfileModal = ({
   const completedHelps = summary.completedHelps ?? 0;
   const ratingLabel = summary.totalReviews > 0 ? summary.rating.toFixed(1) : "New";
   const reviewsLabel = `${summary.totalReviews} review${summary.totalReviews === 1 ? "" : "s"}`;
-  const completedLabel = `${completedHelps} completed`;
   const trustSubtitle =
     summary.totalReviews > 0
       ? `${summary.rating.toFixed(1)} average from ${reviewsLabel}`
-      : "This helper is building their review history.";
+      : "New helper · building profile";
   const heroTextColor = palette.textInverse;
   const heroMutedTextColor = `${palette.textInverse}CC`;
   const heroBorderColor = `${palette.textInverse}2A`;
@@ -303,7 +304,7 @@ export const BidderProfileModal = ({
           {onAccept ? (
             <View style={styles.footerActionCell}>
               <AppButton
-                title="Accept bid"
+                title={`Accept ${formatBidAmount(bid.amount)}`}
                 loading={accepting}
                 disabled={accepting}
                 onPress={() => onAccept(bid)}
@@ -324,7 +325,7 @@ export const BidderProfileModal = ({
         ]}
       >
         <View style={styles.heroGlow} />
-        <ProfileAvatar uri={bid.helperAvatarUrl} fullName={bid.helperName} size={88} />
+        <ProfileAvatar uri={bid.helperAvatarUrl} fullName={bid.helperName} size={72} />
 
         <View style={styles.heroCopy}>
           <Text style={[styles.heroEyebrow, { color: heroMutedTextColor }]}>Helper proposal</Text>
@@ -347,9 +348,9 @@ export const BidderProfileModal = ({
                 backgroundColor: heroSoftBg,
               },
             ]}
-          >
-            <Ionicons name="alert-circle-outline" size={14} color={heroMutedTextColor} />
-            <Text style={[styles.unverifiedText, { color: heroMutedTextColor }]}>No verification badges yet</Text>
+            >
+              <Ionicons name="alert-circle-outline" size={14} color={heroMutedTextColor} />
+            <Text style={[styles.unverifiedText, { color: heroMutedTextColor }]}>Building profile</Text>
           </View>
         )}
 
@@ -404,27 +405,13 @@ export const BidderProfileModal = ({
         </View>
       ) : null}
 
-      <SectionHeader
-        title="Why choose this helper"
-        subtitle="A quick snapshot of reliability, experience, and social proof."
-      />
-
-      <View style={styles.trustGrid}>
-        <TrustStat icon="checkmark-circle-outline" value={completedLabel} label="Jobs" tone="primary" />
-        <TrustStat icon="chatbubble-ellipses-outline" value={reviewsLabel} label="Feedback" />
-        <TrustStat
-          icon="ribbon-outline"
-          value={`${approvedCertifications.length}`}
-          label="Certified"
-          tone="trust"
-        />
-      </View>
+      <SectionHeader title="Trust overview" subtitle={trustSubtitle} />
 
       {helperSkills.length > 0 ? (
         <>
           <SectionHeader
-            title="Skills & experience"
-            subtitle="Relevant expertise this helper has added to their profile."
+            title="Skills"
+            subtitle="Relevant expertise this helper added to their profile."
           />
           <View style={styles.expertiseGrid}>
             {helperSkills.map((entry) => {
@@ -452,8 +439,8 @@ export const BidderProfileModal = ({
       {approvedCertifications.length > 0 ? (
         <>
           <SectionHeader
-            title="Approved certifications"
-            subtitle="Verified proof submitted through the helper profile."
+            title="Trust overview"
+            subtitle="Verified certifications."
           />
           <Stack gap="sm">
             {approvedCertifications.map((certification) => (
@@ -468,12 +455,9 @@ export const BidderProfileModal = ({
         </>
       ) : null}
 
-      <SectionHeader title="Trust summary" subtitle={trustSubtitle} />
-      <ReviewSummaryCard summary={summary} title="Ratings & reviews" />
-
       <SectionHeader
-        title="Recent reviews"
-        subtitle="Feedback from completed requests."
+        title="Reviews"
+        subtitle="Recent feedback from completed requests."
       />
 
       {reviews.length > 0 ? (
@@ -487,7 +471,7 @@ export const BidderProfileModal = ({
           <Ionicons name="chatbox-outline" size={22} color={palette.textSecondary} />
           <Text style={[styles.emptyReviewTitle, { color: palette.textPrimary }]}>No reviews yet</Text>
           <Text style={[styles.emptyReviewText, { color: palette.textSecondary }]}>
-            This helper has not received feedback from completed requests yet.
+            New helper with no public reviews yet.
           </Text>
         </Card>
       )}
@@ -507,7 +491,7 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
     borderRadius: theme.radius.xl,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.md,
     alignItems: "center",
     gap: theme.spacing.sm,
   },
