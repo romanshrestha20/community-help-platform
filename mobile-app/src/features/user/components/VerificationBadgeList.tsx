@@ -15,38 +15,50 @@ const getBadgeAppearance = (
   badge: VerificationBadge,
   palette: ReturnType<typeof useThemeContext>["palette"]
 ) => {
+  const semanticToneByLevel = {
+    basic: {
+      backgroundColor: palette.infoSoft ?? palette.surfaceMuted,
+      borderColor: `${palette.info}33`,
+      textColor: palette.info,
+    },
+    trust: {
+      backgroundColor: palette.primarySoft,
+      borderColor: `${palette.primary}33`,
+      textColor: palette.primary,
+    },
+    qualification: {
+      backgroundColor: palette.warningSoft ?? palette.secondarySoft,
+      borderColor: `${palette.warning}33`,
+      textColor: palette.warning,
+    },
+  } as const;
+
+  const tone = semanticToneByLevel[badge.level] ?? semanticToneByLevel.trust;
+
   if (badge.key === "PHONE_VERIFIED") {
     return {
       icon: "call-outline" as const,
-      backgroundColor: palette.successSurface,
-      borderColor: `${palette.success}33`,
-      textColor: palette.success,
+      ...tone,
     };
   }
 
   if (badge.key === "ID_VERIFIED") {
     return {
       icon: "card-outline" as const,
-      backgroundColor: palette.trustSoft,
-      borderColor: `${palette.trust}33`,
-      textColor: palette.trust,
+      ...tone,
     };
   }
 
   if (badge.key === "TOP_RATED_HELPER") {
     return {
       icon: "star-outline" as const,
-      backgroundColor: palette.warningSoft ?? palette.surfaceMuted,
-      borderColor: `${palette.warning}33`,
-      textColor: palette.warning,
+      ...tone,
     };
   }
 
   return {
     icon: "shield-checkmark-outline" as const,
-    backgroundColor: palette.trustSoft,
-    borderColor: `${palette.trust}33`,
-    textColor: palette.trust,
+    ...tone,
   };
 };
 
