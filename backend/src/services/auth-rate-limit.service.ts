@@ -1,4 +1,5 @@
 import AppError from "../utils/appError.js";
+import { getRedisClient } from "../lib/redis.js";
 
 type RateLimitOptions = {
   bucket: string;
@@ -8,26 +9,11 @@ type RateLimitOptions = {
   message?: string;
 };
 
-type RateLimitRecord = {
-  count: number;
-  resetAt: number;
-};
-
-const rateLimitStore = new Map<string, RateLimitRecord>();
-
 const getRateLimitCacheKey = (bucket: string, key: string) => {
   return `${bucket}:${key}`;
 };
 
-const pruneExpiredRateLimitEntries = (now: number) => {
-  for (const [key, value] of rateLimitStore.entries()) {
-    if (value.resetAt <= now) {
-      rateLimitStore.delete(key);
-    }
-  }
-};
-
-export const assertRateLimit = ({
+export const assertRateLimit = async ({
   bucket,
   key,
   limit,
@@ -40,28 +26,26 @@ export const assertRateLimit = ({
     return;
   }
 
-  const now = Date.now();
-  pruneExpiredRateLimitEntries(now);
+  const redis = await getRedisClient();
+  if (!redis) {
+    throw new AppError("Rate limiter is unavailable.", 503);
+  }
 
   const cacheKey = getRateLimitCacheKey(bucket, normalizedKey);
-  const existing = rateLimitStore.get(cacheKey);
-
-  if (!existing || existing.resetAt <= now) {
-    rateLimitStore.set(cacheKey, {
-      count: 1,
-      resetAt: now + windowMs,
-    });
-    return;
+  const count = await redis.incr(cacheKey);
+  if (count === 1) {
+    await redis.pexpire(cacheKey, windowMs);
   }
 
-  if (existing.count >= limit) {
+  if (count > limit) {
     throw new AppError(message, 429);
   }
-
-  existing.count += 1;
-  rateLimitStore.set(cacheKey, existing);
 };
 
-export const clearRateLimitStore = () => {
-  rateLimitStore.clear();
+export const clearRateLimitStore = async () => {
+  const redis = await getRedisClient();
+  if (!redis) {
+    return;
+  }
+  await redis.flushDb();
 };
