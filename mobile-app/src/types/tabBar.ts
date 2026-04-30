@@ -2,11 +2,13 @@ import type { ComponentProps } from "react";
 import type FontAwesome from "@expo/vector-icons/FontAwesome";
 
 export interface TabItem {
-  name: string;
+  key: string;
+  screenName: string;
   href: string;
   icon: ComponentProps<typeof FontAwesome>["name"];
   activeIcon?: ComponentProps<typeof FontAwesome>["name"];
   label: string;
+  activeMatchPaths?: string[];
   badge?: number;
 }
 

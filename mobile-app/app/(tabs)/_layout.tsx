@@ -5,11 +5,9 @@ import { CustomTabBar } from "@/components/ui/CustomTabBar";
 import { useBadgeCounts } from "@/hooks/useBadgeCounts";
 import { defaultTabsConfig } from "@/config/tabBarConfig";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
-import { useFavoriteStore } from "@/features/favorites/store/favorite.store";
 
 export default function TabsLayout() {
   const { colorScheme } = useThemeContext();
-  const favoriteBadgeCount = useFavoriteStore((state) => state.favoriteIds.length);
   const {
     messages: messageBadgeCount,
     notifications: notificationBadgeCount,
@@ -17,21 +15,17 @@ export default function TabsLayout() {
 
   const tabsConfig = useMemo(() => {
     return defaultTabsConfig.map((tab) => {
-      if (tab.name === "messages") {
+      if (tab.key === "messages") {
         return { ...tab, badge: messageBadgeCount };
       }
 
-      if (tab.name === "favorites") {
-        return { ...tab, badge: favoriteBadgeCount };
-      }
-
-      if (tab.name === "notifications") {
+      if (tab.key === "notifications") {
         return { ...tab, badge: notificationBadgeCount };
       }
 
       return { ...tab, badge: undefined };
     });
-  }, [favoriteBadgeCount, messageBadgeCount, notificationBadgeCount]);
+  }, [messageBadgeCount, notificationBadgeCount]);
 
   return (
     <Tabs
@@ -47,9 +41,8 @@ export default function TabsLayout() {
       )}
     >
       <Tabs.Screen name="home" options={{ title: "Home" }} />
-      <Tabs.Screen name="requests" options={{ title: "My Requests" }} />
       <Tabs.Screen name="messages" options={{ title: "Messages" }} />
-      <Tabs.Screen name="favorites" options={{ title: "Saved" }} />
+      <Tabs.Screen name="favorites" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ title: "Notifications" }} />
       <Tabs.Screen name="profile" options={{ title: "Profile" }} />
     </Tabs>
