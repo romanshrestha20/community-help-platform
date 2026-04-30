@@ -25,6 +25,7 @@ import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { APP_ROUTES } from "@/config/routes";
 import { getDistanceToRequest } from "@/utils/distance";
+import { isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
 
 const matchesSearch = (request: HelpRequest, query: string) => {
   const normalized = query.trim().toLowerCase();
@@ -80,6 +81,7 @@ export default function Home() {
     "Friend";
 
   const selectedCategoryId = filters.categoryId ?? "ALL";
+  const urgentOnlyActive = filters.urgentOnly;
 
   const visibleRequests = useMemo(() => {
     return helperRequests.filter((request) => {
@@ -92,7 +94,7 @@ export default function Home() {
 
   const urgentRequest = useMemo(() => {
     return [...visibleRequests]
-      .filter((request) => request.status === "OPEN")
+      .filter((request) => request.status === "OPEN" && isUrgentRequestActive(request))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] ?? null;
   }, [visibleRequests]);
 
@@ -120,8 +122,16 @@ export default function Home() {
       >
         <HomeFilterChip
           label="All"
-          active={selectedCategoryId === "ALL"}
-          onPress={() => updateFilter("categoryId", "ALL")}
+          active={selectedCategoryId === "ALL" && !urgentOnlyActive}
+          onPress={() => {
+            updateFilter("categoryId", "ALL");
+            updateFilter("urgentOnly", false);
+          }}
+        />
+        <HomeFilterChip
+          label="Urgent"
+          active={urgentOnlyActive}
+          onPress={() => updateFilter("urgentOnly", !urgentOnlyActive)}
         />
         {categories.slice(0, 4).map((category) => (
           <HomeFilterChip
