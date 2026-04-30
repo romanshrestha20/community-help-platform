@@ -11,7 +11,6 @@ import { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
 import { formatRequestBudget } from "@/features/helpRequest/utils/requestDisplay";
 import { getRelativePostedTime } from "@/features/helpRequest/utils/requestTime";
 import {
-  HomeActionButton,
   HomeCompactRequestCard,
   HomeEmptyState,
   HomeFilterChip,
@@ -107,7 +106,6 @@ export default function Home() {
       <HomeSearchBarRow
         searchQuery={searchQuery}
         onChangeSearch={setSearchQuery}
-        onPressFilter={() => router.push(APP_ROUTES.HOME_REQUESTS)}
       />
 
       <ScrollView
@@ -129,7 +127,7 @@ export default function Home() {
           active={urgentOnlyActive}
           onPress={() => updateFilter("urgentOnly", !urgentOnlyActive)}
         />
-        {categories.slice(0, 4).map((category) => (
+        {categories.slice(0, 2).map((category) => (
           <HomeFilterChip
             key={category.id}
             label={category.name}
@@ -138,15 +136,6 @@ export default function Home() {
           />
         ))}
       </ScrollView>
-
-      <View style={styles.actionRow}>
-        <HomeActionButton
-          label="Browse map"
-          icon="map-outline"
-          variant="secondary"
-          onPress={() => router.push(APP_ROUTES.HOME_REQUESTS_MAP)}
-        />
-      </View>
 
       {urgentRequest ? (
         <HomeUrgentBanner
@@ -169,7 +158,7 @@ export default function Home() {
 
       <View style={styles.feedHeader}>
         <Text style={[styles.feedHeaderTitle, { color: palette.textPrimary }]}>
-          Recent requests
+          Nearby requests
         </Text>
 
         <Pressable onPress={() => router.push(APP_ROUTES.HOME_REQUESTS)}>
@@ -245,12 +234,6 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     paddingRight: theme.spacing.xs,
     alignItems: "center",
-  },
-  actionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: theme.spacing.sm,
   },
   feedHeader: {
     flexDirection: "row",
