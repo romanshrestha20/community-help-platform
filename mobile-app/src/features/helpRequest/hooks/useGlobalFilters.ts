@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { HelpRequest, HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
 import { formatRequestLocation, getRequestCategoryLabel } from "@/features/helpRequest/utils/requestDisplay";
+import { isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
 import { calculateDistance } from "@/utils/distance";
 
 export type RequestSortBy = "NEWEST" | "OLDEST" | "MOST_BIDS";
@@ -10,6 +11,7 @@ export type RequestRadiusFilter = "ANY" | "5" | "10" | "25" | "50" | "100";
 export type GlobalFilters = {
   status: "ALL" | HelpRequestStatus;
   categoryId: "ALL" | string;
+  urgentOnly: boolean;
   sortBy: RequestSortBy;
   radiusKm: RequestRadiusFilter;
   page: number;
@@ -18,6 +20,7 @@ export type GlobalFilters = {
 const DEFAULT_FILTERS: GlobalFilters = {
   status: "ALL",
   categoryId: "ALL",
+  urgentOnly: false,
   sortBy: "NEWEST",
   radiusKm: "ANY",
   page: 1,
@@ -58,21 +61,27 @@ export const applyRequestSort = (
   sortBy: RequestSortBy
 ) => {
   const next = [...requests];
+  const urgentRank = (request: HelpRequest) =>
+    isUrgentRequestActive(request) ? 1 : 0;
 
   if (sortBy === "NEWEST") {
     next.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a, b) =>
+        urgentRank(b) - urgentRank(a) ||
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }
 
   if (sortBy === "OLDEST") {
     next.sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      (a, b) =>
+        urgentRank(b) - urgentRank(a) ||
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
   }
 
   if (sortBy === "MOST_BIDS") {
-    next.sort((a, b) => b.bidCount - a.bidCount);
+    next.sort((a, b) => urgentRank(b) - urgentRank(a) || b.bidCount - a.bidCount);
   }
 
   return next;
@@ -150,10 +159,12 @@ export const applyRequestFilters = (
       filters.categoryId === "ALL" ||
       request.categoryId === filters.categoryId ||
       request.category?.id === filters.categoryId;
+    const urgentMatches = !filters.urgentOnly || isUrgentRequestActive(request);
 
     return (
       statusMatches &&
       categoryMatches &&
+      urgentMatches &&
       requestMatchesSearch(request, options.searchQuery) &&
       requestMatchesRadius(request, filters.radiusKm, options)
     );

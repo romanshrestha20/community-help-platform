@@ -20,6 +20,8 @@ export type RequestFormState = {
     description: string;
     categoryId: string;
     budget: string;
+    isUrgent: boolean;
+    urgentDurationMinutes: 30 | 60 | 120 | 240;
     city: string;
     country: string;
 };
@@ -33,6 +35,8 @@ const DEFAULT_FORM: RequestFormState = {
     description: "",
     categoryId: "",
     budget: "",
+    isUrgent: false,
+    urgentDurationMinutes: 120,
     city: "",
     country: "",
 };
@@ -125,6 +129,8 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
                 description: loaded.description,
                 categoryId: resolveRequestCategoryId(loaded),
                 budget: typeof loaded.budget === "number" ? String(loaded.budget) : "",
+                isUrgent: Boolean(loaded.isUrgent),
+                urgentDurationMinutes: 120,
                 city: loaded.city ?? loaded.location?.city ?? "",
                 country: loaded.country ?? loaded.location?.country ?? "",
             });
@@ -198,6 +204,8 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
                 categoryId: form.categoryId,
                 budget: budgetValue,
                 isPaid: Boolean(budgetValue),
+                isUrgent: form.isUrgent,
+                urgentDurationMinutes: form.isUrgent ? form.urgentDurationMinutes : undefined,
                 city: location.city ?? (form.city.trim() || undefined),
                 country: location.country ?? (form.country.trim() || undefined),
             };
