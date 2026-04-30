@@ -11,6 +11,7 @@ model UserModel {
   id              String  @id @default(uuid())
   email           String  @unique
   phone           String? @unique
+  role            Role    @default(USER)
   passwordHash    String?
   isVerified      Boolean @default(false)
   isEmailVerified Boolean @default(false)
@@ -37,6 +38,7 @@ model UserModel {
   phoneVerificationCodes  PhoneVerificationCode[]
   oauthAccounts           OAuthAccount[]
   pushTokens              PushToken[]
+  securityEvents          SecurityEvent[]
 
   reviews                Review[]
   reviewReplies          ReviewReply[]
@@ -134,14 +136,47 @@ model RefreshToken {
   userId String
   user   UserModel @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  token String @unique
+  tokenHash String @unique
+  jti       String @unique
+  familyId  String
+
+  createdByIp String?
+  lastUsedIp  String?
+  userAgent   String?
+
+  revokedAt         DateTime?
+  revokedReason     String?
+  lastUsedAt        DateTime?
+  replacedByTokenId String?       @unique
+  replacedByToken   RefreshToken? @relation("RefreshTokenRotation", fields: [replacedByTokenId], references: [id], onDelete: SetNull)
+  replacesToken     RefreshToken? @relation("RefreshTokenRotation")
 
   createdAt DateTime @default(now())
   expiresAt DateTime
 
   @@index([userId])
+  @@index([jti])
+  @@index([familyId])
+  @@index([revokedAt])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+model SecurityEvent {
+  id        String            @id @default(uuid())
+  userId    String?
+  type      SecurityEventType
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime          @default(now())
+
+  user UserModel? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("security_events")
 }
 
 model PasswordResetToken {
@@ -630,6 +665,11 @@ enum AuthProvider {
   GOOGLE
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 enum UserType {
   GENERAL
   ELDERLY
@@ -692,4 +732,13 @@ enum NotificationType {
   REVIEW_RECEIVED
   REVIEW_REPLY_RECEIVED
   SYSTEM
+}
+
+enum SecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  LOGIN_LOCKOUT
+  REFRESH_TOKEN_REUSE_DETECTED
+  REFRESH_TOKEN_REVOKED
+  SUSPICIOUS_LOGIN
 }
