@@ -2,6 +2,8 @@ export type NotificationType =
     | "BID_RECEIVED"
     | "BID_ACCEPTED"
     | "BID_REJECTED"
+    | "REQUEST_NEARBY"
+    | "URGENT_REQUEST_NEARBY"
     | "REQUEST_ASSIGNED"
     | "REQUEST_COMPLETED"
     | "REQUEST_CANCELLED"
@@ -22,6 +24,10 @@ export type NotificationPreferencesDto = {
     bidsEnabled: boolean;
     requestUpdatesEnabled: boolean;
     savedRequestsEnabled: boolean;
+    nearbyAlertsEnabled: boolean;
+    nearbyAlertRadiusKm: 1 | 3 | 5 | 10 | 25;
+    nearbyAlertsUrgentOnly: boolean;
+    nearbyAlertCategorySlugs: string[];
 };
 
 export type NotificationRegistrationStatus =
