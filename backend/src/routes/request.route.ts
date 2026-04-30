@@ -12,17 +12,19 @@ import {
 } from "../controllers/request.controller.js";
 
 import { authenticateUser } from "../middlewares/auth.middleware.js";
+import { requireVerifiedUser } from "../middlewares/authorization.middleware.js";
 import { upload } from "../middlewares/upload.middleware.js";
 
 const router = express.Router();
 
 // Public
 router.get("/", getAllHelpRequests);
-router.get("/nearby", authenticateUser, getNearbyRequests);
+router.get("/nearby", authenticateUser, requireVerifiedUser, getNearbyRequests);
 router.get("/:id", getHelpRequestById);
 
 // Protected
 router.use(authenticateUser);
+router.use(requireVerifiedUser);
 
 router.post("/", upload.array("images", 5), createHelpRequest);
 router.patch("/:id", updateHelpRequest);

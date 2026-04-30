@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authenticateUser } from "../middlewares/auth.middleware.js";
+import { requireVerifiedUser } from "../middlewares/authorization.middleware.js";
 import {
     createReview,
     deleteReview,
@@ -9,9 +10,9 @@ import {
 
 const router = Router();
 
-router.post("/", authenticateUser, createReview);
+router.post("/", authenticateUser, requireVerifiedUser, createReview);
 router.get("/:reviewId", getReview);
-router.patch("/:reviewId", authenticateUser, updateReview);
-router.delete("/:reviewId", authenticateUser, deleteReview);
+router.patch("/:reviewId", authenticateUser, requireVerifiedUser, updateReview);
+router.delete("/:reviewId", authenticateUser, requireVerifiedUser, deleteReview);
 
 export default router;
