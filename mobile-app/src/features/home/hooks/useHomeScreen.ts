@@ -8,6 +8,7 @@ import { useGlobalFilters } from "@/features/helpRequest/hooks/useGlobalFilters"
 import { useBidRequestFlow } from "@/features/bid/hooks";
 import { Bid } from "@/features/bid/types/bid.types";
 import { showErrorToast, showSuccessToast, showToast } from "@/utils/toast";
+import { isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
 
 export const useHomeScreen = () => {
     const user = useAuthStore((state) => state.user);
@@ -41,8 +42,16 @@ export const useHomeScreen = () => {
             next = next.filter((request) => request.categoryId === filters.categoryId);
         }
 
+        if (filters.urgentOnly) {
+            next = next.filter((request) => isUrgentRequestActive(request));
+        }
+
         if (filters.sortBy === "NEWEST") {
-            next.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            next.sort((a, b) => {
+                const urgentDiff = Number(isUrgentRequestActive(b)) - Number(isUrgentRequestActive(a));
+                if (urgentDiff !== 0) return urgentDiff;
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            });
         }
 
         if (filters.sortBy === "OLDEST") {
