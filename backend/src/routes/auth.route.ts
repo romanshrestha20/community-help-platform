@@ -13,6 +13,9 @@ import {
   resetPassword,
   refreshAccessToken,
   loginWithGoogle,
+  logoutCurrentSession,
+  logoutAllSessions,
+  getMySessions,
 } from "../controllers/auth.controller.js";
 
 import {
@@ -29,6 +32,7 @@ import {
 } from "../controllers/qualification.controller.js";
 
 import { authenticateUser } from "../middlewares/auth.middleware.js";
+import { requireVerifiedUser } from "../middlewares/authorization.middleware.js";
 import { upload } from "../middlewares/upload.middleware.js";
 
 const router = express.Router();
@@ -45,21 +49,26 @@ router.post("/verify-email", verifyEmail);
 router.post("/send-phone-code", authenticateUser, sendPhoneCode);
 router.post("/verify-phone-code", authenticateUser, verifyPhoneCode);
 router.post("/refresh", refreshAccessToken);
+router.post("/logout", authenticateUser, logoutCurrentSession);
+router.post("/logout-all", authenticateUser, logoutAllSessions);
+router.get("/sessions", authenticateUser, getMySessions);
 
 // Profile
 router.get("/profile", authenticateUser, getUserProfile);
-router.patch("/profile", authenticateUser, updateUserProfile);
-router.delete("/profile", authenticateUser, deleteUserAccount);
-router.put("/profile/skills", authenticateUser, replaceUserSkills);
+router.patch("/profile", authenticateUser, requireVerifiedUser, updateUserProfile);
+router.delete("/profile", authenticateUser, requireVerifiedUser, deleteUserAccount);
+router.put("/profile/skills", authenticateUser, requireVerifiedUser, replaceUserSkills);
 router.post(
   "/profile/certifications",
   authenticateUser,
+  requireVerifiedUser,
   upload.single("proof"),
   uploadUserCertification
 );
 router.delete(
   "/profile/certifications/:id",
   authenticateUser,
+  requireVerifiedUser,
   deleteUserCertification
 );
 
@@ -67,6 +76,7 @@ router.delete(
 router.post(
   "/profile/avatar",
   authenticateUser,
+  requireVerifiedUser,
   upload.single("avatar"),
   uploadUserAvatar
 );
@@ -74,11 +84,12 @@ router.post(
 router.delete(
   "/profile/avatar",
   authenticateUser,
+  requireVerifiedUser,
   deleteUserAvatar
 );
 
 // Password
-router.post("/change-password", authenticateUser, changePassword);
-router.post("/add-password", authenticateUser, addPassword);
+router.post("/change-password", authenticateUser, requireVerifiedUser, changePassword);
+router.post("/add-password", authenticateUser, requireVerifiedUser, addPassword);
 
 export default router;
