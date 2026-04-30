@@ -32,7 +32,8 @@ const getStatusLabel = (status: Conversation["request"]["status"]) => {
 const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, userId, userEmail, onAvatarPress }) => {
     const { palette } = useThemeContext();
     const other = getOtherParticipant(conversation, userId, userEmail);
-    const displayName = other?.fullName || other?.email || "Assigned request";
+    const displayName = other?.fullName || other?.email || "Conversation participant";
+    const requestTitle = conversation.request.title || "Request";
     const statusActive = conversation.request.status === "ASSIGNED";
 
     return (
@@ -48,7 +49,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, userId, userEmail
 
                 <Stack gap="xxs" style={styles.titleWrap}>
                     <Text style={[styles.title, { color: palette.textPrimary }]} numberOfLines={1}>
-                        {displayName}
+                        {requestTitle}
                     </Text>
                     <Row align="center" gap="xs">
                         <View
@@ -58,7 +59,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, userId, userEmail
                             ]}
                         />
                         <Text style={[styles.subtitle, { color: palette.textSecondary }]} numberOfLines={1}>
-                            {getStatusLabel(conversation.request.status)}
+                            {statusActive ? "Live" : getStatusLabel(conversation.request.status)} · {displayName}
                         </Text>
                     </Row>
                 </Stack>

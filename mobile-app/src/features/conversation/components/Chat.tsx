@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
@@ -14,19 +15,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { SearchField } from "@/components/ui/SearchField";
 import { Row, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { APP_ROUTES } from "@/config/routes";
 
 import ChatEmptyState from "./ChatEmptyState";
 import ChatHeader from "./ChatHeader";
 import ChatLoadingState from "./ChatLoadingState";
-import ConversationStarterBanner from "./ConversationStarterBanner";
 import DateSeparator from "./DateSeparator";
 import MessageBubble from "./MessageBubble";
 import MessageComposer from "./MessageComposer";
-import RequestContextBanner from "./RequestContextBanner";
 import ParticipantProfileModal from "./ConversationParticipantModal";
 import type { Conversation, ConversationMember, Message } from "../types/conversation.type";
 import { getOtherParticipant } from "../utils/conversation.utils";
@@ -108,26 +107,11 @@ const Chat: React.FC<ChatProps> = ({
     const user = useAuthStore((state) => state.user);
     const userId = user?.id ?? "";
     const userEmail = user?.email ?? "";
-    const [searchQuery, setSearchQuery] = useState("");
     const [selectedParticipant, setSelectedParticipant] = useState<ConversationMember | null>(null);
     const listRef = useRef<FlatList<ThreadRow>>(null);
     const previousMessageCount = useRef(0);
 
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    const filteredMessages = useMemo(() => {
-        if (!normalizedQuery) {
-            return messages;
-        }
-
-        return messages.filter((message) => {
-            const senderName = message.sender.fullName || "";
-            const senderEmail = message.sender.email || "";
-            const content = message.content || "";
-            const searchableText = [senderName, senderEmail, content].join(" ").toLowerCase();
-
-            return searchableText.includes(normalizedQuery);
-        });
-    }, [messages, normalizedQuery]);
+    const filteredMessages = messages;
 
     const threadRows = useMemo(() => groupMessagesForTimeline(filteredMessages), [filteredMessages]);
     const canSend = conversation?.request.status === "ASSIGNED";
@@ -136,15 +120,6 @@ const Chat: React.FC<ChatProps> = ({
         () => (conversation ? getOtherParticipant(conversation, userId, userEmail) ?? null : null),
         [conversation, userEmail, userId]
     );
-
-    const searchResultsLabel = useMemo(() => {
-        if (!normalizedQuery) {
-            return null;
-        }
-
-        const count = filteredMessages.length;
-        return `${count} ${count === 1 ? "message" : "messages"} found`;
-    }, [filteredMessages.length, normalizedQuery]);
 
     const findConversationMember = (senderId: string) =>
         conversation?.members.find((member) => member.id === senderId) ?? null;
@@ -201,7 +176,7 @@ const Chat: React.FC<ChatProps> = ({
     }
 
     const composerStatusLabel = canSend
-        ? "Assigned request conversation"
+        ? "Live conversation"
         : conversation.request.status === "COMPLETED"
             ? "Completed request · read-only"
             : "Closed conversation";
@@ -227,10 +202,6 @@ const Chat: React.FC<ChatProps> = ({
                             setSelectedParticipant(otherParticipant);
                         }}
                     />
-                    <RequestContextBanner conversation={conversation} />
-                    {conversation.starterNote ? (
-                        <ConversationStarterBanner note={conversation.starterNote} />
-                    ) : null}
                     {error ? (
                         <View
                             style={[
@@ -264,21 +235,6 @@ const Chat: React.FC<ChatProps> = ({
                             </Text>
                         </View>
                     ) : null}
-                    <View style={styles.searchBlock}>
-                        <SearchField
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                            placeholder="Search this conversation"
-                            returnKeyType="search"
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        />
-                        {searchResultsLabel ? (
-                            <Text style={[styles.searchMeta, { color: palette.textSecondary }]}>
-                                {searchResultsLabel}
-                            </Text>
-                        ) : null}
-                    </View>
                 </View>
 
                 <FlatList
@@ -289,7 +245,7 @@ const Chat: React.FC<ChatProps> = ({
                     contentContainerStyle={[
                         styles.listContent,
                         {
-                            paddingBottom: theme.spacing.lg,
+                            paddingBottom: theme.spacing.md,
                             backgroundColor: palette.background,
                             justifyContent: isThreadEmpty ? "center" : "flex-end",
                         },
@@ -322,18 +278,7 @@ const Chat: React.FC<ChatProps> = ({
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyWrap}>
-                            {normalizedQuery ? (
-                                <View style={styles.searchEmpty}>
-                                    <Text style={[styles.searchEmptyTitle, { color: palette.textPrimary }]}>
-                                        No matching messages
-                                    </Text>
-                                    <Text style={[styles.searchEmptyText, { color: palette.textSecondary }]}>
-                                        Try a different keyword or sender name.
-                                    </Text>
-                                </View>
-                            ) : (
-                                <ChatEmptyState requestScoped={requestScoped} />
-                            )}
+                            <ChatEmptyState requestScoped={requestScoped} />
                         </View>
                     }
                     ListHeaderComponent={
@@ -430,6 +375,11 @@ const Chat: React.FC<ChatProps> = ({
                 visible={Boolean(selectedParticipant)}
                 participant={selectedParticipant}
                 roleLabel={getParticipantRole(selectedParticipant)}
+                requestTitle={conversation.request.title}
+                onViewRequest={() => {
+                    setSelectedParticipant(null);
+                    router.push(APP_ROUTES.HOME_REQUEST_DETAILS(conversation.request.id));
+                }}
                 onClose={() => {
                     setSelectedParticipant(null);
                 }}
@@ -453,16 +403,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: theme.spacing.sm,
         paddingVertical: theme.spacing.xs,
     },
-    searchBlock: {
-        marginHorizontal: theme.spacing.md,
-        marginTop: theme.spacing.sm,
-        marginBottom: theme.spacing.md,
-        gap: theme.spacing.xxs,
-    },
-    searchMeta: {
-        ...theme.typography.textStyle.caption,
-        paddingHorizontal: 2,
-    },
     feedbackText: {
         ...theme.typography.textStyle.bodySmall,
         flex: 1,
@@ -479,19 +419,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         minHeight: 280,
-    },
-    searchEmpty: {
-        alignItems: "center",
-        gap: theme.spacing.xs,
-    },
-    searchEmptyTitle: {
-        ...theme.typography.textStyle.bodyMedium,
-        fontWeight: "700",
-        textAlign: "center",
-    },
-    searchEmptyText: {
-        ...theme.typography.textStyle.bodySmall,
-        textAlign: "center",
     },
     olderLoading: {
         flexDirection: "row",
