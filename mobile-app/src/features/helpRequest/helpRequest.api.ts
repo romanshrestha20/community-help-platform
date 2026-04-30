@@ -36,6 +36,8 @@ export const createRequestApi = (data: CreateHelpRequestData) => {
         description: data.description.trim(),
         categoryId: data.categoryId,
         budget: data.budget,
+        isUrgent: data.isUrgent,
+        urgentDurationMinutes: data.urgentDurationMinutes,
         location: {
             latitude: data.location.latitude,
             longitude: data.location.longitude,
@@ -72,6 +74,12 @@ export const createRequestWithImagesApi = (
 
     if (typeof data.isPaid === "boolean") {
         formData.append("isPaid", String(data.isPaid));
+    }
+    if (typeof data.isUrgent === "boolean") {
+        formData.append("isUrgent", String(data.isUrgent));
+    }
+    if (typeof data.urgentDurationMinutes === "number") {
+        formData.append("urgentDurationMinutes", String(data.urgentDurationMinutes));
     }
 
     formData.append(
