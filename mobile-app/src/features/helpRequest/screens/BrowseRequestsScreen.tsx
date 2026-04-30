@@ -239,7 +239,6 @@ export const BrowseRequestsScreen = () => {
     setSearchQuery,
     resetSearch,
   } = useRequestSearch();
-  const { categories } = useCategories();
   const [filtersVisible, setFiltersVisible] = useState(false);
   const isMapRoute = pathname.endsWith("/requests/map");
   const [viewMode, setViewMode] = useState<"list" | "map">(isMapRoute ? "map" : "list");
@@ -285,14 +284,7 @@ export const BrowseRequestsScreen = () => {
     useNearbyEndpoint: filters.radiusKm !== "ANY" && hasCoordinates,
   });
 
-  const medicalCategory = categories.find(
-    (category) => category.name.trim().toLowerCase() === "medical"
-  );
-
   const isNearbyActive = filters.radiusKm !== "ANY";
-  const isMedicalActive = Boolean(
-    medicalCategory && filters.categoryId === medicalCategory.id
-  );
   const allActive =
     filters.categoryId === "ALL" &&
     filters.radiusKm === "ANY" &&
@@ -390,12 +382,9 @@ export const BrowseRequestsScreen = () => {
                 color={palette.primary}
               />
               <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>
-                Browse Requests
+                {viewMode === "map" ? "Nearby Requests" : "Browse Requests"}
               </Text>
             </View>
-            <Text style={[styles.headerSubtitle, { color: palette.textSecondary }]}>
-              Find nearby requests from other community members.
-            </Text>
           </View>
         </View>
       </View>
@@ -458,18 +447,6 @@ export const BrowseRequestsScreen = () => {
               updateFilter("radiusKm", isNearbyActive || !hasCoordinates ? "ANY" : "10")
             }
           />
-          {medicalCategory ? (
-            <FilterChip
-              label="Medical"
-              active={isMedicalActive}
-              onPress={() => {
-                updateFilter(
-                  "categoryId",
-                  isMedicalActive ? "ALL" : medicalCategory.id
-                );
-              }}
-            />
-          ) : null}
           <FilterChip
             label="Urgent"
             active={urgentOnlyActive}
@@ -504,23 +481,24 @@ export const BrowseRequestsScreen = () => {
             </Text>
           </Pressable>
 
-          <Pressable
-            onPress={handleResetAll}
-            disabled={activeFilterCount === 0}
-            style={({ pressed }) => [
-              styles.secondaryAction,
-              { opacity: activeFilterCount === 0 ? 0.45 : pressed ? 0.7 : 1 },
-            ]}
-          >
-            <Text
-              style={[
-                styles.secondaryActionText,
-                { color: palette.textSecondary },
+          {activeFilterCount > 0 ? (
+            <Pressable
+              onPress={handleResetAll}
+              style={({ pressed }) => [
+                styles.secondaryAction,
+                { opacity: pressed ? 0.7 : 1 },
               ]}
             >
-              Reset
-            </Text>
-          </Pressable>
+              <Text
+                style={[
+                  styles.secondaryActionText,
+                  { color: palette.textSecondary },
+                ]}
+              >
+                Reset
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -598,7 +576,7 @@ export default BrowseRequestsScreen;
 
 const styles = StyleSheet.create({
   header: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
   },
   headerTopRow: {
     flexDirection: "row",
@@ -619,30 +597,25 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.lineHeight.lg,
     fontWeight: theme.typography.fontWeight.bold,
   },
-  headerSubtitle: {
-    marginTop: 8,
-    fontSize: theme.typography.fontSize.sm,
-    lineHeight: 20,
-    fontWeight: theme.typography.fontWeight.medium,
-  },
   searchCard: {
     borderRadius: 24,
-    padding: 16,
-    marginBottom: theme.spacing.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: theme.spacing.sm,
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
     elevation: 3,
   },
   searchInputShell: {
-    minHeight: 52,
+    minHeight: 46,
     borderRadius: 18,
     backgroundColor: "#ECE7DC",
     flexDirection: "row",
     alignItems: "center",
     columnGap: 10,
     paddingHorizontal: 16,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   searchInput: {
     flex: 1,
@@ -654,7 +627,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   resultSummaryText: {
     fontSize: theme.typography.fontSize.xs,
@@ -665,13 +638,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   filterChip: {
-    minHeight: 36,
+    minHeight: 34,
     borderWidth: 1,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: theme.radius.fill,
     justifyContent: "center",
     alignItems: "center",
@@ -683,7 +656,7 @@ const styles = StyleSheet.create({
   secondaryActionsRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     columnGap: 12,
   },
   inlineRadiusWrap: {

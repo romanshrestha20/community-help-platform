@@ -227,8 +227,13 @@ export const RequestMap = ({
     validRequests.forEach((request) => {
       const isSelected = request.id === selectedRequestId;
       const isUrgentActive = isUrgentRequestActive(request);
-      const markerFill = isUrgentActive ? "#DC2626" : isSelected ? "#F4A261" : "#2E9D74";
-      const markerStroke = isUrgentActive ? "#991B1B" : isSelected ? "#C46A2D" : "#1F7A58";
+      const markerFill = isUrgentActive ? "#DC2626" : "#2E9D74";
+      const markerStroke = isUrgentActive ? "#991B1B" : "#1F7A58";
+      const markerBudget = formatRequestBudget(request);
+      const markerShadow = isSelected
+        ? "0 8px 24px rgba(18,32,19,0.34)"
+        : "0 5px 14px rgba(18,32,19,0.22)";
+      const markerScale = isSelected ? 1.08 : 1;
       const marker = leaflet.marker(
         [request.location!.latitude!, request.location!.longitude!],
         {
@@ -236,16 +241,26 @@ export const RequestMap = ({
             className: "community-request-marker",
             html: `
               <div style="
-                width:${isSelected ? 24 : 20}px;
-                height:${isSelected ? 24 : 20}px;
+                min-width:${isSelected ? 48 : 42}px;
+                height:${isSelected ? 30 : 28}px;
                 border-radius:999px;
                 background:${markerFill};
-                border:3px solid ${markerStroke};
-                box-shadow:0 6px 18px rgba(18,32,19,0.22);
-              "></div>
+                border:2px solid ${markerStroke};
+                box-shadow:${markerShadow};
+                padding:0 10px;
+                transform:scale(${markerScale});
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                color:#FFFFFF;
+                font-size:${isSelected ? 12 : 11}px;
+                font-weight:800;
+                line-height:1;
+                letter-spacing:0.15px;
+              ">${markerBudget}</div>
             `,
-            iconSize: [isSelected ? 24 : 20, isSelected ? 24 : 20],
-            iconAnchor: [isSelected ? 12 : 10, isSelected ? 12 : 10],
+            iconSize: [isSelected ? 48 : 42, isSelected ? 30 : 28],
+            iconAnchor: [isSelected ? 24 : 21, isSelected ? 15 : 14],
           }),
           title: request.title,
         }
