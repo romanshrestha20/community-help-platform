@@ -21,12 +21,6 @@ import {
 
 const MAX_PRIMARY_SKILLS = 3;
 
-const getAdminEmails = () =>
-  (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-
 const parseOptionalDate = (value?: string) => {
   if (!value) {
     return undefined;
@@ -290,16 +284,6 @@ export const reviewUserCertification = async (req: Request, res: Response, next:
   try {
     if (!reviewerId) {
       return next(new AppError("Unauthorized", 401));
-    }
-
-    const reviewer = await prisma.userModel.findUnique({
-      where: { id: reviewerId },
-      select: { email: true },
-    });
-
-    const adminEmails = getAdminEmails();
-    if (!reviewer?.email || !adminEmails.includes(reviewer.email.toLowerCase())) {
-      return next(new AppError("Admin access required", 403));
     }
 
     const parsedParams = certificationIdParamSchema.safeParse(req.params);
