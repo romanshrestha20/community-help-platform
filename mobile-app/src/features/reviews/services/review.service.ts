@@ -127,9 +127,10 @@ export const deleteReview = async (reviewId: string): Promise<void> => {
 
 export const getUserReviews = async (
   userId: string,
-  query?: { page?: number; limit?: number }
+  query?: { page?: number; limit?: number },
+  options?: { skipErrorToast?: boolean }
 ): Promise<ReviewsByUserResult> => {
-  const response = await reviewApi.getUserReviewsApi(userId, query);
+  const response = await reviewApi.getUserReviewsApi(userId, query, options);
   const payload = handleResponse<{
     summary?: ReviewSummary;
     reviews?: Review[];
