@@ -16,6 +16,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Row, Screen, Stack, theme } from "@/design-system";
 import { BidRequestModal } from "@/features/bid/components/BidRequestModal";
+import { BidderProfileModal } from "@/features/bid/components/BidderProfileModal";
 import { BidList } from "@/features/bid/components/BidList";
 import { EditBidModal } from "@/features/bid/components/EditBidModal";
 import type { Bid } from "@/features/bid/types/bid.types";
@@ -28,6 +29,7 @@ import { useRequestDetails } from "@/features/helpRequest/hooks/useRequestDetail
 import type { HelpRequest, HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
 import { formatRequestBudget, formatRequestLocation } from "@/features/helpRequest/utils/requestDisplay";
 import { getRelativePostedTime } from "@/features/helpRequest/utils/requestTime";
+import { getUrgentTimeRemainingLabel, isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
 import {
   ReviewCard,
   ReviewComposerModal,
@@ -203,6 +205,17 @@ const formatRatingLabel = (rating?: number | null) => {
 
 const formatBidCountLabel = (count: number) => `${count} bid${count === 1 ? "" : "s"}`;
 
+const formatCityCountry = (request: HelpRequest) => {
+  const city = request.city?.trim();
+  const country = request.country?.trim();
+
+  if (city && country) return `${city}, ${country}`;
+  if (city) return city;
+  if (country) return country;
+
+  return formatRequestLocation(request);
+};
+
 export const RequestDetailsScreen = ({ requestId }: Props) => {
   const params = useLocalSearchParams<{ id?: string }>();
   const pathname = usePathname();
@@ -212,6 +225,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
   const [deleting, setDeleting] = useState(false);
   const [bidModalVisible, setBidModalVisible] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [helperProfileVisible, setHelperProfileVisible] = useState(false);
   const [editingBid, setEditingBid] = useState<Bid | null>(null);
   const [savingBid, setSavingBid] = useState(false);
   const [previewReviewRating, setPreviewReviewRating] = useState(0);
@@ -496,6 +510,11 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
     [router]
   );
 
+  const handleOpenHelperProfile = useCallback(() => {
+    if (!acceptedBid) return;
+    setHelperProfileVisible(true);
+  }, [acceptedBid]);
+
   const handleOpenEditBidModal = useCallback((bid: Bid) => {
     setEditingBid(bid);
   }, []);
@@ -545,6 +564,29 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
             {actionError}
           </Text>
         </Row>
+      </View>
+    ) : null;
+
+  const renderUrgentInfo = () =>
+    isUrgentActive ? (
+      <View
+        style={[
+          styles.urgentInfoCard,
+          {
+            backgroundColor: `${palette.danger}12`,
+            borderColor: `${palette.danger}55`,
+          },
+        ]}
+      >
+        <Row gap="xs" align="center">
+          <Ionicons name="flash-outline" size={16} color={palette.danger} />
+          <Text style={[styles.urgentInfoTitle, { color: palette.danger }]}>
+            Urgent request priority
+          </Text>
+        </Row>
+        <Text style={[styles.urgentInfoBody, { color: palette.textSecondary }]}>
+          Prioritized in nearby feeds and maps. {request?.urgentExpiresAt ? `Expires ${urgentTimeLabel}.` : "No expiry set."}
+        </Text>
       </View>
     ) : null;
 
@@ -619,6 +661,11 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
   const requesterRatingLabel = formatRatingLabel(
     (request as HelpRequest & { requesterRating?: number }).requesterRating ?? null
   );
+  const isUrgentActive = isUrgentRequestActive(request);
+  const urgentTimeLabel = getUrgentTimeRemainingLabel(request.urgentExpiresAt);
+  const urgentHeroChip = isUrgentActive
+    ? [{ icon: "alert-circle-outline" as const, label: `Urgent · ${urgentTimeLabel}`, emphasis: "warning" as const }]
+    : [];
   const completedPriceLabel =
     request.status === "COMPLETED" && request.isPaid
       ? `${formatRequestBudget(request)} paid`
@@ -647,7 +694,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           tone: "open",
           statusLabel: "Open",
           chips: [
-            { icon: "location-outline", label: formatRequestLocation(request) },
+            ...urgentHeroChip,
+            { icon: "location-outline", label: formatCityCountry(request) },
             { icon: "cash-outline", label: formatRequestBudget(request), emphasis: "accent" },
             { icon: "time-outline", label: "Just posted" },
           ],
@@ -663,7 +711,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           statusLabel: `Open · ${formatBidCountLabel(bids.length)}`,
           headerBadgeLabel: formatBidCountLabel(bids.length),
           chips: [
-            { icon: "location-outline", label: formatRequestLocation(request) },
+            ...urgentHeroChip,
+            { icon: "location-outline", label: formatCityCountry(request) },
             { icon: "cash-outline", label: formatRequestBudget(request), emphasis: "accent" },
             { icon: "time-outline", label: "Open now" },
           ],
@@ -678,7 +727,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           tone: "assigned",
           statusLabel: "Assigned",
           chips: [
-            { icon: "location-outline", label: formatRequestLocation(request) },
+            ...urgentHeroChip,
+            { icon: "location-outline", label: formatCityCountry(request) },
             { icon: "cash-outline", label: formatRequestBudget(request), emphasis: "warning" },
             { icon: "checkmark-done-outline", label: "Helper notified" },
           ],
@@ -694,7 +744,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           tone: "completed",
           statusLabel: "Completed",
           chips: [
-            { icon: "location-outline", label: formatRequestLocation(request) },
+            ...urgentHeroChip,
+            { icon: "location-outline", label: formatCityCountry(request) },
             { icon: "wallet-outline", label: completedPriceLabel, emphasis: "accent" },
             { icon: "time-outline", label: "Closed" },
           ],
@@ -710,7 +761,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           statusLabel: "Cancelled",
           titleMuted: true,
           chips: [
-            { icon: "location-outline", label: formatRequestLocation(request) },
+            ...urgentHeroChip,
+            { icon: "location-outline", label: formatCityCountry(request) },
             { icon: "close-circle-outline", label: "No further actions" },
           ],
           footer: {
@@ -724,7 +776,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           tone: "open",
           statusLabel: "Your bid sent",
           chips: [
-            { icon: "location-outline", label: formatRequestLocation(request) },
+            ...urgentHeroChip,
+            { icon: "location-outline", label: formatCityCountry(request) },
             { icon: "cash-outline", label: formatRequestBudget(request), emphasis: "accent" },
             { icon: "time-outline", label: "Waiting for owner" },
           ],
@@ -739,7 +792,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           tone: "assigned",
           statusLabel: "You're hired!",
           chips: [
-            { icon: "location-outline", label: formatRequestLocation(request), emphasis: "warning" },
+            ...urgentHeroChip,
+            { icon: "location-outline", label: formatCityCountry(request), emphasis: "warning" },
             { icon: "wallet-outline", label: completedPriceLabel, emphasis: "warning" },
           ],
           footer: {
@@ -754,7 +808,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
           statusLabel: request.status === "CANCELLED" ? "Cancelled" : "Assigned to other",
           titleMuted: true,
           chips: [
-            { icon: "location-outline", label: formatRequestLocation(request) },
+            ...urgentHeroChip,
+            { icon: "location-outline", label: formatCityCountry(request) },
             { icon: "close-circle-outline", label: "No longer available" },
           ],
           footer: {
@@ -773,7 +828,8 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
               : "Open",
           headerBadgeLabel: request.bidCount > 0 ? formatBidCountLabel(request.bidCount) : undefined,
           chips: [
-            { icon: "location-outline", label: formatRequestLocation(request) },
+            ...urgentHeroChip,
+            { icon: "location-outline", label: formatCityCountry(request) },
             { icon: "cash-outline", label: formatRequestBudget(request), emphasis: "accent" },
             { icon: "time-outline", label: "Open now" },
           ],
@@ -966,6 +1022,13 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                   onPress={() => handleOpenBidChat(request.id)}
                 />
               </View>
+              <View style={{ flex: 1 }}>
+                <AppButton
+                  title="View Profile"
+                  variant="ghost"
+                  onPress={handleOpenHelperProfile}
+                />
+              </View>
             </Row>
           </View>
         </Stack>
@@ -1021,8 +1084,10 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                 ? "Your request"
                 : "Helper view"
           }
+          onPressFooter={acceptedBid ? handleOpenHelperProfile : undefined}
         />
 
+        {renderUrgentInfo()}
         {renderInlineError()}
 
         {viewState === "owner-open-empty" || viewState === "owner-open-with-bids" ? (
@@ -1083,6 +1148,14 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
                     title="Message Helper"
                     variant="secondary"
                     onPress={() => handleOpenBidChat(request.id)}
+                  />
+                </View>
+                <View style={styles.buttonCell}>
+                  <AppButton
+                    title="View helper profile"
+                    variant="ghost"
+                    onPress={handleOpenHelperProfile}
+                    disabled={!acceptedBid}
                   />
                 </View>
               </View>
@@ -1433,6 +1506,14 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
         onClose={handleCloseEditBidModal}
         onSubmit={handleSubmitEditBid}
       />
+
+      {acceptedBid ? (
+        <BidderProfileModal
+          visible={helperProfileVisible}
+          bid={acceptedBid}
+          onClose={() => setHelperProfileVisible(false)}
+        />
+      ) : null}
     </Screen>
   );
 };
@@ -1501,6 +1582,7 @@ const DetailHero = ({
   chips,
   footer,
   perspective,
+  onPressFooter,
 }: {
   request: HelpRequest;
   tone: HeaderTone;
@@ -1519,9 +1601,12 @@ const DetailHero = ({
     label?: string;
   };
   perspective: string;
+  onPressFooter?: () => void;
 }) => {
   const { palette } = useThemeContext();
   const toneStyle = getHeroTone(tone);
+  const urgentActive = isUrgentRequestActive(request);
+  const urgentLabel = getUrgentTimeRemainingLabel(request.urgentExpiresAt);
   const bullets = useMemo(
     () => getDescriptionBullets(request.description),
     [request.description]
@@ -1537,6 +1622,13 @@ const DetailHero = ({
         </View>
 
         <Row gap="xs" align="center" style={styles.heroBadgeRow}>
+          {urgentActive ? (
+            <View style={[styles.heroBadge, { backgroundColor: "#F8B4B4" }]}>
+              <Text style={[styles.heroBadgeText, { color: "#7F1D1D" }]}>
+                Urgent · {urgentLabel}
+              </Text>
+            </View>
+          ) : null}
           {headerBadgeLabel ? (
             <View style={[styles.heroBadge, { backgroundColor: "#D7B461" }]}>
               <Text style={styles.heroBadgeText}>{headerBadgeLabel}</Text>
@@ -1582,7 +1674,14 @@ const DetailHero = ({
         })}
       </View>
 
-      <View style={styles.heroPersonPanel}>
+      <Pressable
+        onPress={onPressFooter}
+        disabled={!onPressFooter}
+        style={({ pressed }) => [
+          styles.heroPersonPanel,
+          onPressFooter ? { opacity: pressed ? 0.86 : 1 } : null,
+        ]}
+      >
         <ProfileAvatar uri={footer.avatarUrl} fullName={footer.fullName} size={44} />
         <View style={styles.heroPersonCopy}>
           <Text style={styles.heroPersonName}>{footer.fullName}</Text>
@@ -1591,7 +1690,7 @@ const DetailHero = ({
           </Text>
         </View>
         <Ionicons name="person-circle-outline" size={20} color={toneStyle.mutedText} />
-      </View>
+      </Pressable>
 
       <View style={styles.heroDescriptionPanel}>
         <Text style={styles.heroSectionLabel}>What needs to be done</Text>
@@ -2039,6 +2138,21 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: theme.typography.fontSize.sm,
     lineHeight: 20,
+  },
+  urgentInfoCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  urgentInfoTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  urgentInfoBody: {
+    fontSize: theme.typography.fontSize.xs + 1,
+    lineHeight: theme.typography.lineHeight.xs + 4,
   },
   sectionCard: {
     borderRadius: 16,

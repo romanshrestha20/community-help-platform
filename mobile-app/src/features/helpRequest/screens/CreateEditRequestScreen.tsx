@@ -20,6 +20,12 @@ import { APP_ROUTES } from "@/config/routes";
 import { goBackOrFallback } from "@/utils/navigation";
 
 const MAX_REQUEST_IMAGES = 5;
+const URGENT_DURATION_OPTIONS: Array<{ label: string; value: 30 | 60 | 120 | 240 }> = [
+    { label: "30m", value: 30 },
+    { label: "1h", value: 60 },
+    { label: "2h", value: 120 },
+    { label: "4h", value: 240 },
+];
 
 type Props = {
     requestId?: string;
@@ -264,6 +270,50 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                             keyboardType="decimal-pad"
                             placeholder="Optional"
                         />
+
+                        <View
+                            style={[
+                                styles.urgentCard,
+                                {
+                                    borderColor: form.isUrgent ? `${palette.danger}66` : palette.border,
+                                    backgroundColor: form.isUrgent ? `${palette.danger}10` : palette.surface,
+                                },
+                            ]}
+                        >
+                            <View style={styles.urgentToggleRow}>
+                                <View style={styles.urgentCopy}>
+                                    <Text style={[styles.label, { color: palette.textPrimary }]}>Emergency request</Text>
+                                    <Text style={[styles.urgentHint, { color: palette.textSecondary }]}>
+                                        Highlight this request and prioritize it in feed and map.
+                                    </Text>
+                                </View>
+                                <AppButton
+                                    title={form.isUrgent ? "Urgent On" : "Mark Urgent"}
+                                    onPress={() => updateField("isUrgent", !form.isUrgent)}
+                                    variant={form.isUrgent ? "danger" : "secondary"}
+                                    fullWidth={false}
+                                    disabled={saving}
+                                />
+                            </View>
+
+                            {form.isUrgent ? (
+                                <Stack gap="xs">
+                                    <Text style={[styles.label, { color: palette.textPrimary }]}>Urgent expiry</Text>
+                                    <Row gap="xs" style={styles.wrapRow}>
+                                        {URGENT_DURATION_OPTIONS.map((option) => (
+                                            <AppButton
+                                                key={option.value}
+                                                title={option.label}
+                                                onPress={() => updateField("urgentDurationMinutes", option.value)}
+                                                variant={form.urgentDurationMinutes === option.value ? "danger" : "ghost"}
+                                                fullWidth={false}
+                                                disabled={saving}
+                                            />
+                                        ))}
+                                    </Row>
+                                </Stack>
+                            ) : null}
+                        </View>
                     </View>
 
                     <View
@@ -377,9 +427,30 @@ const styles = StyleSheet.create({
     wrapRow: {
         flexWrap: "wrap",
     },
-    actionsRow: {
+  actionsRow: {
         marginTop: theme.spacing.xxs,
-    },
+  },
+  urgentToggleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: theme.spacing.sm,
+  },
+  urgentCard: {
+    marginTop: theme.spacing.xs,
+    borderWidth: 1,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
+  urgentCopy: {
+    flex: 1,
+    gap: theme.spacing.xxs,
+  },
+  urgentHint: {
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: theme.typography.lineHeight.xs,
+  },
     actionButton: {
         flex: 1,
     },

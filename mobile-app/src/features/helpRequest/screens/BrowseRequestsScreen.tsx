@@ -38,6 +38,7 @@ import { useBidRequestFlow } from "@/features/bid/hooks";
 import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
 import { useDebounce } from "@/hooks/useDebounce";
 import { RadiusSlider } from "@/features/map/components/RadiusSlider";
+import { isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
 
 type ChipProps = {
   active?: boolean;
@@ -292,7 +293,11 @@ export const BrowseRequestsScreen = () => {
   const isMedicalActive = Boolean(
     medicalCategory && filters.categoryId === medicalCategory.id
   );
-  const allActive = filters.categoryId === "ALL" && filters.radiusKm === "ANY";
+  const allActive =
+    filters.categoryId === "ALL" &&
+    filters.radiusKm === "ANY" &&
+    !filters.urgentOnly;
+  const urgentOnlyActive = filters.urgentOnly;
 
   const filteredRequests = useMemo(
     () =>
@@ -309,11 +314,17 @@ export const BrowseRequestsScreen = () => {
       userLocation?.longitude,
     ]
   );
+  const urgentRequestsCount = useMemo(
+    () =>
+      filteredRequests.filter((request) => isUrgentRequestActive(request)).length,
+    [filteredRequests]
+  );
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filters.status !== "ALL") count += 1;
     if (filters.categoryId !== "ALL") count += 1;
+    if (filters.urgentOnly) count += 1;
     if (filters.radiusKm !== "ANY") count += 1;
     if (filters.sortBy !== "NEWEST") count += 1;
     if (searchQuery.trim()) count += 1;
@@ -437,6 +448,7 @@ export const BrowseRequestsScreen = () => {
             onPress={() => {
               updateFilter("categoryId", "ALL");
               updateFilter("radiusKm", "ANY");
+              updateFilter("urgentOnly", false);
             }}
           />
           <FilterChip
@@ -458,6 +470,11 @@ export const BrowseRequestsScreen = () => {
               }}
             />
           ) : null}
+          <FilterChip
+            label="Urgent"
+            active={urgentOnlyActive}
+            onPress={() => updateFilter("urgentOnly", !urgentOnlyActive)}
+          />
         </View>
 
 
@@ -508,6 +525,14 @@ export const BrowseRequestsScreen = () => {
       </View>
 
       <View style={styles.contentContainer}>
+        {urgentRequestsCount > 0 ? (
+          <View style={[styles.urgentBanner, { borderColor: `${palette.danger}66`, backgroundColor: `${palette.danger}12` }]}>
+            <Ionicons name="flash" size={16} color={palette.danger} />
+            <Text style={[styles.urgentBannerText, { color: palette.danger }]}>
+              {urgentRequestsCount} urgent request{urgentRequestsCount === 1 ? "" : "s"} prioritized near you
+            </Text>
+          </View>
+        ) : null}
         {viewMode === "list" ? (
           <RequestList
             requests={filteredRequests}
@@ -697,6 +722,20 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
+  },
+  urgentBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: theme.spacing.sm,
+  },
+  urgentBannerText: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   modalContent: {
     gap: theme.spacing.sm,
