@@ -1,12 +1,5 @@
 import React, { useMemo, useState } from "react";
-import {
-  GestureResponderEvent,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { GestureResponderEvent, Pressable, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { ImagePreviewModal, PreviewImageItem } from "@/components/ui/ImagePreviewModal";
@@ -26,6 +19,7 @@ import { RequestStatusBadge } from "./RequestStatusBadge";
 import { AppLocation } from "@/features/location/types/location.types";
 import { getDistanceToRequest } from "@/utils/distance";
 import { getUrgentTimeRemainingLabel, isUrgentRequestActive } from "../utils/urgent";
+import { RequestPhotoCarousel } from "./RequestPhotoCarousel";
 
 type Props = {
   request: HelpRequest;
@@ -68,8 +62,6 @@ export const RequestCard = ({
   const { isFavorite, toggleFavorite, actionLoadingById } = useFavorites();
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
-  const imagePreviews = request.images?.slice(0, 3) ?? [];
-  const extraImageCount = Math.max((request.images?.length ?? 0) - imagePreviews.length, 0);
   const favoriteLoading = Boolean(actionLoadingById[request.id]);
   const favorited = isFavorite(request.id);
 
@@ -83,17 +75,17 @@ export const RequestCard = ({
 
   const distance =
     userLocation &&
-      request.location &&
-      userLocation.latitude != null &&
-      userLocation.longitude != null &&
-      request.location.latitude != null &&
-      request.location.longitude != null
+    request.location &&
+    userLocation.latitude != null &&
+    userLocation.longitude != null &&
+    request.location.latitude != null &&
+    request.location.longitude != null
       ? getDistanceToRequest(
-        userLocation.latitude,
-        userLocation.longitude,
-        request.location.latitude,
-        request.location.longitude
-      )
+          userLocation.latitude,
+          userLocation.longitude,
+          request.location.latitude,
+          request.location.longitude
+        )
       : null;
 
   const title = request.title?.trim() || "Untitled request";
@@ -105,11 +97,16 @@ export const RequestCard = ({
   const bidCount = request.bidCount ?? 0;
   const isUnpaid = !request.isPaid;
   const isUrgentActive = isUrgentRequestActive(request);
+
   const infoEntries = [
     { icon: "location-outline" as const, value: location, highlight: false },
     { icon: "time-outline" as const, value: createdAt, highlight: false },
     { icon: "wallet-outline" as const, value: budget, highlight: true },
-    { icon: "chatbubble-ellipses-outline" as const, value: `${bidCount} bid${bidCount === 1 ? "" : "s"}`, highlight: false },
+    {
+      icon: "chatbubble-ellipses-outline" as const,
+      value: `${bidCount} bid${bidCount === 1 ? "" : "s"}`,
+      highlight: false,
+    },
   ];
 
   const handlePrimaryAction = (event?: GestureResponderEvent) => {
@@ -132,24 +129,13 @@ export const RequestCard = ({
     onBidAction?.();
   };
 
-  const openPreview = (index: number) => {
-    setPreviewIndex(index);
-  };
-
-  const closePreview = () => {
-    setPreviewIndex(null);
-  };
-
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={`Request: ${title}`}
-      style={({ pressed }) => [
-        styles.pressable,
-        pressed && onPress ? styles.pressed : null,
-      ]}
+      style={({ pressed }) => [styles.pressable, pressed && onPress ? styles.pressed : null]}
     >
       <Card
         style={[
@@ -165,10 +151,7 @@ export const RequestCard = ({
         <Stack gap="sm">
           <Row justify="space-between" align="flex-start" gap="sm">
             <View style={styles.titleWrap}>
-              <Text
-                numberOfLines={2}
-                style={[styles.title, { color: palette.textPrimary }]}
-              >
+              <Text numberOfLines={2} style={[styles.title, { color: palette.textPrimary }]}> 
                 {title}
               </Text>
             </View>
@@ -186,46 +169,24 @@ export const RequestCard = ({
           ) : null}
 
           <Row align="center" gap="xs" style={styles.pillRow}>
-            <View
-              style={[
-                styles.categoryPill,
-                { backgroundColor: palette.surfaceMuted },
-              ]}
-            >
-              <Text style={[styles.categoryText, { color: palette.textSecondary }]}>
-                {categoryLabel}
-              </Text>
+            <View style={[styles.categoryPill, { backgroundColor: palette.surfaceMuted }]}>
+              <Text style={[styles.categoryText, { color: palette.textSecondary }]}>{categoryLabel}</Text>
             </View>
 
-            <View
-              style={[
-                styles.metaPill,
-                { backgroundColor: palette.surfaceMuted },
-              ]}
-            >
+            <View style={[styles.metaPill, { backgroundColor: palette.surfaceMuted }]}>
               <Text style={[styles.metaPillText, { color: palette.textSecondary }]}>
                 {bidCount} bid{bidCount === 1 ? "" : "s"}
               </Text>
             </View>
 
             {distance ? (
-              <View
-                style={[
-                  styles.metaPill,
-                  { backgroundColor: `${palette.primary}14` },
-                ]}
-              >
-                <Text style={[styles.metaPillText, { color: palette.primary }]}>
-                  {distance} away
-                </Text>
+              <View style={[styles.metaPill, { backgroundColor: `${palette.primary}14` }]}>
+                <Text style={[styles.metaPillText, { color: palette.primary }]}>{distance} away</Text>
               </View>
             ) : null}
           </Row>
 
-          <Text
-            numberOfLines={2}
-            style={[styles.description, { color: palette.textSecondary }]}
-          >
+          <Text numberOfLines={2} style={[styles.description, { color: palette.textSecondary }]}>
             {description}
           </Text>
 
@@ -238,9 +199,7 @@ export const RequestCard = ({
               },
             ]}
           >
-            <Text style={[styles.infoSectionTitle, { color: palette.textPrimary }]}>
-              Important info
-            </Text>
+            <Text style={[styles.infoSectionTitle, { color: palette.textPrimary }]}>Important info</Text>
             <View style={styles.infoGrid}>
               {infoEntries.map((entry) => (
                 <View key={`${entry.icon}-${entry.value}`} style={styles.infoGridItem}>
@@ -263,152 +222,32 @@ export const RequestCard = ({
             </View>
           </View>
 
-
-
-
-          {imagePreviews.length > 0 ? (
-            imagePreviews.length === 1 ? (
-              <Pressable
-                onPress={(event) => {
-                  event.stopPropagation();
-                  openPreview(0);
-                }}
-                style={styles.singleImageWrapper}
-              >
-                <Image
-                  source={{ uri: imagePreviews[0].url }}
-                  style={[styles.singleImage, { backgroundColor: palette.surfaceMuted }]}
-                  resizeMode="cover"
-                />
-              </Pressable>
-            ) : imagePreviews.length === 2 ? (
-              <View style={styles.imageRow}>
-                {imagePreviews.map((image, index) => (
-                  <Pressable
-                    key={image.id}
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      openPreview(index);
-                    }}
-                    style={styles.imageWrapper}
-                  >
-                    <Image
-                      source={{ uri: image.url }}
-                      style={[styles.thumbnail, { backgroundColor: palette.surfaceMuted }]}
-                      resizeMode="cover"
-                    />
-                  </Pressable>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.imageCollage}>
-                <Pressable
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    openPreview(0);
-                  }}
-                  style={styles.collagePrimary}
-                >
-                  <Image
-                    source={{ uri: imagePreviews[0].url }}
-                    style={[styles.collagePrimaryImage, { backgroundColor: palette.surfaceMuted }]}
-                    resizeMode="cover"
-                  />
-                </Pressable>
-
-                <View style={styles.collageSecondaryColumn}>
-                  {imagePreviews.slice(1).map((image, index) => {
-                    const previewIndexOffset = index + 1;
-                    const isLastPreview = previewIndexOffset === imagePreviews.length - 1;
-                    const showOverflowBadge = isLastPreview && extraImageCount > 0;
-
-                    return (
-                      <Pressable
-                        key={image.id}
-                        onPress={(event) => {
-                          event.stopPropagation();
-                          openPreview(previewIndexOffset);
-                        }}
-                        style={styles.collageSecondary}
-                      >
-                        <Image
-                          source={{ uri: image.url }}
-                          style={[styles.collageSecondaryImage, { backgroundColor: palette.surfaceMuted }]}
-                          resizeMode="cover"
-                        />
-                        {showOverflowBadge ? (
-                          <View
-                            style={[
-                              styles.imageOverlay,
-                              { backgroundColor: "rgba(0,0,0,0.35)" },
-                            ]}
-                          >
-                            <Text style={styles.imageOverlayText}>+{extraImageCount}</Text>
-                          </View>
-                        ) : null}
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            )
-          ) : null}
+          <View style={styles.carouselWrap}>
+            <RequestPhotoCarousel
+              images={request.images ?? []}
+              height={172}
+              onPressImage={(index) => setPreviewIndex(index)}
+            />
+          </View>
 
           <Row align="center" gap="sm">
-            <ProfileAvatar
-              uri={request.requesterAvatarUrl}
-              fullName={request.requesterName}
-              size={38}
-            />
+            <ProfileAvatar uri={request.requesterAvatarUrl} fullName={request.requesterName} size={38} />
             <View style={styles.posterMetaWrap}>
-              <Text
-                numberOfLines={1}
-                style={[styles.posterName, { color: palette.textPrimary }]}
-              >
+              <Text numberOfLines={1} style={[styles.posterName, { color: palette.textPrimary }]}>
                 {request.requesterName || "Community member"}
               </Text>
               {typeof (request as HelpRequest & { requesterRating?: number }).requesterRating === "number" ? (
                 <Row align="center" gap="xs">
                   <Ionicons name="star" size={12} color={palette.accent} />
-                  <Text
-                    style={[styles.posterSubline, { color: palette.textSecondary }]}
-                  >
+                  <Text style={[styles.posterSubline, { color: palette.textSecondary }]}>
                     {(request as HelpRequest & { requesterRating: number }).requesterRating.toFixed(1)}
                   </Text>
                 </Row>
               ) : (
-                <Text style={[styles.posterSubline, { color: palette.textSecondary }]}>
-                  Community member
-                </Text>
+                <Text style={[styles.posterSubline, { color: palette.textSecondary }]}>Community member</Text>
               )}
             </View>
           </Row>
-          <View style={styles.metaList}>
-            <Row align="center" gap="xs">
-              <Ionicons
-                name="location-outline"
-                size={15}
-                color={palette.textSecondary}
-              />
-              <Text
-                numberOfLines={1}
-                style={[styles.metaText, styles.metaFlex, { color: palette.textSecondary }]}
-              >
-                {location}
-              </Text>
-            </Row>
-
-            <Row align="center" gap="xs">
-              <Ionicons
-                name="time-outline"
-                size={15}
-                color={palette.textSecondary}
-              />
-              <Text style={[styles.metaText, { color: palette.textSecondary }]}>
-                {createdAt}
-              </Text>
-            </Row>
-          </View>
 
           {(primaryActionLabel || secondaryActionLabel) && (
             <Row gap="sm" style={styles.actionRow}>
@@ -443,13 +282,7 @@ export const RequestCard = ({
                   variant="primary"
                   fullWidth={false}
                   disabled={bidActionDisabled}
-                  icon={
-                    <Ionicons
-                      name="cash-outline"
-                      size={16}
-                      color={palette.textInverse}
-                    />
-                  }
+                  icon={<Ionicons name="cash-outline" size={16} color={palette.textInverse} />}
                 />
               ) : null}
 
@@ -484,7 +317,7 @@ export const RequestCard = ({
         images={previewImages}
         initialIndex={previewIndex ?? 0}
         title={title}
-        onClose={closePreview}
+        onClose={() => setPreviewIndex(null)}
       />
     </Pressable>
   );
@@ -545,12 +378,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: theme.typography.fontWeight.medium,
   },
-  budget: {
-    fontSize: theme.typography.fontSize.lg,
-    lineHeight: 26,
-    fontWeight: theme.typography.fontWeight.bold,
-    letterSpacing: 0.3,
-  },
   description: {
     fontSize: theme.typography.fontSize.xs,
     lineHeight: 20,
@@ -584,6 +411,10 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.medium,
   },
+  carouselWrap: {
+    marginTop: theme.spacing.xxs,
+    marginBottom: theme.spacing.xxs,
+  },
   posterMetaWrap: {
     flex: 1,
     minWidth: 0,
@@ -595,85 +426,6 @@ const styles = StyleSheet.create({
   posterSubline: {
     marginTop: theme.spacing.xxs,
     fontSize: theme.typography.fontSize.xs,
-  },
-  imageRow: {
-    flexDirection: "row",
-    gap: theme.spacing.xs,
-  },
-  imageCollage: {
-    flexDirection: "row",
-    gap: theme.spacing.xs,
-    height: 156,
-  },
-  singleImageWrapper: {
-    borderRadius: 18,
-    overflow: "hidden",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
-  },
-  singleImage: {
-    width: "100%",
-    height: 172,
-    borderRadius: 18,
-  },
-  imageWrapper: {
-    position: "relative",
-    flex: 1,
-    overflow: "hidden",
-    borderRadius: theme.radius.md,
-  },
-  collagePrimary: {
-    flex: 1.35,
-    borderRadius: theme.radius.lg,
-    overflow: "hidden",
-  },
-  collagePrimaryImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: theme.radius.lg,
-  },
-  collageSecondaryColumn: {
-    flex: 0.9,
-    gap: 6,
-  },
-  collageSecondary: {
-    flex: 1,
-    borderRadius: theme.radius.md,
-    overflow: "hidden",
-    position: "relative",
-  },
-  collageSecondaryImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: theme.radius.md,
-  },
-  thumbnail: {
-    width: "100%",
-    height: 116,
-    borderRadius: theme.radius.md,
-  },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: theme.radius.md,
-  },
-  imageOverlayText: {
-    color: "#FFFFFF",
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  metaList: {
-    gap: 6,
-  },
-  metaFlex: {
-    flex: 1,
-  },
-  metaText: {
-    fontSize: 11,
-    lineHeight: 15,
   },
   metaPill: {
     borderRadius: theme.radius.fill,

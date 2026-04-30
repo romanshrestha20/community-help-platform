@@ -1,10 +1,12 @@
-import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
+import { ImagePreviewModal, PreviewImageItem } from "@/components/ui/ImagePreviewModal";
+import { RequestPhotoCarousel } from "@/features/helpRequest/components/RequestPhotoCarousel";
 import { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
 import {
   formatRequestBudget,
@@ -29,12 +31,18 @@ export function HomeCompactRequestCard({
   onPress,
 }: Props) {
   const { palette } = useThemeContext();
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const categoryLabel = getRequestCategoryLabel(request);
   const isOpen = request.status === "OPEN";
   const isUrgentActive = isUrgentRequestActive(request);
-  const imagePreviews = request.images?.slice(0, 3) ?? [];
-  const extraImageCount = Math.max((request.images?.length ?? 0) - imagePreviews.length, 0);
+  const previewImages = useMemo<PreviewImageItem[]>(
+    () =>
+      (request.images ?? [])
+        .map((image) => ({ uri: image.url }))
+        .filter((image) => Boolean(image.uri)),
+    [request.images]
+  );
 
   const accentColor = isUrgentActive
     ? palette.danger
@@ -128,37 +136,13 @@ export function HomeCompactRequestCard({
         {request.title}
       </Text>
 
-      {imagePreviews.length > 0 ? (
-        imagePreviews.length === 1 ? (
-          <View style={styles.singleImageWrap}>
-            <Image
-              source={{ uri: imagePreviews[0].url }}
-              style={[styles.singleImage, { backgroundColor: palette.surfaceMuted }]}
-              resizeMode="cover"
-            />
-          </View>
-        ) : (
-          <View style={styles.mediaRow}>
-            {imagePreviews.slice(0, 2).map((image, index) => {
-              const showOverflow = index === 1 && extraImageCount > 0;
-              return (
-                <View key={image.id} style={styles.mediaThumbWrap}>
-                  <Image
-                    source={{ uri: image.url }}
-                    style={[styles.mediaThumb, { backgroundColor: palette.surfaceMuted }]}
-                    resizeMode="cover"
-                  />
-                  {showOverflow ? (
-                    <View style={styles.mediaOverlay}>
-                      <Text style={styles.mediaOverlayText}>+{extraImageCount}</Text>
-                    </View>
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
-        )
-      ) : null}
+      <View style={styles.carouselWrap}>
+        <RequestPhotoCarousel
+          images={request.images ?? []}
+          height={136}
+          onPressImage={(index) => setPreviewIndex(index)}
+        />
+      </View>
 
       <View style={styles.infoRow}>
         <InfoItem
@@ -228,6 +212,13 @@ export function HomeCompactRequestCard({
           </Text>
         </View>
       </View>
+      <ImagePreviewModal
+        visible={previewIndex !== null}
+        images={previewImages}
+        initialIndex={previewIndex ?? 0}
+        title={request.title?.trim() || "Request photos"}
+        onClose={() => setPreviewIndex(null)}
+      />
     </Pressable>
   );
 }
@@ -347,42 +338,9 @@ const styles = StyleSheet.create({
     gap: 8,
     flexWrap: "wrap",
   },
-  singleImageWrap: {
-    borderRadius: 14,
-    overflow: "hidden",
+  carouselWrap: {
     marginBottom: theme.spacing.md,
   },
-  singleImage: {
-    width: "100%",
-    height: 136,
-  },
-  mediaRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: theme.spacing.md,
-  },
-  mediaThumbWrap: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: "hidden",
-    position: "relative",
-  },
-  mediaThumb: {
-    width: "100%",
-    height: 96,
-  },
-  mediaOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.34)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  mediaOverlayText: {
-    color: "#FFFFFF",
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-
   infoItem: {
     minHeight: 36,
     borderRadius: 12,
