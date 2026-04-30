@@ -69,6 +69,10 @@ export const useBadgeCounts = (): BadgeCounts => {
                 bidsEnabled,
                 requestUpdatesEnabled,
                 savedRequestsEnabled,
+                nearbyAlertsEnabled: false,
+                nearbyAlertRadiusKm: 5,
+                nearbyAlertsUrgentOnly: false,
+                nearbyAlertCategorySlugs: [],
             });
             const unreadCount = visibleItems.filter(
                 (notification) => !notification.isRead
