@@ -17,9 +17,9 @@ const getBadgeAppearance = (
 ) => {
   const semanticToneByLevel = {
     basic: {
-      backgroundColor: palette.infoSoft ?? palette.surfaceMuted,
-      borderColor: `${palette.info}33`,
-      textColor: palette.info,
+      backgroundColor: palette.trustLight ?? palette.surfaceMuted,
+      borderColor: `${palette.trust}33`,
+      textColor: palette.trust,
     },
     trust: {
       backgroundColor: palette.primarySoft,
