@@ -32,6 +32,10 @@ describe("notification-preference.service", () => {
             bidsEnabled: true,
             requestUpdatesEnabled: true,
             savedRequestsEnabled: false,
+            nearbyAlertsEnabled: false,
+            nearbyAlertRadiusKm: 5,
+            nearbyAlertsUrgentOnly: false,
+            nearbyAlertCategorySlugs: [],
         });
     });
 
@@ -42,6 +46,10 @@ describe("notification-preference.service", () => {
             bidsEnabled: true,
             requestUpdatesEnabled: true,
             savedRequestsEnabled: false,
+            nearbyAlertsEnabled: false,
+            nearbyAlertRadiusKm: 5,
+            nearbyAlertsUrgentOnly: false,
+            nearbyAlertCategorySlugs: [],
         });
 
         const result = await getNotificationPreferencesForUser("user-1");
@@ -56,6 +64,10 @@ describe("notification-preference.service", () => {
                     bidsEnabled: true,
                     requestUpdatesEnabled: true,
                     savedRequestsEnabled: false,
+                    nearbyAlertsEnabled: false,
+                    nearbyAlertRadiusKm: 5,
+                    nearbyAlertsUrgentOnly: false,
+                    nearbyAlertCategorySlugs: [],
                 }),
             })
         );
@@ -63,6 +75,7 @@ describe("notification-preference.service", () => {
             expect.objectContaining({
                 pushEnabled: true,
                 savedRequestsEnabled: false,
+                nearbyAlertsEnabled: false,
             })
         );
     });
@@ -75,6 +88,10 @@ describe("notification-preference.service", () => {
                 bidsEnabled: true,
                 requestUpdatesEnabled: true,
                 savedRequestsEnabled: false,
+                nearbyAlertsEnabled: false,
+                nearbyAlertRadiusKm: 5,
+                nearbyAlertsUrgentOnly: false,
+                nearbyAlertCategorySlugs: [],
             })
             .mockResolvedValueOnce({
                 pushEnabled: true,
@@ -82,6 +99,10 @@ describe("notification-preference.service", () => {
                 bidsEnabled: true,
                 requestUpdatesEnabled: true,
                 savedRequestsEnabled: false,
+                nearbyAlertsEnabled: false,
+                nearbyAlertRadiusKm: 5,
+                nearbyAlertsUrgentOnly: false,
+                nearbyAlertCategorySlugs: [],
             });
 
         const result = await updateNotificationPreferencesForUser("user-1", {
@@ -98,6 +119,10 @@ describe("notification-preference.service", () => {
                     bidsEnabled: true,
                     requestUpdatesEnabled: true,
                     savedRequestsEnabled: false,
+                    nearbyAlertsEnabled: false,
+                    nearbyAlertRadiusKm: 5,
+                    nearbyAlertsUrgentOnly: false,
+                    nearbyAlertCategorySlugs: [],
                 },
             })
         );
@@ -111,6 +136,10 @@ describe("notification-preference.service", () => {
             bidsEnabled: true,
             requestUpdatesEnabled: true,
             savedRequestsEnabled: true,
+            nearbyAlertsEnabled: false,
+            nearbyAlertRadiusKm: 5,
+            nearbyAlertsUrgentOnly: false,
+            nearbyAlertCategorySlugs: [],
         };
 
         expect(isNotificationTypeEnabled("MESSAGE_RECEIVED", preferences)).toBe(false);
@@ -125,6 +154,10 @@ describe("notification-preference.service", () => {
             bidsEnabled: true,
             requestUpdatesEnabled: false,
             savedRequestsEnabled: false,
+            nearbyAlertsEnabled: false,
+            nearbyAlertRadiusKm: 5,
+            nearbyAlertsUrgentOnly: false,
+            nearbyAlertCategorySlugs: [],
         };
 
         const result = filterNotificationTypesByPreferences(

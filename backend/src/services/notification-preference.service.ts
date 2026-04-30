@@ -7,6 +7,10 @@ export type NotificationPreferences = {
     bidsEnabled: boolean;
     requestUpdatesEnabled: boolean;
     savedRequestsEnabled: boolean;
+    nearbyAlertsEnabled: boolean;
+    nearbyAlertRadiusKm: number;
+    nearbyAlertsUrgentOnly: boolean;
+    nearbyAlertCategorySlugs: string[];
 };
 
 const defaultNotificationPreferences: NotificationPreferences = {
@@ -15,6 +19,10 @@ const defaultNotificationPreferences: NotificationPreferences = {
     bidsEnabled: true,
     requestUpdatesEnabled: true,
     savedRequestsEnabled: false,
+    nearbyAlertsEnabled: false,
+    nearbyAlertRadiusKm: 5,
+    nearbyAlertsUrgentOnly: false,
+    nearbyAlertCategorySlugs: [],
 };
 
 const bidTypes: NotificationType[] = [
@@ -54,6 +62,10 @@ export const getNotificationPreferencesForUser = async (
             bidsEnabled: true,
             requestUpdatesEnabled: true,
             savedRequestsEnabled: true,
+            nearbyAlertsEnabled: true,
+            nearbyAlertRadiusKm: true,
+            nearbyAlertsUrgentOnly: true,
+            nearbyAlertCategorySlugs: true,
         },
     });
 
@@ -83,6 +95,10 @@ export const updateNotificationPreferencesForUser = async (
             bidsEnabled: true,
             requestUpdatesEnabled: true,
             savedRequestsEnabled: true,
+            nearbyAlertsEnabled: true,
+            nearbyAlertRadiusKm: true,
+            nearbyAlertsUrgentOnly: true,
+            nearbyAlertCategorySlugs: true,
         },
     });
 
