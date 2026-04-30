@@ -17,16 +17,26 @@ if (isProduction && (!process.env.JWT_SECRET || !process.env.REFRESH_SECRET)) {
 const ACCESS_EXPIRY = '1h';
 const REFRESH_EXPIRY = '7d';
 
+export type AccessTokenPayload = JwtPayload & {
+    userId: string;
+};
+
+export type RefreshTokenPayload = JwtPayload & {
+    userId: string;
+    jti: string;
+    familyId: string;
+};
+
 // ======================
 // ACCESS TOKEN
 // ======================
-export const accessToken = (payload: JwtPayload): string => {
+export const accessToken = (payload: AccessTokenPayload): string => {
     return jwt.sign(payload, JWT_SECRET, { expiresIn: ACCESS_EXPIRY });
 };
 
-export const verifyAccessToken = (token: string): JwtPayload => {
+export const verifyAccessToken = (token: string): AccessTokenPayload => {
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+        const decoded = jwt.verify(token, JWT_SECRET) as AccessTokenPayload;
 
         if (!decoded || typeof decoded !== 'object' || !decoded.userId) {
             throw new AppError('Invalid token payload', 401);
@@ -44,7 +54,7 @@ export const verifyAccessToken = (token: string): JwtPayload => {
 // ======================
 // REFRESH TOKEN
 // ======================
-export const signRefreshToken = (payload: JwtPayload): string => {
+export const signRefreshToken = (payload: RefreshTokenPayload): string => {
     return jwt.sign(
         {
             ...payload,
@@ -55,11 +65,11 @@ export const signRefreshToken = (payload: JwtPayload): string => {
     );
 };
 
-export const verifyRefreshToken = (token: string): JwtPayload => {
+export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
     try {
-        const decoded = jwt.verify(token, REFRESH_SECRET) as JwtPayload;
+        const decoded = jwt.verify(token, REFRESH_SECRET) as RefreshTokenPayload;
 
-        if (!decoded || typeof decoded !== 'object' || !decoded.userId) {
+        if (!decoded || typeof decoded !== 'object' || !decoded.userId || !decoded.jti || !decoded.familyId) {
             throw new AppError('Invalid token payload', 401);
         }
 
