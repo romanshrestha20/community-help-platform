@@ -76,6 +76,10 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         clearValidationError,
     } = useFormValidation<"title" | "description" | "budget" | "location">();
     const [modalVisible, setModalVisible] = useState(false);
+    const isProfileRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
+    const locationPickerReturnRoute = isProfileRoute
+        ? APP_ROUTES.PROFILE_REQUESTS
+        : APP_ROUTES.HOME_REQUESTS;
 
     const triggerTitle = initialData ? "Edit request" : "Create request";
     const triggerSubtitle = initialData
@@ -200,7 +204,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     };
 
     const handleOpenMapPicker = () => {
-        setDraftMapLocation(locationPicker.value, locationPickerOwnerId, pathname);
+        setDraftMapLocation(locationPicker.value, locationPickerOwnerId, locationPickerReturnRoute);
         setModalVisible(false);
 
         requestAnimationFrame(() => {

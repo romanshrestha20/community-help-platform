@@ -177,6 +177,10 @@ export const MyRequestsScreen = () => {
             <AppHeader
               title="My Requests"
               subtitle="Track live posts, bids, and request progress."
+              showBackButton
+              backButtonProps={{
+                variant: "secondary",
+              }}
             />
 
             <View

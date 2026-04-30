@@ -45,13 +45,19 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
     );
     const [selectedImages, setSelectedImages] = useState<RequestImageUploadInput[]>([]);
     const isProfileRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
+    const activeRequestId = requestId || params.id;
+    const isEditingRoute = Boolean(activeRequestId);
     const requestListRoute = isProfileRoute
         ? APP_ROUTES.PROFILE_REQUESTS
         : APP_ROUTES.HOME_REQUESTS;
     const requestDetailRoute = (id: string) =>
         isProfileRoute ? APP_ROUTES.PROFILE_REQUEST_DETAILS(id) : APP_ROUTES.HOME_REQUEST_DETAILS(id);
-
-    const activeRequestId = requestId || params.id;
+    const locationPickerReturnRoute =
+        activeRequestId && isEditingRoute
+            ? isProfileRoute
+                ? APP_ROUTES.PROFILE_REQUEST_EDIT(activeRequestId)
+                : APP_ROUTES.HOME_REQUEST_EDIT(activeRequestId)
+            : pathname;
     const {
         request,
         isEditing,
@@ -334,7 +340,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                                 setDraftMapLocation(
                                     locationPicker.value,
                                     locationPickerOwnerId,
-                                    pathname
+                                    locationPickerReturnRoute
                                 );
                                 router.push(APP_ROUTES.LOCATION_PICKER);
                             }}
