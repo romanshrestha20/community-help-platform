@@ -166,6 +166,7 @@ const FiltersModal = ({
   resetFilters: () => void;
 }) => {
   const { categories } = useCategories();
+  const { palette } = useThemeContext();
 
   return (
     <AppModal
@@ -175,53 +176,75 @@ const FiltersModal = ({
       actions={
         <>
           <AppButton title="Reset" variant="ghost" onPress={resetFilters} />
-          <AppButton title="Done" variant="primary" onPress={onClose} />
+          <AppButton title="Apply filter" variant="primary" onPress={onClose} />
         </>
       }
     >
       <View style={styles.modalContent}>
-        <AppDropdown
-          label="Sort"
-          value={filters.sortBy}
-          onSelect={(v) => updateFilter("sortBy", v as GlobalFilters["sortBy"])}
-          options={[
-            { label: "Newest", value: "NEWEST" },
-            { label: "Oldest", value: "OLDEST" },
-            { label: "Most Bids", value: "MOST_BIDS" },
+        <View
+          style={[
+            styles.modalSection,
+            {
+              backgroundColor: palette.surfaceMuted,
+              borderColor: palette.border,
+              shadowColor: palette.shadow,
+            },
           ]}
-        />
-        <AppDropdown
-          label="Status"
-          value={filters.status}
-          onSelect={(v) =>
-            updateFilter("status", v as "ALL" | HelpRequestStatus)
-          }
-          options={[
-            { label: "All", value: "ALL" },
-            { label: "Open", value: "OPEN" },
-            { label: "Assigned", value: "ASSIGNED" },
-            { label: "Completed", value: "COMPLETED" },
-            { label: "Cancelled", value: "CANCELLED" },
+        >
+          <AppDropdown
+            label="Sort"
+            value={filters.sortBy}
+            onSelect={(v) => updateFilter("sortBy", v as GlobalFilters["sortBy"])}
+            options={[
+              { label: "Newest", value: "NEWEST" },
+              { label: "Oldest", value: "OLDEST" },
+              { label: "Most Bids", value: "MOST_BIDS" },
+            ]}
+          />
+          <AppDropdown
+            label="Status"
+            value={filters.status}
+            onSelect={(v) =>
+              updateFilter("status", v as "ALL" | HelpRequestStatus)
+            }
+            options={[
+              { label: "All", value: "ALL" },
+              { label: "Open", value: "OPEN" },
+              { label: "Assigned", value: "ASSIGNED" },
+              { label: "Completed", value: "COMPLETED" },
+              { label: "Cancelled", value: "CANCELLED" },
+            ]}
+          />
+          <AppDropdown
+            label="Category"
+            value={filters.categoryId}
+            onSelect={(v) =>
+              updateFilter("categoryId", v as GlobalFilters["categoryId"])
+            }
+            options={[
+              { label: "All", value: "ALL" },
+              ...categories.map((category) => ({
+                label: category.name,
+                value: category.id,
+              })),
+            ]}
+          />
+        </View>
+        <View
+          style={[
+            styles.modalSection,
+            {
+              backgroundColor: palette.surfaceMuted,
+              borderColor: palette.border,
+              shadowColor: palette.shadow,
+            },
           ]}
-        />
-        <AppDropdown
-          label="Category"
-          value={filters.categoryId}
-          onSelect={(v) =>
-            updateFilter("categoryId", v as GlobalFilters["categoryId"])
-          }
-          options={[
-            { label: "All", value: "ALL" },
-            ...categories.map((category) => ({
-              label: category.name,
-              value: category.id,
-            })),
-          ]}
-        />
-        <RadiusSlider
-          value={filters.radiusKm}
-          onChange={(value) => updateFilter("radiusKm", value)}
-        />
+        >
+          <RadiusSlider
+            value={filters.radiusKm}
+            onChange={(value) => updateFilter("radiusKm", value)}
+          />
+        </View>
       </View>
     </AppModal>
   );
@@ -343,6 +366,7 @@ export const BrowseRequestsScreen = () => {
   );
 
   const handleResetAll = () => {
+    resetFilters();
     resetSearch();
   };
 
@@ -382,7 +406,7 @@ export const BrowseRequestsScreen = () => {
                 color={palette.primary}
               />
               <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>
-                {viewMode === "map" ? "Nearby Requests" : "Browse Requests"}
+                Nearby Requests
               </Text>
             </View>
           </View>
@@ -712,5 +736,15 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     gap: theme.spacing.sm,
+  },
+  modalSection: {
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 2,
   },
 });
