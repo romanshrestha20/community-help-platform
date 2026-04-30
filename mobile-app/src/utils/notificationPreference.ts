@@ -7,6 +7,10 @@ export type NotificationPreferences = {
     bidsEnabled: boolean;
     requestUpdatesEnabled: boolean;
     savedRequestsEnabled: boolean;
+    nearbyAlertsEnabled: boolean;
+    nearbyAlertRadiusKm: 1 | 3 | 5 | 10 | 25;
+    nearbyAlertsUrgentOnly: boolean;
+    nearbyAlertCategorySlugs: string[];
 };
 
 const NOTIFICATION_PREFERENCES_KEY = "notification_preferences";
@@ -17,6 +21,10 @@ const defaultPreferences: NotificationPreferences = {
     bidsEnabled: true,
     requestUpdatesEnabled: true,
     savedRequestsEnabled: false,
+    nearbyAlertsEnabled: false,
+    nearbyAlertRadiusKm: 5,
+    nearbyAlertsUrgentOnly: false,
+    nearbyAlertCategorySlugs: [],
 };
 
 let inMemoryPreferences: NotificationPreferences = defaultPreferences;
@@ -54,7 +62,16 @@ const isNotificationPreferences = (
         typeof candidate.messagesEnabled === "boolean" &&
         typeof candidate.bidsEnabled === "boolean" &&
         typeof candidate.requestUpdatesEnabled === "boolean" &&
-        typeof candidate.savedRequestsEnabled === "boolean"
+        typeof candidate.savedRequestsEnabled === "boolean" &&
+        typeof candidate.nearbyAlertsEnabled === "boolean" &&
+        (candidate.nearbyAlertRadiusKm === 1 ||
+            candidate.nearbyAlertRadiusKm === 3 ||
+            candidate.nearbyAlertRadiusKm === 5 ||
+            candidate.nearbyAlertRadiusKm === 10 ||
+            candidate.nearbyAlertRadiusKm === 25) &&
+        typeof candidate.nearbyAlertsUrgentOnly === "boolean" &&
+        Array.isArray(candidate.nearbyAlertCategorySlugs) &&
+        candidate.nearbyAlertCategorySlugs.every((slug) => typeof slug === "string")
     );
 };
 
