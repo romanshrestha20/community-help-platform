@@ -1142,6 +1142,7 @@ export const logoutCurrentSession = async (req: Request, res: Response, next: Ne
 
     await revokeSessionByRefreshToken({
       refreshToken: parsedBody.data.refreshToken,
+      expectedUserId: userId,
       reason: "USER_LOGOUT_CURRENT",
     });
 
