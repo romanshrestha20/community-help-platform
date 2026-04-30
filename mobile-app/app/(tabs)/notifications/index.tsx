@@ -33,6 +33,8 @@ type NotificationVisuals = {
 };
 
 const getNotificationVisuals = (item: AppNotification, palette: ReturnType<typeof useThemeContext>["palette"]): NotificationVisuals => {
+    const nearbyType = item.data && typeof item.data === "object" ? (item.data.nearbyType as string | undefined) : undefined;
+
     switch (item.type) {
         case "BID_RECEIVED":
             return { icon: "pricetag", tint: palette.primary, background: palette.primarySoft, priority: "medium" };
@@ -40,6 +42,10 @@ const getNotificationVisuals = (item: AppNotification, palette: ReturnType<typeo
             return { icon: "checkmark-circle", tint: palette.success, background: palette.successSoft ?? palette.surfaceMuted, priority: "high" };
         case "BID_REJECTED":
             return { icon: "close-circle", tint: palette.danger, background: palette.dangerSoft, priority: "medium" };
+        case "URGENT_REQUEST_NEARBY":
+            return { icon: "warning", tint: palette.danger, background: palette.dangerSoft, priority: "high" };
+        case "REQUEST_NEARBY":
+            return { icon: "navigate", tint: palette.primary, background: palette.primarySoft, priority: "medium" };
         case "REQUEST_ASSIGNED":
             return { icon: "clipboard", tint: palette.secondary, background: palette.secondarySoft, priority: "medium" };
         case "REQUEST_COMPLETED":
@@ -51,6 +57,14 @@ const getNotificationVisuals = (item: AppNotification, palette: ReturnType<typeo
         case "REVIEW_RECEIVED":
         case "REVIEW_REPLY_RECEIVED":
             return { icon: "star", tint: palette.accent, background: palette.accentSoft, priority: "low" };
+        case "SYSTEM":
+            if (nearbyType === "URGENT_REQUEST_NEARBY") {
+                return { icon: "warning", tint: palette.danger, background: palette.dangerSoft, priority: "high" };
+            }
+            if (nearbyType === "REQUEST_NEARBY") {
+                return { icon: "navigate", tint: palette.primary, background: palette.primarySoft, priority: "medium" };
+            }
+            return { icon: "notifications", tint: palette.textSecondary, background: palette.surfaceMuted, priority: "low" };
         default:
             return { icon: "notifications", tint: palette.textSecondary, background: palette.surfaceMuted, priority: "low" };
     }
@@ -63,6 +77,7 @@ const getActorName = (item: AppNotification) => {
 const getNotificationCopy = (item: AppNotification) => {
     const actor = getActorName(item);
     const title = item.request?.title?.trim() || item.title;
+    const nearbyType = item.data && typeof item.data === "object" ? (item.data.nearbyType as string | undefined) : undefined;
 
     switch (item.type) {
         case "BID_RECEIVED":
@@ -95,6 +110,16 @@ const getNotificationCopy = (item: AppNotification) => {
                 primary: `${actor} cancelled the request`,
                 secondary: `"${title}"`,
             };
+        case "REQUEST_NEARBY":
+            return {
+                primary: "New request nearby",
+                secondary: item.request?.title ?? item.body,
+            };
+        case "URGENT_REQUEST_NEARBY":
+            return {
+                primary: "Urgent request nearby",
+                secondary: item.request?.title ?? item.body,
+            };
         case "MESSAGE_RECEIVED":
             return {
                 primary: actor,
@@ -109,6 +134,23 @@ const getNotificationCopy = (item: AppNotification) => {
             return {
                 primary: `${actor} replied to your review`,
                 secondary: title,
+            };
+        case "SYSTEM":
+            if (nearbyType === "REQUEST_NEARBY") {
+                return {
+                    primary: "New request nearby",
+                    secondary: item.request?.title ?? item.body,
+                };
+            }
+            if (nearbyType === "URGENT_REQUEST_NEARBY") {
+                return {
+                    primary: "Urgent request nearby",
+                    secondary: item.request?.title ?? item.body,
+                };
+            }
+            return {
+                primary: item.title,
+                secondary: item.body,
             };
         default:
             return {
@@ -130,6 +172,9 @@ const getNotificationActionLabel = (item: AppNotification) => {
         case "REQUEST_COMPLETED":
         case "REQUEST_CANCELLED":
             return "View";
+        case "REQUEST_NEARBY":
+        case "URGENT_REQUEST_NEARBY":
+            return "View request";
         default:
             return "Open";
     }
@@ -162,6 +207,10 @@ const getNotificationDestination = (item: AppNotification) => {
         return item.requestId
             ? APP_ROUTES.HOME_REQUEST_DETAILS(item.requestId)
             : APP_ROUTES.PROFILE_BIDS;
+    }
+
+    if (item.type === "REQUEST_NEARBY" || item.type === "URGENT_REQUEST_NEARBY") {
+        return item.requestId ? APP_ROUTES.HOME_REQUEST_DETAILS(item.requestId) : APP_ROUTES.HOME_REQUESTS;
     }
 
     if (

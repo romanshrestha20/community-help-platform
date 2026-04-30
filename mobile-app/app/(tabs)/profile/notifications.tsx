@@ -7,6 +7,14 @@ import { APP_ROUTES } from "@/config/routes";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useNotificationSettingsStore } from "@/features/settings/store/notification-settings.store";
 
+const nearbyDistanceOptions: Array<1 | 3 | 5 | 10 | 25> = [1, 3, 5, 10, 25];
+const nearbyCategoryOptions = [
+    { slug: "errands", label: "Errands" },
+    { slug: "moving", label: "Moving" },
+    { slug: "transportation", label: "Transportation" },
+    { slug: "shopping", label: "Shopping" },
+] as const;
+
 type SettingRowProps = {
     title: string;
     subtitle: string;
@@ -69,6 +77,10 @@ export default function NotificationSettingsScreen() {
         bidsEnabled,
         requestUpdatesEnabled,
         savedRequestsEnabled,
+        nearbyAlertsEnabled,
+        nearbyAlertRadiusKm,
+        nearbyAlertsUrgentOnly,
+        nearbyAlertCategorySlugs,
         initializeNotificationSettings,
         setPreference,
     } = useNotificationSettingsStore();
@@ -147,6 +159,162 @@ export default function NotificationSettingsScreen() {
                                     void setPreference("pushEnabled", value);
                                 }}
                             />
+                        </Stack>
+                    </Card>
+
+                    <Card>
+                        <Stack gap="sm">
+                            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+                                Smart Nearby Alerts
+                            </Text>
+                            <Text style={[styles.sectionDescription, { color: palette.textSecondary }]}>
+                                Get notified when new nearby requests match your radius and category preferences.
+                            </Text>
+
+                            <SettingRow
+                                title="Smart nearby alerts"
+                                subtitle="Turn nearby request alerts on or off."
+                                value={nearbyAlertsEnabled}
+                                disabled={!pushEnabled}
+                                onValueChange={(value) => {
+                                    void setPreference("nearbyAlertsEnabled", value);
+                                }}
+                            />
+
+                            <View style={styles.preferenceBlock}>
+                                <Text style={[styles.preferenceLabel, { color: palette.textPrimary }]}>
+                                    Alert distance
+                                </Text>
+                                <View style={styles.chipWrap}>
+                                    {nearbyDistanceOptions.map((distance) => {
+                                        const isActive = nearbyAlertRadiusKm === distance;
+                                        return (
+                                            <Pressable
+                                                key={distance}
+                                                disabled={!pushEnabled || !nearbyAlertsEnabled}
+                                                onPress={() => {
+                                                    void setPreference("nearbyAlertRadiusKm", distance);
+                                                }}
+                                                style={[
+                                                    styles.chip,
+                                                    {
+                                                        backgroundColor: isActive ? palette.primarySoft : palette.surfaceMuted,
+                                                        borderColor: isActive ? palette.primary : palette.border,
+                                                        opacity:
+                                                            !pushEnabled || !nearbyAlertsEnabled
+                                                                ? 0.55
+                                                                : 1,
+                                                    },
+                                                ]}
+                                            >
+                                                <Text
+                                                    style={[
+                                                        styles.chipText,
+                                                        {
+                                                            color: isActive ? palette.primary : palette.textSecondary,
+                                                        },
+                                                    ]}
+                                                >
+                                                    {distance} km
+                                                </Text>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+
+                            <SettingRow
+                                title="Urgent only"
+                                subtitle="Only notify for urgent nearby requests."
+                                value={nearbyAlertsUrgentOnly}
+                                disabled={!pushEnabled || !nearbyAlertsEnabled}
+                                onValueChange={(value) => {
+                                    void setPreference("nearbyAlertsUrgentOnly", value);
+                                }}
+                            />
+
+                            <View style={styles.preferenceBlock}>
+                                <Text style={[styles.preferenceLabel, { color: palette.textPrimary }]}>
+                                    Categories
+                                </Text>
+                                <View style={styles.chipWrap}>
+                                    <Pressable
+                                        disabled={!pushEnabled || !nearbyAlertsEnabled}
+                                        onPress={() => {
+                                            void setPreference("nearbyAlertCategorySlugs", []);
+                                        }}
+                                        style={[
+                                            styles.chip,
+                                            {
+                                                backgroundColor:
+                                                    nearbyAlertCategorySlugs.length === 0
+                                                        ? palette.primarySoft
+                                                        : palette.surfaceMuted,
+                                                borderColor:
+                                                    nearbyAlertCategorySlugs.length === 0
+                                                        ? palette.primary
+                                                        : palette.border,
+                                                opacity:
+                                                    !pushEnabled || !nearbyAlertsEnabled
+                                                        ? 0.55
+                                                        : 1,
+                                            },
+                                        ]}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.chipText,
+                                                {
+                                                    color:
+                                                        nearbyAlertCategorySlugs.length === 0
+                                                            ? palette.primary
+                                                            : palette.textSecondary,
+                                                },
+                                            ]}
+                                        >
+                                            All
+                                        </Text>
+                                    </Pressable>
+
+                                    {nearbyCategoryOptions.map((item) => {
+                                        const isActive = nearbyAlertCategorySlugs.includes(item.slug);
+                                        return (
+                                            <Pressable
+                                                key={item.slug}
+                                                disabled={!pushEnabled || !nearbyAlertsEnabled}
+                                                onPress={() => {
+                                                    const next = isActive
+                                                        ? nearbyAlertCategorySlugs.filter((slug) => slug !== item.slug)
+                                                        : [...nearbyAlertCategorySlugs, item.slug];
+                                                    void setPreference("nearbyAlertCategorySlugs", next);
+                                                }}
+                                                style={[
+                                                    styles.chip,
+                                                    {
+                                                        backgroundColor: isActive ? palette.primarySoft : palette.surfaceMuted,
+                                                        borderColor: isActive ? palette.primary : palette.border,
+                                                        opacity:
+                                                            !pushEnabled || !nearbyAlertsEnabled
+                                                                ? 0.55
+                                                                : 1,
+                                                    },
+                                                ]}
+                                            >
+                                                <Text
+                                                    style={[
+                                                        styles.chipText,
+                                                        {
+                                                            color: isActive ? palette.primary : palette.textSecondary,
+                                                        },
+                                                    ]}
+                                                >
+                                                    {item.label}
+                                                </Text>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </View>
+                            </View>
                         </Stack>
                     </Card>
 
@@ -314,5 +482,29 @@ const styles = StyleSheet.create({
         fontSize: theme.typography.fontSize.xs + 1,
         lineHeight: theme.typography.lineHeight.xs + 3,
         fontWeight: theme.typography.fontWeight.semibold,
+    },
+    preferenceBlock: {
+        gap: theme.spacing.xs,
+    },
+    preferenceLabel: {
+        fontSize: theme.typography.fontSize.sm,
+        lineHeight: theme.typography.lineHeight.sm,
+        fontWeight: theme.typography.fontWeight.semibold,
+    },
+    chipWrap: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: theme.spacing.xs,
+    },
+    chip: {
+        borderWidth: 1,
+        borderRadius: theme.radius.fill,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: theme.spacing.xs,
+    },
+    chipText: {
+        fontSize: theme.typography.fontSize.xs + 1,
+        lineHeight: theme.typography.lineHeight.xs + 2,
+        fontWeight: theme.typography.fontWeight.medium,
     },
 });
