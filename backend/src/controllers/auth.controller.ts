@@ -2,7 +2,6 @@ import { prisma } from "../lib/prisma.js";
 import { NextFunction, Request, Response } from "express";
 import AppError from "../utils/appError.js";
 import bcrypt from "bcrypt";
-import { accessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
 import { Prisma } from "../../generated/prisma/client.js";
 import {
   normalizeIncomingLocation,
@@ -15,6 +14,7 @@ import {
   forgotPasswordBodySchema,
   googleLoginBodySchema,
   loginBodySchema,
+  logoutBodySchema,
   refreshTokenBodySchema,
   registerUserBodySchema,
   resetPasswordBodySchema,
@@ -51,6 +51,19 @@ import {
   serializeProfileQualifications,
 } from "../utils/profile-qualifications.js";
 import { buildVerificationBadges } from "../utils/verification-badges.js";
+import {
+  issueSessionTokens,
+  listUserSessions,
+  revokeAllSessionsForUser,
+  revokeSessionByRefreshToken,
+  rotateRefreshToken,
+} from "../services/session.service.js";
+import {
+  assertLoginAllowed,
+  recordFailedLoginAttempt,
+  recordSuccessfulLogin,
+} from "../services/security-monitoring.service.js";
+import { assertStrongPassword } from "../services/password-policy.service.js";
 
 const PASSWORD_RESET_SUCCESS_MESSAGE =
   "If an account exists for this email, we sent a password reset link.";
@@ -75,6 +88,8 @@ const getRequestIp = (req: Request) => {
     "unknown"
   ).toString();
 };
+
+const getRequestUserAgent = (req: Request) => req.headers["user-agent"];
 
 const queueEmailVerification = async ({
   userId,
@@ -198,26 +213,6 @@ const getPublicUserById = async (userId: string) => {
   };
 };
 
-const createSessionForUser = async (userId: string) => {
-  await prisma.refreshToken.deleteMany({
-    where: { userId },
-  });
-
-  const token = accessToken({ userId });
-  const refreshToken = signRefreshToken({ userId });
-
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
-
-  await prisma.refreshToken.create({
-    data: { userId, token: refreshToken, expiresAt },
-  });
-
-  return {
-    accessToken: token,
-    refreshToken,
-  };
-};
 export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
   const location = normalizeIncomingLocation(req.body as Record<string, unknown>);
   const parsedBody = registerUserBodySchema.safeParse(req.body);
@@ -250,7 +245,8 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       return next(new AppError("Email or phone already registered", 400));
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    await assertStrongPassword(password);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const createdUser = await prisma.userModel.create({
       data: {
@@ -280,14 +276,11 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     }
 
 
-    const token = accessToken({ userId: createdUser.id });
-    const refreshToken = signRefreshToken({ userId: createdUser.id });
-
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    await prisma.refreshToken.create({
-      data: { userId: createdUser.id, token: refreshToken, expiresAt },
+    const { accessToken: token, refreshToken } = await issueSessionTokens({
+      userId: createdUser.id,
+      ipAddress: getRequestIp(req),
+      userAgent: getRequestUserAgent(req),
+      invalidateAllExisting: true,
     });
 
     try {
@@ -336,14 +329,14 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     const { email } = parsedBody.data;
     const ipAddress = getRequestIp(req);
 
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "forgot-password:ip",
       key: ipAddress,
       limit: 5,
       windowMs: 15 * 60 * 1000,
       message: "Too many password reset requests. Please try again later.",
     });
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "forgot-password:email",
       key: email,
       limit: 3,
@@ -389,10 +382,20 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     if (!parsedBody.success) return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
 
     const { email, password } = parsedBody.data;
+    const ipAddress = getRequestIp(req);
+    const userAgent = getRequestUserAgent(req);
+
+    await assertLoginAllowed({ email, ipAddress });
 
     // Find user by email for password check
     const user = await prisma.userModel.findUnique({ where: { email } });
     if (!user) {
+      await recordFailedLoginAttempt({
+        email,
+        ipAddress,
+        userAgent,
+      });
+
       const deletedAccount = await prisma.deletedAccount.findUnique({
         where: { email },
       });
@@ -410,11 +413,19 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     }
 
     if (!user.passwordHash) {
-      return next(new AppError("Account is missing a password", 500));
+      return next(new AppError("Use social login for this account", 400));
     }
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid) return next(new AppError("Invalid email or password", 401));
+    if (!isValid) {
+      await recordFailedLoginAttempt({
+        email,
+        ipAddress,
+        userAgent,
+        userId: user.id,
+      });
+      return next(new AppError("Invalid email or password", 401));
+    }
 
     // Return a public user payload (without passwordHash) aligned with mobile contract
     const publicUser = await getPublicUserById(user.id);
@@ -423,17 +434,17 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       return next(new AppError("User not found", 404));
     }
 
-    await prisma.refreshToken.deleteMany({
-      where: { userId: user.id },
+    const { accessToken: access, refreshToken: refresh } = await issueSessionTokens({
+      userId: user.id,
+      ipAddress,
+      userAgent,
+      invalidateAllExisting: false,
     });
-    const access = accessToken({ userId: user.id });
-    const refresh = signRefreshToken({ userId: user.id });
-
-    // Save refresh token in DB
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
-    await prisma.refreshToken.create({
-      data: { userId: user.id, token: refresh, expiresAt },
+    await recordSuccessfulLogin({
+      userId: user.id,
+      email,
+      ipAddress,
+      userAgent,
     });
 
     return sendResponse(res, {
@@ -462,18 +473,16 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     const { token, newPassword } = parsedBody.data;
     const ipAddress = getRequestIp(req);
 
-    if (newPassword.length < 6) {
-      return next(new AppError("Password must be at least 6 characters", 400));
-    }
+    await assertStrongPassword(newPassword);
 
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "reset-password:ip",
       key: ipAddress,
       limit: 10,
       windowMs: 15 * 60 * 1000,
       message: "Too many password reset attempts. Please try again later.",
     });
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "reset-password:token",
       key: token,
       limit: 5,
@@ -487,7 +496,7 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
       return next(new AppError("Reset link is invalid or has expired", 400));
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
     const usedAt = new Date();
 
     await prisma.$transaction([
@@ -508,10 +517,9 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
           },
         },
       }),
-      prisma.refreshToken.deleteMany({
-        where: { userId: resetToken.userId },
-      }),
     ]);
+
+    await revokeAllSessionsForUser(resetToken.userId, "PASSWORD_RESET");
 
 
     res.status(200).json({
@@ -553,14 +561,14 @@ export const sendEmailVerification = async (
       return next(new AppError("Email is already verified", 400));
     }
 
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "send-email-verification:ip",
       key: ipAddress,
       limit: 5,
       windowMs: 15 * 60 * 1000,
       message: "Too many verification email requests. Please try again later.",
     });
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "send-email-verification:user",
       key: user.id,
       limit: 3,
@@ -601,14 +609,14 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
     const { token } = parsedBody.data;
     const ipAddress = getRequestIp(req);
 
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "verify-email:ip",
       key: ipAddress,
       limit: 10,
       windowMs: 15 * 60 * 1000,
       message: "Too many verification attempts. Please try again later.",
     });
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "verify-email:token",
       key: token,
       limit: 5,
@@ -720,21 +728,21 @@ export const sendPhoneCode = async (req: Request, res: Response, next: NextFunct
       return next(new AppError("Phone number is already verified", 400));
     }
 
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "send-phone-code:ip",
       key: ipAddress,
       limit: 5,
       windowMs: 15 * 60 * 1000,
       message: "Too many verification code requests. Please try again later.",
     });
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "send-phone-code:user",
       key: user.id,
       limit: 3,
       windowMs: 15 * 60 * 1000,
       message: "Too many verification code requests. Please try again later.",
     });
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "send-phone-code:phone",
       key: user.phone,
       limit: 3,
@@ -743,7 +751,7 @@ export const sendPhoneCode = async (req: Request, res: Response, next: NextFunct
     });
 
     if (isTwilioVerifyMode()) {
-      assertRateLimit({
+      await assertRateLimit({
         bucket: "send-phone-code:cooldown",
         key: user.phone,
         limit: 1,
@@ -866,14 +874,14 @@ export const verifyPhoneCode = async (req: Request, res: Response, next: NextFun
       return next(new AppError("Phone number is already verified", 400));
     }
 
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "verify-phone-code:ip",
       key: ipAddress,
       limit: 10,
       windowMs: 15 * 60 * 1000,
       message: "Too many verification attempts. Please try again later.",
     });
-    assertRateLimit({
+    await assertRateLimit({
       bucket: "verify-phone-code:user",
       key: user.id,
       limit: 10,
@@ -1003,9 +1011,7 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
       return next(new AppError("New password must be different", 400));
     }
 
-    if (newPassword.length < 6) {
-      return next(new AppError("Password must be at least 6 characters", 400));
-    }
+    await assertStrongPassword(newPassword);
 
     // Fetch the user
     const user = await prisma.userModel.findUnique({ where: { id: userId } });
@@ -1025,7 +1031,7 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     }
 
     // Hash new password
-    const newHashedPassword = await bcrypt.hash(newPassword, 10);
+    const newHashedPassword = await bcrypt.hash(newPassword, 12);
 
     // Update password in DB
     await prisma.$transaction([
@@ -1033,8 +1039,8 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
         where: { id: userId },
         data: { passwordHash: newHashedPassword },
       }),
-      prisma.refreshToken.deleteMany({ where: { userId } }), // Invalidate all refresh tokens on password change  
     ]);
+    await revokeAllSessionsForUser(userId, "PASSWORD_CHANGED");
 
     res.status(200).json({
       status: "success",
@@ -1061,9 +1067,7 @@ export const addPassword = async (req: Request, res: Response, next: NextFunctio
 
     const { newPassword } = parsedBody.data;
 
-    if (newPassword.length < 6) {
-      return next(new AppError("Password must be at least 6 characters", 400));
-    }
+    await assertStrongPassword(newPassword);
 
     const user = await prisma.userModel.findUnique({ where: { id: userId } });
 
@@ -1075,7 +1079,7 @@ export const addPassword = async (req: Request, res: Response, next: NextFunctio
       return next(new AppError("Account already has a password", 400));
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await prisma.userModel.update({
       where: { id: userId },
@@ -1102,42 +1106,90 @@ export const refreshAccessToken = async (req: Request, res: Response, next: Next
       return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
     const { refreshToken } = parsedBody.data;
-    const decoded = verifyRefreshToken(refreshToken);
 
-    const storedToken = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
-
-    if (!storedToken) {
-      return next(new AppError("Invalid refresh token", 401));
-    }
-
-    if (storedToken.expiresAt < new Date()) {
-      await prisma.refreshToken.delete({ where: { token: refreshToken } });
-      return next(new AppError("Session expired. Please login again.", 401));
-    }
-
-    const newRefreshToken = signRefreshToken({ userId: decoded.userId });
-
-    await prisma.refreshToken.update({
-      where: { token: refreshToken },
-      data: {
-        token: newRefreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
+    const tokens = await rotateRefreshToken({
+      refreshToken,
+      ipAddress: getRequestIp(req),
+      userAgent: getRequestUserAgent(req),
     });
-
-    const newAccessToken = accessToken({ userId: decoded.userId });
 
     res.status(200).json({
       success: true,
-      token: newAccessToken,
-      refreshToken: newRefreshToken,
+      token: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     });
   }
   catch (error) {
+    if (error instanceof AppError) {
+      return next(error);
+    }
     console.error("Error in refreshAccessToken:", error);
     return next(new AppError("Failed to refresh access token", 500));
   }
 }
+
+export const logoutCurrentSession = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    const parsedBody = logoutBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
+    }
+
+    await revokeSessionByRefreshToken({
+      refreshToken: parsedBody.data.refreshToken,
+      reason: "USER_LOGOUT_CURRENT",
+    });
+
+    return sendResponse(res, {
+      statusCode: 200,
+      message: "Logged out successfully.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const logoutAllSessions = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    await revokeAllSessionsForUser(userId, "USER_LOGOUT_ALL");
+
+    return sendResponse(res, {
+      statusCode: 200,
+      message: "Logged out from all sessions successfully.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getMySessions = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    const sessions = await listUserSessions(userId);
+
+    return sendResponse(res, {
+      statusCode: 200,
+      data: sessions,
+      message: "Sessions retrieved successfully.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
 
 
 
@@ -1272,7 +1324,18 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
       return next(new AppError("User not found", 404));
     }
 
-    const { accessToken: token, refreshToken } = await createSessionForUser(userId);
+    const { accessToken: token, refreshToken } = await issueSessionTokens({
+      userId,
+      ipAddress: getRequestIp(req),
+      userAgent: getRequestUserAgent(req),
+      invalidateAllExisting: false,
+    });
+    await recordSuccessfulLogin({
+      userId,
+      email: googlePayload.email,
+      ipAddress: getRequestIp(req),
+      userAgent: getRequestUserAgent(req),
+    });
 
     return sendResponse(res, {
       statusCode: 200,
@@ -1284,6 +1347,9 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
       },
     });
   } catch (error) {
+    if (error instanceof AppError) {
+      return next(error);
+    }
     console.error("Error in loginWithGoogle:", error);
     next(new AppError("Failed to authenticate with Google", 500));
   }
