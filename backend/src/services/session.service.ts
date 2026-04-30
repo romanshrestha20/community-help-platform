@@ -13,6 +13,19 @@ const getUserAgent = (value?: string | string[]) => {
   return value ?? null;
 };
 
+const getUserTokenVersion = async (userId: string) => {
+  const user = await prisma.userModel.findUnique({
+    where: { id: userId },
+    select: { tokenVersion: true },
+  });
+
+  if (!user) {
+    throw new AppError("Unauthorized", 401);
+  }
+
+  return user.tokenVersion;
+};
+
 export const issueSessionTokens = async ({
   userId,
   ipAddress,
@@ -51,8 +64,10 @@ export const issueSessionTokens = async ({
     },
   });
 
+  const tokenVersion = await getUserTokenVersion(userId);
+
   return {
-    accessToken: accessToken({ userId }),
+    accessToken: accessToken({ userId, tokenVersion }),
     refreshToken,
   };
 };
@@ -152,17 +167,21 @@ export const rotateRefreshToken = async ({
     },
   });
 
+  const tokenVersion = await getUserTokenVersion(decoded.userId);
+
   return {
-    accessToken: accessToken({ userId: decoded.userId }),
+    accessToken: accessToken({ userId: decoded.userId, tokenVersion }),
     refreshToken: nextRefreshToken,
   };
 };
 
 export const revokeSessionByRefreshToken = async ({
   refreshToken,
+  expectedUserId,
   reason = "USER_LOGOUT",
 }: {
   refreshToken: string;
+  expectedUserId?: string;
   reason?: string;
 }) => {
   const refreshTokenHash = hashToken(refreshToken);
@@ -175,12 +194,25 @@ export const revokeSessionByRefreshToken = async ({
     return;
   }
 
+  if (expectedUserId && storedToken.userId !== expectedUserId) {
+    throw new AppError("Forbidden", 403);
+  }
+
   if (!storedToken.revokedAt) {
     await prisma.refreshToken.update({
       where: { id: storedToken.id },
       data: { revokedAt: new Date(), revokedReason: reason },
     });
   }
+
+  await prisma.userModel.update({
+    where: { id: storedToken.userId },
+    data: {
+      tokenVersion: {
+        increment: 1,
+      },
+    },
+  });
 
   await prisma.securityEvent.create({
     data: {
@@ -194,10 +226,20 @@ export const revokeSessionByRefreshToken = async ({
 };
 
 export const revokeAllSessionsForUser = async (userId: string, reason = "USER_LOGOUT_ALL") => {
-  await prisma.refreshToken.updateMany({
-    where: { userId, revokedAt: null },
-    data: { revokedAt: new Date(), revokedReason: reason },
-  });
+  await prisma.$transaction([
+    prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date(), revokedReason: reason },
+    }),
+    prisma.userModel.update({
+      where: { id: userId },
+      data: {
+        tokenVersion: {
+          increment: 1,
+        },
+      },
+    }),
+  ]);
 
   await prisma.securityEvent.create({
     data: {
