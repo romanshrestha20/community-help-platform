@@ -218,6 +218,10 @@ model NotificationPreference {
   bidsEnabled           Boolean @default(true)
   requestUpdatesEnabled Boolean @default(true)
   savedRequestsEnabled  Boolean @default(false)
+  nearbyAlertsEnabled   Boolean @default(false)
+  nearbyAlertRadiusKm   Int     @default(5)
+  nearbyAlertsUrgentOnly Boolean @default(false)
+  nearbyAlertCategorySlugs String[] @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
