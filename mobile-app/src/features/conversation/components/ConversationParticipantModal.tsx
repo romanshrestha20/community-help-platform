@@ -35,9 +35,8 @@ const ConversationParticipantModal = ({
     const insets = useSafeAreaInsets();
     const [summary, setSummary] = useState<ReviewSummary | null>(null);
     const [loadingSummary, setLoadingSummary] = useState(false);
-    const [summaryError, setSummaryError] = useState<string | null>(null);
 
-    const displayName = participant?.fullName || participant?.email || "Community member";
+    const displayName = participant?.fullName || participant?.email || roleLabel || "Community member";
     const subtitle = "Community member";
 
     useEffect(() => {
@@ -46,22 +45,23 @@ const ConversationParticipantModal = ({
         const loadSummary = async () => {
             if (!visible || !participant?.id) {
                 setSummary(null);
-                setSummaryError(null);
                 setLoadingSummary(false);
                 return;
             }
 
             setLoadingSummary(true);
-            setSummaryError(null);
 
             try {
-                const result = await getUserReviews(participant.id, { page: 1, limit: 1 });
+                const result = await getUserReviews(
+                    participant.id,
+                    { page: 1, limit: 1 },
+                    { skipErrorToast: true }
+                );
                 if (!active) return;
                 setSummary(result.summary);
             } catch {
                 if (!active) return;
                 setSummary(null);
-                setSummaryError("Profile data unavailable right now");
             } finally {
                 if (active) {
                     setLoadingSummary(false);
@@ -135,7 +135,14 @@ const ConversationParticipantModal = ({
                                     {summary.rating.toFixed(1)} rating · {summary.totalReviews} review{summary.totalReviews === 1 ? "" : "s"}
                                 </Text>
                             </View>
-                        ) : null}
+                        ) : (
+                            <View style={styles.trustItem}>
+                                <Ionicons name="star-outline" size={16} color={palette.textSecondary} />
+                                <Text style={[styles.trustText, { color: palette.textSecondary }]}>
+                                    No public ratings yet
+                                </Text>
+                            </View>
+                        )}
                         <View style={styles.trustItem}>
                             <Ionicons name="checkmark-circle" size={16} color={palette.primary} />
                             <Text style={[styles.trustText, { color: palette.textPrimary }]}>Identity confirmed in chat</Text>
@@ -144,9 +151,6 @@ const ConversationParticipantModal = ({
                             <Ionicons name="shield-checkmark" size={16} color={palette.primary} />
                             <Text style={[styles.trustText, { color: palette.textPrimary }]}>Role verified for this request</Text>
                         </View>
-                        {summaryError ? (
-                            <Text style={[styles.trustText, { color: palette.textSecondary }]}>{summaryError}</Text>
-                        ) : null}
                     </View>
 
                     {onViewProfile || onViewRequest ? (
