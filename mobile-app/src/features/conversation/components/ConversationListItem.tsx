@@ -40,6 +40,7 @@ const ConversationListItem: React.FC<ConversationListItemProps> = ({
     const lastActivity = conversation.lastMessage?.createdAt || conversation.updatedAt;
     const hasUnread = conversation.unreadCount > 0;
     const preview = getLastMessagePreview(conversation, userId);
+    const isLive = conversation.request.status === "ASSIGNED";
 
     return (
         <Pressable
@@ -59,7 +60,14 @@ const ConversationListItem: React.FC<ConversationListItemProps> = ({
 
             <View style={styles.content}>
                 <View style={styles.topRow}>
-                    <Text style={[styles.name, { color: palette.textPrimary }]} numberOfLines={1}>
+                    <Text
+                        style={[
+                            styles.name,
+                            { color: palette.textPrimary },
+                            hasUnread ? styles.nameUnread : null,
+                        ]}
+                        numberOfLines={1}
+                    >
                         {displayName}
                     </Text>
                     <Text style={[styles.date, { color: palette.textMuted }]}>
@@ -67,7 +75,14 @@ const ConversationListItem: React.FC<ConversationListItemProps> = ({
                     </Text>
                 </View>
 
-                <Text style={[styles.preview, { color: palette.textSecondary }]} numberOfLines={2}>
+                <Text
+                    style={[
+                        styles.preview,
+                        { color: palette.textSecondary },
+                        hasUnread ? styles.previewUnread : null,
+                    ]}
+                    numberOfLines={1}
+                >
                     {preview}
                 </Text>
 
@@ -77,19 +92,24 @@ const ConversationListItem: React.FC<ConversationListItemProps> = ({
                     </Text>
 
                     <View style={styles.trailing}>
-                        <Text
-                            style={[
-                                styles.status,
-                                {
-                                    color:
-                                        conversation.request.status === "ASSIGNED"
-                                            ? palette.primary
-                                            : palette.textSecondary,
-                                },
-                            ]}
-                        >
-                            {getStatusLabel(conversation.request.status)}
-                        </Text>
+                        <View style={styles.statusWrap}>
+                            {isLive ? (
+                                <View style={[styles.liveDot, { backgroundColor: palette.primary }]} />
+                            ) : null}
+                            <Text
+                                style={[
+                                    styles.status,
+                                    {
+                                        color:
+                                            conversation.request.status === "ASSIGNED"
+                                                ? palette.primary
+                                                : palette.textSecondary,
+                                    },
+                                ]}
+                            >
+                                {getStatusLabel(conversation.request.status)}
+                            </Text>
+                        </View>
                         {hasUnread ? (
                             <View style={[styles.unreadBadge, { backgroundColor: palette.primary }]}>
                                 <Text style={[styles.unreadLabel, { color: palette.textInverse }]}>
@@ -148,12 +168,18 @@ const styles = StyleSheet.create({
         flex: 1,
         fontWeight: "700",
     },
+    nameUnread: {
+        fontWeight: "800",
+    },
     date: {
         ...theme.typography.textStyle.caption,
     },
     preview: {
         ...theme.typography.textStyle.bodySmall,
         lineHeight: 20,
+    },
+    previewUnread: {
+        fontWeight: "700",
     },
     bottomRow: {
         flexDirection: "row",
@@ -169,6 +195,16 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         gap: 8,
+    },
+    statusWrap: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 5,
+    },
+    liveDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
     },
     status: {
         ...theme.typography.textStyle.captionMedium,

@@ -1,4 +1,3 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useMemo } from "react";
 import {
     ActivityIndicator,
@@ -40,7 +39,6 @@ const Inbox: React.FC<InboxProps> = ({
     const user = useAuthStore((state) => state.user);
     const userId = user?.id || "";
     const userEmail = user?.email || "";
-    const firstName = user?.fullName?.trim().split(/\s+/)[0] ?? "there";
     const [searchQuery, setSearchQuery] = React.useState("");
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -64,11 +62,6 @@ const Inbox: React.FC<InboxProps> = ({
         });
     }, [conversations, normalizedQuery, userEmail, userId]);
 
-    const unreadConversationsCount = useMemo(
-        () => conversations.filter((conversation) => conversation.unreadCount > 0).length,
-        [conversations]
-    );
-
     const resultsLabel = useMemo(() => {
         if (normalizedQuery) {
             const count = filteredConversations.length;
@@ -84,12 +77,8 @@ const Inbox: React.FC<InboxProps> = ({
             <ScreenView centered style={styles.screen}>
                 <View style={styles.loadingWrap}>
                     <ActivityIndicator size="small" color={palette.primary} />
-                    <Text style={[styles.loadingTitle, { color: palette.textPrimary }]}>
-                        Loading messages
-                    </Text>
-                    <Text style={[styles.loadingBody, { color: palette.textSecondary }]}>
-                        Pulling in request conversations and unread activity.
-                    </Text>
+                    <Text style={[styles.loadingTitle, { color: palette.textPrimary }]}>Loading messages</Text>
+                    <Text style={[styles.loadingBody, { color: palette.textSecondary }]}>Pulling in your conversations.</Text>
                 </View>
             </ScreenView>
         );
@@ -120,101 +109,30 @@ const Inbox: React.FC<InboxProps> = ({
                 ItemSeparatorComponent={() => <View style={styles.separator} />}
                 ListHeaderComponent={
                     <View style={styles.headerBlock}>
-                        <View style={styles.heroRow}>
-                            <View style={styles.heroCopy}>
-                                <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>
-                                    Messaging
-                                </Text>
-                                <Text style={[styles.heroTitle, { color: palette.textPrimary }]}>
-                                    {`${firstName}\u2019s conversations`}
-                                </Text>
-                                <Text style={[styles.heroSubtitle, { color: palette.textSecondary }]}>
-                                    Assigned requests only. Keep coordination, updates, and next steps in one place.
-                                </Text>
-                            </View>
-
-                            <View
-                                style={[
-                                    styles.unreadCapsule,
-                                    {
-                                        backgroundColor:
-                                            unreadTotal > 0 ? palette.primarySoft : palette.surfaceMuted,
-                                    },
-                                ]}
-                            >
-                                <Ionicons
-                                    name={unreadTotal > 0 ? "mail-outline" : "checkmark-done-outline"}
-                                    size={14}
-                                    color={unreadTotal > 0 ? palette.primary : palette.textSecondary}
-                                />
-                                <Text
-                                    style={[
-                                        styles.unreadCapsuleText,
-                                        {
-                                            color: unreadTotal > 0 ? palette.primary : palette.textSecondary,
-                                        },
-                                    ]}
-                                >
-                                    {unreadTotal > 0 ? `${unreadTotal} unread` : "Caught up"}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <View
-                            style={[
-                                styles.summaryStrip,
-                                {
-                                    borderTopColor: palette.border,
-                                    borderBottomColor: palette.border,
-                                },
-                            ]}
-                        >
-                            <View style={styles.summaryItem}>
-                                <Text style={[styles.summaryValue, { color: palette.textPrimary }]}>
-                                    {conversations.length}
-                                </Text>
-                                <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>
-                                    active threads
-                                </Text>
-                            </View>
-                            <View style={styles.summaryItem}>
-                                <Text style={[styles.summaryValue, { color: palette.textPrimary }]}>
-                                    {unreadConversationsCount}
-                                </Text>
-                                <Text style={[styles.summaryLabel, { color: palette.textSecondary }]}>
-                                    waiting on you
-                                </Text>
-                            </View>
+                        <View style={styles.titleRow}>
+                            <Text style={[styles.title, { color: palette.textPrimary }]}>Messages</Text>
+                            {unreadTotal > 0 ? (
+                                <Text style={[styles.unreadMeta, { color: palette.primary }]}>{unreadTotal} unread</Text>
+                            ) : null}
                         </View>
 
                         <SearchField
                             value={searchQuery}
                             onChangeText={setSearchQuery}
-                            placeholder="Search people, requests, or messages"
+                            placeholder="Search conversations"
                             returnKeyType="search"
                             autoCapitalize="none"
                             autoCorrect={false}
                         />
 
-                        <View style={styles.metaRow}>
-                            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-                                Threads
-                            </Text>
-                            <Text style={[styles.sectionMeta, { color: palette.textSecondary }]}>
-                                {resultsLabel}
-                            </Text>
-                        </View>
+                        <Text style={[styles.sectionMeta, { color: palette.textSecondary }]}>{resultsLabel}</Text>
                     </View>
                 }
                 ListEmptyComponent={
                     normalizedQuery ? (
                         <View style={styles.searchEmpty}>
-                            <Text style={[styles.searchEmptyTitle, { color: palette.textPrimary }]}>
-                                No matching conversations
-                            </Text>
-                            <Text style={[styles.searchEmptyBody, { color: palette.textSecondary }]}>
-                                Try a participant name, request title, or a word from the latest message.
-                            </Text>
+                            <Text style={[styles.searchEmptyTitle, { color: palette.textPrimary }]}>No matching conversations</Text>
+                            <Text style={[styles.searchEmptyBody, { color: palette.textSecondary }]}>Try a participant name or request title.</Text>
                         </View>
                     ) : null
                 }
@@ -242,67 +160,20 @@ const styles = StyleSheet.create({
         paddingBottom: theme.spacing.xl,
     },
     headerBlock: {
-        gap: theme.spacing.md,
-        paddingBottom: theme.spacing.md,
+        gap: theme.spacing.sm,
+        paddingBottom: theme.spacing.sm,
     },
-    heroRow: {
-        gap: theme.spacing.md,
+    titleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
     },
-    heroCopy: {
-        gap: theme.spacing.xs,
-    },
-    eyebrow: {
-        ...theme.typography.textStyle.caption,
-        textTransform: "uppercase",
-        letterSpacing: 0.8,
-    },
-    heroTitle: {
+    title: {
         ...theme.typography.textStyle.title,
         fontWeight: "700",
     },
-    heroSubtitle: {
-        ...theme.typography.textStyle.bodySmall,
-        maxWidth: 520,
-        lineHeight: 21,
-    },
-    unreadCapsule: {
-        alignSelf: "flex-start",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        borderRadius: 999,
-        paddingHorizontal: theme.spacing.sm,
-        paddingVertical: 7,
-    },
-    unreadCapsuleText: {
+    unreadMeta: {
         ...theme.typography.textStyle.captionMedium,
-    },
-    summaryStrip: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        gap: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
-        borderTopWidth: 1,
-        borderBottomWidth: 1,
-    },
-    summaryItem: {
-        gap: 2,
-    },
-    summaryValue: {
-        ...theme.typography.textStyle.bodyMedium,
-        fontWeight: "700",
-    },
-    summaryLabel: {
-        ...theme.typography.textStyle.caption,
-    },
-    metaRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: theme.spacing.sm,
-    },
-    sectionTitle: {
-        ...theme.typography.textStyle.bodySmallMedium,
     },
     sectionMeta: {
         ...theme.typography.textStyle.caption,

@@ -68,6 +68,19 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                     },
                 ]}
             >
+                <Pressable
+                    style={[
+                        styles.attachmentButton,
+                        {
+                            backgroundColor: palette.surfaceMuted,
+                            borderColor: palette.border,
+                        },
+                    ]}
+                    disabled
+                >
+                    <Ionicons name="add" size={16} color={palette.textMuted} />
+                </Pressable>
+
                 <TextInput
                     style={[styles.input, { color: palette.textPrimary }]}
                     value={text}
@@ -80,7 +93,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                             onStopTyping?.();
                         }
                     }}
-                    placeholder={disabled ? "Conversation is read-only" : "Write a message"}
+                    placeholder={disabled ? "Conversation is read-only" : "Write a message..."}
                     placeholderTextColor={palette.textMuted}
                     editable={!disabled && !sending}
                     multiline
@@ -130,20 +143,29 @@ const styles = StyleSheet.create({
     },
     container: {
         flexDirection: "row",
-        alignItems: "flex-end",
+        alignItems: "center",
         borderWidth: 1,
-        borderRadius: theme.radius.lg,
-        paddingLeft: theme.spacing.md,
+        borderRadius: 999,
+        paddingLeft: theme.spacing.xs,
         paddingRight: 8,
-        paddingVertical: 8,
-        minHeight: 56,
+        paddingVertical: 6,
+        minHeight: 50,
+    },
+    attachmentButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        borderWidth: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 6,
     },
     input: {
         ...theme.typography.textStyle.body,
         flex: 1,
-        minHeight: 24,
-        maxHeight: 96,
-        paddingVertical: 6,
+        minHeight: 22,
+        maxHeight: 92,
+        paddingVertical: 5,
         paddingRight: theme.spacing.xs,
     },
     sendButton: {
