@@ -12,6 +12,7 @@ model UserModel {
   email           String  @unique
   phone           String? @unique
   role            Role    @default(USER)
+  tokenVersion    Int     @default(0)
   passwordHash    String?
   isVerified      Boolean @default(false)
   isEmailVerified Boolean @default(false)
