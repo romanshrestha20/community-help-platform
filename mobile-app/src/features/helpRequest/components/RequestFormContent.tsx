@@ -15,6 +15,9 @@ import { RequestPhotoUploadSection } from "./RequestPhotoUploadSection";
 import { RequestFormHero } from "./RequestFormHero";
 import { RequestFormSection } from "./RequestFormSection";
 import { AppCategory } from "@/features/category/types/category.types";
+import { formatUrgentDurationLabel } from "../utils/urgent";
+
+const URGENT_DURATION_OPTIONS = [30, 60, 120, 240] as const;
 
 export type RequestFormValues = Omit<CreateHelpRequestData, "location">;
 export type RequestFormLocationPickerProps = React.ComponentProps<typeof LocationPickerField>;
@@ -128,6 +131,34 @@ export const RequestFormContent = ({
                             onChangeField("budget", value ? parseFloat(value) : undefined)
                         }
                     />
+
+                    <Stack gap="xs">
+                        <View style={styles.groupHeader}>
+                            <Text style={styles.groupTitle}>Emergency request</Text>
+                            <Text style={styles.groupMeta}>Prioritized nearby</Text>
+                        </View>
+                        <View style={styles.categoryButtons}>
+                            <AppButton
+                                title={values.isUrgent ? "Urgent on" : "Mark urgent"}
+                                variant={values.isUrgent ? "danger" : "secondary"}
+                                fullWidth={false}
+                                onPress={() => onChangeField("isUrgent", !values.isUrgent)}
+                            />
+                        </View>
+                        {values.isUrgent ? (
+                            <View style={styles.categoryButtons}>
+                                {URGENT_DURATION_OPTIONS.map((minutes) => (
+                                    <AppButton
+                                        key={minutes}
+                                        title={formatUrgentDurationLabel(minutes)}
+                                        onPress={() => onChangeField("urgentDurationMinutes", minutes)}
+                                        variant={values.urgentDurationMinutes === minutes ? "danger" : "ghost"}
+                                        fullWidth={false}
+                                    />
+                                ))}
+                            </View>
+                        ) : null}
+                    </Stack>
                 </Stack>
 
             </RequestFormSection>

@@ -25,6 +25,7 @@ import {
 import { RequestStatusBadge } from "./RequestStatusBadge";
 import { AppLocation } from "@/features/location/types/location.types";
 import { getDistanceToRequest } from "@/utils/distance";
+import { getUrgentTimeRemainingLabel, isUrgentRequestActive } from "../utils/urgent";
 
 type Props = {
   request: HelpRequest;
@@ -103,6 +104,13 @@ export const RequestCard = ({
   const categoryLabel = getRequestCategoryLabel(request);
   const bidCount = request.bidCount ?? 0;
   const isUnpaid = !request.isPaid;
+  const isUrgentActive = isUrgentRequestActive(request);
+  const infoEntries = [
+    { icon: "location-outline" as const, value: location, highlight: false },
+    { icon: "time-outline" as const, value: createdAt, highlight: false },
+    { icon: "wallet-outline" as const, value: budget, highlight: true },
+    { icon: "chatbubble-ellipses-outline" as const, value: `${bidCount} bid${bidCount === 1 ? "" : "s"}`, highlight: false },
+  ];
 
   const handlePrimaryAction = (event?: GestureResponderEvent) => {
     event?.stopPropagation();
@@ -148,8 +156,9 @@ export const RequestCard = ({
           styles.card,
           {
             backgroundColor: palette.surface,
-            borderColor: "transparent",
+            borderColor: isUrgentActive ? `${palette.danger}66` : "transparent",
             shadowColor: "#142312",
+            borderWidth: isUrgentActive ? 1 : 0,
           },
         ]}
       >
@@ -164,8 +173,17 @@ export const RequestCard = ({
               </Text>
             </View>
 
-            <RequestStatusBadge status={request.status} />
+            <RequestStatusBadge status={request.status} urgent={isUrgentActive} />
           </Row>
+
+          {isUrgentActive ? (
+            <View style={[styles.urgentPill, { backgroundColor: `${palette.danger}16`, borderColor: `${palette.danger}44` }]}>
+              <Ionicons name="alert-circle" size={13} color={palette.danger} />
+              <Text style={[styles.urgentPillText, { color: palette.danger }]}>
+                Urgent · {getUrgentTimeRemainingLabel(request.urgentExpiresAt)}
+              </Text>
+            </View>
+          ) : null}
 
           <Row align="center" gap="xs" style={styles.pillRow}>
             <View
@@ -205,20 +223,45 @@ export const RequestCard = ({
           </Row>
 
           <Text
-            style={[
-              styles.budget,
-              { color: palette.primary },
-            ]}
-          >
-            {isUnpaid ? budget.toUpperCase() : budget}
-          </Text>
-
-          <Text
             numberOfLines={2}
             style={[styles.description, { color: palette.textSecondary }]}
           >
             {description}
           </Text>
+
+          <View
+            style={[
+              styles.infoSection,
+              {
+                backgroundColor: palette.surfaceMuted,
+                borderColor: palette.border,
+              },
+            ]}
+          >
+            <Text style={[styles.infoSectionTitle, { color: palette.textPrimary }]}>
+              Important info
+            </Text>
+            <View style={styles.infoGrid}>
+              {infoEntries.map((entry) => (
+                <View key={`${entry.icon}-${entry.value}`} style={styles.infoGridItem}>
+                  <Ionicons
+                    name={entry.icon}
+                    size={14}
+                    color={entry.highlight ? palette.primary : palette.textSecondary}
+                  />
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.infoGridText,
+                      { color: entry.highlight ? palette.primary : palette.textSecondary },
+                    ]}
+                  >
+                    {entry.highlight && isUnpaid ? entry.value.toUpperCase() : entry.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
 
 
 
@@ -451,6 +494,22 @@ const styles = StyleSheet.create({
   pressable: {
     width: "100%",
   },
+  urgentPill: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  urgentPillText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.bold,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
   pressed: {
     opacity: 0.98,
     transform: [{ scale: 0.97 }],
@@ -495,6 +554,35 @@ const styles = StyleSheet.create({
   description: {
     fontSize: theme.typography.fontSize.xs,
     lineHeight: 20,
+  },
+  infoSection: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    gap: 8,
+  },
+  infoSectionTitle: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.bold,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  infoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  infoGridItem: {
+    width: "48%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  infoGridText: {
+    flex: 1,
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.medium,
   },
   posterMetaWrap: {
     flex: 1,

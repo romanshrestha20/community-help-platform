@@ -60,6 +60,8 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         description: initialData?.description || "",
         categoryId: initialData ? resolveRequestCategoryId(initialData, categories) : "",
         budget: initialData?.budget,
+        isUrgent: Boolean(initialData?.isUrgent),
+        urgentDurationMinutes: 120,
         city: initialData?.city || initialData?.location?.city || "",
         country: initialData?.country || initialData?.location?.country || "",
     });

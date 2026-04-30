@@ -8,9 +8,10 @@ import { REQUEST_STATUS_LABELS } from "../utils/requestDisplay";
 
 type Props = {
   status: HelpRequestStatus;
+  urgent?: boolean;
 };
 
-export const RequestStatusBadge = ({ status }: Props) => {
+export const RequestStatusBadge = ({ status, urgent = false }: Props) => {
   const { palette } = useThemeContext();
 
   const tone = {
@@ -33,7 +34,16 @@ export const RequestStatusBadge = ({ status }: Props) => {
   }[status];
 
   return (
-    <View style={[styles.badge, { backgroundColor: tone.backgroundColor }]}>
+    <View
+      style={[
+        styles.badge,
+        {
+          backgroundColor: urgent ? `${palette.danger}18` : tone.backgroundColor,
+          borderColor: urgent ? `${palette.danger}66` : "transparent",
+          borderWidth: urgent ? 1 : 0,
+        },
+      ]}
+    >
       <Text style={[styles.text, { color: tone.textColor }]}>
         {REQUEST_STATUS_LABELS[status]}
       </Text>
