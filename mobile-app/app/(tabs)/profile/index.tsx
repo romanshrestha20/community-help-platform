@@ -61,17 +61,10 @@ const formatEnumLabel = (value?: string | null) => {
     .join(" ");
 };
 
-const formatDateLabel = (value?: string | null) => {
+const truncateEmail = (value?: string | null) => {
   if (!value) return "Not set";
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-
-  return parsed.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  if (value.length <= 26) return value;
+  return `${value.slice(0, 24)}...`;
 };
 
 export default function ProfileTabScreen() {
@@ -117,19 +110,19 @@ export default function ProfileTabScreen() {
   const completionItems = useMemo(
     () => [
       {
-        label: "Add profile photo",
+        label: "Profile photo added",
         done: Boolean(user?.avatarUrl),
       },
       {
-        label: "Verify phone number",
+        label: "Phone verified",
         done: Boolean(user?.isPhoneVerified),
       },
       {
-        label: "Add short bio",
+        label: "Bio added",
         done: Boolean(user?.bio?.trim()),
       },
       {
-        label: "Add address",
+        label: "Address added",
         done: Boolean(user?.address),
       },
     ],
@@ -162,6 +155,13 @@ export default function ProfileTabScreen() {
             ? `${user.helpCount} helped`
             : undefined,
         onPress: () => router.push("/profile/activity-history"),
+      },
+      {
+        id: "saved",
+        icon: "bookmark-outline",
+        title: "Saved requests",
+        subtitle: "Requests you bookmarked to revisit later.",
+        onPress: () => router.push(APP_ROUTES.FAVORITES),
       },
     ],
     [router, user]
@@ -198,7 +198,7 @@ export default function ProfileTabScreen() {
     () => [
       {
         label: "Email",
-        value: formatLabel(user?.email),
+        value: truncateEmail(user?.email),
         icon: "mail-outline",
       },
       {
@@ -207,24 +207,14 @@ export default function ProfileTabScreen() {
         icon: "call-outline",
       },
       {
-        label: "User type",
-        value: formatEnumLabel(user?.userType),
-        icon: "accessibility-outline",
-      },
-      {
-        label: "Gender",
-        value: formatEnumLabel(user?.gender),
-        icon: "person-outline",
-      },
-      {
-        label: "Date of birth",
-        value: formatDateLabel(user?.dateOfBirth),
-        icon: "calendar-outline",
-      },
-      {
-        label: "Address",
+        label: "Location",
         value: formatCompactAddress(user?.address, "No address added"),
         icon: "location-outline",
+      },
+      {
+        label: "Bio",
+        value: formatLabel(user?.bio),
+        icon: "document-text-outline",
       },
     ],
     [user]
@@ -303,7 +293,7 @@ export default function ProfileTabScreen() {
                   <ProfileAvatar
                     uri={user?.avatarUrl}
                     fullName={user?.fullName}
-                    size={92}
+                    size={82}
                   />
                   <View
                     style={[
@@ -332,7 +322,7 @@ export default function ProfileTabScreen() {
                 </Text>
                 <Text
                   style={[styles.heroBio, { color: `${palette.textInverse}CC` }]}
-                  numberOfLines={3}
+                  numberOfLines={2}
                 >
                   {user?.bio?.trim()
                     ? user.bio
@@ -344,7 +334,10 @@ export default function ProfileTabScreen() {
               <View style={styles.heroStatsCompact}>
                 <StatChip label="Rating" value={(user?.rating ?? 0).toFixed(1)} />
                 <StatChip label="Helps" value={String(user?.helpCount ?? 0)} />
-                <StatChip label="Complete" value={`${profileCompleteness}%`} />
+                <StatChip
+                  label="Verified"
+                  value={user?.isEmailVerified ? "Email" : "Pending"}
+                />
               </View>
 
               <AppButton
@@ -382,10 +375,10 @@ export default function ProfileTabScreen() {
                     <Text
                       style={[
                         styles.completionText,
-                        { color: item.done ? palette.textPrimary : palette.textSecondary },
+                        { color: item.done ? palette.textSecondary : palette.textPrimary },
                       ]}
                     >
-                      {item.label}
+                      {item.done ? `${item.label}` : item.label}
                     </Text>
                   </View>
                 ))}
@@ -418,7 +411,7 @@ export default function ProfileTabScreen() {
                 </View>
 
                 <Text style={[styles.actionLabel, { color: palette.warning }]}>
-                  Verify
+                  Verify now
                 </Text>
               </Pressable>
             ) : null}
@@ -438,7 +431,7 @@ export default function ProfileTabScreen() {
 
             <Section
               title="Profile details"
-              subtitle="Information other members use when contacting you."
+              subtitle="Useful contact and identity details for your profile."
               action={
                 <Pressable onPress={() => setEditModalVisible(true)}>
                   <Text style={[styles.sectionAction, { color: palette.primary }]}>
@@ -831,7 +824,7 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
     borderRadius: theme.radius.xl + 6,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.md,
     gap: theme.spacing.md,
   },
   heroGlow: {
