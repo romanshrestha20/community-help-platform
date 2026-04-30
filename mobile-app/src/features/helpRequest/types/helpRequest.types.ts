@@ -13,6 +13,8 @@ export interface HelpRequest {
 
     budget?: number;
     isPaid: boolean;
+    isUrgent?: boolean;
+    urgentExpiresAt?: string | null;
     status: HelpRequestStatus;
 
     city?: string | null;
@@ -57,6 +59,8 @@ export interface CreateHelpRequestData {
 
     budget?: number;
     isPaid?: boolean;
+    isUrgent?: boolean;
+    urgentDurationMinutes?: number;
     location: AppLocation | null;
 
     city?: string;
@@ -70,6 +74,8 @@ export interface UpdateHelpRequestData {
 
     budget?: number;
     isPaid?: boolean;
+    isUrgent?: boolean;
+    urgentDurationMinutes?: number;
     location?: AppLocation;
 
     city?: string;
