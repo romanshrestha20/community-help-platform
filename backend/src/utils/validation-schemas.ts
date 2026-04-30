@@ -8,7 +8,15 @@ const emailSchema = z
   .email("Please enter a valid email address.");
 
 const passwordSchema = (requiredMessage = "Password is required.") =>
-  z.string().trim().min(1, requiredMessage);
+  z
+    .string()
+    .trim()
+    .min(1, requiredMessage)
+    .min(12, "Password must be at least 12 characters.")
+    .regex(/[A-Z]/, "Password must include at least one uppercase letter.")
+    .regex(/[a-z]/, "Password must include at least one lowercase letter.")
+    .regex(/\d/, "Password must include at least one number.")
+    .regex(/[^A-Za-z0-9]/, "Password must include at least one special character.");
 
 const phoneSchema = z
   .string()
@@ -115,6 +123,10 @@ export const addPasswordBodySchema = z.object({
 });
 
 export const refreshTokenBodySchema = z.object({
+  refreshToken: z.string().trim().min(1, "Refresh token is required."),
+});
+
+export const logoutBodySchema = z.object({
   refreshToken: z.string().trim().min(1, "Refresh token is required."),
 });
 
