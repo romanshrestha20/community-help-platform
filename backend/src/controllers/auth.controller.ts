@@ -393,11 +393,15 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     // Find user by email for password check
     const user = await prisma.userModel.findUnique({ where: { email } });
     if (!user) {
-      await recordFailedLoginAttempt({
-        email,
-        ipAddress,
-        userAgent,
-      });
+      try {
+        await recordFailedLoginAttempt({
+          email,
+          ipAddress,
+          userAgent,
+        });
+      } catch (monitoringError) {
+        console.error("Failed to record failed login attempt:", monitoringError);
+      }
 
       const deletedAccount = await prisma.deletedAccount.findUnique({
         where: { email },
@@ -421,12 +425,16 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) {
-      await recordFailedLoginAttempt({
-        email,
-        ipAddress,
-        userAgent,
-        userId: user.id,
-      });
+      try {
+        await recordFailedLoginAttempt({
+          email,
+          ipAddress,
+          userAgent,
+          userId: user.id,
+        });
+      } catch (monitoringError) {
+        console.error("Failed to record failed login attempt:", monitoringError);
+      }
       return next(new AppError("Invalid email or password", 401));
     }
 
@@ -443,12 +451,16 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       userAgent,
       invalidateAllExisting: false,
     });
-    await recordSuccessfulLogin({
-      userId: user.id,
-      email,
-      ipAddress,
-      userAgent,
-    });
+    try {
+      await recordSuccessfulLogin({
+        userId: user.id,
+        email,
+        ipAddress,
+        userAgent,
+      });
+    } catch (monitoringError) {
+      console.error("Failed to record successful login event:", monitoringError);
+    }
 
     return sendResponse(res, {
       statusCode: 200,

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hashToken } from "../../utils/token.js";
+import AppError from "../../utils/appError.js";
 import { makeNext, makeReq, makeRes } from "./test-utils.js";
 
 const {
@@ -11,6 +12,9 @@ const {
     smsServiceMock,
     rateLimitServiceMock,
     googleServiceMock,
+    sessionServiceMock,
+    securityMonitoringServiceMock,
+    passwordPolicyServiceMock,
 } = vi.hoisted(() => ({
     prismaMock: {
         userModel: {
@@ -22,6 +26,7 @@ const {
         oAuthAccount: {
             findUnique: vi.fn(),
             create: vi.fn(),
+            upsert: vi.fn(),
         },
         profile: {
             create: vi.fn(),
@@ -43,6 +48,7 @@ const {
         deletedAccount: {
             findUnique: vi.fn(),
             delete: vi.fn(),
+            deleteMany: vi.fn(),
         },
         refreshToken: {
             create: vi.fn(),
@@ -85,6 +91,21 @@ const {
     googleServiceMock: {
         isGoogleSignInConfigured: vi.fn(),
         verifyGoogleIdToken: vi.fn(),
+    },
+    sessionServiceMock: {
+        issueSessionTokens: vi.fn(),
+        rotateRefreshToken: vi.fn(),
+        revokeSessionByRefreshToken: vi.fn(),
+        revokeAllSessionsForUser: vi.fn(),
+        listUserSessions: vi.fn(),
+    },
+    securityMonitoringServiceMock: {
+        assertLoginAllowed: vi.fn(),
+        recordFailedLoginAttempt: vi.fn(),
+        recordSuccessfulLogin: vi.fn(),
+    },
+    passwordPolicyServiceMock: {
+        assertStrongPassword: vi.fn(),
     },
 }));
 
@@ -131,6 +152,24 @@ vi.mock("../../services/google.service.js", () => ({
     verifyGoogleIdToken: googleServiceMock.verifyGoogleIdToken,
 }));
 
+vi.mock("../../services/session.service.js", () => ({
+    issueSessionTokens: sessionServiceMock.issueSessionTokens,
+    rotateRefreshToken: sessionServiceMock.rotateRefreshToken,
+    revokeSessionByRefreshToken: sessionServiceMock.revokeSessionByRefreshToken,
+    revokeAllSessionsForUser: sessionServiceMock.revokeAllSessionsForUser,
+    listUserSessions: sessionServiceMock.listUserSessions,
+}));
+
+vi.mock("../../services/security-monitoring.service.js", () => ({
+    assertLoginAllowed: securityMonitoringServiceMock.assertLoginAllowed,
+    recordFailedLoginAttempt: securityMonitoringServiceMock.recordFailedLoginAttempt,
+    recordSuccessfulLogin: securityMonitoringServiceMock.recordSuccessfulLogin,
+}));
+
+vi.mock("../../services/password-policy.service.js", () => ({
+    assertStrongPassword: passwordPolicyServiceMock.assertStrongPassword,
+}));
+
 import {
     changePassword,
     forgotPassword,
@@ -151,6 +190,14 @@ describe("auth.controller", () => {
         vi.clearAllMocks();
         smsServiceMock.isTwilioVerifyMode.mockReturnValue(false);
         googleServiceMock.isGoogleSignInConfigured.mockReturnValue(true);
+        sessionServiceMock.issueSessionTokens.mockResolvedValue({
+            accessToken: "access-token",
+            refreshToken: "refresh-token",
+        });
+        securityMonitoringServiceMock.assertLoginAllowed.mockResolvedValue(undefined);
+        securityMonitoringServiceMock.recordFailedLoginAttempt.mockResolvedValue(undefined);
+        securityMonitoringServiceMock.recordSuccessfulLogin.mockResolvedValue(undefined);
+        passwordPolicyServiceMock.assertStrongPassword.mockResolvedValue(undefined);
     });
 
     it("registerUser: rejects missing required fields", async () => {
@@ -167,7 +214,17 @@ describe("auth.controller", () => {
 
     it("registerUser: creates user and returns tokens", async () => {
         prismaMock.userModel.findFirst.mockResolvedValue(null);
-        prismaMock.userModel.findUnique.mockResolvedValue(null);
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "user-1",
+            email: "user@example.com",
+            phone: "+19800000000",
+            isVerified: false,
+            isEmailVerified: false,
+            isPhoneVerified: false,
+            createdAt: new Date("2026-04-15T00:00:00.000Z"),
+            updatedAt: new Date("2026-04-15T00:00:00.000Z"),
+            profile: null,
+        });
         bcryptMock.hash.mockResolvedValue("hashed");
         prismaMock.userModel.create.mockResolvedValue({ id: "user-1", email: "user@example.com" });
         jwtMock.accessToken.mockReturnValue("access-token");
@@ -180,7 +237,7 @@ describe("auth.controller", () => {
         const req = makeReq({
             body: {
                 email: "user@example.com",
-                password: "secret123",
+                password: "StrongPass123!",
                 phone: "9800000000",
                 fullName: "Roman",
                 gender: "MALE",
@@ -194,9 +251,10 @@ describe("auth.controller", () => {
         await registerUser(req, res, next);
 
         expect(prismaMock.userModel.create).toHaveBeenCalledTimes(1);
-        expect(prismaMock.refreshToken.create).toHaveBeenCalledWith(
+        expect(sessionServiceMock.issueSessionTokens).toHaveBeenCalledWith(
             expect.objectContaining({
-                data: expect.objectContaining({ userId: "user-1", token: "refresh-token" }),
+                userId: "user-1",
+                invalidateAllExisting: true,
             }),
         );
         expect(authTokenServiceMock.createEmailVerificationToken).toHaveBeenCalledWith("user-1");
@@ -205,7 +263,10 @@ describe("auth.controller", () => {
         );
         expect(res.status).toHaveBeenCalledWith(201);
         expect(res.json).toHaveBeenCalledWith(
-            expect.objectContaining({ success: true, accessToken: "access-token", refreshToken: "refresh-token" }),
+            expect.objectContaining({
+                success: true,
+                data: expect.objectContaining({ accessToken: "access-token", refreshToken: "refresh-token" }),
+            }),
         );
         expect(next).not.toHaveBeenCalled();
     });
@@ -214,7 +275,7 @@ describe("auth.controller", () => {
         prismaMock.userModel.findUnique.mockResolvedValueOnce({ id: "user-1", passwordHash: "hashed" });
         bcryptMock.compare.mockResolvedValue(false);
 
-        const req = makeReq({ body: { email: "user@example.com", password: "bad" } });
+        const req = makeReq({ body: { email: "user@example.com", password: "ValidPass123!" } });
         const res = makeRes();
         const next = makeNext();
 
@@ -232,7 +293,7 @@ describe("auth.controller", () => {
             email: "user@example.com",
         });
 
-        const req = makeReq({ body: { email: "user@example.com", password: "secret" } });
+        const req = makeReq({ body: { email: "user@example.com", password: "ValidPass123!" } });
         const res = makeRes();
         const next = makeNext();
 
@@ -291,9 +352,8 @@ describe("auth.controller", () => {
                 },
             });
         prismaMock.userModel.create.mockResolvedValueOnce({ id: "user-1" });
-        prismaMock.deletedAccount.delete.mockResolvedValueOnce({ id: "deleted-1" });
-        jwtMock.accessToken.mockReturnValue("access-token");
-        jwtMock.signRefreshToken.mockReturnValue("refresh-token");
+        prismaMock.deletedAccount.deleteMany.mockResolvedValueOnce({ count: 1 });
+        prismaMock.oAuthAccount.upsert.mockResolvedValueOnce({ userId: "user-1" });
 
         const req = makeReq({ body: { idToken: "google-id-token" } });
         const res = makeRes();
@@ -309,9 +369,7 @@ describe("auth.controller", () => {
                 }),
             }),
         );
-        expect(prismaMock.deletedAccount.delete).toHaveBeenCalledWith({
-            where: { email: "user@example.com" },
-        });
+        expect(prismaMock.deletedAccount.deleteMany).toHaveBeenCalledWith({ where: { email: "user@example.com" } });
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -387,8 +445,9 @@ describe("auth.controller", () => {
 
     it("refreshAccessToken: rejects expired session", async () => {
         const expired = new Date(Date.now() - 1000);
-        jwtMock.verifyRefreshToken.mockReturnValue({ userId: "user-1" });
-        prismaMock.refreshToken.findUnique.mockResolvedValue({ token: "old-refresh", expiresAt: expired });
+        sessionServiceMock.rotateRefreshToken.mockRejectedValue(
+            new AppError("Session expired. Please login again.", 401),
+        );
 
         const req = makeReq({ body: { refreshToken: "old-refresh" } });
         const res = makeRes();
@@ -396,7 +455,6 @@ describe("auth.controller", () => {
 
         await refreshAccessToken(req, res, next);
 
-        expect(prismaMock.refreshToken.delete).toHaveBeenCalledWith({ where: { token: "old-refresh" } });
         expect(next).toHaveBeenCalledWith(
             expect.objectContaining({ message: "Session expired. Please login again.", statusCode: 401 }),
         );
@@ -406,7 +464,7 @@ describe("auth.controller", () => {
         authTokenServiceMock.findActivePasswordResetTokenByRawToken.mockResolvedValue(null);
 
         const req = makeReq({
-            body: { token: "bad-token", newPassword: "new-pass-123" },
+            body: { token: "bad-token", newPassword: "NewPassword123!" },
             ip: "10.0.0.3",
         });
         const res = makeRes();
@@ -428,7 +486,7 @@ describe("auth.controller", () => {
         prismaMock.$transaction.mockResolvedValue([]);
 
         const req = makeReq({
-            body: { token: "good-token", newPassword: "new-pass-123" },
+            body: { token: "good-token", newPassword: "NewPassword123!" },
             ip: "10.0.0.4",
         });
         const res = makeRes();
@@ -756,7 +814,7 @@ describe("auth.controller", () => {
 
         const req = makeReq({
             user: { userId: "user-1" },
-            body: { currentPassword: "old-pass", newPassword: "new-pass-123" },
+            body: { currentPassword: "OldPassword123!", newPassword: "NewPassword123!" },
         });
         const res = makeRes();
         const next = makeNext();
