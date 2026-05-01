@@ -30,6 +30,12 @@ const buildClient = () => {
   return createClient({
     url: redisUrl,
     socket: {
+      ...(parsedUrl.protocol === "rediss:"
+        ? {
+            tls: true as const,
+            servername: parsedUrl.hostname,
+          }
+        : {}),
       reconnectStrategy: (retries) => {
         // Stop retrying after a short burst to avoid log spam.
         if (retries > 5) return false;
@@ -65,4 +71,18 @@ export const getRedisClient = async () => {
   }
 
   return redisClient;
+};
+
+export const assertRedisReady = async () => {
+  const client = await getRedisClient();
+
+  if (!client) {
+    if (isProduction) {
+      throw new Error("Redis client is unavailable in production.");
+    }
+    return null;
+  }
+
+  await client.ping();
+  return client;
 };

@@ -4,6 +4,7 @@ import { getRedisClient } from "../lib/redis.js";
 import { SecurityEventType } from "../../generated/prisma/client.js";
 
 const normalize = (value: string) => value.trim().toLowerCase();
+const isFailClosed = process.env.AUTH_FAIL_CLOSED === "true";
 
 const LOGIN_FAIL_WINDOW_SECONDS = 15 * 60;
 const LOGIN_FAIL_LOCK_THRESHOLDS = [
@@ -38,7 +39,11 @@ export const assertLoginAllowed = async ({
   try {
     const redis = await getRedisClient();
     if (!redis) {
-      throw new AppError("Security controls unavailable.", 503);
+      if (isFailClosed) {
+        throw new AppError("Security controls unavailable.", 503);
+      }
+      console.warn("Security controls unavailable: Redis not connected, allowing login (fail-open mode).");
+      return;
     }
 
     const [ipLocked, emailLocked] = await Promise.all([
@@ -53,7 +58,10 @@ export const assertLoginAllowed = async ({
     if (error instanceof AppError) {
       throw error;
     }
-    throw new AppError("Security controls unavailable.", 503);
+    if (isFailClosed) {
+      throw new AppError("Security controls unavailable.", 503);
+    }
+    console.warn("Security controls unavailable: Redis check failed, allowing login (fail-open mode).", error);
   }
 };
 
@@ -71,7 +79,11 @@ export const recordFailedLoginAttempt = async ({
   try {
     const redis = await getRedisClient();
     if (!redis) {
-      throw new AppError("Security controls unavailable.", 503);
+      if (isFailClosed) {
+        throw new AppError("Security controls unavailable.", 503);
+      }
+      console.warn("Security controls unavailable: Redis not connected, skipping failed-login tracking.");
+      return;
     }
 
     const ipFailKey = getIpFailKey(ipAddress);
@@ -98,6 +110,33 @@ export const recordFailedLoginAttempt = async ({
         redis.set(getEmailLockKey(email), "1", { EX: lockDurationSeconds }),
       ]);
     }
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    if (isFailClosed) {
+      throw new AppError("Security controls unavailable.", 503);
+    }
+    console.warn("Security controls unavailable: failed-login tracking skipped.", error);
+    return;
+  }
+
+  try {
+    const redis = await getRedisClient();
+    if (!redis) {
+      return;
+    }
+
+    const [ipAttemptsRaw, emailAttemptsRaw, ipLockTtl, emailLockTtl] = await Promise.all([
+      redis.get(getIpFailKey(ipAddress)),
+      redis.get(getEmailFailKey(email)),
+      redis.ttl(getIpLockKey(ipAddress)),
+      redis.ttl(getEmailLockKey(email)),
+    ]);
+
+    const ipAttempts = Number(ipAttemptsRaw ?? 0);
+    const emailAttempts = Number(emailAttemptsRaw ?? 0);
+    const lockDurationSeconds = Math.max(ipLockTtl, emailLockTtl, 0);
 
     await prisma.securityEvent.create({
       data: {
@@ -114,10 +153,7 @@ export const recordFailedLoginAttempt = async ({
       },
     });
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error;
-    }
-    throw new AppError("Security controls unavailable.", 503);
+    console.error("Failed to persist failed login security event:", error);
   }
 };
 
@@ -132,10 +168,16 @@ export const recordSuccessfulLogin = async ({
   ipAddress: string;
   userAgent?: string;
 }) => {
+  let previousIp: string | null = null;
+
   try {
     const redis = await getRedisClient();
     if (!redis) {
-      throw new AppError("Security controls unavailable.", 503);
+      if (isFailClosed) {
+        throw new AppError("Security controls unavailable.", 503);
+      }
+      console.warn("Security controls unavailable: Redis not connected, skipping successful-login tracking.");
+      return;
     }
 
     await Promise.all([
@@ -146,9 +188,20 @@ export const recordSuccessfulLogin = async ({
     ]);
 
     const lastLoginIpKey = getLastLoginIpKey(userId);
-    const previousIp = await redis.get(lastLoginIpKey);
+    previousIp = await redis.get(lastLoginIpKey);
     await redis.set(lastLoginIpKey, ipAddress, { EX: 60 * 60 * 24 * 30 });
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    if (isFailClosed) {
+      throw new AppError("Security controls unavailable.", 503);
+    }
+    console.warn("Security controls unavailable: successful-login tracking skipped.", error);
+    return;
+  }
 
+  try {
     if (previousIp && previousIp !== ipAddress) {
       await prisma.securityEvent.create({
         data: {
@@ -177,9 +230,6 @@ export const recordSuccessfulLogin = async ({
       },
     });
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error;
-    }
-    throw new AppError("Security controls unavailable.", 503);
+    console.error("Failed to persist successful login security event:", error);
   }
 };
