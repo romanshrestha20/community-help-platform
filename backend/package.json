@@ -12,6 +12,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "prisma:generate": "prisma generate",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:migrate:deploy:retry": "node scripts/prisma-migrate-deploy-retry.mjs"
   },

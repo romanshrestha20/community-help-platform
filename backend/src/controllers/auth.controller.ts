@@ -304,6 +304,9 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     });
   } catch (error) {
     console.error("Error in registerUser:", error);
+    if (error instanceof AppError) {
+      return next(error);
+    }
     const prismaCode = (error as { code?: string })?.code;
 
     if (prismaCode === "P2002") {
@@ -1284,17 +1287,24 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
         }
 
         if (!existingUser.profile) {
-          await prisma.profile.create({
-            data: {
+          await prisma.profile.upsert({
+            where: { userId },
+            update: {},
+            create: {
               userId,
               fullName: googlePayload.name?.trim() || "Google User",
               avatarUrl: googlePayload.picture || null,
             },
           });
         } else if (googlePayload.picture) {
-          await prisma.profile.update({
+          await prisma.profile.upsert({
             where: { userId },
-            data: {
+            update: {
+              avatarUrl: googlePayload.picture,
+            },
+            create: {
+              userId,
+              fullName: googlePayload.name?.trim() || "Google User",
               avatarUrl: googlePayload.picture,
             },
           });
@@ -1334,7 +1344,7 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
     }
 
     if (deletedAccount) {
-      await prisma.deletedAccount.delete({
+      await prisma.deletedAccount.deleteMany({
         where: { email: googlePayload.email },
       });
     }
@@ -1375,8 +1385,23 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
     if (error instanceof AppError) {
       return next(error);
     }
-    if ((error as { code?: string }).code === "P2002") {
+    const prismaCode = (error as { code?: string })?.code;
+    if (prismaCode === "P2002") {
       return next(new AppError("Google account link conflict. Please try signing in again.", 409));
+    }
+    if (prismaCode === "P2025") {
+      return next(new AppError("Google sign-in data changed during authentication. Please try again.", 409));
+    }
+    if (prismaCode === "P2021") {
+      return next(
+        new AppError(
+          "Authentication database is out of date (missing OAuth tables). Apply latest migrations and retry.",
+          503
+        )
+      );
+    }
+    if (prismaCode === "P1001" || prismaCode === "P1002") {
+      return next(new AppError("Authentication service is temporarily unavailable. Please try again.", 503));
     }
     console.error("Error in loginWithGoogle:", error);
     next(new AppError("Failed to authenticate with Google", 500));
