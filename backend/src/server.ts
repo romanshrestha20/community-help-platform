@@ -5,6 +5,7 @@ import { initSocketServer } from "./lib/socket.js";
 import { registerSocketHandlers } from "./sockets/registerSocketHandlers.js";
 import { getEmailServiceStatus } from "./services/email.service.js";
 import { getSmsServiceStatus } from "./services/sms.service.js";
+import { assertRedisReady } from "./lib/redis.js";
 
 
 
@@ -12,8 +13,11 @@ import { getSmsServiceStatus } from "./services/sms.service.js";
   try {
     await prisma.$connect();
     console.log('Connected to the database successfully!');
+
+    await assertRedisReady();
+    console.log("Connected to Redis successfully!");
   } catch (error) {
-    console.error('Error connecting to the database:', error);
+    console.error("Startup dependency check failed:", error);
     process.exit(1);
 
   }
