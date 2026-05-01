@@ -1400,6 +1400,14 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
         )
       );
     }
+    if (prismaCode === "P2011") {
+      return next(
+        new AppError(
+          "Authentication database is out of date (legacy refresh_tokens constraints detected). Apply latest migrations and retry.",
+          503
+        )
+      );
+    }
     if (prismaCode === "P1001" || prismaCode === "P1002") {
       return next(new AppError("Authentication service is temporarily unavailable. Please try again.", 503));
     }
