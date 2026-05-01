@@ -35,18 +35,25 @@ export const assertLoginAllowed = async ({
   email: string;
   ipAddress: string;
 }) => {
-  const redis = await getRedisClient();
-  if (!redis) {
+  try {
+    const redis = await getRedisClient();
+    if (!redis) {
+      throw new AppError("Security controls unavailable.", 503);
+    }
+
+    const [ipLocked, emailLocked] = await Promise.all([
+      redis.ttl(getIpLockKey(ipAddress)),
+      redis.ttl(getEmailLockKey(email)),
+    ]);
+
+    if (ipLocked > 0 || emailLocked > 0) {
+      throw new AppError("Too many login attempts. Please try again later.", 429);
+    }
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
     throw new AppError("Security controls unavailable.", 503);
-  }
-
-  const [ipLocked, emailLocked] = await Promise.all([
-    redis.ttl(getIpLockKey(ipAddress)),
-    redis.ttl(getEmailLockKey(email)),
-  ]);
-
-  if (ipLocked > 0 || emailLocked > 0) {
-    throw new AppError("Too many login attempts. Please try again later.", 429);
   }
 };
 
@@ -61,50 +68,57 @@ export const recordFailedLoginAttempt = async ({
   userAgent?: string;
   userId?: string;
 }) => {
-  const redis = await getRedisClient();
-  if (!redis) {
+  try {
+    const redis = await getRedisClient();
+    if (!redis) {
+      throw new AppError("Security controls unavailable.", 503);
+    }
+
+    const ipFailKey = getIpFailKey(ipAddress);
+    const emailFailKey = getEmailFailKey(email);
+
+    const [ipAttempts, emailAttempts] = await Promise.all([
+      redis.incr(ipFailKey),
+      redis.incr(emailFailKey),
+    ]);
+
+    await Promise.all([
+      redis.expire(ipFailKey, LOGIN_FAIL_WINDOW_SECONDS),
+      redis.expire(emailFailKey, LOGIN_FAIL_WINDOW_SECONDS),
+    ]);
+
+    const lockDurationSeconds = Math.max(
+      resolveLockDurationSeconds(ipAttempts),
+      resolveLockDurationSeconds(emailAttempts)
+    );
+
+    if (lockDurationSeconds > 0) {
+      await Promise.all([
+        redis.set(getIpLockKey(ipAddress), "1", { EX: lockDurationSeconds }),
+        redis.set(getEmailLockKey(email), "1", { EX: lockDurationSeconds }),
+      ]);
+    }
+
+    await prisma.securityEvent.create({
+      data: {
+        userId: userId ?? null,
+        type: lockDurationSeconds > 0 ? SecurityEventType.LOGIN_LOCKOUT : SecurityEventType.LOGIN_FAILURE,
+        ipAddress,
+        userAgent: userAgent ?? null,
+        metadata: {
+          email: normalize(email),
+          ipAttempts,
+          emailAttempts,
+          lockDurationSeconds,
+        },
+      },
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
     throw new AppError("Security controls unavailable.", 503);
   }
-
-  const ipFailKey = getIpFailKey(ipAddress);
-  const emailFailKey = getEmailFailKey(email);
-
-  const [ipAttempts, emailAttempts] = await Promise.all([
-    redis.incr(ipFailKey),
-    redis.incr(emailFailKey),
-  ]);
-
-  await Promise.all([
-    redis.expire(ipFailKey, LOGIN_FAIL_WINDOW_SECONDS),
-    redis.expire(emailFailKey, LOGIN_FAIL_WINDOW_SECONDS),
-  ]);
-
-  const lockDurationSeconds = Math.max(
-    resolveLockDurationSeconds(ipAttempts),
-    resolveLockDurationSeconds(emailAttempts)
-  );
-
-  if (lockDurationSeconds > 0) {
-    await Promise.all([
-      redis.set(getIpLockKey(ipAddress), "1", { EX: lockDurationSeconds }),
-      redis.set(getEmailLockKey(email), "1", { EX: lockDurationSeconds }),
-    ]);
-  }
-
-  await prisma.securityEvent.create({
-    data: {
-      userId: userId ?? null,
-      type: lockDurationSeconds > 0 ? SecurityEventType.LOGIN_LOCKOUT : SecurityEventType.LOGIN_FAILURE,
-      ipAddress,
-      userAgent: userAgent ?? null,
-      metadata: {
-        email: normalize(email),
-        ipAttempts,
-        emailAttempts,
-        lockDurationSeconds,
-      },
-    },
-  });
 };
 
 export const recordSuccessfulLogin = async ({
@@ -118,8 +132,12 @@ export const recordSuccessfulLogin = async ({
   ipAddress: string;
   userAgent?: string;
 }) => {
-  const redis = await getRedisClient();
-  if (redis) {
+  try {
+    const redis = await getRedisClient();
+    if (!redis) {
+      throw new AppError("Security controls unavailable.", 503);
+    }
+
     await Promise.all([
       redis.del(getIpFailKey(ipAddress)),
       redis.del(getEmailFailKey(email)),
@@ -146,17 +164,22 @@ export const recordSuccessfulLogin = async ({
         },
       });
     }
-  }
 
-  await prisma.securityEvent.create({
-    data: {
-      userId,
-      type: SecurityEventType.LOGIN_SUCCESS,
-      ipAddress,
-      userAgent: userAgent ?? null,
-      metadata: {
-        email: normalize(email),
+    await prisma.securityEvent.create({
+      data: {
+        userId,
+        type: SecurityEventType.LOGIN_SUCCESS,
+        ipAddress,
+        userAgent: userAgent ?? null,
+        metadata: {
+          email: normalize(email),
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError("Security controls unavailable.", 503);
+  }
 };

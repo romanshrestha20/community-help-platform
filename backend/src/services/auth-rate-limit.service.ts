@@ -26,19 +26,26 @@ export const assertRateLimit = async ({
     return;
   }
 
-  const redis = await getRedisClient();
-  if (!redis) {
+  try {
+    const redis = await getRedisClient();
+    if (!redis) {
+      throw new AppError("Rate limiter is unavailable.", 503);
+    }
+
+    const cacheKey = getRateLimitCacheKey(bucket, normalizedKey);
+    const count = await redis.incr(cacheKey);
+    if (count === 1) {
+      await redis.pexpire(cacheKey, windowMs);
+    }
+
+    if (count > limit) {
+      throw new AppError(message, 429);
+    }
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
     throw new AppError("Rate limiter is unavailable.", 503);
-  }
-
-  const cacheKey = getRateLimitCacheKey(bucket, normalizedKey);
-  const count = await redis.incr(cacheKey);
-  if (count === 1) {
-    await redis.pexpire(cacheKey, windowMs);
-  }
-
-  if (count > limit) {
-    throw new AppError(message, 429);
   }
 };
 
