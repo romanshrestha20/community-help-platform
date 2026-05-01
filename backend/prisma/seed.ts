@@ -1200,7 +1200,22 @@ const requestSeedData = [
   },
 ] as const;
 
-const upsertCategories = async () => {
+type CategoryRef = { id: string; slug: string; name: string };
+type SkillRef = { id: string; slug: string };
+type UserRef = { id: string; email: string };
+
+const toLocationData = (location: (typeof users)[number]["profile"]["address"]) => ({
+  latitude: location.latitude,
+  longitude: location.longitude,
+  addressLine1: location.addressLine1,
+  city: location.city,
+  state: location.state,
+  postalCode: location.postalCode,
+  country: location.country,
+  formattedAddress: location.formattedAddress,
+});
+
+const upsertCategories = async (): Promise<Map<string, CategoryRef>> => {
   for (const category of categorySeedData) {
     await prisma.category.upsert({
       where: { slug: category.slug },
@@ -1225,48 +1240,41 @@ const upsertCategories = async () => {
   }
 
   const categories = await prisma.category.findMany({
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-    },
+    select: { id: true, slug: true, name: true },
   });
 
   return new Map(categories.map((category) => [category.slug, category]));
 };
 
-const upsertSkills = async (
-  categoryMap: Map<string, { id: string; slug: string; name: string }>
-) => {
+const upsertSkills = async (categoryMap: Map<string, CategoryRef>): Promise<Map<string, SkillRef>> => {
   for (const skill of skillSeedData) {
+    const categoryId = skill.categorySlug ? (categoryMap.get(skill.categorySlug)?.id ?? null) : null;
+
     await prisma.skill.upsert({
       where: { slug: skill.slug },
       update: {
         name: skill.name,
         isActive: true,
-        categoryId: skill.categorySlug ? categoryMap.get(skill.categorySlug)?.id ?? null : null,
+        categoryId,
       },
       create: {
         name: skill.name,
         slug: skill.slug,
         isActive: true,
-        categoryId: skill.categorySlug ? categoryMap.get(skill.categorySlug)?.id ?? null : null,
+        categoryId,
       },
     });
   }
 
   const skills = await prisma.skill.findMany({
-    select: {
-      id: true,
-      slug: true,
-    },
+    select: { id: true, slug: true },
   });
 
   return new Map(skills.map((skill) => [skill.slug, skill]));
 };
 
-const upsertUsersAndProfiles = async (passwordHash: string) => {
-  const createdUsers: Record<string, { id: string; email: string }> = {};
+const upsertUsersAndProfiles = async (passwordHash: string): Promise<Record<string, UserRef>> => {
+  const createdUsers: Record<string, UserRef> = {};
 
   for (const userData of users) {
     const user = await prisma.userModel.upsert({
@@ -1284,48 +1292,27 @@ const upsertUsersAndProfiles = async (passwordHash: string) => {
       },
     });
 
-    createdUsers[userData.email] = {
-      id: user.id,
-      email: user.email,
-    };
+    createdUsers[userData.email] = { id: user.id, email: user.email };
 
     const existingProfile = await prisma.profile.findUnique({
       where: { userId: user.id },
-      include: { address: true },
+      select: { id: true, addressId: true },
     });
 
-    let addressId = existingProfile?.addressId ?? null;
-
-    if (existingProfile?.addressId) {
-      await prisma.location.update({
-        where: { id: existingProfile.addressId },
-        data: {
-          latitude: userData.profile.address.latitude,
-          longitude: userData.profile.address.longitude,
-          addressLine1: userData.profile.address.addressLine1,
-          city: userData.profile.address.city,
-          state: userData.profile.address.state,
-          postalCode: userData.profile.address.postalCode,
-          country: userData.profile.address.country,
-          formattedAddress: userData.profile.address.formattedAddress,
-        },
-      });
-    } else {
-      const address = await prisma.location.create({
-        data: {
-          latitude: userData.profile.address.latitude,
-          longitude: userData.profile.address.longitude,
-          addressLine1: userData.profile.address.addressLine1,
-          city: userData.profile.address.city,
-          state: userData.profile.address.state,
-          postalCode: userData.profile.address.postalCode,
-          country: userData.profile.address.country,
-          formattedAddress: userData.profile.address.formattedAddress,
-        },
-      });
-
-      addressId = address.id;
-    }
+    const addressId = existingProfile?.addressId
+      ? (
+          await prisma.location.update({
+            where: { id: existingProfile.addressId },
+            data: toLocationData(userData.profile.address),
+            select: { id: true },
+          })
+        ).id
+      : (
+          await prisma.location.create({
+            data: toLocationData(userData.profile.address),
+            select: { id: true },
+          })
+        ).id;
 
     await prisma.profile.upsert({
       where: { userId: user.id },
@@ -1357,155 +1344,95 @@ const upsertUsersAndProfiles = async (passwordHash: string) => {
 };
 
 const upsertHelpRequests = async (
-  createdUsers: Record<string, { id: string; email: string }>,
-  categoryMap: Map<string, { id: string; slug: string; name: string }>
+  createdUsers: Record<string, UserRef>,
+  categoryMap: Map<string, CategoryRef>
 ) => {
-  const helpRequests = [];
+  const helpRequests: Array<{ id: string; title: string }> = [];
 
   for (const requestData of requestSeedData) {
     const requester = createdUsers[requestData.requesterEmail];
-
     if (!requester) {
       throw new Error(`Requester not found for email: ${requestData.requesterEmail}`);
     }
 
     const category = categoryMap.get(requestData.categorySlug);
-
     if (!category) {
       throw new Error(`Category not found for slug: ${requestData.categorySlug}`);
     }
 
     const existingRequest = await prisma.helpRequest.findFirst({
-      where: {
-        requesterId: requester.id,
-        title: requestData.title,
-      },
-      include: {
-        location: true,
-        category: true,
-      },
+      where: { requesterId: requester.id, title: requestData.title },
+      select: { id: true, locationId: true },
     });
 
+    const requestLocation = toLocationData(requestData.location);
+
     if (existingRequest) {
-      if (existingRequest.locationId && existingRequest.location) {
-        await prisma.location.update({
-          where: { id: existingRequest.locationId },
-          data: {
-            latitude: requestData.location.latitude,
-            longitude: requestData.location.longitude,
-            addressLine1: requestData.location.addressLine1,
-            city: requestData.location.city,
-            state: requestData.location.state,
-            postalCode: requestData.location.postalCode,
-            country: requestData.location.country,
-            formattedAddress: requestData.location.formattedAddress,
-          },
-        });
+      const locationId = existingRequest.locationId
+        ? (
+            await prisma.location.update({
+              where: { id: existingRequest.locationId },
+              data: requestLocation,
+              select: { id: true },
+            })
+          ).id
+        : (
+            await prisma.location.create({
+              data: requestLocation,
+              select: { id: true },
+            })
+          ).id;
 
-        const updatedRequest = await prisma.helpRequest.update({
-          where: { id: existingRequest.id },
-          data: {
-            description: requestData.description,
-            category: {
-              connect: { id: category.id },
-            },
-            budget: requestData.budget,
-            isPaid: requestData.isPaid,
-            status: requestData.status,
-            serviceRadiusMeters: requestData.serviceRadiusMeters,
-          },
-          include: {
-            location: true,
-            category: true,
-          },
-        });
-
-        helpRequests.push(updatedRequest);
-      } else {
-        const newLocation = await prisma.location.create({
-          data: {
-            latitude: requestData.location.latitude,
-            longitude: requestData.location.longitude,
-            addressLine1: requestData.location.addressLine1,
-            city: requestData.location.city,
-            state: requestData.location.state,
-            postalCode: requestData.location.postalCode,
-            country: requestData.location.country,
-            formattedAddress: requestData.location.formattedAddress,
-          },
-        });
-
-        const updatedRequest = await prisma.helpRequest.update({
-          where: { id: existingRequest.id },
-          data: {
-            description: requestData.description,
-            category: {
-              connect: { id: category.id },
-            },
-            budget: requestData.budget,
-            isPaid: requestData.isPaid,
-            status: requestData.status,
-            serviceRadiusMeters: requestData.serviceRadiusMeters,
-            location: {
-              connect: { id: newLocation.id },
-            },
-          },
-          include: {
-            location: true,
-            category: true,
-          },
-        });
-
-        helpRequests.push(updatedRequest);
-      }
-    } else {
-      const createdRequest = await prisma.helpRequest.create({
+      const updated = await prisma.helpRequest.update({
+        where: { id: existingRequest.id },
         data: {
-          requester: {
-            connect: { id: requester.id },
-          },
-          title: requestData.title,
           description: requestData.description,
-          category: {
-            connect: { id: category.id },
-          },
+          categoryId: category.id,
           budget: requestData.budget,
           isPaid: requestData.isPaid,
           status: requestData.status,
           serviceRadiusMeters: requestData.serviceRadiusMeters,
-          location: {
-            create: {
-              latitude: requestData.location.latitude,
-              longitude: requestData.location.longitude,
-              addressLine1: requestData.location.addressLine1,
-              city: requestData.location.city,
-              state: requestData.location.state,
-              postalCode: requestData.location.postalCode,
-              country: requestData.location.country,
-              formattedAddress: requestData.location.formattedAddress,
-            },
-          },
+          locationId,
         },
-        include: {
-          location: true,
-          category: true,
-        },
+        select: { id: true, title: true },
       });
 
-      helpRequests.push(createdRequest);
+      helpRequests.push(updated);
+      continue;
     }
+
+    const createdLocation = await prisma.location.create({
+      data: requestLocation,
+      select: { id: true },
+    });
+
+    const created = await prisma.helpRequest.create({
+      data: {
+        requesterId: requester.id,
+        title: requestData.title,
+        description: requestData.description,
+        categoryId: category.id,
+        budget: requestData.budget,
+        isPaid: requestData.isPaid,
+        status: requestData.status,
+        serviceRadiusMeters: requestData.serviceRadiusMeters,
+        locationId: createdLocation.id,
+      },
+      select: { id: true, title: true },
+    });
+
+    helpRequests.push(created);
   }
 
   return helpRequests;
 };
 
 const upsertUserQualifications = async (
-  createdUsers: Record<string, { id: string; email: string }>,
-  skillMap: Map<string, { id: string; slug: string }>
+  createdUsers: Record<string, UserRef>,
+  skillMap: Map<string, SkillRef>
 ) => {
   for (const entry of userQualificationSeedData) {
     const user = createdUsers[entry.email];
-
     if (!user) {
       continue;
     }
@@ -1514,39 +1441,32 @@ const upsertUserQualifications = async (
       where: { userId: user.id },
       select: { id: true },
     });
-
     if (!profile) {
       continue;
     }
 
-    await prisma.userSkill.deleteMany({
-      where: { userId: user.id },
+    await prisma.userSkill.deleteMany({ where: { userId: user.id } });
+    await prisma.userCertification.deleteMany({ where: { userId: user.id } });
+
+    const userSkills = entry.skills.flatMap((skill) => {
+      const mapped = skillMap.get(skill.skillSlug);
+      if (!mapped) {
+        return [];
+      }
+      return [
+        {
+          userId: user.id,
+          profileId: profile.id,
+          skillId: mapped.id,
+          experienceLevel: skill.experienceLevel,
+          yearsExperience: skill.yearsExperience,
+          isPrimary: skill.isPrimary,
+        },
+      ];
     });
 
-    await prisma.userCertification.deleteMany({
-      where: { userId: user.id },
-    });
-
-    if (entry.skills.length > 0) {
-      await prisma.userSkill.createMany({
-        data: entry.skills
-          .map((skill) => {
-            const mappedSkill = skillMap.get(skill.skillSlug);
-            if (!mappedSkill) {
-              return null;
-            }
-
-            return {
-              userId: user.id,
-              profileId: profile.id,
-              skillId: mappedSkill.id,
-              experienceLevel: skill.experienceLevel,
-              yearsExperience: skill.yearsExperience,
-              isPrimary: skill.isPrimary,
-            };
-          })
-          .filter(Boolean) as any[],
-      });
+    if (userSkills.length > 0) {
+      await prisma.userSkill.createMany({ data: userSkills });
     }
 
     for (const certification of entry.certifications) {
@@ -1567,41 +1487,50 @@ const upsertUserQualifications = async (
 };
 
 const seedBid = async (
-  createdUsers: Record<string, { id: string; email: string }>,
+  createdUsers: Record<string, UserRef>,
   helpRequests: Array<{ id: string; title: string }>
 ) => {
   const helper = createdUsers["james.helper@example.com"];
-
   if (!helper) {
     throw new Error("Helper james.helper@example.com not found");
   }
 
-  const primaryHelpRequest =
+  const primaryRequest =
     helpRequests.find((request) => request.title === "Need help picking up groceries") ??
     helpRequests[0];
-
-  if (!primaryHelpRequest) {
+  if (!primaryRequest) {
     throw new Error("No help requests available to seed a bid");
   }
 
   const existingBid = await prisma.bid.findFirst({
     where: {
       helperId: helper.id,
-      helpRequestId: primaryHelpRequest.id,
+      helpRequestId: primaryRequest.id,
     },
+    select: { id: true },
   });
 
-  if (!existingBid) {
-    await prisma.bid.create({
+  if (existingBid) {
+    await prisma.bid.update({
+      where: { id: existingBid.id },
       data: {
-        helperId: helper.id,
-        helpRequestId: primaryHelpRequest.id,
         message: "I can help this afternoon around 4 PM.",
         amount: 18,
         status: BidStatus.PENDING,
       },
     });
+    return;
   }
+
+  await prisma.bid.create({
+    data: {
+      helperId: helper.id,
+      helpRequestId: primaryRequest.id,
+      message: "I can help this afternoon around 4 PM.",
+      amount: 18,
+      status: BidStatus.PENDING,
+    },
+  });
 };
 
 const seed = async () => {
@@ -1612,7 +1541,6 @@ const seed = async () => {
   const createdUsers = await upsertUsersAndProfiles(passwordHash);
   await upsertUserQualifications(createdUsers, skillMap);
   const helpRequests = await upsertHelpRequests(createdUsers, categoryMap);
-
   await seedBid(createdUsers, helpRequests);
 
   console.log("Seed complete:");
