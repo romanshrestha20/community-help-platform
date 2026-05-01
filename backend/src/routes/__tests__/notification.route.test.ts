@@ -6,6 +6,7 @@ const {
     notificationServiceMock,
     notificationPreferenceServiceMock,
     pushTokenServiceMock,
+    prismaMock,
 } = vi.hoisted(() => ({
     jwtMock: {
         verifyAccessToken: vi.fn(),
@@ -26,10 +27,19 @@ const {
         upsertPushTokenForUser: vi.fn(),
         deletePushTokenForUser: vi.fn(),
     },
+    prismaMock: {
+        userModel: {
+            findUnique: vi.fn(),
+        },
+    },
 }));
 
 vi.mock("../../utils/jwt.js", () => ({
     verifyAccessToken: jwtMock.verifyAccessToken,
+}));
+
+vi.mock("../../lib/prisma.js", () => ({
+    prisma: prismaMock,
 }));
 
 vi.mock("../../services/notification.service.js", () => ({
@@ -58,7 +68,16 @@ import app from "../../app.js";
 describe("notification routes integration", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        jwtMock.verifyAccessToken.mockReturnValue({ userId: "user-1" });
+        jwtMock.verifyAccessToken.mockReturnValue({ userId: "user-1", tokenVersion: 0 });
+        prismaMock.userModel.findUnique.mockImplementation(async ({ select }: any) => {
+            if (select?.tokenVersion) {
+                return { tokenVersion: 0 };
+            }
+            if (select?.isEmailVerified || select?.isVerified) {
+                return { isEmailVerified: true, isVerified: true };
+            }
+            return { id: "user-1" };
+        });
     });
 
     it("GET /api/notifications returns 401 without auth header", async () => {

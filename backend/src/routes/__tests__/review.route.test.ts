@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { jwtMock, reviewServiceMock } = vi.hoisted(() => ({
+const { jwtMock, reviewServiceMock, prismaMock } = vi.hoisted(() => ({
     jwtMock: {
         verifyAccessToken: vi.fn(),
     },
@@ -12,10 +12,19 @@ const { jwtMock, reviewServiceMock } = vi.hoisted(() => ({
         listReviewsForUser: vi.fn(),
         updateReviewById: vi.fn(),
     },
+    prismaMock: {
+        userModel: {
+            findUnique: vi.fn(),
+        },
+    },
 }));
 
 vi.mock("../../utils/jwt.js", () => ({
     verifyAccessToken: jwtMock.verifyAccessToken,
+}));
+
+vi.mock("../../lib/prisma.js", () => ({
+    prisma: prismaMock,
 }));
 
 vi.mock("../../services/review.service.js", () => ({
@@ -31,7 +40,16 @@ import app from "../../app.js";
 describe("review routes integration", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        jwtMock.verifyAccessToken.mockReturnValue({ userId: "user-1" });
+        jwtMock.verifyAccessToken.mockReturnValue({ userId: "user-1", tokenVersion: 0 });
+        prismaMock.userModel.findUnique.mockImplementation(async ({ select }: any) => {
+            if (select?.tokenVersion) {
+                return { tokenVersion: 0 };
+            }
+            if (select?.isEmailVerified || select?.isVerified) {
+                return { isEmailVerified: true, isVerified: true };
+            }
+            return { id: "user-1" };
+        });
     });
 
     it("POST /api/reviews requires authentication", async () => {

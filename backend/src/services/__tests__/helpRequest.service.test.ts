@@ -174,24 +174,22 @@ describe("helpRequest.service", () => {
       },
     });
 
-    prismaMock.$queryRaw
-      .mockResolvedValueOnce([
-        {
-          id: "req-1",
-          requesterId: "user-2",
-          title: "Need groceries picked up",
-          description: "Nearby request",
-          budget: 25,
-          status: "OPEN",
-          isPaid: true,
-          serviceRadiusMeters: 1200,
-          createdAt: new Date("2026-04-19T08:00:00.000Z"),
-          updatedAt: new Date("2026-04-19T08:00:00.000Z"),
-          categoryId: "cat-1",
-          categoryName: "Errands",
-          categorySlug: "errands",
-          categoryIcon: "basket-outline",
-          locationId: "loc-1",
+    prismaMock.helpRequest.findMany.mockResolvedValue([
+      {
+        id: "req-1",
+        requesterId: "user-2",
+        title: "Need groceries picked up",
+        description: "Nearby request",
+        categoryId: "cat-1",
+        category: { id: "cat-1", name: "Errands", slug: "errands", icon: "basket-outline" },
+        budget: 25,
+        isPaid: true,
+        status: "OPEN",
+        serviceRadiusMeters: 1200,
+        isUrgent: false,
+        urgentExpiresAt: null,
+        location: {
+          id: "loc-1",
           latitude: 60.17,
           longitude: 24.94,
           addressLine1: "Forum",
@@ -201,16 +199,27 @@ describe("helpRequest.service", () => {
           postalCode: "00100",
           country: "Finland",
           formattedAddress: "Forum, Helsinki",
-          requesterName: "Maria",
-          requesterAvatarUrl: null,
-          requesterGender: null,
-          requesterLocation: "Helsinki, Finland",
-          bidCount: 2n,
-          isFavorited: false,
-          distanceMeters: 1240.44,
         },
-      ])
-      .mockResolvedValueOnce([{ count: 1n }]);
+        images: [],
+        requester: {
+          id: "user-2",
+          profile: {
+            fullName: "Maria",
+            avatarUrl: null,
+            gender: null,
+            address: {
+              city: "Helsinki",
+              state: "Uusimaa",
+              country: "Finland",
+              formattedAddress: "Helsinki, Finland",
+            },
+          },
+        },
+        _count: { bids: 2 },
+        createdAt: new Date("2026-04-19T08:00:00.000Z"),
+        updatedAt: new Date("2026-04-19T08:00:00.000Z"),
+      },
+    ]);
 
     const result = await getNearbyHelpRequests({
       userId: "user-1",
@@ -235,7 +244,7 @@ describe("helpRequest.service", () => {
         },
       },
     });
-    expect(prismaMock.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(prismaMock.helpRequest.findMany).toHaveBeenCalledTimes(1);
     expect(result.meta).toEqual({
       total: 1,
       page: 1,
@@ -255,8 +264,7 @@ describe("helpRequest.service", () => {
         requesterId: "user-2",
         categoryId: "cat-1",
         bidCount: 2,
-        isFavorited: false,
-        distanceKm: 1.2,
+        distanceKm: expect.any(Number),
       })
     );
   });

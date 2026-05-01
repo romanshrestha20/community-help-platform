@@ -46,11 +46,11 @@ const resetState = () => {
 const tokenToUser = (token: string) => {
     switch (token) {
         case TEST_TOKENS.requester:
-            return { userId: USERS.requester.id };
+            return { userId: USERS.requester.id, tokenVersion: 0 };
         case TEST_TOKENS.helperOne:
-            return { userId: USERS.helperOne.id };
+            return { userId: USERS.helperOne.id, tokenVersion: 0 };
         case TEST_TOKENS.helperTwo:
-            return { userId: USERS.helperTwo.id };
+            return { userId: USERS.helperTwo.id, tokenVersion: 0 };
         default:
             throw new Error("Invalid token");
     }
@@ -308,9 +308,30 @@ describe("request/bid notification workflow routes", () => {
         });
 
         prismaMock.userModel.findUnique.mockImplementation(async ({ where }: any) => {
-            if (where?.id === USERS.requester.id) return { id: USERS.requester.id };
-            if (where?.id === USERS.helperOne.id) return { id: USERS.helperOne.id };
-            if (where?.id === USERS.helperTwo.id) return { id: USERS.helperTwo.id };
+            if (where?.id === USERS.requester.id) {
+                return {
+                    id: USERS.requester.id,
+                    tokenVersion: 0,
+                    isEmailVerified: true,
+                    isVerified: true,
+                };
+            }
+            if (where?.id === USERS.helperOne.id) {
+                return {
+                    id: USERS.helperOne.id,
+                    tokenVersion: 0,
+                    isEmailVerified: true,
+                    isVerified: true,
+                };
+            }
+            if (where?.id === USERS.helperTwo.id) {
+                return {
+                    id: USERS.helperTwo.id,
+                    tokenVersion: 0,
+                    isEmailVerified: true,
+                    isVerified: true,
+                };
+            }
             return null;
         });
 
