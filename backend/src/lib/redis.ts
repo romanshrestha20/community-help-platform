@@ -14,7 +14,29 @@ const buildClient = () => {
     return null;
   }
 
-  return createClient({ url: redisUrl });
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(redisUrl);
+  } catch {
+    throw new Error("REDIS_URL is not a valid URL.");
+  }
+
+  if (parsedUrl.protocol !== "redis:" && parsedUrl.protocol !== "rediss:") {
+    throw new Error(
+      "REDIS_URL must use redis:// or rediss:// (do not use Upstash REST https:// URL)."
+    );
+  }
+
+  return createClient({
+    url: redisUrl,
+    socket: {
+      reconnectStrategy: (retries) => {
+        // Stop retrying after a short burst to avoid log spam.
+        if (retries > 5) return false;
+        return Math.min(retries * 200, 1500);
+      },
+    },
+  });
 };
 
 export const getRedisClient = async () => {
