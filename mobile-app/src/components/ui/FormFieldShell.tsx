@@ -29,6 +29,9 @@ export const FormFieldShell = ({
 }: FormFieldShellProps) => {
   const { palette } = useThemeContext();
   const message = error || helperText;
+  const safeChildren = React.Children.toArray(children).filter(
+    (child) => typeof child !== "string" && typeof child !== "number"
+  );
 
   return (
     <View
@@ -47,7 +50,7 @@ export const FormFieldShell = ({
         </View>
       ) : null}
 
-      <View style={contentStyle}>{children}</View>
+      <View style={contentStyle}>{safeChildren}</View>
 
       {message ? (
         <Text

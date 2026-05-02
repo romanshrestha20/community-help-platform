@@ -20,7 +20,14 @@ const track = (name: string, payload?: Record<string, unknown>) => {
     }
 
     recentEvents.set(key, now);
-    console.log(`[request-form] ${name}`, payload ?? {});
+    const payloadEntries = payload ? Object.entries(payload) : [];
+    const payloadText =
+      payloadEntries.length > 0
+        ? payloadEntries
+            .map(([entryKey, value]) => `${entryKey}=${String(value)}`)
+            .join(", ")
+        : "{}";
+    console.log(`[request-form] ${name} ${payloadText}`);
   }
 };
 

@@ -39,12 +39,20 @@ export const validateRequestForm = ({
     location,
   });
 
-  const fieldErrors: Partial<Record<RequestValidationField, string>> = {
-    title: base.fieldErrors.title,
-    description: base.fieldErrors.description,
-    budget: base.fieldErrors.budget,
-    location: base.fieldErrors.location,
-  };
+  const fieldErrors: Partial<Record<RequestValidationField, string>> = {};
+
+  if (base.fieldErrors.title) {
+    fieldErrors.title = base.fieldErrors.title;
+  }
+  if (base.fieldErrors.description) {
+    fieldErrors.description = base.fieldErrors.description;
+  }
+  if (base.fieldErrors.budget) {
+    fieldErrors.budget = base.fieldErrors.budget;
+  }
+  if (base.fieldErrors.location) {
+    fieldErrors.location = base.fieldErrors.location;
+  }
 
   if (!form.categoryId.trim()) {
     fieldErrors.categoryId = "Please choose a category.";

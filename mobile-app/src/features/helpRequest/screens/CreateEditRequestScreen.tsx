@@ -216,6 +216,27 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
     };
 
     const validateBeforeSubmit = () => {
+        if (__DEV__) {
+            console.log("[request-form] submit validation snapshot", {
+                title: form.title,
+                titleLength: form.title.trim().length,
+                description: form.description,
+                descriptionLength: form.description.trim().length,
+                categoryId: form.categoryId,
+                budget: form.budget,
+                location: locationPicker.value
+                    ? {
+                        city: locationPicker.value.city,
+                        country: locationPicker.value.country,
+                        formattedAddress: locationPicker.value.formattedAddress,
+                        latitude: locationPicker.value.latitude,
+                        longitude: locationPicker.value.longitude,
+                    }
+                    : null,
+                selectedImages: selectedImages.length,
+            });
+        }
+
         const validation = validateRequestForm({
             form,
             location: locationPicker.value,
@@ -412,7 +433,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                                 clearFieldError("title");
                                 updateField("title", value);
                             }}
-                            editable={!saving}
+                            disabled={saving}
                             placeholder="What do you need help with?"
                         />
 
@@ -427,7 +448,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                                 clearFieldError("description");
                                 updateField("description", value);
                             }}
-                            editable={!saving}
+                            disabled={saving}
                             placeholder="Describe the request clearly"
                             multiline
                             numberOfLines={5}
