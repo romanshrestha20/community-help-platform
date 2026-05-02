@@ -168,6 +168,19 @@ const nearbyCategoryAllowlist = new Set([
   "shopping",
 ]);
 
+const isMissingNearbyPreferenceColumnError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const prismaError = error as { code?: string; message?: string };
+  if (prismaError.code !== "P2022") return false;
+  const message = (prismaError.message || "").toLowerCase();
+  return (
+    message.includes("nearbyalertsenabled") ||
+    message.includes("nearbyalertradiuskm") ||
+    message.includes("nearbyalertsurgentonly") ||
+    message.includes("nearbyalertcategoryslugs")
+  );
+};
+
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
 
 const getDistanceKm = (
@@ -204,33 +217,55 @@ const maybeBroadcastNearbyRequestAlert = async ({
 }) => {
   if (!location || !nearbyCategoryAllowlist.has(categorySlug)) return;
 
-  const usersWithNearbyAlerts = await prisma.notificationPreference.findMany({
-    where: {
-      nearbyAlertsEnabled: true,
-      userId: { not: requesterId },
-    },
-    select: {
-      userId: true,
-      nearbyAlertRadiusKm: true,
-      nearbyAlertsUrgentOnly: true,
-      nearbyAlertCategorySlugs: true,
-      user: {
-        select: {
-          profile: {
-            select: {
-              address: {
-                select: {
-                  latitude: true,
-                  longitude: true,
+  let usersWithNearbyAlerts: Array<{
+    userId: string;
+    nearbyAlertRadiusKm: number;
+    nearbyAlertsUrgentOnly: boolean;
+    nearbyAlertCategorySlugs: string[];
+    user: {
+      profile: {
+        address: {
+          latitude: number;
+          longitude: number;
+        } | null;
+      } | null;
+    };
+  }> = [];
+
+  try {
+    usersWithNearbyAlerts = await prisma.notificationPreference.findMany({
+      where: {
+        nearbyAlertsEnabled: true,
+        userId: { not: requesterId },
+      },
+      select: {
+        userId: true,
+        nearbyAlertRadiusKm: true,
+        nearbyAlertsUrgentOnly: true,
+        nearbyAlertCategorySlugs: true,
+        user: {
+          select: {
+            profile: {
+              select: {
+                address: {
+                  select: {
+                    latitude: true,
+                    longitude: true,
+                  },
                 },
               },
             },
           },
         },
       },
-    },
-    take: 200,
-  });
+      take: 200,
+    });
+  } catch (error) {
+    if (isMissingNearbyPreferenceColumnError(error)) {
+      return;
+    }
+    throw error;
+  }
 
   if (!usersWithNearbyAlerts.length) return;
 
