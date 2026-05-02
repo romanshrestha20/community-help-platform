@@ -42,7 +42,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     onAvatarPress,
     deleting = false,
 }) => {
-    const { palette } = useThemeContext();
+  const { palette } = useThemeContext();
+  const isSystemMessage = message.type === "SYSTEM";
 
     const handleLongPress = () => {
         if (!onLongPress || deleting || message.deletedAt) {
@@ -58,6 +59,26 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     const senderName = message.sender.fullName || message.sender.email || "Unknown";
     const messageText = message.deletedAt ? "Message deleted" : message.content || "Unsupported message";
     const readLabel = message.isRead ? "Read" : "Delivered";
+
+    if (isSystemMessage) {
+        return (
+            <View style={styles.systemRow}>
+                <View
+                    style={[
+                        styles.systemBubble,
+                        {
+                            backgroundColor: palette.surfaceMuted,
+                            borderColor: palette.border,
+                        },
+                    ]}
+                >
+                    <Text style={[styles.systemText, { color: palette.textSecondary }]}>
+                        {messageText}
+                    </Text>
+                </View>
+            </View>
+        );
+    }
 
     return (
         <Row
@@ -192,6 +213,22 @@ const styles = StyleSheet.create({
     },
     metaText: {
         ...theme.typography.textStyle.caption,
+    },
+    systemRow: {
+        width: "100%",
+        alignItems: "center",
+        marginVertical: theme.spacing.xs,
+    },
+    systemBubble: {
+        borderWidth: 1,
+        borderRadius: theme.radius.fill,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: theme.spacing.xxs,
+        maxWidth: "92%",
+    },
+    systemText: {
+        ...theme.typography.textStyle.caption,
+        textAlign: "center",
     },
 });
 
