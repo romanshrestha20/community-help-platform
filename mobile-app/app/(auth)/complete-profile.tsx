@@ -51,7 +51,7 @@ const getStepCopy = (step: number) => {
     return {
       eyebrow: "Step 1 of 3",
       title: "Basic Profile",
-      subtitle: "Add your name, phone number, and role.",
+      subtitle: "Add your name and role.",
     };
   }
   if (step === 2) {
@@ -63,8 +63,8 @@ const getStepCopy = (step: number) => {
   }
   return {
     eyebrow: "Step 3 of 3",
-    title: "Trust & Profile Photo",
-    subtitle: "Complete trust details and finish onboarding.",
+    title: "Trust & Profile",
+    subtitle: "Add optional trust details and finish onboarding.",
   };
 };
 
@@ -97,7 +97,6 @@ export default function CompleteProfileScreen() {
   const [searchRadiusMeters, setSearchRadiusMeters] = useState<number>(10000);
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [gender, setGender] = useState<Gender>(Gender.OTHER);
-  const [acceptedSafetyRules, setAcceptedSafetyRules] = useState(false);
   const [avatar, setAvatar] = useState<{ uri: string; name?: string; type?: string; webFile?: File | Blob } | null>(null);
 
   const {
@@ -107,7 +106,7 @@ export default function CompleteProfileScreen() {
     setFieldErrors,
     clearFieldError,
     clearValidationError,
-  } = useFormValidation<"firstName" | "lastName" | "phone" | "location" | "dateOfBirth" | "safety">();
+  } = useFormValidation<"firstName" | "lastName" | "location" | "avatar">();
 
   const locationPicker = useLocationPicker({ autoUseCurrentLocationOnMount: true, storageKey: null });
 
@@ -175,9 +174,6 @@ export default function CompleteProfileScreen() {
     if (step === 1) {
       if (!firstName.trim()) errors.firstName = "First name is required.";
       if (!lastName.trim()) errors.lastName = "Last name is required.";
-      if (!combinePhoneNumber(phoneCallingCode, phoneNationalNumber)) {
-        errors.phone = "Phone number is required.";
-      }
     }
 
     if (step === 2) {
@@ -186,9 +182,8 @@ export default function CompleteProfileScreen() {
       }
     }
 
-    if (step === 3) {
-      if (!dateOfBirth.trim()) errors.dateOfBirth = "Date of birth is required.";
-      if (!acceptedSafetyRules) errors.safety = "You must accept community and safety rules.";
+    if (step === 3 && !avatar && !(authUser?.avatarUrl || authUser?.profile?.avatarUrl)) {
+      errors.avatar = "Profile photo is required.";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -209,6 +204,7 @@ export default function CompleteProfileScreen() {
 
   const handlePickAvatar = async () => {
     clearValidationError();
+    clearFieldError("avatar");
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -242,8 +238,8 @@ export default function CompleteProfileScreen() {
 
     const result = await handleUpdateProfile({
       fullName,
-      phone,
-      dateOfBirth,
+      phone: phone || undefined,
+      dateOfBirth: dateOfBirth.trim() || undefined,
       gender,
       userType: mapRoleToUserType(role),
       address: locationPicker.value ?? undefined,
@@ -314,17 +310,15 @@ export default function CompleteProfileScreen() {
                 countryCode={phoneCountryCode}
                 callingCode={phoneCallingCode}
                 nationalNumber={phoneNationalNumber}
-                error={fieldErrors.phone ?? null}
+                error={null}
                 hint={phoneRegionHint}
                 detectedLabel={!phoneCountryTouched ? "Detected from current location" : null}
                 onCountryChange={({ countryCode, callingCode }, source) => {
-                  clearFieldError("phone");
                   if (source === "user") setPhoneCountryTouched(true);
                   setPhoneCountryCode(countryCode);
                   setPhoneCallingCode(callingCode);
                 }}
                 onNationalNumberChange={(value) => {
-                  clearFieldError("phone");
                   setPhoneNationalNumber(value.replace(/\D/g, ""));
                 }}
               />
@@ -443,11 +437,10 @@ export default function CompleteProfileScreen() {
           {step === 3 ? (
             <>
               <DatePickerField
-                label="Date of birth"
+                label="Date of birth (optional)"
                 value={dateOfBirth}
-                error={fieldErrors.dateOfBirth ?? null}
+                error={null}
                 onChangeText={(value) => {
-                  clearFieldError("dateOfBirth");
                   setDateOfBirth(value);
                 }}
                 placeholder="Select date"
@@ -483,7 +476,7 @@ export default function CompleteProfileScreen() {
               </View>
 
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Profile photo (optional)</Text>
+                <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Profile photo</Text>
                 <Pressable
                   onPress={handlePickAvatar}
                   style={[styles.photoPicker, { borderColor: palette.border, backgroundColor: palette.surfaceSecondary }]}
@@ -495,30 +488,10 @@ export default function CompleteProfileScreen() {
                   )}
                   <Text style={[styles.photoPickerText, { color: palette.textPrimary }]}>Choose photo</Text>
                 </Pressable>
+                {fieldErrors.avatar ? (
+                  <Text style={[styles.inlineError, { color: palette.danger }]}>{fieldErrors.avatar}</Text>
+                ) : null}
               </View>
-
-              <Pressable
-                onPress={() => {
-                  clearFieldError("safety");
-                  setAcceptedSafetyRules((current) => !current);
-                }}
-                style={styles.checkboxRow}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    {
-                      borderColor: fieldErrors.safety ? palette.danger : palette.borderStrong,
-                      backgroundColor: acceptedSafetyRules ? palette.primary : palette.surface,
-                    },
-                  ]}
-                >
-                  {acceptedSafetyRules ? <Ionicons name="checkmark" size={16} color={palette.textInverse} /> : null}
-                </View>
-                <Text style={[styles.checkboxText, { color: palette.textSecondary }]}>I agree to community and safety rules.</Text>
-              </Pressable>
-
-              {fieldErrors.safety ? <Text style={[styles.inlineError, { color: palette.danger }]}>{fieldErrors.safety}</Text> : null}
             </>
           ) : null}
 
@@ -546,12 +519,20 @@ export default function CompleteProfileScreen() {
                 disabled={loading}
               />
             ) : (
-              <AppButton
-                title={loading ? "Finishing..." : "Finish onboarding"}
-                loading={loading}
-                onPress={handleFinish}
-                disabled={loading}
-              />
+              <>
+                <AppButton
+                  title={loading ? "Saving..." : "Save and finish"}
+                  loading={loading}
+                  onPress={handleFinish}
+                  disabled={loading}
+                />
+                <AppButton
+                  title="Skip optional details"
+                  variant="ghost"
+                  onPress={handleFinish}
+                  disabled={loading}
+                />
+              </>
             )}
           </AuthActions>
         </Stack>
