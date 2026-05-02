@@ -63,7 +63,11 @@ export const unregisterPushTokenApi = async (token: string): Promise<void> => {
 export const fetchNotificationPreferencesApi =
     async (): Promise<NotificationPreferencesDto> => {
         const response = await apiClient.get<ApiResponse<NotificationPreferencesDto>>(
-            "/notifications/preferences"
+            "/notifications/preferences",
+            {
+                skipErrorToast: true,
+                suppressErrorLog: true,
+            }
         );
 
         return unwrapResponse(response.data);
