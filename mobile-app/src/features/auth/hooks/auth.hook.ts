@@ -6,6 +6,8 @@ import {
   forgotPassword,
   login as loginApi,
   loginWithGoogle as loginWithGoogleApi,
+  logout as logoutApi,
+  logoutAll as logoutAllApi,
   register as registerApi,
   resendEmailVerification,
   resetPassword,
@@ -18,7 +20,7 @@ import {
 import { LoginDto, RegisterDto } from "../types/auth.types";
 import { useAuthStore } from "../store/auth.store";
 
-import { saveTokens, clearTokens } from "@/utils/token";
+import { saveTokens, clearTokens, getRefreshToken } from "@/utils/token";
 
 const getErrorMessage = (error: any, fallback: string) => {
   return (
@@ -29,6 +31,18 @@ const getErrorMessage = (error: any, fallback: string) => {
   );
 };
 
+const normalizeForgotPasswordError = (message: string) => {
+  const normalized = message.trim().toLowerCase();
+  if (
+    normalized.includes("internal server error") ||
+    normalized.includes("network error") ||
+    normalized.includes("could not reach the server")
+  ) {
+    return "Password reset is temporarily unavailable. Please try again in a few minutes.";
+  }
+  return message;
+};
+
 export const useAuth = () => {
   const login = useAuthStore((state) => state.login);
   const logout = useAuthStore((state) => state.logout);
@@ -36,6 +50,7 @@ export const useAuth = () => {
 
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [loadingLogout, setLoadingLogout] = useState(false);
+  const [loadingLogoutAll, setLoadingLogoutAll] = useState(false);
   const [loadingRegister, setLoadingRegister] = useState(false);
   const [loadingGoogleLogin, setLoadingGoogleLogin] = useState(false);
   const [loadingChangePassword, setLoadingChangePassword] = useState(false);
@@ -147,8 +162,15 @@ export const useAuth = () => {
 
       return await completeAuth(result);
     } catch (err) {
-      setError("Registration failed");
-      throw err;
+      const message = getErrorMessage(err, "Registration failed");
+      setError(message);
+      return {
+        success: false,
+        accessToken: "",
+        refreshToken: "",
+        data: null,
+        message,
+      };
     } finally {
       setLoadingRegister(false);
     }
@@ -162,12 +184,33 @@ export const useAuth = () => {
     setError(null);
 
     try {
-      await clearTokens();
-    } catch {
-      // If token cleanup fails, still end the local session.
+      const refreshToken = await getRefreshToken();
+      if (refreshToken) {
+        await logoutApi(refreshToken);
+      }
+    } catch (err) {
+      const message = getErrorMessage(err, "Logout request failed");
+      setError(message);
     } finally {
+      await clearTokens();
       logout();
       setLoadingLogout(false);
+    }
+  };
+
+  const handleLogoutAll = async () => {
+    setLoadingLogoutAll(true);
+    setError(null);
+
+    try {
+      await logoutAllApi();
+    } catch (err) {
+      const message = getErrorMessage(err, "Logout-all request failed");
+      setError(message);
+    } finally {
+      await clearTokens();
+      logout();
+      setLoadingLogoutAll(false);
     }
   };
 
@@ -244,16 +287,17 @@ export const useAuth = () => {
       const result = await forgotPassword({ email });
 
       if (!result.success) {
-        setError(result.message || "Unable to send reset email");
+        setError(normalizeForgotPasswordError(result.message || "Unable to send reset email"));
       }
 
       return result;
     } catch (err) {
       const message = getErrorMessage(err, "Unable to send reset email");
-      setError(message);
+      const normalized = normalizeForgotPasswordError(message);
+      setError(normalized);
       return {
         success: false,
-        message,
+        message: normalized,
       };
     } finally {
       setLoadingForgotPassword(false);
@@ -397,6 +441,7 @@ export const useAuth = () => {
     // loading states
     loadingLogin,
     loadingLogout,
+    loadingLogoutAll,
     loadingRegister,
     loadingGoogleLogin,
     loadingChangePassword,
@@ -414,6 +459,7 @@ export const useAuth = () => {
     // actions
     handleLogin,
     handleLogout,
+    handleLogoutAll,
     handleRegister,
     handleGoogleLogin,
     handleChangePassword,

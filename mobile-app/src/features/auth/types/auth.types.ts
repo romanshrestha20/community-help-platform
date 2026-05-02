@@ -78,6 +78,7 @@ export interface UserProfile {
 
 export interface User {
   id: string;
+  role?: "USER" | "ADMIN" | string;
   fullName?: string;
   email: string;
   phone?: string;

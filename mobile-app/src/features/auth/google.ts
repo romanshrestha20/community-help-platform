@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Constants from "expo-constants";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
@@ -89,6 +90,7 @@ const resolveGoogleRedirectUri = () => {
 };
 
 export function useGoogleAuth() {
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const redirectUri = resolveGoogleRedirectUri();
   const platformClientId =
     Platform.OS === "ios"
@@ -116,6 +118,13 @@ export function useGoogleAuth() {
   );
 
   const signIn = async (): Promise<GoogleSignInResult> => {
+    if (isSigningIn) {
+      return {
+        success: false,
+        message: "Google sign-in is already in progress.",
+      };
+    }
+
     if (!isGoogleConfigured) {
       return {
         success: false,
@@ -130,66 +139,73 @@ export function useGoogleAuth() {
       };
     }
 
-    const result = await promptAsync({
-      showInRecents: true,
-    });
+    setIsSigningIn(true);
 
-    if (result.type === "dismiss" || result.type === "cancel") {
-      return {
-        success: false,
-        cancelled: true,
-        message: "Google sign-in was cancelled.",
-      };
-    }
+    try {
+      const result = await promptAsync({
+        showInRecents: true,
+      });
 
-    if (result.type !== "success") {
-      return {
-        success: false,
-        message: "Google sign-in could not be completed.",
-      };
-    }
-
-    let idToken =
-      result.params?.id_token ||
-      result.authentication?.idToken ||
-      null;
-
-    if (!idToken && result.params?.code && request?.codeVerifier) {
-      try {
-        const tokenResponse = await AuthSession.exchangeCodeAsync(
-          {
-            clientId: platformClientId!,
-            code: result.params.code,
-            redirectUri,
-            extraParams: {
-              code_verifier: request.codeVerifier,
-            },
-          },
-          Google.discovery
-        );
-
-        idToken = tokenResponse.idToken ?? null;
-      } catch (error) {
-        console.warn("Google code exchange failed:", error);
+      if (result.type === "dismiss" || result.type === "cancel") {
+        return {
+          success: false,
+          cancelled: true,
+          message: "Google sign-in was cancelled.",
+        };
       }
-    }
 
-    if (!idToken) {
+      if (result.type !== "success") {
+        return {
+          success: false,
+          message: "Google sign-in could not be completed.",
+        };
+      }
+
+      let idToken =
+        result.params?.id_token ||
+        result.authentication?.idToken ||
+        null;
+
+      if (!idToken && result.params?.code && request?.codeVerifier) {
+        try {
+          const tokenResponse = await AuthSession.exchangeCodeAsync(
+            {
+              clientId: platformClientId!,
+              code: result.params.code,
+              redirectUri,
+              extraParams: {
+                code_verifier: request.codeVerifier,
+              },
+            },
+            Google.discovery
+          );
+
+          idToken = tokenResponse.idToken ?? null;
+        } catch (error) {
+          console.warn("Google code exchange failed:", error);
+        }
+      }
+
+      if (!idToken) {
+        return {
+          success: false,
+          message: "Google sign-in succeeded, but no ID token was returned.",
+        };
+      }
+
       return {
-        success: false,
-        message: "Google sign-in succeeded, but no ID token was returned.",
+        success: true,
+        idToken,
       };
+    } finally {
+      setIsSigningIn(false);
     }
-
-    return {
-      success: true,
-      idToken,
-    };
   };
 
   return {
     isGoogleConfigured,
     isGoogleReady: Boolean(request) && isGoogleConfigured,
+    isSigningIn,
     redirectUri,
     signIn,
   };

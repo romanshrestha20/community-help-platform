@@ -32,7 +32,11 @@ const normalizeAuthResponse = (payload: any): AuthResponse => {
   const user = userRaw
     ? {
       ...userRaw,
+      role: typeof userRaw.role === "string" ? userRaw.role : undefined,
       hasPassword: userRaw.hasPassword === true,
+      isVerified: Boolean(userRaw.isVerified ?? false),
+      isEmailVerified: Boolean(userRaw.isEmailVerified ?? userRaw.isVerified ?? false),
+      isPhoneVerified: Boolean(userRaw.isPhoneVerified ?? false),
       fullName: userRaw.fullName || userRaw?.profile?.fullName,
       avatarUrl: userRaw.avatarUrl ?? userRaw?.profile?.avatarUrl ?? null,
     }
@@ -147,6 +151,22 @@ export const changePassword = async (
     newPassword,
   });
 
+  return {
+    success: Boolean(response.data?.success),
+    message: response.data?.message || "",
+  };
+};
+
+export const logout = async (refreshToken: string): Promise<AuthMessageResponse> => {
+  const response = await apiClient.post("/auth/logout", { refreshToken });
+  return {
+    success: Boolean(response.data?.success),
+    message: response.data?.message || "",
+  };
+};
+
+export const logoutAll = async (): Promise<AuthMessageResponse> => {
+  const response = await apiClient.post("/auth/logout-all");
   return {
     success: Boolean(response.data?.success),
     message: response.data?.message || "",

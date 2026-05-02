@@ -6,12 +6,14 @@ type AuthState = {
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
+  verificationDeferred: boolean;
   login: (payload: {
     user: User;
     accessToken: string;
     refreshToken: string;
   }) => void;
   setUser: (user: User) => void;
+  deferVerification: (deferred: boolean) => void;
   logout: () => void;
 };
 
@@ -20,6 +22,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   refreshToken: null,
   isAuthenticated: false,
+  verificationDeferred: false,
 
   login: ({ user, accessToken, refreshToken }) =>
     set({
@@ -27,6 +30,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       accessToken,
       refreshToken,
       isAuthenticated: true,
+      verificationDeferred: false,
     }),
 
   setUser: (user) =>
@@ -35,6 +39,13 @@ export const useAuthStore = create<AuthState>((set) => ({
       accessToken: state.accessToken,
       refreshToken: state.refreshToken,
       isAuthenticated: state.isAuthenticated,
+      verificationDeferred: state.verificationDeferred,
+    })),
+
+  deferVerification: (verificationDeferred) =>
+    set((state) => ({
+      ...state,
+      verificationDeferred,
     })),
 
   logout: () =>
@@ -43,5 +54,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
+      verificationDeferred: false,
     }),
 }));
