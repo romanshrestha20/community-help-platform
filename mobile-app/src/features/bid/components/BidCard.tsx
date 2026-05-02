@@ -77,7 +77,7 @@ export const BidCard = ({
   const canEdit = helperActions && bid.status === "PENDING" && Boolean(onUpdate);
   const canDelete = helperActions && bid.status === "PENDING" && Boolean(onDelete);
   const canMessage = bid.status === "ACCEPTED" && Boolean(onMessage);
-  const messageLabel = requesterActions ? "Message helper" : "Message requester";
+  const messageLabel = "Open chat";
 
   useEffect(() => {
     if (!isSwipeOpen) {
