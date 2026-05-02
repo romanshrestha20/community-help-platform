@@ -171,7 +171,33 @@ export const useConversations = () => {
                                 setError(getErrorMessage(caughtError, "Could not refresh conversations"));
                             }
                         });
-                    })
+                    }),
+                    addSocketListener<{ conversationId?: string; requestId?: string }>(
+                        "conversation:upsert",
+                        () => {
+                            if (!isActive) {
+                                return;
+                            }
+                            void loadConversations().catch((caughtError) => {
+                                if (isActive) {
+                                    setError(getErrorMessage(caughtError, "Could not refresh conversations"));
+                                }
+                            });
+                        }
+                    ),
+                    addSocketListener<{ conversationId?: string }>(
+                        "conversation:message",
+                        () => {
+                            if (!isActive) {
+                                return;
+                            }
+                            void loadConversations().catch((caughtError) => {
+                                if (isActive) {
+                                    setError(getErrorMessage(caughtError, "Could not refresh conversations"));
+                                }
+                            });
+                        }
+                    )
                 );
             } catch (caughtError) {
                 if (isActive) {
