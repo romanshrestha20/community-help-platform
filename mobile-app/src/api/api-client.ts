@@ -14,15 +14,26 @@ import { reconnectSocketWithFreshToken } from "@/lib/socket-client";
 type RetryRequest = AxiosRequestConfig & {
   _retry?: boolean;
   skipErrorToast?: boolean;
+  suppressErrorLog?: boolean;
 };
 
 const resolveApiBaseUrl = () => {
   const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  const isNative = Platform.OS === "ios" || Platform.OS === "android";
+  const isLocalhostEnv =
+    typeof envBaseUrl === "string" &&
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(envBaseUrl);
 
   console.log("[API] Resolving base URL. Env var:", envBaseUrl);
 
-  if (envBaseUrl) {
+  if (envBaseUrl && !(isNative && isLocalhostEnv)) {
     return envBaseUrl;
+  }
+
+  if (envBaseUrl && isNative && isLocalhostEnv) {
+    console.warn(
+      "[API] Ignoring EXPO_PUBLIC_API_BASE_URL pointing to localhost on native device."
+    );
   }
 
   if (__DEV__) {
@@ -49,9 +60,12 @@ const resolveApiBaseUrl = () => {
     if (hostFromExpo) {
       return `http://${hostFromExpo}:5001/api`;
     }
+  }
 
-    if (Platform.OS === "ios") return "http://localhost:5001/api";
-    if (Platform.OS === "android") return "http://10.0.2.2:5001/api";
+  if (isNative) {
+    console.warn(
+      "[API] No reachable dev host detected for native runtime. Falling back to production API."
+    );
   }
 
   return "https://community-help-platform.onrender.com/api";
@@ -235,7 +249,7 @@ apiClient.interceptors.response.use(
       if (!originalRequest?.skipErrorToast && !isVerificationRequired) {
         showToast("error", "Error", message);
       }
-      if (!isVerificationRequired) {
+      if (!isVerificationRequired && !originalRequest?.suppressErrorLog) {
         const method = originalRequest?.method?.toUpperCase() || "UNKNOWN";
         const url = originalRequest?.url || "UNKNOWN_URL";
         const status = error.response?.status ?? "UNKNOWN_STATUS";
