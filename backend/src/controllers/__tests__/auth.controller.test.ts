@@ -132,7 +132,7 @@ vi.mock("../../services/auth-token.service.js", () => ({
     findLatestActivePhoneVerificationCode: authTokenServiceMock.findLatestActivePhoneVerificationCode,
 }));
 
-vi.mock("../../services/email.service.js", () => ({
+vi.mock("../../services/transactional-email.service.js", () => ({
     sendPasswordResetEmail: emailServiceMock.sendPasswordResetEmail,
     sendEmailVerificationEmail: emailServiceMock.sendEmailVerificationEmail,
 }));
