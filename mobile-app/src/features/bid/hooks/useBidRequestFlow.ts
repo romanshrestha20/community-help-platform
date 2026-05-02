@@ -40,6 +40,13 @@ export const useBidRequestFlow = ({ onSuccess }: UseBidRequestFlowOptions = {}) 
       });
 
       if (!created) {
+        if ((bidError || "").toLowerCase().includes("verification required")) {
+          showErrorToast(
+            "Email verification required",
+            "Verify your email to send bids."
+          );
+          return;
+        }
         showErrorToast("Error", "Failed to submit bid. Please try again.");
         return;
       }

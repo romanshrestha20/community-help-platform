@@ -28,6 +28,30 @@ const getErrorMessage = (error: unknown) => {
   );
 };
 
+const isVerificationRequiredError = (error: unknown) => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeAxiosError = error as {
+    response?: {
+      status?: number;
+      data?: {
+        message?: string;
+        error?: { message?: string };
+      };
+    };
+  };
+
+  const status = maybeAxiosError.response?.status;
+  const message =
+    maybeAxiosError.response?.data?.message ||
+    maybeAxiosError.response?.data?.error?.message ||
+    "";
+
+  return status === 403 && message === "Account verification required";
+};
+
 export const useFavorites = () => {
   const {
     favoriteIds,
@@ -71,6 +95,12 @@ export const useFavorites = () => {
         setFavoriteIds(ids);
         return ids;
       } catch (err) {
+        if (isVerificationRequiredError(err)) {
+          // Mark as loaded to prevent repeated bootstrap fetches for unverified users.
+          setFavoriteIds([]);
+          setError(null);
+          return [];
+        }
         setError(getErrorMessage(err));
         return favoriteIds;
       } finally {
