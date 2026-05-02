@@ -7,7 +7,7 @@ export const notFound = (req: Request, _res: Response, next: NextFunction) => {
 
 export const errorHandler = (
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ) => {
@@ -15,8 +15,15 @@ export const errorHandler = (
   const statusCode = isOperational ? err.statusCode : 500;
   const message = isOperational ? err.message : 'Internal server error';
 
-  if (!isOperational) {
-    console.error("Unhandled error:", err);
+  if (statusCode >= 500) {
+    console.error("Request failed with server error", {
+      method: req.method,
+      path: req.originalUrl,
+      statusCode,
+      message: err.message,
+      stack: err.stack,
+      isOperational,
+    });
   }
 
   res.status(statusCode).json({
