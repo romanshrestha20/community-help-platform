@@ -27,7 +27,7 @@ const resolveApiBaseUrl = () => {
 
   if (__DEV__) {
     if (Platform.OS === "web") {
-      return `https://community-help-platform.onrender.com/api`;
+      return `http://localhost:5001/api`;
     }
 
     const constants = Constants as unknown as {
@@ -58,6 +58,9 @@ const resolveApiBaseUrl = () => {
 };
 
 const API_BASE_URL = resolveApiBaseUrl();
+
+const isVerificationRequiredMessage = (message: string) =>
+  message.trim().toLowerCase().includes("verification required");
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -133,11 +136,16 @@ apiClient.interceptors.response.use(
 
     const isAuthEndpoint =
       originalRequest.url?.includes("/auth/login") ||
+      originalRequest.url?.includes("/auth/google") ||
       originalRequest.url?.includes("/auth/register") ||
       originalRequest.url?.includes("/auth/refresh");
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
-      if (!authState.isAuthenticated) {
+      const refreshToken = await getRefreshToken();
+
+      if (!refreshToken) {
+        await clearTokens();
+        authState.logout();
         return Promise.reject(error);
       }
 
@@ -158,21 +166,20 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshToken = await getRefreshToken();
-
-        if (!refreshToken) {
-          await clearTokens();
-          authState.logout();
-          showToast("error", "Session expired", "Please log in again");
-          return Promise.reject(new Error("No refresh token"));
-        }
-
         const res = await apiClient.post("/auth/refresh", {
           refreshToken,
         });
 
-        const newAccessToken = res.data.accessToken || res.data.token;
-        const newRefreshToken = res.data.refreshToken || refreshToken;
+        const nested = res.data?.data;
+        const newAccessToken =
+          nested?.accessToken ||
+          nested?.token ||
+          res.data?.accessToken ||
+          res.data?.token;
+        const newRefreshToken =
+          nested?.refreshToken ||
+          res.data?.refreshToken ||
+          refreshToken;
 
         if (!newAccessToken) {
           throw new Error("Refresh endpoint did not return an access token");
@@ -210,10 +217,30 @@ apiClient.interceptors.response.use(
         error.message ||
         "Something went wrong";
 
-      if (!originalRequest?.skipErrorToast) {
+      const isVerificationRequired =
+        error.response?.status === 403 && isVerificationRequiredMessage(message);
+
+      if (isVerificationRequired) {
+        const current = authState.user;
+        if (current) {
+          useAuthStore.setState({
+            user: {
+              ...current,
+              isVerified: false,
+            },
+          });
+        }
+      }
+
+      if (!originalRequest?.skipErrorToast && !isVerificationRequired) {
         showToast("error", "Error", message);
       }
-      console.warn("API Error:", message);
+      if (!isVerificationRequired) {
+        const method = originalRequest?.method?.toUpperCase() || "UNKNOWN";
+        const url = originalRequest?.url || "UNKNOWN_URL";
+        const status = error.response?.status ?? "UNKNOWN_STATUS";
+        console.warn(`API Error [${status}] ${method} ${url}:`, message);
+      }
     } else if (error.request) {
       if (!originalRequest?.skipErrorToast) {
         showToast("error", "Network Error", "Could not reach the server");
