@@ -24,6 +24,7 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { APP_ROUTES } from "@/config/routes";
 import { getDistanceToRequest } from "@/utils/distance";
 import { isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
+import { getMe, resendEmailVerification } from "@/features/auth/api/auth.api";
 
 const matchesSearch = (request: HelpRequest, query: string) => {
   const normalized = query.trim().toLowerCase();
@@ -51,6 +52,8 @@ export default function Home() {
   const router = useRouter();
   const { palette } = useThemeContext();
   const user = useAuthStore((state) => state.user);
+  const setUser = useAuthStore((state) => state.setUser);
+  const deferVerification = useAuthStore((state) => state.deferVerification);
   const { categories } = useCategories();
   const { value: userLocation } = useLocationPicker({
     autoUseCurrentLocationOnMount: true,
@@ -69,6 +72,9 @@ export default function Home() {
     closeBidModal,
     handleSubmitBid,
   } = useHomeScreen();
+  const [verificationBannerVisible, setVerificationBannerVisible] = useState(true);
+
+  const requiresVerification = Boolean(user && !user.isEmailVerified);
 
   const firstName =
     user?.fullName?.split(" ")[0] ||
@@ -102,6 +108,51 @@ export default function Home() {
         avatarUrl={user?.avatarUrl}
         fullName={user?.fullName || user?.profile?.fullName}
       />
+
+      {requiresVerification && verificationBannerVisible ? (
+        <View
+          style={[
+            styles.verifyBanner,
+            { backgroundColor: palette.surfaceSecondary, borderColor: palette.border },
+          ]}
+        >
+          <Text style={[styles.verifyTitle, { color: palette.textPrimary }]}>
+            Verify your email to unlock full actions
+          </Text>
+          <Text style={[styles.verifyBody, { color: palette.textSecondary }]}>
+            You can browse normally, but posting requests, bidding, and chat require verification.
+          </Text>
+          <View style={styles.verifyActions}>
+            <Pressable
+              onPress={() => router.push(APP_ROUTES.AUTH_VERIFY_EMAIL)}
+              style={[styles.verifyChip, { borderColor: palette.primary }]}
+            >
+              <Text style={[styles.verifyChipText, { color: palette.primary }]}>Verify now</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                deferVerification(true);
+                setVerificationBannerVisible(false);
+              }}
+              style={[styles.verifyChip, { borderColor: palette.borderStrong }]}
+            >
+              <Text style={[styles.verifyChipText, { color: palette.textSecondary }]}>Later</Text>
+            </Pressable>
+            <Pressable
+              onPress={async () => {
+                await resendEmailVerification().catch(() => undefined);
+                const me = await getMe().catch(() => null);
+                if (me?.success && me.data) {
+                  setUser(me.data);
+                }
+              }}
+              style={[styles.verifyChip, { borderColor: palette.borderStrong }]}
+            >
+              <Text style={[styles.verifyChipText, { color: palette.textSecondary }]}>I have verified</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       <HomeSearchBarRow
         searchQuery={searchQuery}
@@ -240,6 +291,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: 2,
+  },
+  verifyBanner: {
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xs,
+  },
+  verifyTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  verifyBody: {
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: 18,
+  },
+  verifyActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.xxs,
+  },
+  verifyChip: {
+    borderWidth: 1,
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 6,
+  },
+  verifyChipText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   feedHeaderTitle: {
     fontSize: 22,
