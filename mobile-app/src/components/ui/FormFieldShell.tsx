@@ -7,8 +7,8 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 type FormFieldShellProps = {
   label?: string;
   required?: boolean;
-  helperText?: string;
-  error?: string;
+  helperText?: string | null;
+  error?: string | null;
   disabled?: boolean;
   children: React.ReactNode;
   accessibilityLabel?: string;
@@ -28,26 +28,36 @@ export const FormFieldShell = ({
   contentStyle,
 }: FormFieldShellProps) => {
   const { palette } = useThemeContext();
+  const message = error || helperText;
 
   return (
     <View
-      style={[styles.container, style, disabled ? styles.disabled : null]}
+      style={[styles.container, disabled ? styles.disabled : null, style]}
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled: Boolean(disabled) }}
     >
       {label ? (
-        <Text style={[styles.label, { color: palette.textPrimary }]}>
-          {label}
-          {required ? <Text style={{ color: palette.danger }}> *</Text> : null}
-        </Text>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: palette.textPrimary }]}>
+            {label}
+          </Text>
+          {required ? (
+            <Text style={[styles.required, { color: palette.danger }]}>*</Text>
+          ) : null}
+        </View>
       ) : null}
 
       <View style={contentStyle}>{children}</View>
 
-      {error ? (
-        <Text style={[styles.feedback, { color: palette.danger }]}>{error}</Text>
-      ) : helperText ? (
-        <Text style={[styles.feedback, { color: palette.textSecondary }]}>{helperText}</Text>
+      {message ? (
+        <Text
+          style={[
+            styles.feedback,
+            { color: error ? palette.danger : palette.textSecondary },
+          ]}
+        >
+          {message}
+        </Text>
       ) : null}
     </View>
   );
@@ -55,21 +65,28 @@ export const FormFieldShell = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: theme.spacing.md,
+    gap: theme.spacing.xs,
   },
   disabled: {
-    opacity: 0.55,
+    opacity: 0.6,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.xxs,
   },
   label: {
-    marginBottom: theme.spacing.xxs,
     fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
-    letterSpacing: 0.2,
+    lineHeight: theme.typography.lineHeight.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  required: {
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+    fontWeight: theme.typography.fontWeight.bold,
   },
   feedback: {
-    marginTop: theme.spacing.xxs,
     fontSize: theme.typography.fontSize.xs,
     lineHeight: theme.typography.lineHeight.xs,
-    fontWeight: theme.typography.fontWeight.medium,
   },
 });

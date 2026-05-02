@@ -1,5 +1,25 @@
+const RECENT_EVENT_WINDOW_MS = 700;
+const recentEvents = new Map<string, number>();
+
+const buildEventKey = (name: string, payload?: Record<string, unknown>) => {
+  if (!payload) {
+    return name;
+  }
+
+  return `${name}:${JSON.stringify(payload)}`;
+};
+
 const track = (name: string, payload?: Record<string, unknown>) => {
   if (__DEV__) {
+    const key = buildEventKey(name, payload);
+    const now = Date.now();
+    const lastSeenAt = recentEvents.get(key) ?? 0;
+
+    if (now - lastSeenAt < RECENT_EVENT_WINDOW_MS) {
+      return;
+    }
+
+    recentEvents.set(key, now);
     console.log(`[request-form] ${name}`, payload ?? {});
   }
 };
@@ -13,6 +33,7 @@ export const requestFormEvents = {
   createRequestSubmitted: () => track("create_request_submitted"),
   createRequestFailed: (reason?: string) => track("create_request_failed", { reason: reason ?? null }),
   createRequestSuccess: (requestId?: string) => track("create_request_success", { requestId: requestId ?? null }),
+  unsavedGuardShown: () => track("unsaved_guard_shown"),
   editRequestValidationFailed: (field?: string) =>
     track("edit_request_validation_failed", { field: field ?? null }),
   editRequestSuccess: (requestId?: string) => track("edit_request_success", { requestId: requestId ?? null }),

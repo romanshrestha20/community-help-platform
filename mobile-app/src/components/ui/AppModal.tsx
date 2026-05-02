@@ -37,6 +37,12 @@ export const AppModal = ({
   scrollable = false,
 }: Props) => {
   const { palette } = useThemeContext();
+  const safeChildren = React.Children.toArray(children).filter(
+    (child) => typeof child !== "string" && typeof child !== "number"
+  );
+  const safeActions = React.Children.toArray(actions).filter(
+    (child) => typeof child !== "string" && typeof child !== "number"
+  );
 
   const handleBackdropPress = () => {
     if (dismissOnBackdrop) {
@@ -116,13 +122,13 @@ export const AppModal = ({
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
-                {children}
+                {safeChildren}
               </ScrollView>
             ) : (
-              <View style={styles.content}>{children}</View>
+              <View style={styles.content}>{safeChildren}</View>
             )}
 
-            {actions ? (
+            {safeActions.length ? (
               <View
                 style={[
                   styles.actions,
@@ -131,7 +137,7 @@ export const AppModal = ({
                   },
                 ]}
               >
-                {actions}
+                {safeActions}
               </View>
             ) : null}
           </View>
