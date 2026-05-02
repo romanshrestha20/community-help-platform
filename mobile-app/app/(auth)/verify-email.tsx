@@ -31,7 +31,6 @@ export default function VerifyEmailScreen() {
   const currentUser = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const logout = useAuthStore((state) => state.logout);
-  const deferVerification = useAuthStore((state) => state.deferVerification);
   const {
     handleVerifyEmail,
     handleSendEmailVerification,
@@ -45,15 +44,15 @@ export default function VerifyEmailScreen() {
     token
       ? "Verifying your email..."
       : source === "register"
-        ? "Account created. We sent a verification email. You can continue now and verify later."
-        : "We sent a verification email. You can continue now and verify later."
+        ? "Account created. We sent a verification email."
+        : "We sent a verification email."
   );
 
   useEffect(() => {
     if (!token || hasAttemptedVerification.current) {
       if (!token) {
         setStatus("idle");
-        setMessage("We sent a verification email. You can continue now and verify later.");
+        setMessage("We sent a verification email.");
       }
       return;
     }
@@ -144,7 +143,7 @@ export default function VerifyEmailScreen() {
         icon="mail-outline"
         eyebrow="Secure your account"
         title={status === "success" ? "Email verified" : "Verify your email"}
-        subtitle="Confirm your email address to finish setting up your account and unlock the rest of the flow."
+        subtitle="Confirm your email address to continue to profile setup."
       />
 
       <AuthCard>
@@ -191,17 +190,6 @@ export default function VerifyEmailScreen() {
             <AppButton
               title="I have verified"
               onPress={handleRefreshVerification}
-              variant="ghost"
-            />
-          ) : null}
-
-          {status !== "success" && isAuthenticated && requiresVerification ? (
-            <AppButton
-              title="Continue"
-              onPress={() => {
-                deferVerification(true);
-                router.replace(APP_ROUTES.AUTH_COMPLETE_PROFILE);
-              }}
               variant="ghost"
             />
           ) : null}
