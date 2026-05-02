@@ -7,6 +7,7 @@ import { getMyConversations } from "@/features/conversation/services/conversatio
 import { fetchNotifications } from "@/features/notifications/service/notification.service";
 import { useNotificationSettingsStore } from "@/features/settings/store/notification-settings.store";
 import { filterNotificationsByPreferences } from "@/features/notifications/utils/notification-preferences";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 
 export interface BadgeCounts {
     messages: number;
@@ -37,12 +38,23 @@ export const useBadgeCounts = (): BadgeCounts => {
         savedRequestsEnabled,
         initializeNotificationSettings,
     } = useNotificationSettingsStore();
+    const canAccessVerifiedRoutes = useAuthStore((state) =>
+        Boolean(
+            state.isAuthenticated &&
+            state.user &&
+            state.user.isEmailVerified
+        )
+    );
 
     useEffect(() => {
         void initializeNotificationSettings();
     }, [initializeNotificationSettings]);
 
     const refreshMessageCount = useCallback(async () => {
+        if (!canAccessVerifiedRoutes) {
+            useBadgeCountStore.getState().setMessageCount(0);
+            return;
+        }
         try {
             const conversations = await getMyConversations();
             const unreadCount = conversations.reduce(
@@ -54,9 +66,13 @@ export const useBadgeCounts = (): BadgeCounts => {
         } catch (error) {
             console.warn("Failed to refresh message badge count:", error);
         }
-    }, []);
+    }, [canAccessVerifiedRoutes]);
 
     const refreshNotificationCount = useCallback(async () => {
+        if (!canAccessVerifiedRoutes) {
+            useBadgeCountStore.getState().setNotificationCount(0);
+            return;
+        }
         try {
             if (!isHydrated) {
                 return;
@@ -84,6 +100,7 @@ export const useBadgeCounts = (): BadgeCounts => {
         }
     }, [
         bidsEnabled,
+        canAccessVerifiedRoutes,
         isHydrated,
         messagesEnabled,
         pushEnabled,
