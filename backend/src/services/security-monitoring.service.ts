@@ -156,6 +156,7 @@ export const recordSuccessfulLogin = async ({
   userAgent?: string;
 }) => {
   let previousIp: string | null = null;
+  let suspiciousLoginDetected = false;
 
   try {
     const redis = await getRedisClient();
@@ -184,6 +185,7 @@ export const recordSuccessfulLogin = async ({
 
   try {
     if (previousIp && previousIp !== ipAddress) {
+      suspiciousLoginDetected = true;
       await prisma.securityEvent.create({
         data: {
           userId,
@@ -213,4 +215,9 @@ export const recordSuccessfulLogin = async ({
   } catch (error) {
     console.error("Failed to persist successful login security event:", error);
   }
+
+  return {
+    suspiciousLoginDetected,
+    previousIp,
+  };
 };
