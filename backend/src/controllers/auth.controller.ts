@@ -33,8 +33,11 @@ import {
 } from "../services/auth-token.service.js";
 import {
   sendEmailVerificationEmail,
+  sendPasswordAddedSecurityEmail,
+  sendPasswordChangedSecurityEmail,
   sendPasswordResetEmail,
-} from "../services/email.service.js";
+  sendSuspiciousLoginSecurityEmail,
+} from "../services/transactional-email.service.js";
 import {
   checkPhoneVerificationCode,
   isTwilioVerifyMode,
@@ -452,12 +455,19 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       invalidateAllExisting: false,
     });
     try {
-      await recordSuccessfulLogin({
+      const loginSecurityResult = await recordSuccessfulLogin({
         userId: user.id,
         email,
         ipAddress,
         userAgent,
       });
+      if (loginSecurityResult?.suspiciousLoginDetected) {
+        await sendSuspiciousLoginSecurityEmail({
+          email: user.email,
+          ipAddress,
+          previousIp: loginSecurityResult.previousIp,
+        });
+      }
     } catch (monitoringError) {
       console.error("Failed to record successful login event:", monitoringError);
     }
@@ -1115,6 +1125,10 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
       }),
     ]);
     await revokeAllSessionsForUser(userId, "PASSWORD_CHANGED");
+    await sendPasswordChangedSecurityEmail({
+      email: user.email,
+      ipAddress: getRequestIp(req),
+    });
 
     res.status(200).json({
       status: "success",
@@ -1158,6 +1172,11 @@ export const addPassword = async (req: Request, res: Response, next: NextFunctio
     await prisma.userModel.update({
       where: { id: userId },
       data: { passwordHash },
+    });
+
+    await sendPasswordAddedSecurityEmail({
+      email: user.email,
+      ipAddress: getRequestIp(req),
     });
 
     res.status(200).json({
@@ -1437,12 +1456,19 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
       invalidateAllExisting: false,
     });
     try {
-      await recordSuccessfulLogin({
+      const loginSecurityResult = await recordSuccessfulLogin({
         userId,
         email: googlePayload.email,
         ipAddress: getRequestIp(req),
         userAgent: getRequestUserAgent(req),
       });
+      if (loginSecurityResult?.suspiciousLoginDetected) {
+        await sendSuspiciousLoginSecurityEmail({
+          email: googlePayload.email,
+          ipAddress: getRequestIp(req),
+          previousIp: loginSecurityResult.previousIp,
+        });
+      }
     } catch (monitoringError) {
       console.error("Failed to record successful Google login event:", monitoringError);
     }

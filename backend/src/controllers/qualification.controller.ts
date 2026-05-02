@@ -18,6 +18,7 @@ import {
   deleteImageFromCloudinary,
   uploadImageToCloudinary,
 } from "../utils/cloudinary.js";
+import { sendCertificationReviewedEmail } from "../services/transactional-email.service.js";
 
 const MAX_PRIMARY_SKILLS = 3;
 
@@ -301,6 +302,12 @@ export const reviewUserCertification = async (req: Request, res: Response, next:
       select: {
         id: true,
         userId: true,
+        name: true,
+        user: {
+          select: {
+            email: true,
+          },
+        },
       },
     });
 
@@ -325,6 +332,17 @@ export const reviewUserCertification = async (req: Request, res: Response, next:
         reviewedBy: reviewerId,
       },
     });
+
+    if (existing.user?.email) {
+      await sendCertificationReviewedEmail({
+        userId: existing.userId,
+        userEmail: existing.user.email,
+        certificationName: existing.name,
+        approved: parsedBody.data.status === "APPROVED",
+        rejectionReason: parsedBody.data.rejectionReason ?? null,
+        reviewNote: parsedBody.data.reviewNote ?? null,
+      });
+    }
 
     res.status(200).json({
       success: true,

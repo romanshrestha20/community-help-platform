@@ -17,6 +17,7 @@ import {
   serializeProfileQualifications,
 } from "../utils/profile-qualifications.js";
 import { buildVerificationBadges } from "../utils/verification-badges.js";
+import { sendAccountDeletedSecurityEmail } from "../services/transactional-email.service.js";
 
 export const getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?.userId;
@@ -386,6 +387,10 @@ export const deleteUserAccount = async (req: Request, res: Response, next: NextF
         where: { id: userId },
       }),
     ]);
+
+    await sendAccountDeletedSecurityEmail({
+      email: user.email,
+    });
 
     res.json({
       status: "success",

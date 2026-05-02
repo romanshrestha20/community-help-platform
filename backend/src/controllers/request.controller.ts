@@ -23,6 +23,7 @@ import {
 
 import { createNotification } from "../services/notification.service.js";
 import { NotificationType } from "../../generated/prisma/client.js";
+import { sendRequestCompletedAndReviewReminderEmails } from "../services/transactional-email.service.js";
 
 const sendResponse = (
   res: Response,
@@ -749,6 +750,27 @@ export const updateHelpRequestStatus = async (
           requestTitle: existing.title,
         },
       });
+
+      const [assignedHelper, requester] = await Promise.all([
+        prisma.userModel.findUnique({
+          where: { id: existing.assignedHelperId },
+          select: { id: true, email: true },
+        }),
+        prisma.userModel.findUnique({
+          where: { id: existing.requesterId },
+          select: { id: true, email: true },
+        }),
+      ]);
+
+      if (assignedHelper?.email && requester?.email) {
+        await sendRequestCompletedAndReviewReminderEmails({
+          helperUserId: assignedHelper.id,
+          helperEmail: assignedHelper.email,
+          requesterUserId: requester.id,
+          requesterEmail: requester.email,
+          requestTitle: existing.title,
+        });
+      }
     }
 
     if (status === "CANCELLED" && existing.assignedHelperId) {

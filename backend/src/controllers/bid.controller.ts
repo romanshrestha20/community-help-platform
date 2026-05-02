@@ -7,6 +7,10 @@ import { NotificationType, Prisma } from "../../generated/prisma/client.js";
 import { getZodErrorMessage } from "../utils/zod.js";
 import { buildVerificationBadges } from "../utils/verification-badges.js";
 import {
+  sendBidDecisionEmailToHelper,
+  sendBidPlacedEmailToRequester,
+} from "../services/transactional-email.service.js";
+import {
   placeBidBodySchema,
   respondToBidBodySchema,
   updateBidBodySchema,
@@ -208,6 +212,24 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
         bidAmount: bid.amount,
       },
     });
+
+    const requester = await prisma.userModel.findUnique({
+      where: { id: request.requesterId },
+      select: {
+        id: true,
+        email: true,
+      },
+    });
+
+    if (requester?.email) {
+      await sendBidPlacedEmailToRequester({
+        requesterUserId: requester.id,
+        requesterEmail: requester.email,
+        requestTitle: request.title,
+        helperName: bid.helper?.profile?.fullName || "Helper",
+        amount: bid.amount ?? 0,
+      });
+    }
 
     console.log("Bid placed:", {
       bidId: bid.id,
@@ -440,6 +462,42 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
             },
           })
         )
+      );
+    }
+
+    if (bid.helper?.email) {
+      await sendBidDecisionEmailToHelper({
+        helperUserId: bid.helperId,
+        helperEmail: bid.helper.email,
+        requestTitle: bid.request.title,
+        amount: bid.amount ?? 0,
+        accepted: status === "ACCEPTED",
+      });
+    }
+
+    if (status === "ACCEPTED" && autoRejectedBids.length > 0) {
+      const rejectedHelpers = await prisma.userModel.findMany({
+        where: {
+          id: { in: autoRejectedBids.map((item) => item.helperId) },
+        },
+        select: {
+          id: true,
+          email: true,
+        },
+      });
+
+      await Promise.all(
+        rejectedHelpers
+          .filter((user) => Boolean(user.email))
+          .map((user) =>
+            sendBidDecisionEmailToHelper({
+              helperUserId: user.id,
+              helperEmail: user.email,
+              requestTitle: bid.request.title,
+              amount: bid.amount ?? 0,
+              accepted: false,
+            })
+          )
       );
     }
 
