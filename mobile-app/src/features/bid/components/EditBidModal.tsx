@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { AppModal } from "@/components/ui/AppModal";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppInput } from "@/components/ui/AppInput";
 import { theme } from "@/design-system";
-import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { Bid } from "../types/bid.types";
 
 type Props = {
@@ -22,7 +22,6 @@ export const EditBidModal: React.FC<Props> = ({
   onClose,
   onSubmit,
 }) => {
-  const { palette } = useThemeContext();
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
 
@@ -41,6 +40,10 @@ export const EditBidModal: React.FC<Props> = ({
       message: message.trim(),
     });
   };
+
+  const unchanged =
+    !bid ||
+    (String(bid.amount ?? "") === amount.trim() && (bid.message ?? "").trim() === message.trim());
 
   return (
     <AppModal
@@ -61,54 +64,35 @@ export const EditBidModal: React.FC<Props> = ({
           <AppButton
             title={loading ? "Saving..." : "Save changes"}
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={loading || unchanged}
           />
         </>
       }
     >
       <View style={styles.fieldGroup}>
-        <Text style={[styles.label, { color: palette.textSecondary }]}>
-          Bid amount
-        </Text>
-        <TextInput
+        <AppInput
+          label="Bid amount"
+          required
+          helperText="Enter your updated offer amount in EUR."
           value={amount}
           onChangeText={setAmount}
           keyboardType="numeric"
           placeholder="Enter bid amount"
-          placeholderTextColor={palette.textSecondary}
           editable={!loading}
-          style={[
-            styles.input,
-            {
-              color: palette.textPrimary,
-              backgroundColor: palette.surfaceMuted,
-              borderColor: palette.border,
-            },
-          ]}
         />
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={[styles.label, { color: palette.textSecondary }]}>
-          Message
-        </Text>
-        <TextInput
+        <AppInput
+          label="Message"
+          required
+          helperText="Update your message for the requester."
           value={message}
           onChangeText={setMessage}
           placeholder="Update your message"
-          placeholderTextColor={palette.textSecondary}
           editable={!loading}
           multiline
-          textAlignVertical="top"
-          style={[
-            styles.input,
-            styles.textArea,
-            {
-              color: palette.textPrimary,
-              backgroundColor: palette.surfaceMuted,
-              borderColor: palette.border,
-            },
-          ]}
+          numberOfLines={4}
         />
       </View>
     </AppModal>
@@ -119,19 +103,7 @@ const styles = StyleSheet.create({
   fieldGroup: {
     gap: theme.spacing.xs,
   },
-  label: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
-  },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    fontSize: theme.typography.fontSize.md,
-  },
-  textArea: {
-    minHeight: 120,
-  },
+  label: {},
+  input: {},
+  textArea: {},
 });

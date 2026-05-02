@@ -8,6 +8,8 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { CreateBidData, UpdateBidData, Bid } from "../types/bid.types";
 import { validateBidDraftFields } from "../utils/bidValidation";
+import { mapBidErrorMessage } from "../utils/bidErrorMessage";
+import { formEvents } from "@/utils/formEvents";
 
 interface BidFormProps {
     helpRequestId?: string;
@@ -68,6 +70,7 @@ export const BidForm: React.FC<BidFormProps> = ({
         if (!validation.isValid) {
             setValidationError(validation.formError);
             setFieldErrors(validation.fieldErrors);
+            formEvents.formValidationFailed("bid_form", Object.keys(validation.fieldErrors)[0]);
             return;
         }
 
@@ -83,7 +86,14 @@ export const BidForm: React.FC<BidFormProps> = ({
             };
 
         clearValidationError();
-        await onSubmit(data);
+        formEvents.formSubmitStarted("bid_form");
+        await onSubmit(data).catch((submitError) => {
+            const friendly = mapBidErrorMessage(submitError);
+            setValidationError(friendly);
+            formEvents.formSubmitFailed("bid_form", friendly);
+            throw submitError;
+        });
+        formEvents.formSubmitSuccess("bid_form");
 
         if (!isUpdate) {
             setFormData((prev) => ({
@@ -147,7 +157,9 @@ export const BidForm: React.FC<BidFormProps> = ({
                 ]}
             >
                 <AppInput
-                    label="Offer amount *"
+                    label="Offer amount"
+                    required
+                    helperText="Enter the amount you want to offer in EUR."
                     placeholder="0.00"
                     keyboardType="decimal-pad"
                     value={formData.amount}
@@ -173,7 +185,9 @@ export const BidForm: React.FC<BidFormProps> = ({
                 ]}
             >
                 <AppInput
-                    label="Pitch message *"
+                    label="Pitch message"
+                    required
+                    helperText="Explain why you’re a good fit and when you can help."
                     placeholder="Tell the requester why you are a good fit."
                     multiline
                     numberOfLines={5}
@@ -215,7 +229,7 @@ export const BidForm: React.FC<BidFormProps> = ({
                         },
                     ]}
                 >
-                    <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
+                    <Text style={[styles.errorText, { color: palette.danger }]}>{mapBidErrorMessage(error)}</Text>
                 </View>
             ) : null}
 
@@ -310,4 +324,3 @@ const styles = StyleSheet.create({
         flex: 1,
     },
 });
-

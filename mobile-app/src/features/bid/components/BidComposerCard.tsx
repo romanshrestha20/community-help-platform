@@ -12,6 +12,8 @@ import {
     parseBidAmountInput,
     validateBidDraftFields,
 } from "../utils/bidValidation";
+import { mapBidErrorMessage } from "../utils/bidErrorMessage";
+import { formEvents } from "@/utils/formEvents";
 
 type Props = {
     helpRequestId?: string;
@@ -66,6 +68,7 @@ export const BidComposerCard = ({
         if (!validation.isValid) {
             setValidationError(validation.formError);
             setFieldErrors(validation.fieldErrors);
+            formEvents.formValidationFailed("bid_composer", Object.keys(validation.fieldErrors)[0]);
             return;
         }
 
@@ -73,18 +76,30 @@ export const BidComposerCard = ({
         if (!parsedAmount.amount) return;
 
         clearValidationError();
+        formEvents.formSubmitStarted("bid_composer");
         if (mode === "edit") {
             await onSubmit({
                 amount: parsedAmount.amount,
                 message: message.trim(),
+            }).catch((submitError) => {
+                const friendly = mapBidErrorMessage(submitError);
+                setValidationError(friendly);
+                formEvents.formSubmitFailed("bid_composer", friendly);
+                throw submitError;
             });
         } else {
             await onSubmit({
                 helpRequestId: helpRequestId ?? initialData?.helpRequestId ?? "",
                 amount: parsedAmount.amount,
                 message: message.trim(),
+            }).catch((submitError) => {
+                const friendly = mapBidErrorMessage(submitError);
+                setValidationError(friendly);
+                formEvents.formSubmitFailed("bid_composer", friendly);
+                throw submitError;
             });
         }
+        formEvents.formSubmitSuccess("bid_composer");
 
         if (mode === "create") {
             setAmount("");
@@ -102,6 +117,8 @@ export const BidComposerCard = ({
 
                 <AppInput
                     label="Amount"
+                    required
+                    helperText="Enter your offer amount in EUR."
                     value={amount}
                     error={fieldErrors.amount ?? null}
                     onChangeText={(value) => {
@@ -115,6 +132,8 @@ export const BidComposerCard = ({
 
                 <AppInput
                     label="Message"
+                    required
+                    helperText="Share your approach and availability."
                     value={message}
                     error={fieldErrors.message ?? null}
                     onChangeText={(value) => {
