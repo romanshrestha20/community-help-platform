@@ -42,6 +42,32 @@ const savedRequestTypes: NotificationType[] = [
     "REVIEW_REPLY_RECEIVED",
 ];
 
+const isLegacyNearbyPreferenceColumnError = (error: unknown) => {
+    if (!error || typeof error !== "object") return false;
+
+    const maybePrismaError = error as { code?: string; message?: string };
+    if (maybePrismaError.code !== "P2022") return false;
+
+    const message = (maybePrismaError.message || "").toLowerCase();
+    return (
+        message.includes("nearbyalertsurgentonly") ||
+        message.includes("nearbyalertcategoryslugs")
+    );
+};
+
+const withDefaultNearbyFields = (
+    preferences: Omit<
+        NotificationPreferences,
+        "nearbyAlertsUrgentOnly" | "nearbyAlertCategorySlugs"
+    >
+): NotificationPreferences => {
+    return {
+        ...preferences,
+        nearbyAlertsUrgentOnly: defaultNotificationPreferences.nearbyAlertsUrgentOnly,
+        nearbyAlertCategorySlugs: defaultNotificationPreferences.nearbyAlertCategorySlugs,
+    };
+};
+
 export const getDefaultNotificationPreferences = () => {
     return defaultNotificationPreferences;
 };
@@ -49,27 +75,59 @@ export const getDefaultNotificationPreferences = () => {
 export const getNotificationPreferencesForUser = async (
     userId: string
 ): Promise<NotificationPreferences> => {
-    const preferences = await prisma.notificationPreference.upsert({
-        where: { userId },
-        update: {},
-        create: {
-            userId,
-            ...defaultNotificationPreferences,
-        },
-        select: {
-            pushEnabled: true,
-            messagesEnabled: true,
-            bidsEnabled: true,
-            requestUpdatesEnabled: true,
-            savedRequestsEnabled: true,
-            nearbyAlertsEnabled: true,
-            nearbyAlertRadiusKm: true,
-            nearbyAlertsUrgentOnly: true,
-            nearbyAlertCategorySlugs: true,
-        },
-    });
+    try {
+        const preferences = await prisma.notificationPreference.upsert({
+            where: { userId },
+            update: {},
+            create: {
+                userId,
+                ...defaultNotificationPreferences,
+            },
+            select: {
+                pushEnabled: true,
+                messagesEnabled: true,
+                bidsEnabled: true,
+                requestUpdatesEnabled: true,
+                savedRequestsEnabled: true,
+                nearbyAlertsEnabled: true,
+                nearbyAlertRadiusKm: true,
+                nearbyAlertsUrgentOnly: true,
+                nearbyAlertCategorySlugs: true,
+            },
+        });
 
-    return preferences;
+        return preferences;
+    } catch (error) {
+        if (!isLegacyNearbyPreferenceColumnError(error)) {
+            throw error;
+        }
+
+        const legacyPreferences = await prisma.notificationPreference.upsert({
+            where: { userId },
+            update: {},
+            create: {
+                userId,
+                pushEnabled: defaultNotificationPreferences.pushEnabled,
+                messagesEnabled: defaultNotificationPreferences.messagesEnabled,
+                bidsEnabled: defaultNotificationPreferences.bidsEnabled,
+                requestUpdatesEnabled: defaultNotificationPreferences.requestUpdatesEnabled,
+                savedRequestsEnabled: defaultNotificationPreferences.savedRequestsEnabled,
+                nearbyAlertsEnabled: defaultNotificationPreferences.nearbyAlertsEnabled,
+                nearbyAlertRadiusKm: defaultNotificationPreferences.nearbyAlertRadiusKm,
+            },
+            select: {
+                pushEnabled: true,
+                messagesEnabled: true,
+                bidsEnabled: true,
+                requestUpdatesEnabled: true,
+                savedRequestsEnabled: true,
+                nearbyAlertsEnabled: true,
+                nearbyAlertRadiusKm: true,
+            },
+        });
+
+        return withDefaultNearbyFields(legacyPreferences);
+    }
 };
 
 export const updateNotificationPreferencesForUser = async (
@@ -82,27 +140,77 @@ export const updateNotificationPreferencesForUser = async (
         ...updates,
     };
 
-    const preferences = await prisma.notificationPreference.upsert({
-        where: { userId },
-        update: nextPreferences,
-        create: {
-            userId,
-            ...nextPreferences,
-        },
-        select: {
-            pushEnabled: true,
-            messagesEnabled: true,
-            bidsEnabled: true,
-            requestUpdatesEnabled: true,
-            savedRequestsEnabled: true,
-            nearbyAlertsEnabled: true,
-            nearbyAlertRadiusKm: true,
-            nearbyAlertsUrgentOnly: true,
-            nearbyAlertCategorySlugs: true,
-        },
-    });
+    try {
+        const preferences = await prisma.notificationPreference.upsert({
+            where: { userId },
+            update: nextPreferences,
+            create: {
+                userId,
+                ...nextPreferences,
+            },
+            select: {
+                pushEnabled: true,
+                messagesEnabled: true,
+                bidsEnabled: true,
+                requestUpdatesEnabled: true,
+                savedRequestsEnabled: true,
+                nearbyAlertsEnabled: true,
+                nearbyAlertRadiusKm: true,
+                nearbyAlertsUrgentOnly: true,
+                nearbyAlertCategorySlugs: true,
+            },
+        });
 
-    return preferences;
+        return preferences;
+    } catch (error) {
+        if (!isLegacyNearbyPreferenceColumnError(error)) {
+            throw error;
+        }
+
+        const legacyNextPreferences = {
+            pushEnabled: nextPreferences.pushEnabled,
+            messagesEnabled: nextPreferences.messagesEnabled,
+            bidsEnabled: nextPreferences.bidsEnabled,
+            requestUpdatesEnabled: nextPreferences.requestUpdatesEnabled,
+            savedRequestsEnabled: nextPreferences.savedRequestsEnabled,
+            nearbyAlertsEnabled: nextPreferences.nearbyAlertsEnabled,
+            nearbyAlertRadiusKm: nextPreferences.nearbyAlertRadiusKm,
+        };
+
+        const legacyPreferences = await prisma.notificationPreference.upsert({
+            where: { userId },
+            update: legacyNextPreferences,
+            create: {
+                userId,
+                pushEnabled: legacyNextPreferences.pushEnabled ?? defaultNotificationPreferences.pushEnabled,
+                messagesEnabled: legacyNextPreferences.messagesEnabled ?? defaultNotificationPreferences.messagesEnabled,
+                bidsEnabled: legacyNextPreferences.bidsEnabled ?? defaultNotificationPreferences.bidsEnabled,
+                requestUpdatesEnabled:
+                    legacyNextPreferences.requestUpdatesEnabled ??
+                    defaultNotificationPreferences.requestUpdatesEnabled,
+                savedRequestsEnabled:
+                    legacyNextPreferences.savedRequestsEnabled ??
+                    defaultNotificationPreferences.savedRequestsEnabled,
+                nearbyAlertsEnabled:
+                    legacyNextPreferences.nearbyAlertsEnabled ??
+                    defaultNotificationPreferences.nearbyAlertsEnabled,
+                nearbyAlertRadiusKm:
+                    legacyNextPreferences.nearbyAlertRadiusKm ??
+                    defaultNotificationPreferences.nearbyAlertRadiusKm,
+            },
+            select: {
+                pushEnabled: true,
+                messagesEnabled: true,
+                bidsEnabled: true,
+                requestUpdatesEnabled: true,
+                savedRequestsEnabled: true,
+                nearbyAlertsEnabled: true,
+                nearbyAlertRadiusKm: true,
+            },
+        });
+
+        return withDefaultNearbyFields(legacyPreferences);
+    }
 };
 
 export const isNotificationTypeEnabled = (
