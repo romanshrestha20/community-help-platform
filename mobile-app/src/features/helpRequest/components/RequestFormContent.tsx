@@ -16,6 +16,7 @@ import { RequestFormHero } from "./RequestFormHero";
 import { RequestFormSection } from "./RequestFormSection";
 import { AppCategory } from "@/features/category/types/category.types";
 import { formatUrgentDurationLabel } from "../utils/urgent";
+import { RequestCategoryBudgetPicker } from "./RequestCategoryBudgetPicker";
 
 const URGENT_DURATION_OPTIONS = [30, 60, 120, 240] as const;
 
@@ -102,32 +103,19 @@ export const RequestFormContent = ({
                 />
 
                 <Stack gap="sm">
-                    <View style={styles.groupHeader}>
-                        <Text style={styles.groupTitle}>Category</Text>
-                        <Text style={styles.groupMeta}>
-                            {categories.length ? "Select one" : "Loading categories"}
-                        </Text>
-                    </View>
-
-                    <View style={styles.categoryButtons}>
-                        {categories.map((category) => (
-                            <AppButton
-                                key={category.id}
-                                title={category.name}
-                                onPress={() => onChangeField("categoryId", category.id)}
-                                variant={values.categoryId === category.id ? "primary" : "secondary"}
-                                fullWidth={false}
-                            />
-                        ))}
-                    </View>
-
-                    <AppInput
-                        label="Budget"
-                        placeholder="Optional amount"
-                        keyboardType="decimal-pad"
-                        value={values.budget?.toString() || ""}
-                        error={fieldErrors.budget ?? null}
-                        onChangeText={(value) =>
+                    <RequestCategoryBudgetPicker
+                        label="Category and budget"
+                        helperText={categories.length ? "Pick one category and optionally add a budget." : "Loading categories..."}
+                        required
+                        categories={categories}
+                        selectedCategoryId={values.categoryId}
+                        budget={values.budget?.toString() || ""}
+                        categoryError={(fieldErrors as any).categoryId ?? null}
+                        budgetError={fieldErrors.budget ?? null}
+                        disabled={loading}
+                        accessibilityLabel="Category and budget picker"
+                        onCategoryChange={(categoryId) => onChangeField("categoryId", categoryId)}
+                        onBudgetChange={(value) =>
                             onChangeField("budget", value ? parseFloat(value) : undefined)
                         }
                     />
@@ -174,7 +162,14 @@ export const RequestFormContent = ({
                         variant="secondary"
                     />
                 ) : null}
-                <LocationPickerField {...locationPickerProps} />
+                <LocationPickerField
+                    label="Location"
+                    helperText="Choose where the help is needed so nearby helpers can find your request."
+                    required
+                    disabled={loading}
+                    accessibilityLabel="Request location picker"
+                    {...locationPickerProps}
+                />
             </RequestFormSection>
 
             {validationError || error ? (

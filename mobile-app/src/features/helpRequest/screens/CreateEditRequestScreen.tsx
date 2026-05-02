@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { LayoutChangeEvent, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -10,6 +10,7 @@ import { Card, Row, Screen, ScreenView, Stack, theme } from "@/design-system";
 import LocationPickerField from "@/features/location/components/LocationPickerField";
 import { useLocationPickerScreenStore } from "@/features/location/store/locationPickerScreen.store";
 import { RequestPhotoUploadSection } from "@/features/helpRequest/components/RequestPhotoUploadSection";
+import { RequestCategoryBudgetPicker } from "@/features/helpRequest/components/RequestCategoryBudgetPicker";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useCreateEditRequestScreen } from "@/features/helpRequest/hooks/useCreateEditRequestScreen";
 import { useCategories } from "@/features/category/hooks/category.hook";
@@ -18,6 +19,14 @@ import { RequestImageUploadInput } from "@/features/helpRequest/types/helpReques
 import { showErrorToast, showInfoToast, showSuccessToast } from "@/utils/toast";
 import { APP_ROUTES } from "@/config/routes";
 import { goBackOrFallback } from "@/utils/navigation";
+import { StickySubmitBar } from "@/components/ui/StickySubmitBar";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { DEFAULT_REQUEST_FORM } from "@/features/helpRequest/types/requestForm.types";
+import { AppModal } from "@/components/ui/AppModal";
+import { validateRequestForm } from "@/features/helpRequest/validation/request.validation";
+import { mapRequestErrorMessage } from "@/features/helpRequest/utils/requestErrorMessage";
+import { buildRequestDraftKey, useRequestDraftStore } from "@/features/helpRequest/store/requestDraft.store";
+import { requestFormEvents } from "@/features/helpRequest/utils/requestFormEvents";
 
 const MAX_REQUEST_IMAGES = 5;
 const URGENT_DURATION_OPTIONS: Array<{ label: string; value: 30 | 60 | 120 | 240 }> = [
@@ -44,8 +53,13 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
         (state) => state.consumeConfirmedLocation
     );
     const [selectedImages, setSelectedImages] = useState<RequestImageUploadInput[]>([]);
+    const [reviewVisible, setReviewVisible] = useState(false);
+    const [categoryFieldError, setCategoryFieldError] = useState<string | null>(null);
     const isProfileRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
     const activeRequestId = requestId || params.id;
+    const draftKey = buildRequestDraftKey(activeRequestId);
+    const saveDraft = useRequestDraftStore((state) => state.saveDraft);
+    const getDraft = useRequestDraftStore((state) => state.getDraft);
     const isEditingRoute = Boolean(activeRequestId);
     const requestListRoute = isProfileRoute
         ? APP_ROUTES.PROFILE_REQUESTS
@@ -70,13 +84,85 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
         fieldErrors,
         updateField,
         clearFieldError,
+        setValidationError,
+        setFieldErrors,
         submitRequest,
     } = useCreateEditRequestScreen({ requestId: activeRequestId });
+    const scrollRef = useRef<ScrollView>(null);
+    const titleRef = useRef<any>(null);
+    const descriptionRef = useRef<any>(null);
+    const budgetRef = useRef<any>(null);
+    const sectionY = useRef<Record<"photos" | "category" | "location", number>>({
+        photos: 0,
+        category: 0,
+        location: 0,
+    });
+
+    const normalizedCurrentForm = useMemo(
+        () => ({
+            title: form.title.trim(),
+            description: form.description.trim(),
+            categoryId: form.categoryId,
+            budget: form.budget.trim(),
+            isUrgent: form.isUrgent,
+            urgentDurationMinutes: form.urgentDurationMinutes,
+            city: form.city.trim(),
+            country: form.country.trim(),
+        }),
+        [form]
+    );
+
+    const normalizedBaselineForm = useMemo(() => {
+        if (!isEditing || !request) {
+            return {
+                ...DEFAULT_REQUEST_FORM,
+                title: DEFAULT_REQUEST_FORM.title.trim(),
+                description: DEFAULT_REQUEST_FORM.description.trim(),
+                budget: DEFAULT_REQUEST_FORM.budget.trim(),
+                city: DEFAULT_REQUEST_FORM.city.trim(),
+                country: DEFAULT_REQUEST_FORM.country.trim(),
+            };
+        }
+
+        return {
+            title: request.title.trim(),
+            description: request.description.trim(),
+            categoryId: request.categoryId ?? "",
+            budget: typeof request.budget === "number" ? String(request.budget) : "",
+            isUrgent: Boolean(request.isUrgent),
+            urgentDurationMinutes: DEFAULT_REQUEST_FORM.urgentDurationMinutes,
+            city: (request.city ?? request.location?.city ?? "").trim(),
+            country: (request.country ?? request.location?.country ?? "").trim(),
+        };
+    }, [isEditing, request]);
+
+    const isFormDirty =
+        JSON.stringify(normalizedCurrentForm) !== JSON.stringify(normalizedBaselineForm) ||
+        selectedImages.length > 0;
+
+    useUnsavedChangesGuard({
+        enabled: isFormDirty && !saving,
+    });
 
     useEffect(() => {
         if (form.categoryId || !categories.length) return;
         updateField("categoryId", categories[0].id);
     }, [categories, form.categoryId, updateField]);
+
+    useEffect(() => {
+        const draft = getDraft(draftKey);
+        if (draft?.selectedImages?.length && selectedImages.length === 0) {
+            setSelectedImages(draft.selectedImages);
+        }
+    }, [draftKey, getDraft, selectedImages.length]);
+
+    useEffect(() => {
+        saveDraft(draftKey, {
+            form,
+            location: locationPicker.value,
+            selectedImages,
+        });
+    }, [draftKey, form, locationPicker.value, saveDraft, selectedImages]);
 
     useEffect(() => {
         if (!confirmedMapLocation) return;
@@ -86,8 +172,15 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
             if (!nextLocation) return;
             clearFieldError("location");
             await locationPicker.setValue(nextLocation);
+            requestFormEvents.createRequestLocationSelected();
         })();
     }, [clearFieldError, confirmedMapLocation, consumeConfirmedLocation, locationPicker, locationPickerOwnerId]);
+
+    useEffect(() => {
+        if (!isEditing) {
+            requestFormEvents.createRequestStarted();
+        }
+    }, [isEditing]);
 
     const handleBack = () => {
         goBackOrFallback({
@@ -96,7 +189,61 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
         });
     };
 
-    const handleSave = async () => {
+    const focusOrScrollToInvalidField = (field?: string) => {
+        if (field === "title") {
+            titleRef.current?.focus?.();
+            return;
+        }
+        if (field === "description") {
+            descriptionRef.current?.focus?.();
+            return;
+        }
+        if (field === "budget") {
+            budgetRef.current?.focus?.();
+            return;
+        }
+        if (field === "images") {
+            scrollRef.current?.scrollTo({ y: sectionY.current.photos, animated: true });
+            return;
+        }
+        if (field === "categoryId") {
+            scrollRef.current?.scrollTo({ y: sectionY.current.category, animated: true });
+            return;
+        }
+        if (field === "location") {
+            scrollRef.current?.scrollTo({ y: sectionY.current.location, animated: true });
+        }
+    };
+
+    const validateBeforeSubmit = () => {
+        const validation = validateRequestForm({
+            form,
+            location: locationPicker.value,
+            selectedImages,
+            existingImageCount: request?.images?.length ?? 0,
+            requireAtLeastOneImage: false,
+        });
+
+        setValidationError(validation.formError);
+        setFieldErrors({
+            title: validation.fieldErrors.title,
+            description: validation.fieldErrors.description,
+            budget: validation.fieldErrors.budget,
+            location: validation.fieldErrors.location,
+        });
+        setCategoryFieldError(validation.fieldErrors.categoryId ?? null);
+
+        if (!validation.isValid) {
+            const firstInvalidField = Object.keys(validation.fieldErrors)[0];
+            focusOrScrollToInvalidField(firstInvalidField);
+            if (isEditing) requestFormEvents.editRequestValidationFailed(firstInvalidField);
+            else requestFormEvents.createRequestValidationFailed(firstInvalidField);
+        }
+
+        return validation.isValid;
+    };
+
+    const executeSave = async () => {
         const saved = await submitRequest(selectedImages);
         if (!saved) {
             if ((requestError || "").toLowerCase().includes("verification required")) {
@@ -104,12 +251,33 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                     "Email verification required",
                     "Verify your email to create or edit requests."
                 );
+            } else {
+                showErrorToast("Could not save request", mapRequestErrorMessage(requestError));
             }
+            if (!isEditing) requestFormEvents.createRequestFailed(requestError ?? undefined);
             return;
         }
 
         showSuccessToast(isEditing ? "Request updated successfully" : "Request created successfully");
+        if (isEditing) {
+            requestFormEvents.editRequestSuccess(saved.id);
+        } else {
+            requestFormEvents.createRequestSuccess(saved.id);
+        }
+        useRequestDraftStore.getState().clearDraft(draftKey);
         router.replace(requestDetailRoute(saved.id));
+    };
+
+    const handleSave = async () => {
+        if (!validateBeforeSubmit()) return;
+
+        if (!isEditing) {
+            requestFormEvents.createRequestReviewOpened();
+            setReviewVisible(true);
+            return;
+        }
+
+        await executeSave();
     };
 
     const handlePickImages = async () => {
@@ -148,6 +316,12 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
         setSelectedImages((prev) => [...prev, ...nextImages]);
     };
 
+    const onSectionLayout =
+        (key: "photos" | "category" | "location") =>
+        (event: LayoutChangeEvent) => {
+            sectionY.current[key] = event.nativeEvent.layout.y;
+        };
+
     const handleRemoveImage = (indexToRemove: number) => {
         setSelectedImages((prev) => prev.filter((_, index) => index !== indexToRemove));
     };
@@ -177,7 +351,7 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
     }
 
     return (
-        <Screen>
+        <ScreenView>
             <AppHeader
                 title={isEditing ? "Edit Request" : "Create Request"}
                 subtitle={
@@ -192,9 +366,17 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                 }}
             />
 
+            <ScrollView
+                ref={scrollRef}
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+            >
             <Card>
                 <Stack gap="md">
+                    <View onLayout={onSectionLayout("photos")}>
                     <RequestPhotoUploadSection
+                        required
+                        helperText="Add clear photos so helpers understand the job quickly."
                         loading={saving}
                         existingImages={request?.images}
                         selectedImages={selectedImages}
@@ -204,8 +386,10 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                         title="Request photos"
                         description="Add or review images before you save the request."
                     />
+                    </View>
 
                     <View
+                        onLayout={onSectionLayout("category")}
                         style={[
                             styles.sectionCard,
                             {
@@ -218,7 +402,10 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                         <Text style={[styles.sectionDescription, { color: palette.textSecondary }]}>Write a clear title and description so helpers understand the need quickly.</Text>
 
                         <AppInput
+                            ref={titleRef}
                             label="Title"
+                            required
+                            helperText="Example: Need grocery pickup this evening"
                             value={form.title}
                             error={fieldErrors.title ?? null}
                             onChangeText={(value) => {
@@ -230,7 +417,10 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                         />
 
                         <AppInput
+                            ref={descriptionRef}
                             label="Description"
+                            required
+                            helperText="Include timing, exact help needed, and constraints."
                             value={form.description}
                             error={fieldErrors.description ?? null}
                             onChangeText={(value) => {
@@ -244,46 +434,27 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                         />
                     </View>
 
-                    <View
-                        style={[
-                            styles.sectionCard,
-                            {
-                                borderColor: palette.border,
-                                backgroundColor: palette.surfaceSecondary,
-                            },
-                        ]}
-                    >
-                        <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Category and budget</Text>
-                        <Text style={[styles.sectionDescription, { color: palette.textSecondary }]}>Pick the closest category and add a budget if relevant.</Text>
-
-                        <Stack gap="xs">
-                            <Text style={[styles.label, { color: palette.textPrimary }]}>Category</Text>
-                            <Row gap="sm" style={styles.wrapRow}>
-                                {categories.map((category) => (
-                                    <AppButton
-                                        key={category.id}
-                                        title={category.name}
-                                        onPress={() => updateField("categoryId", category.id)}
-                                        variant={form.categoryId === category.id ? "primary" : "secondary"}
-                                        fullWidth={false}
-                                        disabled={saving}
-                                    />
-                                ))}
-                            </Row>
-                        </Stack>
-
-                        <AppInput
-                            label="Budget"
-                            value={form.budget}
-                            error={fieldErrors.budget ?? null}
-                            onChangeText={(value) => {
-                                clearFieldError("budget");
-                                updateField("budget", value);
-                            }}
-                            editable={!saving}
-                            keyboardType="decimal-pad"
-                            placeholder="Optional"
-                        />
+                    <RequestCategoryBudgetPicker
+                        label="Category and budget"
+                        helperText="Pick the closest category and add a budget if relevant."
+                        required
+                        categories={categories}
+                        selectedCategoryId={form.categoryId}
+                        budget={form.budget}
+                        categoryError={categoryFieldError}
+                        budgetError={fieldErrors.budget ?? null}
+                        budgetInputRef={budgetRef}
+                        disabled={saving}
+                        accessibilityLabel="Category and budget picker"
+                        onCategoryChange={(categoryId) => {
+                            setCategoryFieldError(null);
+                            updateField("categoryId", categoryId);
+                        }}
+                        onBudgetChange={(value) => {
+                            clearFieldError("budget");
+                            updateField("budget", value);
+                        }}
+                    />
 
                         <View
                             style={[
@@ -328,9 +499,8 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                                 </Stack>
                             ) : null}
                         </View>
-                    </View>
-
                     <View
+                        onLayout={onSectionLayout("location")}
                         style={[
                             styles.sectionCard,
                             {
@@ -344,13 +514,24 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
 
                         <AppButton
                             title="Choose on map"
-                            onPress={() => {
+                                onPress={() => {
+                                saveDraft(draftKey, {
+                                    form,
+                                    location: locationPicker.value,
+                                    selectedImages,
+                                });
                                 setDraftMapLocation(
                                     locationPicker.value,
                                     locationPickerOwnerId,
                                     locationPickerReturnRoute
                                 );
-                                router.push(APP_ROUTES.LOCATION_PICKER);
+                                router.push({
+                                    pathname: APP_ROUTES.LOCATION_PICKER,
+                                    params: {
+                                        returnTo: locationPickerReturnRoute,
+                                        draftKey,
+                                    },
+                                } as any);
                             }}
                             variant="secondary"
                             fullWidth={false}
@@ -358,6 +539,11 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                         />
 
                         <LocationPickerField
+                            label="Location"
+                            helperText="Set where help is needed so nearby people can find your request."
+                            required
+                            disabled={saving}
+                            accessibilityLabel="Request location picker"
                             value={locationPicker.value}
                             loading={locationPicker.loading}
                             error={fieldErrors.location ?? locationPicker.error}
@@ -393,32 +579,94 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
                         </View>
                     ) : null}
 
-                    <Row gap="sm" style={styles.actionsRow}>
-                        <View style={styles.actionButton}>
-                            <AppButton
-                                title="Cancel"
-                                onPress={handleBack}
-                                variant="secondary"
-                                fullWidth
-                                disabled={saving}
-                            />
-                        </View>
-                        <View style={styles.actionButton}>
-                            <AppButton
-                                title={saving ? "Saving..." : isEditing ? "Update Request" : "Create Request"}
-                                onPress={handleSave}
-                                loading={saving}
-                                fullWidth
-                            />
-                        </View>
-                    </Row>
                 </Stack>
             </Card>
-        </Screen>
+            <View style={styles.stickySpacer} />
+            </ScrollView>
+            <StickySubmitBar>
+                <Row gap="sm" style={styles.actionsRow}>
+                    <View style={styles.actionButton}>
+                        <AppButton
+                            title="Cancel"
+                            onPress={handleBack}
+                            variant="secondary"
+                            fullWidth
+                            disabled={saving}
+                        />
+                    </View>
+                    <View style={styles.actionButton}>
+                        <AppButton
+                            title={saving ? "Saving..." : isEditing ? "Update Request" : "Create Request"}
+                            onPress={handleSave}
+                            loading={saving}
+                            disabled={saving || (isEditing && !isFormDirty)}
+                            fullWidth
+                        />
+                    </View>
+                </Row>
+            </StickySubmitBar>
+            <AppModal
+                visible={reviewVisible}
+                title="Review request"
+                onClose={() => setReviewVisible(false)}
+                actions={
+                    <>
+                        <View style={styles.actionButton}>
+                            <AppButton
+                                title="Edit details"
+                                variant="secondary"
+                                fullWidth
+                                onPress={() => setReviewVisible(false)}
+                            />
+                        </View>
+                        <View style={styles.actionButton}>
+                            <AppButton
+                                title={saving ? "Creating..." : "Create request"}
+                                fullWidth
+                                loading={saving}
+                                disabled={saving}
+                                onPress={async () => {
+                                    requestFormEvents.createRequestSubmitted();
+                                    setReviewVisible(false);
+                                    await executeSave();
+                                }}
+                            />
+                        </View>
+                    </>
+                }
+            >
+                <Stack gap="sm">
+                    <Text style={[styles.reviewLine, { color: palette.textPrimary }]}>
+                        <Text style={styles.reviewLabel}>Title: </Text>
+                        {form.title.trim() || "Not set"}
+                    </Text>
+                    <Text style={[styles.reviewLine, { color: palette.textPrimary }]}>
+                        <Text style={styles.reviewLabel}>Category: </Text>
+                        {categories.find((category) => category.id === form.categoryId)?.name ?? "Not selected"}
+                    </Text>
+                    <Text style={[styles.reviewLine, { color: palette.textPrimary }]}>
+                        <Text style={styles.reviewLabel}>Location: </Text>
+                        {locationPicker.value?.formattedAddress || [locationPicker.value?.city, locationPicker.value?.country].filter(Boolean).join(", ") || "Not selected"}
+                    </Text>
+                    <Text style={[styles.reviewLine, { color: palette.textPrimary }]}>
+                        <Text style={styles.reviewLabel}>Budget: </Text>
+                        {form.budget.trim() ? form.budget.trim() : "Not set"}
+                    </Text>
+                    <Text style={[styles.reviewLine, { color: palette.textPrimary }]}>
+                        <Text style={styles.reviewLabel}>Photos: </Text>
+                        {(request?.images?.length ?? 0) + selectedImages.length} attached
+                    </Text>
+                </Stack>
+            </AppModal>
+        </ScreenView>
     );
 };
 
 const styles = StyleSheet.create({
+    scrollContent: {
+        padding: theme.spacing.lg,
+        paddingBottom: theme.spacing.xl,
+    },
     label: {
         fontSize: theme.typography.fontSize.sm,
         fontWeight: theme.typography.fontWeight.semibold,
@@ -468,6 +716,9 @@ const styles = StyleSheet.create({
     actionButton: {
         flex: 1,
     },
+    stickySpacer: {
+        height: 110,
+    },
     errorCard: {
         borderWidth: 1,
         borderRadius: theme.radius.md,
@@ -477,6 +728,13 @@ const styles = StyleSheet.create({
         fontSize: theme.typography.fontSize.sm,
         lineHeight: theme.typography.lineHeight.sm,
         fontWeight: theme.typography.fontWeight.medium,
+    },
+    reviewLine: {
+        fontSize: theme.typography.fontSize.sm,
+        lineHeight: theme.typography.lineHeight.sm,
+    },
+    reviewLabel: {
+        fontWeight: theme.typography.fontWeight.semibold,
     },
 });
 
