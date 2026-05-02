@@ -14,8 +14,20 @@ import { assertRedisReady } from "./lib/redis.js";
     await prisma.$connect();
     console.log('Connected to the database successfully!');
 
-    await assertRedisReady();
-    console.log("Connected to Redis successfully!");
+    try {
+      await assertRedisReady();
+      console.log("Connected to Redis successfully!");
+    } catch (redisError) {
+      const strictRedisStartup =
+        process.env.STRICT_REDIS_STARTUP?.trim().toLowerCase() === "true";
+      console.warn(
+        "[startup] Redis is unavailable. Continuing with degraded rate-limit/session monitoring mode.",
+        redisError
+      );
+      if (strictRedisStartup) {
+        throw redisError;
+      }
+    }
   } catch (error) {
     console.error("Startup dependency check failed:", error);
     process.exit(1);
