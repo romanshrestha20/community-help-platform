@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -124,6 +125,8 @@ export default function PrivacySecurityScreen() {
   const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const {
     validationError,
@@ -158,6 +161,8 @@ export default function PrivacySecurityScreen() {
   const resetPasswordForm = () => {
     setCurrentPassword("");
     setNewPassword("");
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
     clearValidationError();
     setFieldErrors({});
   };
@@ -441,8 +446,23 @@ export default function PrivacySecurityScreen() {
               clearFieldError("currentPassword");
               setCurrentPassword(value);
             }}
-            secureTextEntry
+            secureTextEntry={!showCurrentPassword}
             editable={!loadingChangePassword}
+            rightAction={
+              <Pressable
+                onPress={() => setShowCurrentPassword((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={showCurrentPassword ? "Hide current password" : "Show current password"}
+                accessibilityHint="Toggles password visibility"
+                hitSlop={8}
+              >
+                <Ionicons
+                  name={showCurrentPassword ? "eye-off-outline" : "eye-outline"}
+                  size={18}
+                  color={palette.textSecondary}
+                />
+              </Pressable>
+            }
           />
         ) : null}
 
@@ -454,8 +474,23 @@ export default function PrivacySecurityScreen() {
             clearFieldError("newPassword");
             setNewPassword(value);
           }}
-          secureTextEntry
+          secureTextEntry={!showNewPassword}
           editable={!(loadingChangePassword || loadingAddPassword)}
+          rightAction={
+            <Pressable
+              onPress={() => setShowNewPassword((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel={showNewPassword ? "Hide password" : "Show password"}
+              accessibilityHint="Toggles password visibility"
+              hitSlop={8}
+            >
+              <Ionicons
+                name={showNewPassword ? "eye-off-outline" : "eye-outline"}
+                size={18}
+                color={palette.textSecondary}
+              />
+            </Pressable>
+          }
         />
 
         {validationError ? (
