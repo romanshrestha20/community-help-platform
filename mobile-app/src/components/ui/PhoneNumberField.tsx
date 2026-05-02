@@ -3,6 +3,7 @@ import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { FormFieldShell } from "@/components/ui/FormFieldShell";
 import {
   getCallingCodeForCountry,
   getPhonePlaceholder,
@@ -18,6 +19,10 @@ type Props = {
   callingCode?: string;
   nationalNumber: string;
   label?: string;
+  required?: boolean;
+  helperText?: string;
+  disabled?: boolean;
+  accessibilityLabel?: string;
   error?: string | null;
   hint?: string | null;
   detectedLabel?: string | null;
@@ -33,6 +38,10 @@ export const PhoneNumberField = ({
   callingCode,
   nationalNumber,
   label = "Phone number",
+  required = false,
+  helperText,
+  disabled = false,
+  accessibilityLabel,
   error,
   hint,
   detectedLabel,
@@ -76,9 +85,14 @@ export const PhoneNumberField = ({
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={[styles.label, { color: palette.textPrimary }]}>{label}</Text>
-
+    <FormFieldShell
+      label={label}
+      required={required}
+      helperText={helperText ?? hint ?? undefined}
+      error={error ?? undefined}
+      disabled={disabled}
+      accessibilityLabel={accessibilityLabel ?? label}
+    >
       <View
         style={[
           styles.fieldRow,
@@ -116,32 +130,22 @@ export const PhoneNumberField = ({
           keyboardType="phone-pad"
           autoComplete="tel"
           textContentType="telephoneNumber"
+          editable={!disabled}
           style={[styles.input, { color: palette.textPrimary }]}
+          accessibilityLabel={accessibilityLabel ?? label}
+          accessibilityState={{ disabled }}
         />
       </View>
-
-      {error ? (
-        <Text style={[styles.feedback, { color: palette.danger }]}>{error}</Text>
-      ) : hint ? (
-        <Text style={[styles.feedback, { color: palette.textSecondary }]}>{hint}</Text>
-      ) : null}
 
       {detectedLabel ? (
         <Text style={[styles.detectedLabel, { color: palette.primary }]}>{detectedLabel}</Text>
       ) : null}
-    </View>
+    </FormFieldShell>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    gap: theme.spacing.xxs,
-  },
-  label: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
-    letterSpacing: 0.2,
-  },
+  container: {},
   fieldRow: {
     minHeight: 52,
     borderWidth: 1,
@@ -164,12 +168,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.sm,
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
-  },
-  feedback: {
-    marginTop: theme.spacing.xxs,
-    fontSize: theme.typography.fontSize.xs,
-    lineHeight: theme.typography.lineHeight.xs,
-    fontWeight: theme.typography.fontWeight.medium,
   },
   detectedLabel: {
     fontSize: theme.typography.fontSize.xs,

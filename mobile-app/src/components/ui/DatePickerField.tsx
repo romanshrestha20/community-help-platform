@@ -14,9 +14,14 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { FormFieldShell } from "@/components/ui/FormFieldShell";
 
 type Props = {
   label?: string;
+  required?: boolean;
+  helperText?: string;
+  disabled?: boolean;
+  accessibilityLabel?: string;
   error?: string | null;
   value: string; // YYYY-MM-DD
   onChangeText: (value: string) => void;
@@ -25,6 +30,10 @@ type Props = {
 
 export const DatePickerField = ({
   label,
+  required = false,
+  helperText,
+  disabled = false,
+  accessibilityLabel,
   error,
   value,
   onChangeText,
@@ -71,6 +80,7 @@ export const DatePickerField = ({
   const WebDateInput = "input" as unknown as React.ElementType;
 
   const openIOSPicker = () => {
+    if (disabled) return;
     setTempDate(currentDate);
     setIsFocused(true);
     setShowPicker(true);
@@ -110,12 +120,14 @@ export const DatePickerField = ({
   const displayColor = value ? palette.textPrimary : palette.textSecondary;
 
   return (
-    <View style={styles.container}>
-      {label ? (
-        <Text style={[styles.label, { color: palette.textPrimary }]}>
-          {label}
-        </Text>
-      ) : null}
+    <FormFieldShell
+      label={label}
+      required={required}
+      helperText={helperText}
+      error={error ?? undefined}
+      disabled={disabled}
+      accessibilityLabel={accessibilityLabel ?? label ?? "Date field"}
+    >
 
       {isWeb ? (
         <View
@@ -157,6 +169,7 @@ export const DatePickerField = ({
         <>
           <Pressable
             onPress={openIOSPicker}
+            disabled={disabled}
             style={[
               styles.inputContainer,
               {
@@ -166,6 +179,9 @@ export const DatePickerField = ({
               },
               isFocused && styles.inputContainerFocused,
             ]}
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel ?? label ?? "Select date"}
+            accessibilityState={{ disabled }}
           >
             <Ionicons
               name="calendar-outline"
@@ -244,24 +260,12 @@ export const DatePickerField = ({
           </Modal>
         </>
       )}
-
-      {error ? (
-        <Text style={[styles.error, { color: palette.danger }]}>{error}</Text>
-      ) : null}
-    </View>
+    </FormFieldShell>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: theme.spacing.md,
-  },
-  label: {
-    marginBottom: theme.spacing.xxs,
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
-    letterSpacing: 0.2,
-  },
+  container: {},
   inputContainer: {
     minHeight: 46,
     borderWidth: 1,
@@ -298,11 +302,6 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     width: "100%" as any,
     height: "100%" as any,
-  },
-  error: {
-    marginTop: theme.spacing.xxs,
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.medium,
   },
   backdrop: {
     flex: 1,
