@@ -101,7 +101,7 @@ export const PROFILE_FULL_NAME_MIN_LENGTH = 2;
 export const PROFILE_FULL_NAME_MAX_LENGTH = 80;
 export const PROFILE_BIO_MAX_LENGTH = 280;
 
-const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MIN_LENGTH = 12;
 
 const toValidationResult = <TField extends string>(
     result: any,
@@ -154,7 +154,11 @@ const passwordSchema = (options?: { requiredMessage?: string; minLength?: number
         .string()
         .trim()
         .min(1, options?.requiredMessage ?? "Password is required.")
-        .min(options?.minLength ?? PASSWORD_MIN_LENGTH, `Password must be at least ${options?.minLength ?? PASSWORD_MIN_LENGTH} characters.`);
+        .min(options?.minLength ?? PASSWORD_MIN_LENGTH, `Password must be at least ${options?.minLength ?? PASSWORD_MIN_LENGTH} characters.`)
+        .regex(/[A-Z]/, "Password must include at least one uppercase letter.")
+        .regex(/[a-z]/, "Password must include at least one lowercase letter.")
+        .regex(/\d/, "Password must include at least one number.")
+        .regex(/[^A-Za-z0-9]/, "Password must include at least one special character.");
 
 const phoneSchema = z
     .string()

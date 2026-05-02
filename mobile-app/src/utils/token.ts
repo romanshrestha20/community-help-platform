@@ -28,6 +28,7 @@ let secureStoreAvailable: boolean | null = null;
 const getWebStorage = () => {
   if (Platform.OS !== "web") return null;
   if (typeof window === "undefined") return null;
+  // If web becomes a primary target, migrate token handling to secure httpOnly cookies.
   return window.localStorage;
 };
 

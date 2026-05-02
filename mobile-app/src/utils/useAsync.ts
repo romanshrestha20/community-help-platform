@@ -30,6 +30,10 @@ export interface AsyncRunOptions {
     errorMessage?: string;
 }
 
+const isVerificationRequiredMessage = (message: string) => {
+    return message.trim().toLowerCase().includes("verification required");
+};
+
 /**
  * Hook for managing async operations with built-in error handling and toast notifications
  *
@@ -74,7 +78,11 @@ export const useAsync = () => {
                 setError(message);
 
                 if (shouldShowErrorToast) {
-                    showErrorToast(errorMessage || "Error", message);
+                    // Avoid noisy passive toasts after login; verification prompts should appear
+                    // only when user actively attempts restricted actions.
+                    if (!isVerificationRequiredMessage(message)) {
+                        showErrorToast(errorMessage || "Error", message);
+                    }
                 }
 
                 return null;
