@@ -143,7 +143,9 @@ export const BidRequestDetail: React.FC<BidRequestDetailProps> = ({
             return;
         }
 
-        showSuccessToast(status === "ACCEPTED" ? "Bid accepted" : "Bid rejected");
+        showSuccessToast(
+            status === "ACCEPTED" ? "Offer accepted. Chat is ready." : "Bid rejected"
+        );
         await loadRequest();
     }, [loadRequest, requestId, respondToBidOptimistic]);
 
