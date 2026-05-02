@@ -613,94 +613,109 @@ export const resendEmailVerification = async (
   return sendEmailVerification(req, res, next);
 };
 
+const verifyEmailToken = async ({
+  token,
+  ipAddress,
+}: {
+  token: string;
+  ipAddress: string;
+}) => {
+  await assertRateLimit({
+    bucket: "verify-email:ip",
+    key: ipAddress,
+    limit: 10,
+    windowMs: 15 * 60 * 1000,
+    message: "Too many verification attempts. Please try again later.",
+  });
+  await assertRateLimit({
+    bucket: "verify-email:token",
+    key: token,
+    limit: 5,
+    windowMs: 15 * 60 * 1000,
+    message: "Too many verification attempts. Please request a new verification email.",
+  });
+
+  const verificationToken = await findActiveEmailVerificationTokenByRawToken(token);
+
+  if (!verificationToken) {
+    throw new AppError("Verification link is invalid or has expired", 400);
+  }
+
+  const usedAt = new Date();
+
+  await prisma.$transaction([
+    prisma.userModel.update({
+      where: { id: verificationToken.userId },
+      data: {
+        isEmailVerified: true,
+        isVerified: true,
+      },
+    }),
+    prisma.emailVerificationToken.update({
+      where: { id: verificationToken.id },
+      data: { usedAt },
+    }),
+    prisma.emailVerificationToken.deleteMany({
+      where: {
+        userId: verificationToken.userId,
+        usedAt: null,
+        id: {
+          not: verificationToken.id,
+        },
+      },
+    }),
+  ]);
+
+  return prisma.userModel.findUnique({
+    where: { id: verificationToken.userId },
+    select: {
+      id: true,
+      email: true,
+      phone: true,
+      isVerified: true,
+      isEmailVerified: true,
+      isPhoneVerified: true,
+      createdAt: true,
+      updatedAt: true,
+      profile: {
+        select: {
+          id: true,
+          userId: true,
+          fullName: true,
+          bio: true,
+          dateOfBirth: true,
+          gender: true,
+          userType: true,
+          rating: true,
+          helpCount: true,
+          totalReviews: true,
+          avatarUrl: true,
+          addressId: true,
+          address: true,
+          createdAt: true,
+          updatedAt: true,
+        } as any,
+      },
+    },
+  });
+};
+
 export const verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const parsedBody = verifyEmailBodySchema.safeParse(req.body);
+    const tokenFromQuery =
+      typeof req.query?.token === "string" ? req.query.token : undefined;
+    const tokenFromBody =
+      typeof req.body?.token === "string" ? req.body.token : undefined;
+    const incomingToken = tokenFromBody ?? tokenFromQuery;
+    const parsedBody = verifyEmailBodySchema.safeParse({ token: incomingToken });
 
     if (!parsedBody.success) {
       return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
     }
 
-    const { token } = parsedBody.data;
-    const ipAddress = getRequestIp(req);
-
-    await assertRateLimit({
-      bucket: "verify-email:ip",
-      key: ipAddress,
-      limit: 10,
-      windowMs: 15 * 60 * 1000,
-      message: "Too many verification attempts. Please try again later.",
-    });
-    await assertRateLimit({
-      bucket: "verify-email:token",
-      key: token,
-      limit: 5,
-      windowMs: 15 * 60 * 1000,
-      message: "Too many verification attempts. Please request a new verification email.",
-    });
-
-    const verificationToken = await findActiveEmailVerificationTokenByRawToken(token);
-
-    if (!verificationToken) {
-      return next(new AppError("Verification link is invalid or has expired", 400));
-    }
-
-    const usedAt = new Date();
-
-    await prisma.$transaction([
-      prisma.userModel.update({
-        where: { id: verificationToken.userId },
-        data: {
-          isEmailVerified: true,
-          isVerified: true,
-        },
-      }),
-      prisma.emailVerificationToken.update({
-        where: { id: verificationToken.id },
-        data: { usedAt },
-      }),
-      prisma.emailVerificationToken.deleteMany({
-        where: {
-          userId: verificationToken.userId,
-          usedAt: null,
-          id: {
-            not: verificationToken.id,
-          },
-        },
-      }),
-    ]);
-
-    const verifiedUser = await prisma.userModel.findUnique({
-      where: { id: verificationToken.userId },
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        isVerified: true,
-        isEmailVerified: true,
-        isPhoneVerified: true,
-        createdAt: true,
-        updatedAt: true,
-        profile: {
-          select: {
-            id: true,
-            userId: true,
-            fullName: true,
-            bio: true,
-            dateOfBirth: true,
-            gender: true,
-            userType: true,
-            rating: true,
-            helpCount: true,
-            totalReviews: true,
-            avatarUrl: true,
-            addressId: true,
-            address: true,
-            createdAt: true,
-            updatedAt: true,
-          } as any,
-        },
-      },
+    const verifiedUser = await verifyEmailToken({
+      token: parsedBody.data.token,
+      ipAddress: getRequestIp(req),
     });
 
     res.status(200).json({
@@ -710,6 +725,50 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
     });
   } catch (error) {
     next(error);
+  }
+};
+
+export const verifyEmailFromLink = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const token =
+      typeof req.query?.token === "string" ? req.query.token : undefined;
+    const parsedBody = verifyEmailBodySchema.safeParse({ token });
+
+    if (!parsedBody.success) {
+      return res.status(400).send(`
+        <html><body style="font-family: sans-serif; padding: 24px;">
+          <h1>Verification failed</h1>
+          <p>The verification link is invalid. Please request a new verification email.</p>
+        </body></html>
+      `);
+    }
+
+    await verifyEmailToken({
+      token: parsedBody.data.token,
+      ipAddress: getRequestIp(req),
+    });
+
+    return res.status(200).send(`
+      <html><body style="font-family: sans-serif; padding: 24px;">
+        <h1>Email verified</h1>
+        <p>Your email is verified. You can return to the app now.</p>
+      </body></html>
+    `);
+  } catch (error) {
+    const message =
+      error instanceof AppError
+        ? error.message
+        : "Verification link is invalid or expired.";
+    return res.status(400).send(`
+      <html><body style="font-family: sans-serif; padding: 24px;">
+        <h1>Verification failed</h1>
+        <p>${message}</p>
+      </body></html>
+    `);
   }
 };
 

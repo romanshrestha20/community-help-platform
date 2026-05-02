@@ -9,6 +9,7 @@ import {
   sendPhoneCode,
   sendEmailVerification,
   verifyEmail,
+  verifyEmailFromLink,
   verifyPhoneCode,
   resetPassword,
   refreshAccessToken,
@@ -46,6 +47,7 @@ router.post("/reset-password", resetPassword);
 router.post("/send-email-verification", authenticateUser, sendEmailVerification);
 router.post("/resend-email-verification", authenticateUser, resendEmailVerification);
 router.post("/verify-email", verifyEmail);
+router.get("/verify-email", verifyEmailFromLink);
 router.post("/send-phone-code", authenticateUser, sendPhoneCode);
 router.post("/verify-phone-code", authenticateUser, verifyPhoneCode);
 router.post("/refresh", refreshAccessToken);

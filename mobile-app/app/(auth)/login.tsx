@@ -69,7 +69,13 @@ export default function LoginScreen() {
 
     clearValidationError();
     formEvents.formSubmitStarted("auth_login");
-    await handleLogin({ email, password });
+    const result = await handleLogin({ email, password });
+    if (!result?.success) return;
+
+    if (result.data && result.data.isEmailVerified === false) {
+      router.replace(APP_ROUTES.AUTH_VERIFY_EMAIL);
+      return;
+    }
   };
 
   const handleGooglePress = async () => {
@@ -91,6 +97,11 @@ export default function LoginScreen() {
 
     const authResult = await handleGoogleLogin(result.idToken);
     if (!authResult?.success) {
+      return;
+    }
+
+    if (authResult.data && authResult.data.isEmailVerified === false) {
+      router.replace(APP_ROUTES.AUTH_VERIFY_EMAIL);
       return;
     }
 
