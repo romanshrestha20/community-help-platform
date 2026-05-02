@@ -14,31 +14,14 @@ import {
     validateRequestDraftFields,
 } from "../utils/requestValidation";
 import { AppCategory } from "@/features/category/types/category.types";
-
-export type RequestFormState = {
-    title: string;
-    description: string;
-    categoryId: string;
-    budget: string;
-    isUrgent: boolean;
-    urgentDurationMinutes: 30 | 60 | 120 | 240;
-    city: string;
-    country: string;
-};
+import {
+    DEFAULT_REQUEST_FORM,
+    RequestFormState,
+} from "../types/requestForm.types";
+import { buildRequestDraftKey, useRequestDraftStore } from "../store/requestDraft.store";
 
 type Options = {
     requestId?: string;
-};
-
-const DEFAULT_FORM: RequestFormState = {
-    title: "",
-    description: "",
-    categoryId: "",
-    budget: "",
-    isUrgent: false,
-    urgentDurationMinutes: 120,
-    city: "",
-    country: "",
 };
 
 export const resolveRequestCategoryId = (
@@ -79,6 +62,11 @@ const toRequestLocation = (request: HelpRequest): AppLocation | null => {
 };
 
 export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
+    const draftKey = buildRequestDraftKey(requestId);
+    const saveDraft = useRequestDraftStore((state) => state.saveDraft);
+    const getDraftEntry = useRequestDraftStore((state) => state.getDraft);
+    const clearDraft = useRequestDraftStore((state) => state.clearDraft);
+
     const {
         loading: requestLoading,
         error: requestError,
@@ -101,14 +89,16 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
     const [fieldErrors, setFieldErrors] = useState<
         Partial<Record<"title" | "description" | "budget" | "location", string>>
     >({});
-    const [form, setForm] = useState<RequestFormState>(DEFAULT_FORM);
+    const [form, setForm] = useState<RequestFormState>(() => getDraftEntry(draftKey)?.form ?? DEFAULT_REQUEST_FORM);
 
     const isEditing = Boolean(requestId);
 
     useEffect(() => {
         if (!requestId) {
-            setForm(DEFAULT_FORM);
+            const draft = getDraftEntry(draftKey);
+            setForm(draft?.form ?? DEFAULT_REQUEST_FORM);
             setRequest(null);
+            void setLocationValue(draft?.location ?? null);
             return;
         }
 
@@ -124,18 +114,19 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
             }
 
             setRequest(loaded);
-            setForm({
+            const hydratedForm = {
                 title: loaded.title,
                 description: loaded.description,
                 categoryId: resolveRequestCategoryId(loaded),
                 budget: typeof loaded.budget === "number" ? String(loaded.budget) : "",
                 isUrgent: Boolean(loaded.isUrgent),
-                urgentDurationMinutes: 120,
+                urgentDurationMinutes: 120 as const,
                 city: loaded.city ?? loaded.location?.city ?? "",
                 country: loaded.country ?? loaded.location?.country ?? "",
-            });
-
-            await setLocationValue(toRequestLocation(loaded));
+            };
+            const draft = getDraftEntry(draftKey);
+            setForm(draft?.form ?? hydratedForm);
+            await setLocationValue(draft?.location ?? toRequestLocation(loaded));
             setLoadingRequest(false);
         };
 
@@ -144,7 +135,15 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
         return () => {
             isMounted = false;
         };
-    }, [getHelpRequestById, requestId, setLocationValue]);
+    }, [draftKey, getDraftEntry, getHelpRequestById, requestId, setLocationValue]);
+
+    useEffect(() => {
+        saveDraft(draftKey, {
+            form,
+            location: locationPicker.value,
+            selectedImages: getDraftEntry(draftKey)?.selectedImages ?? [],
+        });
+    }, [draftKey, form, getDraftEntry, locationPicker.value, saveDraft]);
 
     const budgetValue = useMemo(() => {
         const parsed = parseBudgetInput(form.budget);
@@ -222,6 +221,9 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
                     await addHelpRequestImages(requestId, selectedImages);
                 }
 
+                if (updated) {
+                    clearDraft(draftKey);
+                }
                 return updated;
             }
 
@@ -245,6 +247,10 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
                 }
             }
 
+            if (created) {
+                clearDraft(draftKey);
+            }
+
             return created;
         } finally {
             setSaving(false);
@@ -264,6 +270,7 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
         updateField,
         clearFieldError,
         setValidationError,
+        setFieldErrors,
         submitRequest,
     };
 };

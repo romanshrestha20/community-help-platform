@@ -7,6 +7,7 @@ import { ImagePreviewModal, PreviewImageItem } from "@/components/ui/ImagePrevie
 import { Card, Stack, colors, spacing, typography, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { HelpRequest, RequestImageUploadInput } from "../types/helpRequest.types";
+import { FormFieldShell } from "@/components/ui/FormFieldShell";
 
 type PhotoGridProps = {
     images: PreviewImageItem[];
@@ -18,6 +19,11 @@ type PhotoGridProps = {
 export type RequestPhotoUploadSectionProps = {
     title?: string;
     description?: string;
+    helperText?: string;
+    required?: boolean;
+    error?: string | null;
+    disabled?: boolean;
+    accessibilityLabel?: string;
     loading?: boolean;
     existingImages?: HelpRequest["images"];
     selectedImages?: RequestImageUploadInput[];
@@ -71,6 +77,11 @@ const PhotoGrid = ({ images, emptyLabel, onPressImage, onRemove }: PhotoGridProp
 export const RequestPhotoUploadSection = ({
     title = "Photos",
     description = "Show the problem clearly. Up to 5 images help helpers understand the request faster.",
+    helperText,
+    required = false,
+    error = null,
+    disabled = false,
+    accessibilityLabel,
     loading = false,
     existingImages = [],
     selectedImages = [],
@@ -113,6 +124,15 @@ export const RequestPhotoUploadSection = ({
 
     return (
         <>
+            <FormFieldShell
+                label={title}
+                required={required}
+                helperText={helperText ?? description}
+                error={error ?? undefined}
+                disabled={disabled}
+                accessibilityLabel={accessibilityLabel ?? title}
+                style={styles.shellSpacing}
+            >
             <Card style={[styles.sectionCard, { borderColor: palette.border }]}>
                 <Stack gap="sm">
                     <View style={styles.sectionHeader}>
@@ -120,8 +140,7 @@ export const RequestPhotoUploadSection = ({
                             <View style={[styles.titlePill, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
                                 <Text style={[styles.titlePillText, { color: palette.textSecondary }]}>Request media</Text>
                             </View>
-                            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>{title}</Text>
-                            <Text style={[styles.sectionDescription, { color: palette.textSecondary }]}>{description}</Text>
+                            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>Photos</Text>
                         </View>
                     </View>
 
@@ -152,7 +171,7 @@ export const RequestPhotoUploadSection = ({
                                 variant="secondary"
                                 fullWidth={false}
                                 icon={<Ionicons name="images-outline" size={18} color={palette.textPrimary} />}
-                                disabled={loading || selectedImages.length >= imageLimit || !onPickImages}
+                                disabled={disabled || loading || selectedImages.length >= imageLimit || !onPickImages}
                             />
 
                             <PhotoGrid
@@ -165,6 +184,7 @@ export const RequestPhotoUploadSection = ({
                     )}
                 </Stack>
             </Card>
+            </FormFieldShell>
 
             <ImagePreviewModal
                 visible={previewState.visible}
@@ -183,6 +203,9 @@ export const RequestPhotoUploadSection = ({
 };
 
 const styles = StyleSheet.create({
+    shellSpacing: {
+        marginBottom: spacing.md,
+    },
     sectionCard: {
         padding: spacing.md,
         borderRadius: 16,
