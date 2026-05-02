@@ -27,9 +27,19 @@ const SOCKET_CONNECT_TIMEOUT_MS = 5000;
 
 const resolveSocketBaseUrl = () => {
   const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  const isNative = Platform.OS === "ios" || Platform.OS === "android";
+  const isLocalhostEnv =
+    typeof envBaseUrl === "string" &&
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(envBaseUrl);
 
-  if (envBaseUrl) {
+  if (envBaseUrl && !(isNative && isLocalhostEnv)) {
     return envBaseUrl.replace(/\/api\/?$/, "");
+  }
+
+  if (envBaseUrl && isNative && isLocalhostEnv) {
+    console.warn(
+      "[socket-client] Ignoring EXPO_PUBLIC_API_BASE_URL pointing to localhost on native device."
+    );
   }
 
   if (__DEV__) {
@@ -58,9 +68,12 @@ const resolveSocketBaseUrl = () => {
     if (hostFromExpo) {
       return `http://${hostFromExpo}:5001`;
     }
+  }
 
-    if (Platform.OS === "ios") return "http://localhost:5001";
-    if (Platform.OS === "android") return "http://10.0.2.2:5001";
+  if (isNative) {
+    console.warn(
+      "[socket-client] No reachable dev host detected for native runtime. Falling back to production socket host."
+    );
   }
 
   return "https://community-help-platform.onrender.com";
