@@ -46,12 +46,28 @@ const isLegacyNearbyPreferenceColumnError = (error: unknown) => {
     if (!error || typeof error !== "object") return false;
 
     const maybePrismaError = error as { code?: string; message?: string };
-    if (maybePrismaError.code !== "P2022") return false;
-
     const message = (maybePrismaError.message || "").toLowerCase();
-    return (
+
+    const referencesNearbyPreferenceField =
+        message.includes("nearbyalertsenabled") ||
+        message.includes("nearbyalertradiuskm") ||
         message.includes("nearbyalertsurgentonly") ||
-        message.includes("nearbyalertcategoryslugs")
+        message.includes("nearbyalertcategoryslugs");
+
+    if (!referencesNearbyPreferenceField) {
+        return false;
+    }
+
+    // P2022: missing column in database.
+    if (maybePrismaError.code === "P2022") {
+        return true;
+    }
+
+    // Prisma client/schema mismatch can surface as validation-style errors.
+    return (
+        message.includes("unknown field") ||
+        message.includes("unknown argument") ||
+        message.includes("column does not exist")
     );
 };
 
@@ -112,8 +128,6 @@ export const getNotificationPreferencesForUser = async (
                 bidsEnabled: defaultNotificationPreferences.bidsEnabled,
                 requestUpdatesEnabled: defaultNotificationPreferences.requestUpdatesEnabled,
                 savedRequestsEnabled: defaultNotificationPreferences.savedRequestsEnabled,
-                nearbyAlertsEnabled: defaultNotificationPreferences.nearbyAlertsEnabled,
-                nearbyAlertRadiusKm: defaultNotificationPreferences.nearbyAlertRadiusKm,
             },
             select: {
                 pushEnabled: true,
@@ -121,12 +135,16 @@ export const getNotificationPreferencesForUser = async (
                 bidsEnabled: true,
                 requestUpdatesEnabled: true,
                 savedRequestsEnabled: true,
-                nearbyAlertsEnabled: true,
-                nearbyAlertRadiusKm: true,
             },
         });
 
-        return withDefaultNearbyFields(legacyPreferences);
+        return {
+            ...legacyPreferences,
+            nearbyAlertsEnabled: defaultNotificationPreferences.nearbyAlertsEnabled,
+            nearbyAlertRadiusKm: defaultNotificationPreferences.nearbyAlertRadiusKm,
+            nearbyAlertsUrgentOnly: defaultNotificationPreferences.nearbyAlertsUrgentOnly,
+            nearbyAlertCategorySlugs: defaultNotificationPreferences.nearbyAlertCategorySlugs,
+        };
     }
 };
 
@@ -173,8 +191,6 @@ export const updateNotificationPreferencesForUser = async (
             bidsEnabled: nextPreferences.bidsEnabled,
             requestUpdatesEnabled: nextPreferences.requestUpdatesEnabled,
             savedRequestsEnabled: nextPreferences.savedRequestsEnabled,
-            nearbyAlertsEnabled: nextPreferences.nearbyAlertsEnabled,
-            nearbyAlertRadiusKm: nextPreferences.nearbyAlertRadiusKm,
         };
 
         const legacyPreferences = await prisma.notificationPreference.upsert({
@@ -191,12 +207,6 @@ export const updateNotificationPreferencesForUser = async (
                 savedRequestsEnabled:
                     legacyNextPreferences.savedRequestsEnabled ??
                     defaultNotificationPreferences.savedRequestsEnabled,
-                nearbyAlertsEnabled:
-                    legacyNextPreferences.nearbyAlertsEnabled ??
-                    defaultNotificationPreferences.nearbyAlertsEnabled,
-                nearbyAlertRadiusKm:
-                    legacyNextPreferences.nearbyAlertRadiusKm ??
-                    defaultNotificationPreferences.nearbyAlertRadiusKm,
             },
             select: {
                 pushEnabled: true,
@@ -204,12 +214,16 @@ export const updateNotificationPreferencesForUser = async (
                 bidsEnabled: true,
                 requestUpdatesEnabled: true,
                 savedRequestsEnabled: true,
-                nearbyAlertsEnabled: true,
-                nearbyAlertRadiusKm: true,
             },
         });
 
-        return withDefaultNearbyFields(legacyPreferences);
+        return {
+            ...legacyPreferences,
+            nearbyAlertsEnabled: defaultNotificationPreferences.nearbyAlertsEnabled,
+            nearbyAlertRadiusKm: defaultNotificationPreferences.nearbyAlertRadiusKm,
+            nearbyAlertsUrgentOnly: defaultNotificationPreferences.nearbyAlertsUrgentOnly,
+            nearbyAlertCategorySlugs: defaultNotificationPreferences.nearbyAlertCategorySlugs,
+        };
     }
 };
 
