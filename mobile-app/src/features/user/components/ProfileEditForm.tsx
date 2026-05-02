@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,9 +14,13 @@ import {
 import * as ImagePicker from "expo-image-picker";
 
 import { Card, Row, Stack, theme } from "@/design-system";
+import { AppInput } from "@/components/ui/AppInput";
 import { AppModal } from "@/components/ui/AppModal";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { PhoneNumberField } from "@/components/ui/PhoneNumberField";
+import { StickySubmitBar } from "@/components/ui/StickySubmitBar";
+import { FormSection } from "@/components/ui/FormSection";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
@@ -40,6 +46,7 @@ import {
   UserType,
 } from "../types/user.types";
 import { validateProfileUpdateFormFields } from "../utils/userValidation";
+import { buildProfileDraftKey, useProfileEditDraftStore } from "../store/profileEditDraft.store";
 
 type Props = {
   user: User | null;
@@ -110,6 +117,27 @@ const skillsEqual = (left: UpdateUserSkillInput[], right: UpdateUserSkillInput[]
   return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right));
 };
 
+const mapProfileErrorToHumanMessage = (message?: string | null) => {
+  const normalized = (message ?? "").trim().toLowerCase();
+  if (!normalized) return "Please review your details and try again.";
+  if (normalized.includes("internal server error")) {
+    return "Profile update is temporarily unavailable. Please try again.";
+  }
+  if (normalized.includes("network error") || normalized.includes("could not reach the server")) {
+    return "We couldn't reach the server. Check your connection and try again.";
+  }
+  if (normalized.includes("duplicate") || normalized.includes("already")) {
+    return "Some profile details are already in use. Please update and retry.";
+  }
+  return message ?? "Please review your details and try again.";
+};
+
+const trackProfileFormEvent = (name: string, payload?: Record<string, unknown>) => {
+  if (__DEV__) {
+    console.log(`[profile-form] ${name}`, payload ?? {});
+  }
+};
+
 export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: Props) => {
   const { palette } = useThemeContext();
   const { handleReplaceUserSkills, handleUploadCertification, handleDeleteCertification } = useUser();
@@ -126,6 +154,13 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     clearFieldError,
     clearValidationError,
   } = useFormValidation<"fullName" | "phone" | "dateOfBirth" | "bio">();
+  const draftKey = buildProfileDraftKey(user?.id);
+  const saveDraft = useProfileEditDraftStore((state) => state.saveDraft);
+  const getDraft = useProfileEditDraftStore((state) => state.getDraft);
+  const clearDraft = useProfileEditDraftStore((state) => state.clearDraft);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const fullNameRef = useRef<TextInput>(null);
+  const bioRef = useRef<TextInput>(null);
 
   const [fullName, setFullName] = useState("");
   const [phoneCountryCode, setPhoneCountryCode] = useState("NP");
@@ -176,6 +211,10 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
       })),
     [user?.skills]
   );
+  const currentPhone = useMemo(
+    () => combinePhoneNumber(phoneCallingCode, phoneNationalNumber),
+    [phoneCallingCode, phoneNationalNumber]
+  );
 
   useEffect(() => {
     let isCancelled = false;
@@ -211,19 +250,28 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
       setPhoneCountryDetected(false);
     };
 
-    setFullName(user?.fullName ?? "");
-    setBio(user?.bio ?? "");
-    setDateOfBirth(user?.dateOfBirth ?? "");
-    setGender(user?.gender);
-    setUserType(user?.userType ?? UserType.GENERAL);
-    setSelectedSkills(currentSkills);
-    setCertificationName("");
-    setCertificationIssuer("");
-    setCertificationCredentialId("");
-    setCertificationIssuedAt("");
-    setCertificationExpiresAt("");
+    const draft = getDraft(draftKey);
+
+    setFullName(draft?.fullName ?? user?.fullName ?? "");
+    setBio(draft?.bio ?? user?.bio ?? "");
+    setDateOfBirth(draft?.dateOfBirth ?? user?.dateOfBirth ?? "");
+    setGender(draft?.gender ?? user?.gender);
+    setUserType(draft?.userType ?? user?.userType ?? UserType.GENERAL);
+    setSelectedSkills(draft?.selectedSkills ?? currentSkills);
+    setCertificationName(draft?.certificationName ?? "");
+    setCertificationIssuer(draft?.certificationIssuer ?? "");
+    setCertificationCredentialId(draft?.certificationCredentialId ?? "");
+    setCertificationIssuedAt(draft?.certificationIssuedAt ?? "");
+    setCertificationExpiresAt(draft?.certificationExpiresAt ?? "");
+    if (draft?.phoneCountryCode) {
+      setPhoneCountryCode(draft.phoneCountryCode);
+      setPhoneCallingCode(draft.phoneCallingCode);
+      setPhoneNationalNumber(draft.phoneNationalNumber);
+    }
     clearValidationError();
-    void syncPhoneState();
+    if (!draft?.phoneCountryCode) {
+      void syncPhoneState();
+    }
 
     return () => {
       isCancelled = true;
@@ -231,12 +279,50 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
   }, [
     clearValidationError,
     currentSkills,
+    draftKey,
+    getDraft,
     user?.bio,
     user?.dateOfBirth,
     user?.fullName,
     user?.gender,
     user?.phone,
     user?.userType,
+  ]);
+
+  useEffect(() => {
+    saveDraft(draftKey, {
+      fullName,
+      phoneCountryCode,
+      phoneCallingCode,
+      phoneNationalNumber,
+      bio,
+      dateOfBirth,
+      gender,
+      userType,
+      selectedSkills,
+      certificationName,
+      certificationIssuer,
+      certificationCredentialId,
+      certificationIssuedAt,
+      certificationExpiresAt,
+    });
+  }, [
+    bio,
+    certificationCredentialId,
+    certificationExpiresAt,
+    certificationIssuedAt,
+    certificationIssuer,
+    certificationName,
+    dateOfBirth,
+    draftKey,
+    fullName,
+    gender,
+    phoneCallingCode,
+    phoneCountryCode,
+    phoneNationalNumber,
+    saveDraft,
+    selectedSkills,
+    userType,
   ]);
 
   useEffect(() => {
@@ -280,6 +366,46 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     user?.address?.countryCode,
     user?.phone,
   ]);
+
+  const baselineProfileState = useMemo(
+    () => ({
+      fullName: (user?.fullName ?? "").trim(),
+      phone: (user?.phone ?? "").trim(),
+      bio: (user?.bio ?? "").trim(),
+      dateOfBirth: (user?.dateOfBirth ?? "").trim(),
+      gender: user?.gender ?? null,
+      userType: user?.userType ?? UserType.GENERAL,
+      selectedSkills: currentSkills,
+    }),
+    [currentSkills, user?.bio, user?.dateOfBirth, user?.fullName, user?.gender, user?.phone, user?.userType]
+  );
+
+  const draftProfileState = useMemo(
+    () => ({
+      fullName: fullName.trim(),
+      phone: currentPhone.trim(),
+      bio: bio.trim(),
+      dateOfBirth: dateOfBirth.trim(),
+      gender: gender ?? null,
+      userType,
+      selectedSkills,
+    }),
+    [bio, currentPhone, dateOfBirth, fullName, gender, selectedSkills, userType]
+  );
+
+  const isDirty =
+    JSON.stringify({
+      ...draftProfileState,
+      selectedSkills: [...draftProfileState.selectedSkills].sort((a, b) => a.skillId.localeCompare(b.skillId)),
+    }) !==
+    JSON.stringify({
+      ...baselineProfileState,
+      selectedSkills: [...baselineProfileState.selectedSkills].sort((a, b) => a.skillId.localeCompare(b.skillId)),
+    });
+
+  useUnsavedChangesGuard({
+    enabled: isDirty && !loading && !savingSkills && !uploadingCertification,
+  });
 
   const handleToggleSkill = (skill: Skill) => {
     setSelectedSkills((current) => {
@@ -421,7 +547,7 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
   };
 
   const handleSave = async () => {
-    const phone = combinePhoneNumber(phoneCallingCode, phoneNationalNumber);
+    const phone = currentPhone;
 
     const validation = validateProfileUpdateFormFields({
       fullName,
@@ -433,10 +559,26 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     if (!validation.isValid) {
       setValidationError(validation.formError);
       setFieldErrors(validation.fieldErrors);
+      const firstInvalidField = Object.keys(validation.fieldErrors)[0] as
+        | "fullName"
+        | "phone"
+        | "dateOfBirth"
+        | "bio"
+        | undefined;
+      if (firstInvalidField === "fullName") {
+        fullNameRef.current?.focus();
+      } else if (firstInvalidField === "bio") {
+        bioRef.current?.focus();
+      } else {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      }
       showErrorToast(
         "Invalid profile details",
         validation.formError || "Please fix the highlighted fields."
       );
+      trackProfileFormEvent("validation_failed", {
+        firstInvalidField: Object.keys(validation.fieldErrors)[0] ?? null,
+      });
       return;
     }
 
@@ -453,9 +595,10 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     });
 
     if (!result.success) {
-      const message = result.message || "Please review your details and try again.";
+      const message = mapProfileErrorToHumanMessage(result.message);
       setValidationError(message);
       showErrorToast("Could not update profile", message);
+      trackProfileFormEvent("save_failed", { reason: message });
       return;
     }
 
@@ -476,46 +619,66 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
       }
     }
 
+    clearDraft(draftKey);
+    trackProfileFormEvent("save_success", { hasSkills: selectedSkills.length > 0 });
     showSuccessToast("Profile updated");
   };
 
+  const profileCompletionItems = [
+    Boolean(fullName.trim()),
+    Boolean(currentPhone.trim()),
+    Boolean(dateOfBirth.trim()),
+    Boolean(gender),
+    Boolean(bio.trim()),
+  ];
+  const profileCompletionPercent = Math.round(
+    (profileCompletionItems.filter(Boolean).length / profileCompletionItems.length) * 100
+  );
+
   return (
-    <Card padded={false} style={styles.formCard}>
-      <Stack gap="md">
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 16 : 0}
+      style={styles.flex}
+    >
+      <Card padded={false} style={styles.formCard}>
+        <Stack gap="md">
         <View style={styles.headerBlock}>
           <Text style={[styles.title, { color: palette.textPrimary }]}>Edit profile</Text>
           <Text style={[styles.formSubtitle, { color: palette.textSecondary }]}>
             Update your personal details separately from the qualifications requesters see.
           </Text>
+          <Text style={[styles.completionText, { color: palette.textSecondary }]}>
+            Profile completion: {profileCompletionPercent}%
+          </Text>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <SectionCard
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <FormSection
             title="Profile details"
             subtitle="Basic information used across your account and conversations."
           >
-            <Field label="Full name">
-              <TextInput
+            <AppInput
+                label="Full name"
+                required
                 value={fullName}
                 onChangeText={(value) => {
                   clearFieldError("fullName");
                   setFullName(value);
                 }}
-                placeholder="Enter full name"
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: palette.surfaceMuted,
-                    borderColor: palette.border,
-                    color: palette.textPrimary,
-                  },
-                ]}
-                placeholderTextColor={palette.textSecondary}
+                helperText="Example: Alex Johnson"
+                placeholder="Enter your full name"
+                error={fieldErrors.fullName ?? null}
+                returnKeyType="next"
+                autoCapitalize="words"
+                autoCorrect={false}
+                textContentType="name"
+                ref={fullNameRef}
               />
-              {fieldErrors.fullName ? (
-                <Text style={[styles.errorText, { color: palette.danger }]}>{fieldErrors.fullName}</Text>
-              ) : null}
-            </Field>
 
             <PhoneNumberField
               label="Phone number"
@@ -544,31 +707,21 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
               }}
             />
 
-            <Field label="Bio">
-              <TextInput
+            <AppInput
+                label="Bio"
                 value={bio}
                 onChangeText={(value) => {
                   clearFieldError("bio");
                   setBio(value);
                 }}
+                helperText="Short intro shown on your profile."
                 placeholder="Tell something about yourself"
+                error={fieldErrors.bio ?? null}
                 multiline
-                textAlignVertical="top"
-                style={[
-                  styles.input,
-                  styles.textArea,
-                  {
-                    backgroundColor: palette.surfaceMuted,
-                    borderColor: palette.border,
-                    color: palette.textPrimary,
-                  },
-                ]}
-                placeholderTextColor={palette.textSecondary}
+                numberOfLines={4}
+                returnKeyType="done"
+                ref={bioRef}
               />
-              {fieldErrors.bio ? (
-                <Text style={[styles.errorText, { color: palette.danger }]}>{fieldErrors.bio}</Text>
-              ) : null}
-            </Field>
 
             <DatePickerField
               label="Date of birth"
@@ -591,6 +744,7 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
                       selected={selected}
                       label={formatEnumLabel(option)}
                       onPress={() => setGender(selected ? undefined : option)}
+                      accessibilityLabel={`Select gender ${formatEnumLabel(option)}`}
                     />
                   );
                 })}
@@ -605,13 +759,14 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
                     selected={userType === option}
                     label={formatEnumLabel(option)}
                     onPress={() => setUserType(option)}
+                    accessibilityLabel={`Select user type ${formatEnumLabel(option)}`}
                   />
                 ))}
               </Row>
             </Field>
-          </SectionCard>
+          </FormSection>
 
-          <SectionCard
+          <FormSection
             title="Qualifications"
             subtitle="Skills and certifications that help requesters trust your profile."
           >
@@ -724,50 +879,13 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
                 </Text>
               </Row>
             </Pressable>
-          </SectionCard>
+          </FormSection>
 
           {validationError ? (
             <Text style={[styles.errorText, { color: palette.danger }]}>{validationError}</Text>
           ) : null}
 
-          <Row gap="sm">
-            {onCancel ? (
-              <Pressable
-                style={[
-                  styles.secondaryAction,
-                  {
-                    borderColor: palette.border,
-                    backgroundColor: palette.surfaceMuted,
-                  },
-                ]}
-                onPress={onCancel}
-              >
-                <Text style={[styles.secondaryActionText, { color: palette.textPrimary }]}>
-                  Cancel
-                </Text>
-              </Pressable>
-            ) : null}
-
-            <Pressable
-              style={[
-                styles.primaryAction,
-                {
-                  backgroundColor: palette.primary,
-                  opacity: loading || savingSkills ? 0.7 : 1,
-                },
-              ]}
-              onPress={() => void handleSave()}
-              disabled={loading || savingSkills}
-            >
-              {loading || savingSkills ? (
-                <ActivityIndicator color={palette.surface} />
-              ) : (
-                <Text style={[styles.primaryActionText, { color: palette.surface }]}>
-                  Save profile
-                </Text>
-              )}
-            </Pressable>
-          </Row>
+          <View style={styles.stickySpacer} />
         </ScrollView>
       </Stack>
 
@@ -1069,7 +1187,52 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
           })}
         </Stack>
       </AppModal>
+      <StickySubmitBar>
+        <Row gap="sm">
+          {onCancel ? (
+            <Pressable
+              style={[
+                styles.secondaryAction,
+                {
+                  borderColor: palette.border,
+                  backgroundColor: palette.surfaceMuted,
+                },
+              ]}
+              onPress={onCancel}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel profile changes"
+            >
+              <Text style={[styles.secondaryActionText, { color: palette.textPrimary }]}>
+                Cancel
+              </Text>
+            </Pressable>
+          ) : null}
+
+          <Pressable
+            style={[
+              styles.primaryAction,
+              {
+                backgroundColor: palette.primary,
+                opacity: loading || savingSkills || !isDirty ? 0.7 : 1,
+              },
+            ]}
+            onPress={() => void handleSave()}
+            disabled={loading || savingSkills || !isDirty}
+            accessibilityRole="button"
+            accessibilityLabel="Save profile"
+          >
+            {loading || savingSkills ? (
+              <ActivityIndicator color={palette.surface} />
+            ) : (
+              <Text style={[styles.primaryActionText, { color: palette.surface }]}>
+                Save profile
+              </Text>
+            )}
+          </Pressable>
+        </Row>
+      </StickySubmitBar>
     </Card>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -1165,16 +1328,20 @@ const SelectablePill = ({
   selected,
   label,
   onPress,
+  accessibilityLabel,
 }: {
   selected: boolean;
   label: string;
   onPress: () => void;
+  accessibilityLabel?: string;
 }) => {
   const { palette } = useThemeContext();
 
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
       style={[
         styles.pill,
         {
@@ -1199,6 +1366,9 @@ const SelectablePill = ({
 
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   formCard: {
     borderRadius: theme.radius.xl,
     overflow: "hidden",
@@ -1217,10 +1387,18 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
   },
+  completionText: {
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: theme.typography.lineHeight.xs,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
   content: {
     gap: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.lg,
+  },
+  stickySpacer: {
+    height: 96,
   },
   label: {
     fontSize: theme.typography.fontSize.xs,
