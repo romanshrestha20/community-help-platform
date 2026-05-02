@@ -1,12 +1,11 @@
 import nodemailer from "nodemailer";
 
-import { buildResetPasswordEmail } from "../templates/reset-password.template.js";
-import { buildVerifyEmailMessage } from "../templates/verify-email.template.js";
-
-type SendEmailInput = {
+export type SendEmailInput = {
   to: string;
   subject: string;
+  preview?: string;
   text: string;
+  html?: string;
 };
 
 type EmailConfigStatus = {
@@ -16,6 +15,18 @@ type EmailConfigStatus = {
 };
 
 const trimEnv = (value?: string) => value?.trim() || "";
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const textToHtml = (text: string) => {
+  return `<p>${escapeHtml(text).replace(/\n/g, "<br />")}</p>`;
+};
 
 const getEmailDeliveryMode = () => {
   return trimEnv(process.env.EMAIL_DELIVERY_MODE).toLowerCase() || "log";
@@ -77,6 +88,16 @@ const createTransporter = () => {
   });
 };
 
+let cachedTransporter: nodemailer.Transporter | null = null;
+
+const getTransporter = () => {
+  if (!cachedTransporter) {
+    cachedTransporter = createTransporter();
+  }
+
+  return cachedTransporter;
+};
+
 export const getEmailServiceStatus = (): EmailConfigStatus => {
   const mode = getEmailDeliveryMode();
 
@@ -106,13 +127,21 @@ export const getEmailServiceStatus = (): EmailConfigStatus => {
 
 const getClientBaseUrl = () => {
   return (
-    trimEnv(process.env.MOBILE_DEEP_LINK_BASE_URL) ||
     trimEnv(process.env.PUBLIC_APP_URL) ||
+    trimEnv(process.env.MOBILE_DEEP_LINK_BASE_URL) ||
     "communityhelp://"
   );
 };
 
-const buildPublicUrl = (path: string, params: Record<string, string>) => {
+const getApiBaseUrl = () => {
+  return (
+    trimEnv(process.env.EMAIL_VERIFICATION_API_BASE_URL) ||
+    trimEnv(process.env.PUBLIC_API_URL) ||
+    trimEnv(process.env.BACKEND_PUBLIC_URL)
+  );
+};
+
+export const buildPublicUrl = (path: string, params: Record<string, string>) => {
   const baseUrl = getClientBaseUrl().replace(/\/+$/, "");
   const pathname = path.replace(/^\/+/, "");
   const query = new URLSearchParams(params).toString();
@@ -124,7 +153,27 @@ const buildPublicUrl = (path: string, params: Record<string, string>) => {
   return `${baseUrl}/${pathname}${query ? `?${query}` : ""}`;
 };
 
-export const sendEmail = async ({ to, subject, text }: SendEmailInput) => {
+export const buildApiUrl = (path: string, params: Record<string, string>) => {
+  const apiBaseUrl = getApiBaseUrl();
+
+  if (!apiBaseUrl) {
+    return null;
+  }
+
+  const baseUrl = apiBaseUrl.replace(/\/+$/, "");
+  const pathname = path.replace(/^\/+/, "");
+  const query = new URLSearchParams(params).toString();
+
+  return `${baseUrl}/${pathname}${query ? `?${query}` : ""}`;
+};
+
+export const sendEmail = async ({
+  to,
+  subject,
+  preview,
+  text,
+  html,
+}: SendEmailInput) => {
   if (!to || !subject || !text) {
     throw new Error("Missing required parameters for sending email");
   }
@@ -135,13 +184,15 @@ export const sendEmail = async ({ to, subject, text }: SendEmailInput) => {
     console.info("[email] delivering email via log transport", {
       to,
       subject,
+      preview: preview ?? null,
       text,
+      html,
     });
     return;
   }
 
   if (deliveryMode === "nodemailer") {
-    const transporter = createTransporter();
+    const transporter = getTransporter();
     const { from } = getEmailProviderConfig();
 
     await transporter.sendMail({
@@ -149,7 +200,7 @@ export const sendEmail = async ({ to, subject, text }: SendEmailInput) => {
       to,
       subject,
       text,
-      html: `<p>${text.replace(/\n/g, "<br />")}</p>`,
+      html: html ?? textToHtml(text),
     });
 
     return;
@@ -160,40 +211,18 @@ export const sendEmail = async ({ to, subject, text }: SendEmailInput) => {
   );
 };
 
-export const sendPasswordResetEmail = async ({
-  email,
-  token,
-  expiresAt,
-}: {
-  email: string;
-  token: string;
-  expiresAt: Date;
-}) => {
-  const resetUrl = buildPublicUrl("reset-password", { token });
-  const message = buildResetPasswordEmail({ resetUrl, expiresAt });
-
-  await sendEmail({
-    to: email,
-    subject: message.subject,
-    text: message.text,
-  });
-};
-
-export const sendEmailVerificationEmail = async ({
-  email,
-  token,
-  expiresAt,
-}: {
-  email: string;
-  token: string;
-  expiresAt: Date;
-}) => {
-  const verifyUrl = buildPublicUrl("verify-email", { token });
-  const message = buildVerifyEmailMessage({ verifyUrl, expiresAt });
-
-  await sendEmail({
-    to: email,
-    subject: message.subject,
-    text: message.text,
-  });
+export const sendEmailSafely = async (
+  input: SendEmailInput,
+  context?: Record<string, unknown>
+) => {
+  try {
+    await sendEmail(input);
+  } catch (error) {
+    console.error("[email] failed to send email", {
+      to: input.to,
+      subject: input.subject,
+      context,
+      error,
+    });
+  }
 };
