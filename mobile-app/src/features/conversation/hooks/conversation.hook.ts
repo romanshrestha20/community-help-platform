@@ -72,6 +72,13 @@ const isConversationNotFoundError = (caughtError: unknown) => {
 };
 
 export const useConversations = () => {
+    const canAccessVerifiedRoutes = useAuthStore((state) =>
+        Boolean(
+            state.isAuthenticated &&
+            state.user &&
+            state.user.isEmailVerified
+        )
+    );
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -79,12 +86,22 @@ export const useConversations = () => {
     const joinedConversationIdsRef = useRef<Set<string>>(new Set());
 
     const loadConversations = useCallback(async () => {
+        if (!canAccessVerifiedRoutes) {
+            setConversations([]);
+            setError(null);
+            return;
+        }
         setError(null);
         const result = await getMyConversations();
         setConversations(result);
-    }, []);
+    }, [canAccessVerifiedRoutes]);
 
     useEffect(() => {
+        if (!canAccessVerifiedRoutes) {
+            setLoading(false);
+            setConversations([]);
+            return;
+        }
         let isMounted = true;
 
         const load = async () => {
@@ -110,9 +127,12 @@ export const useConversations = () => {
         return () => {
             isMounted = false;
         };
-    }, [loadConversations]);
+    }, [canAccessVerifiedRoutes, loadConversations]);
 
     useEffect(() => {
+        if (!canAccessVerifiedRoutes) {
+            return;
+        }
         let isActive = true;
         const cleanupFns: Array<() => void> = [];
 
@@ -166,9 +186,12 @@ export const useConversations = () => {
             isActive = false;
             cleanupFns.forEach((cleanup) => cleanup());
         };
-    }, [conversations, loadConversations]);
+    }, [canAccessVerifiedRoutes, conversations, loadConversations]);
 
     useEffect(() => {
+        if (!canAccessVerifiedRoutes) {
+            return;
+        }
         let isActive = true;
 
         const syncConversations = async () => {
@@ -200,7 +223,7 @@ export const useConversations = () => {
             clearInterval(intervalId);
             appStateSubscription.remove();
         };
-    }, [loadConversations]);
+    }, [canAccessVerifiedRoutes, loadConversations]);
 
     const reload = useCallback(async () => {
         setRefreshing(true);
@@ -248,6 +271,13 @@ export const useConversationThread = (
     const [error, setError] = useState<string | null>(null);
     const [liveWarning, setLiveWarning] = useState<string | null>(null);
     const activeUserId = useAuthStore((state) => state.user?.id ?? "");
+    const canAccessVerifiedRoutes = useAuthStore((state) =>
+        Boolean(
+            state.isAuthenticated &&
+            state.user &&
+            state.user.isEmailVerified
+        )
+    );
     const [nextOlderPage, setNextOlderPage] = useState<number | null>(null);
     const [typingUserId, setTypingUserId] = useState<string | null>(null);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -260,6 +290,18 @@ export const useConversationThread = (
 
     const loadThread = useCallback(async (options: { preserveError?: boolean; mergeIntoCurrent?: boolean } = {}) => {
         const { preserveError = false, mergeIntoCurrent = false } = options;
+
+        if (!canAccessVerifiedRoutes) {
+            setConversation(null);
+            setMessages([]);
+            setHasOlderMessages(false);
+            setNextOlderPage(null);
+            setLiveWarning(null);
+            if (!preserveError) {
+                setError(null);
+            }
+            return;
+        }
 
         if (!preserveError) {
             setError(null);
@@ -331,13 +373,13 @@ export const useConversationThread = (
 
             return latestPage.meta.totalPages > 1 ? 2 : null;
         });
-    }, [activeUserId, autoMarkRead, conversationId, requestId]);
+    }, [activeUserId, autoMarkRead, canAccessVerifiedRoutes, conversationId, requestId]);
 
     useEffect(() => {
         let isActive = true;
         const activeConversationId = resolvedConversationId;
 
-        if (!activeConversationId) {
+        if (!canAccessVerifiedRoutes || !activeConversationId) {
             return () => {
                 isActive = false;
             };
@@ -443,9 +485,19 @@ export const useConversationThread = (
             cleanupFns.forEach((cleanup) => cleanup());
             void leaveConversationRoom(activeConversationId).catch(() => undefined);
         };
-    }, [activeUserId, resolvedConversationId]);
+    }, [activeUserId, canAccessVerifiedRoutes, resolvedConversationId]);
 
     useEffect(() => {
+        if (!canAccessVerifiedRoutes) {
+            setLoading(false);
+            setConversation(null);
+            setMessages([]);
+            setHasOlderMessages(false);
+            setNextOlderPage(null);
+            setError(null);
+            return;
+        }
+
         let isMounted = true;
 
         const load = async () => {
@@ -471,12 +523,12 @@ export const useConversationThread = (
         return () => {
             isMounted = false;
         };
-    }, [loadThread]);
+    }, [canAccessVerifiedRoutes, loadThread]);
 
     useEffect(() => {
         let isActive = true;
 
-        if (!resolvedConversationId) {
+        if (!canAccessVerifiedRoutes || !resolvedConversationId) {
             return () => {
                 isActive = false;
             };
@@ -511,13 +563,16 @@ export const useConversationThread = (
             clearInterval(intervalId);
             appStateSubscription.remove();
         };
-    }, [loadThread, resolvedConversationId]);
+    }, [canAccessVerifiedRoutes, loadThread, resolvedConversationId]);
 
     const loadOlderMessages = useCallback(async () => {
         const activeConversationId = resolvedConversationId;
         const page = nextOlderPage;
 
         if (!activeConversationId || !page || loadingOlder || !hasOlderMessages) {
+            return;
+        }
+        if (!canAccessVerifiedRoutes) {
             return;
         }
 
@@ -538,7 +593,7 @@ export const useConversationThread = (
         } finally {
             setLoadingOlder(false);
         }
-    }, [hasOlderMessages, loadingOlder, nextOlderPage, resolvedConversationId]);
+    }, [canAccessVerifiedRoutes, hasOlderMessages, loadingOlder, nextOlderPage, resolvedConversationId]);
 
     const reload = useCallback(async () => {
         setRefreshing(true);
@@ -592,7 +647,7 @@ export const useConversationThread = (
 
     const sendMessage = useCallback(async (content: string) => {
         const activeConversationId = resolvedConversationId;
-        if (!activeConversationId) {
+        if (!canAccessVerifiedRoutes || !activeConversationId) {
             throw new Error("Conversation is not ready");
         }
 
@@ -617,11 +672,11 @@ export const useConversationThread = (
         } finally {
             setSending(false);
         }
-    }, [resolvedConversationId, stopTyping]);
+    }, [canAccessVerifiedRoutes, resolvedConversationId, stopTyping]);
 
     const markRead = useCallback(async () => {
         const activeConversationId = resolvedConversationId;
-        if (!activeConversationId) {
+        if (!canAccessVerifiedRoutes || !activeConversationId) {
             return;
         }
 
@@ -641,11 +696,11 @@ export const useConversationThread = (
         } catch (caughtError) {
             setError(getErrorMessage(caughtError, "Could not mark conversation as read"));
         }
-    }, [resolvedConversationId]);
+    }, [canAccessVerifiedRoutes, resolvedConversationId]);
 
     const deleteMessage = useCallback(async (messageId: string) => {
         const activeConversationId = resolvedConversationId;
-        if (!activeConversationId) {
+        if (!canAccessVerifiedRoutes || !activeConversationId) {
             throw new Error("Conversation is not ready");
         }
 
@@ -671,7 +726,7 @@ export const useConversationThread = (
         } finally {
             setDeletingMessageId(null);
         }
-    }, [resolvedConversationId]);
+    }, [canAccessVerifiedRoutes, resolvedConversationId]);
 
     return {
         conversation,

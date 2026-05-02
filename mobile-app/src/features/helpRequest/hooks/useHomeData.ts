@@ -21,6 +21,7 @@ export const useHomeData = () => {
     profile?: { address?: AppLocation | null } | null;
   } | null;
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const canUseVerifiedActions = useAuthStore((state) => Boolean(state.user?.isEmailVerified));
   const { getMyHelpRequests } = useHelpRequest();
   const { getBidsByHelpRequestId, getMyBids, deleteBid } = useBid();
 
@@ -136,8 +137,12 @@ export const useHomeData = () => {
 
         setRequests(filtered);
 
-        const helperBids = await getMyBids();
-        setMyBids((helperBids ?? []).slice(0, 5));
+        if (canUseVerifiedActions) {
+          const helperBids = await getMyBids();
+          setMyBids((helperBids ?? []).slice(0, 5));
+        } else {
+          setMyBids([]);
+        }
 
         const ownedRequests = currentUserId
           ? normalizedRequests.filter((request) => request.requesterId === currentUserId)
@@ -148,20 +153,32 @@ export const useHomeData = () => {
           return;
         }
 
-        const bidsByRequest = await Promise.all(
-          ownedRequests.map((request) => getBidsByHelpRequestId(request.id))
-        );
+        if (canUseVerifiedActions) {
+          const bidsByRequest = await Promise.all(
+            ownedRequests.map((request) => getBidsByHelpRequestId(request.id))
+          );
 
-        const flattenedBids = bidsByRequest
-          .flatMap((bids) => bids ?? [])
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          const flattenedBids = bidsByRequest
+            .flatMap((bids) => bids ?? [])
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-        setRecentBids(flattenedBids.slice(0, 5));
+          setRecentBids(flattenedBids.slice(0, 5));
+        } else {
+          setRecentBids([]);
+        }
       } finally {
         setLoading(false);
       }
     },
-    [currentUserId, currentUserLocation, getMyHelpRequests, getBidsByHelpRequestId, getMyBids, isAuthenticated]
+    [
+      canUseVerifiedActions,
+      currentUserId,
+      currentUserLocation,
+      getMyHelpRequests,
+      getBidsByHelpRequestId,
+      getMyBids,
+      isAuthenticated,
+    ]
   );
 
   const addNewRequest = useCallback(

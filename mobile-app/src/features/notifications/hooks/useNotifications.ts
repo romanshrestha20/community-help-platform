@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppState } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 
 import { setNotificationBadgeCount } from "@/hooks/useBadgeCounts";
 import { useNotificationSettingsStore } from "@/features/settings/store/notification-settings.store";
@@ -21,6 +22,13 @@ const sortNewestFirst = (items: AppNotification[]) => {
 };
 
 export const useNotifications = () => {
+    const canAccessVerifiedRoutes = useAuthStore((state) =>
+        Boolean(
+            state.isAuthenticated &&
+            state.user &&
+            state.user.isEmailVerified
+        )
+    );
     const {
         isHydrated,
         pushEnabled,
@@ -71,6 +79,13 @@ export const useNotifications = () => {
     );
 
     const loadNotifications = useCallback(async () => {
+        if (!canAccessVerifiedRoutes) {
+            setNotifications([]);
+            setUnreadCount(0);
+            setError(null);
+            return;
+        }
+
         setError(null);
 
         const items = await fetchNotifications();
@@ -81,7 +96,7 @@ export const useNotifications = () => {
 
         setNotifications(sortNewestFirst(visibleItems));
         setUnreadCount(visibleUnreadCount);
-    }, [preferences]);
+    }, [canAccessVerifiedRoutes, preferences]);
 
     const reload = useCallback(async () => {
         setRefreshing(true);
@@ -93,7 +108,10 @@ export const useNotifications = () => {
     }, [loadNotifications]);
 
     useEffect(() => {
-        if (!isHydrated) {
+        if (!isHydrated || !canAccessVerifiedRoutes) {
+            setLoading(false);
+            setNotifications([]);
+            setUnreadCount(0);
             return;
         }
 
@@ -121,11 +139,11 @@ export const useNotifications = () => {
         return () => {
             isMounted = false;
         };
-    }, [isHydrated, loadNotifications]);
+    }, [canAccessVerifiedRoutes, isHydrated, loadNotifications]);
 
     useFocusEffect(
         useCallback(() => {
-            if (!isHydrated) {
+            if (!isHydrated || !canAccessVerifiedRoutes) {
                 return undefined;
             }
 
@@ -143,11 +161,11 @@ export const useNotifications = () => {
             return () => {
                 clearInterval(intervalId);
             };
-        }, [isHydrated, loadNotifications])
+        }, [canAccessVerifiedRoutes, isHydrated, loadNotifications])
     );
 
     useEffect(() => {
-        if (!isHydrated) {
+        if (!isHydrated || !canAccessVerifiedRoutes) {
             return;
         }
 
@@ -164,9 +182,10 @@ export const useNotifications = () => {
         return () => {
             subscription.remove();
         };
-    }, [isHydrated, loadNotifications]);
+    }, [canAccessVerifiedRoutes, isHydrated, loadNotifications]);
 
     const markRead = useCallback(async (notificationId: string) => {
+        if (!canAccessVerifiedRoutes) return;
         setActionLoadingId(notificationId);
         try {
             await markNotificationAsRead(notificationId);
@@ -183,9 +202,10 @@ export const useNotifications = () => {
         } finally {
             setActionLoadingId(null);
         }
-    }, []);
+    }, [canAccessVerifiedRoutes]);
 
     const markUnread = useCallback(async (notificationId: string) => {
+        if (!canAccessVerifiedRoutes) return;
         setActionLoadingId(notificationId);
         try {
             await markNotificationAsUnread(notificationId);
@@ -202,9 +222,10 @@ export const useNotifications = () => {
         } finally {
             setActionLoadingId(null);
         }
-    }, []);
+    }, [canAccessVerifiedRoutes]);
 
     const markAllRead = useCallback(async () => {
+        if (!canAccessVerifiedRoutes) return;
         setActionLoadingId("all");
         try {
             await markAllNotificationsAsRead();
@@ -221,9 +242,10 @@ export const useNotifications = () => {
         } finally {
             setActionLoadingId(null);
         }
-    }, []);
+    }, [canAccessVerifiedRoutes]);
 
     const removeNotification = useCallback(async (notificationId: string) => {
+        if (!canAccessVerifiedRoutes) return;
         setActionLoadingId(notificationId);
         try {
             const target = notifications.find((notification) => notification.id === notificationId);
@@ -237,7 +259,7 @@ export const useNotifications = () => {
         } finally {
             setActionLoadingId(null);
         }
-    }, [notifications]);
+    }, [canAccessVerifiedRoutes, notifications]);
 
     const unreadNotifications = useMemo(
         () => notifications.filter((notification) => !notification.isRead),
