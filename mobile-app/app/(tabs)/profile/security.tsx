@@ -10,6 +10,7 @@ import { Card, Screen, Stack, theme } from "@/design-system";
 import { APP_ROUTES } from "@/config/routes";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { confirmSensitiveAction } from "@/features/auth/utils/biometric";
 import { validateChangePasswordFormFields } from "@/features/auth/utils/authValidation";
 import { DeleteAccountModal } from "@/features/settings/components/DeleteAccountModal";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
@@ -99,10 +100,12 @@ export default function PrivacySecurityScreen() {
 
   const {
     handleLogout,
+    handleLogoutAll,
     handleChangePassword,
     handleAddPassword,
     handleSendEmailVerification,
     loadingLogout,
+    loadingLogoutAll,
     loadingChangePassword,
     loadingAddPassword,
     loadingSendEmailVerification,
@@ -185,6 +188,14 @@ export default function PrivacySecurityScreen() {
 
     clearValidationError();
 
+    const confirmed = await confirmSensitiveAction(
+      hasPasswordSignIn ? "Confirm password change" : "Confirm password setup"
+    );
+    if (!confirmed) {
+      showErrorToast("Authentication cancelled", "Security confirmation was not completed.");
+      return;
+    }
+
     const result = hasPasswordSignIn
       ? await handleChangePassword(currentPassword, newPassword)
       : await handleAddPassword(newPassword);
@@ -243,6 +254,11 @@ export default function PrivacySecurityScreen() {
     router.replace(APP_ROUTES.AUTH_LOGIN);
   };
 
+  const logoutAllDevices = async () => {
+    await handleLogoutAll();
+    router.replace(APP_ROUTES.AUTH_LOGIN);
+  };
+
   return (
     <Screen>
       <AppHeader
@@ -296,6 +312,15 @@ export default function PrivacySecurityScreen() {
               onPress={logoutCurrentSession}
               disabled={loadingLogout}
               loading={loadingLogout}
+            />
+
+            <SecurityRow
+              title="Log out from all devices"
+              subtitle="Revoke all sessions and require sign-in everywhere."
+              actionLabel="Log out all"
+              onPress={logoutAllDevices}
+              disabled={loadingLogoutAll}
+              loading={loadingLogoutAll}
             />
           </Stack>
         </Card>
@@ -447,6 +472,15 @@ export default function PrivacySecurityScreen() {
         error={profileError}
         onClose={() => setDeleteAccountVisible(false)}
         onConfirm={async (password) => {
+          const confirmed = await confirmSensitiveAction("Confirm account deletion");
+          if (!confirmed) {
+            showErrorToast(
+              "Authentication cancelled",
+              "Security confirmation was not completed."
+            );
+            return false;
+          }
+
           const success = await handleDeleteProfile(password);
           if (success) {
             showSuccessToast("Account deleted", "Your account has been removed.");
