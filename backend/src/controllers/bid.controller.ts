@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma.js";
+import { getIO } from "../lib/socket.js";
 import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.js";
 import { createNotification } from "../services/notification.service.js";
@@ -419,6 +420,68 @@ export const respondToBid = async (req: Request, res: Response, next: NextFuncti
     });
 
     const conversation = conversationResult?.conversation ?? null;
+    const participantIds = conversation?.members.map((member) => member.user.id) ?? [];
+
+    if (conversation?.id && participantIds.length > 0) {
+      try {
+        const io = getIO();
+
+        const systemMessageId = conversationResult?.systemMessageCreated
+          ? conversationResult.systemMessageId
+          : null;
+
+        let systemMessagePayload: any = null;
+        if (systemMessageId) {
+          systemMessagePayload = await prisma.message.findUnique({
+            where: { id: systemMessageId },
+            include: {
+              sender: {
+                select: {
+                  id: true,
+                  email: true,
+                  profile: {
+                    select: {
+                      fullName: true,
+                      avatarUrl: true,
+                    },
+                  },
+                },
+              },
+              images: {
+                select: {
+                  id: true,
+                  url: true,
+                  type: true,
+                  createdAt: true,
+                },
+              },
+            },
+          });
+        }
+
+        participantIds.forEach((participantId) => {
+          io.to(`user:${participantId}`).emit("conversation:upsert", {
+            conversationId: conversation.id,
+            requestId: bid.helpRequestId,
+          });
+        });
+
+        if (systemMessagePayload) {
+          io.to(`conversation:${conversation.id}`).emit("message:new", {
+            conversationId: conversation.id,
+            message: systemMessagePayload,
+          });
+          participantIds.forEach((participantId) => {
+            io.to(`user:${participantId}`).emit("conversation:message", {
+              conversationId: conversation.id,
+              message: systemMessagePayload,
+            });
+          });
+        }
+      } catch (socketError) {
+        console.warn("Socket emit after bid response failed", socketError);
+      }
+    }
 
     await createNotification({
       userId: bid.helperId,

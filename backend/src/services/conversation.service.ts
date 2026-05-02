@@ -38,6 +38,7 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 const MESSAGE_MAX_LENGTH = 1000;
 const HANDOFF_STARTER_NOTE = "Bid accepted. You can now coordinate through chat.";
+const ACCEPTED_SYSTEM_MESSAGE = "Offer accepted. You can now coordinate the task here.";
 
 type ConversationWithMembers = Prisma.ConversationGetPayload<{
     include: {
@@ -172,6 +173,46 @@ const assertConversationMembership = async (conversationId: string, userId: stri
     }
 };
 
+const ensureAcceptedSystemMessageInTransaction = async (
+    tx: Prisma.TransactionClient,
+    input: {
+        conversationId: string;
+        requesterId: string;
+    }
+) => {
+    const existing = await tx.message.findFirst({
+        where: {
+            conversationId: input.conversationId,
+            type: MessageType.SYSTEM,
+            deletedAt: null,
+            content: ACCEPTED_SYSTEM_MESSAGE,
+        },
+        select: { id: true },
+    });
+
+    if (existing) {
+        return { created: false, messageId: existing.id };
+    }
+
+    const created = await tx.message.create({
+        data: {
+            conversationId: input.conversationId,
+            senderId: input.requesterId,
+            type: MessageType.SYSTEM,
+            content: ACCEPTED_SYSTEM_MESSAGE,
+            isRead: false,
+        },
+        select: { id: true },
+    });
+
+    await tx.conversation.update({
+        where: { id: input.conversationId },
+        data: { updatedAt: new Date() },
+    });
+
+    return { created: true, messageId: created.id };
+};
+
 export const ensureConversationForRequestInTransaction = async (
     tx: Prisma.TransactionClient,
     requestId: string
@@ -234,6 +275,11 @@ export const ensureConversationForRequestInTransaction = async (
         skipDuplicates: true,
     });
 
+    const systemMessageResult = await ensureAcceptedSystemMessageInTransaction(tx, {
+        conversationId: createdOrExisting.id,
+        requesterId: request.requesterId,
+    });
+
     const conversation = await tx.conversation.findUnique({
         where: { id: createdOrExisting.id },
         include: {
@@ -272,6 +318,8 @@ export const ensureConversationForRequestInTransaction = async (
     return {
         conversation,
         starterNote: buildStarterNote(conversation.request.status, false),
+        systemMessageCreated: systemMessageResult.created,
+        systemMessageId: systemMessageResult.messageId,
     };
 };
 
@@ -306,7 +354,7 @@ export const ensureConversationForRequest = async ({
 
     const assignedHelperId = request.assignedHelperId;
 
-    const conversation = await prisma.$transaction(async (tx) => {
+    const conversationResult = await prisma.$transaction(async (tx) => {
         const createdOrExisting = await tx.conversation.upsert({
             where: { requestId },
             create: { requestId },
@@ -348,7 +396,12 @@ export const ensureConversationForRequest = async ({
             skipDuplicates: true,
         });
 
-        return tx.conversation.findUnique({
+        const systemMessageResult = await ensureAcceptedSystemMessageInTransaction(tx, {
+            conversationId: createdOrExisting.id,
+            requesterId: request.requesterId,
+        });
+
+        const conversation = await tx.conversation.findUnique({
             where: { id: createdOrExisting.id },
             include: {
                 request: {
@@ -378,8 +431,15 @@ export const ensureConversationForRequest = async ({
                 },
             },
         });
+
+        return {
+            conversation,
+            systemMessageCreated: systemMessageResult.created,
+            systemMessageId: systemMessageResult.messageId,
+        };
     });
 
+    const conversation = conversationResult?.conversation ?? null;
     if (!conversation) {
         throw new AppError("Failed to initialize conversation", 500);
     }
@@ -387,6 +447,8 @@ export const ensureConversationForRequest = async ({
     return {
         ...conversation,
         starterNote: buildStarterNote(conversation.request.status, false),
+        systemMessageCreated: conversationResult.systemMessageCreated,
+        systemMessageId: conversationResult.systemMessageId,
     };
 };
 
