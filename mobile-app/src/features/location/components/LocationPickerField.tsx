@@ -12,6 +12,7 @@ import {
 import { theme } from "@/design-system";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppInput } from "@/components/ui/AppInput";
+import { FormFieldShell } from "@/components/ui/FormFieldShell";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { AppLocation, LocationSuggestion } from "../types/location.types";
 import { formatCompactAddress } from "../utils/address";
@@ -45,6 +46,11 @@ const formatSuggestionSubtitle = (suggestion: LocationSuggestion) => {
 };
 
 type Props = {
+  label?: string;
+  helperText?: string;
+  required?: boolean;
+  disabled?: boolean;
+  accessibilityLabel?: string;
   value: AppLocation | null;
   loading?: boolean;
   error?: string | null;
@@ -71,6 +77,11 @@ export function hasUsableLocation(location: AppLocation | null): boolean {
 }
 
 export default function LocationPickerField({
+  label = "Location",
+  helperText = "Search street address or use your current location.",
+  required = false,
+  disabled = false,
+  accessibilityLabel,
   value,
   loading = false,
   error,
@@ -110,7 +121,15 @@ export default function LocationPickerField({
     : palette.surface;
 
   return (
-    <View style={styles.container}>
+    <FormFieldShell
+      label={label}
+      required={required}
+      helperText={helperText}
+      error={error ?? undefined}
+      disabled={disabled}
+      accessibilityLabel={accessibilityLabel ?? label}
+      style={styles.container}
+    >
       <View
         style={[
           styles.searchCard,
@@ -126,10 +145,13 @@ export default function LocationPickerField({
           <View style={styles.inputWrapper}>
             <AppInput
               label="Street address"
+              required={required}
               placeholder="Type street name"
               value={streetQuery}
-              onChangeText={onStreetQueryChange}
+              onChangeText={onStreetQueryChange ?? (() => undefined)}
               containerStyle={styles.streetInputContainer}
+              editable={!disabled && Boolean(onStreetQueryChange)}
+              accessibilityLabel="Street address search"
             />
           </View>
 
@@ -138,7 +160,7 @@ export default function LocationPickerField({
               title={loading ? "Detecting..." : "Use current location"}
               onPress={onUseCurrentLocation}
               loading={loading}
-              disabled={loading}
+              disabled={loading || disabled}
               fullWidth
               variant="secondary"
               icon={
@@ -182,6 +204,7 @@ export default function LocationPickerField({
                 renderItem={({ item, index }) => (
                   <Pressable
                     onPress={() => onSelectSuggestion?.(item)}
+                    disabled={disabled}
                     style={({ pressed }) => [
                       styles.suggestionItem,
                       {
@@ -317,36 +340,12 @@ export default function LocationPickerField({
           </View>
         </View>
       </View>
-
-      {error ? (
-        <View
-          style={[
-            styles.errorBox,
-            {
-              backgroundColor: palette.dangerSoft ?? palette.surface,
-              borderColor: palette.danger,
-            },
-          ]}
-        >
-          <Ionicons
-            name="alert-circle-outline"
-            size={theme.typography.fontSize.md}
-            color={palette.danger}
-          />
-          <Text style={[styles.errorText, { color: palette.danger }]}>
-            {error}
-          </Text>
-        </View>
-      ) : null}
-    </View>
+    </FormFieldShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: theme.spacing.sm,
-    gap: theme.spacing.sm,
-  },
+  container: {},
   searchCard: {
     borderWidth: 1,
     borderRadius: theme.radius.lg,
@@ -457,18 +456,6 @@ const styles = StyleSheet.create({
       theme.typography.fontWeight.medium,
     lineHeight: 18,
   },
-  errorBox: {
-    borderWidth: 1,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: theme.spacing.xs,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: theme.typography.fontSize.xs,
-    lineHeight: 18,
-  },
+  errorBox: {},
+  errorText: {},
 });
