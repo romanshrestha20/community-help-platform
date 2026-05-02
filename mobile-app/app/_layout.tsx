@@ -11,6 +11,7 @@ import {
 } from "@expo-google-fonts/inter";
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { canAccessAdminScreen } from "@/features/auth/utils/authz";
 import { useThemeStore } from "@/features/settings/store/theme.store";
 import { getAccessToken, getRefreshToken, clearTokens } from "@/utils/token";
 import { getMe } from "@/features/auth/api/auth.api";
@@ -36,9 +37,17 @@ export default function Layout() {
     Inter_700Bold,
   });
 
-  const { login, logout, isAuthenticated } = useAuthStore();
+  const { login, logout, isAuthenticated, user } = useAuthStore();
   const { loadFavoriteIds, clearFavorites } = useFavorites();
   const [isInitializing, setIsInitializing] = useState(true);
+
+  const requiresOnboarding = Boolean(
+    isAuthenticated &&
+      user &&
+      ((!user.fullName && !user.profile?.fullName) ||
+        !user.profile?.address ||
+        !(user.avatarUrl || user.profile?.avatarUrl))
+  );
 
   usePushNotifications();
   // Set the animation options. This is optional.
@@ -127,7 +136,11 @@ export default function Layout() {
     const inAuthGroup = routeSegments[0] === "(auth)";
     const isRootRoute = routeSegments[0] === "index";
     const isOAuthRedirectRoute = routeSegments[0] === "oauthredirect";
+    const isAdminRoute = routeSegments[0] === "admin";
     const authLeafRoute = routeSegments[1] ?? "";
+    const isCompleteProfileRoute =
+      inAuthGroup && authLeafRoute === "complete-profile";
+    const isWelcomeRoute = inAuthGroup && authLeafRoute === "welcome";
     const allowAuthenticatedAuthRoutes = new Set([
       "forgot-password",
       "reset-password",
@@ -151,6 +164,16 @@ export default function Layout() {
       return;
     }
 
+    if (isAuthenticated && isAdminRoute && !canAccessAdminScreen(user)) {
+      router.replace("/(tabs)/home");
+      return;
+    }
+
+    if (requiresOnboarding && !isCompleteProfileRoute && !isWelcomeRoute) {
+      router.replace("/(auth)/complete-profile");
+      return;
+    }
+
     if (
       isAuthenticated &&
       inAuthGroup &&
@@ -158,18 +181,22 @@ export default function Layout() {
     ) {
       router.replace("/(tabs)/home");
     }
-  }, [isAuthenticated, segments, isInitializing, router]);
+  }, [isAuthenticated, isInitializing, requiresOnboarding, router, segments, user]);
 
   useEffect(() => {
     if (isInitializing) return;
 
-    if (!isAuthenticated) {
+    const canLoadFavorites = Boolean(
+      isAuthenticated && user && user.isEmailVerified
+    );
+
+    if (!canLoadFavorites) {
       clearFavorites();
       return;
     }
 
     void loadFavoriteIds();
-  }, [clearFavorites, isAuthenticated, isInitializing, loadFavoriteIds]);
+  }, [clearFavorites, isAuthenticated, isInitializing, loadFavoriteIds, user]);
 
   if (isInitializing || !fontsLoaded) {
     return (
