@@ -15,16 +15,23 @@ import { APP_ROUTES } from "@/config/routes";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { clearTokens } from "@/utils/token";
+import { getMe } from "@/features/auth/api/auth.api";
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
   const { palette } = useThemeContext();
-  const params = useLocalSearchParams<{ token?: string | string[] }>();
+  const params = useLocalSearchParams<{ token?: string | string[]; source?: string | string[] }>();
   const tokenValue = params.token;
   const token = Array.isArray(tokenValue) ? tokenValue[0] : tokenValue;
+  const sourceValue = params.source;
+  const source = Array.isArray(sourceValue) ? sourceValue[0] : sourceValue;
   const hasAttemptedVerification = useRef(false);
+  const hasAttemptedAutoResend = useRef(false);
   const currentUser = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const logout = useAuthStore((state) => state.logout);
+  const deferVerification = useAuthStore((state) => state.deferVerification);
   const {
     handleVerifyEmail,
     handleSendEmailVerification,
@@ -34,13 +41,19 @@ export default function VerifyEmailScreen() {
   } = useAuth();
 
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
-  const [message, setMessage] = useState("Verifying your email...");
+  const [message, setMessage] = useState(
+    token
+      ? "Verifying your email..."
+      : source === "register"
+        ? "Account created. We sent a verification email. You can continue now and verify later."
+        : "We sent a verification email. You can continue now and verify later."
+  );
 
   useEffect(() => {
     if (!token || hasAttemptedVerification.current) {
       if (!token) {
-        setStatus("error");
-        setMessage("Verification token is missing. Request a new verification email.");
+        setStatus("idle");
+        setMessage("We sent a verification email. You can continue now and verify later.");
       }
       return;
     }
@@ -76,8 +89,54 @@ export default function VerifyEmailScreen() {
     setMessage(result?.message || "Unable to send verification email.");
   };
 
+  const handleRefreshVerification = async () => {
+    try {
+      const me = await getMe();
+      if (me.success && me.data) {
+        useAuthStore.getState().setUser(me.data);
+      }
+      if (me.data?.isEmailVerified) {
+        setStatus("success");
+        setMessage("Email verified successfully.");
+        return;
+      }
+      setStatus("idle");
+      setMessage("Email is not verified yet. Please check your inbox and try again.");
+    } catch {
+      setStatus("error");
+      setMessage("Could not refresh verification status. Please try again.");
+    }
+  };
+
   const canResendVerification =
     isAuthenticated && currentUser && !currentUser.isEmailVerified;
+  const requiresVerification = Boolean(
+    isAuthenticated &&
+      currentUser &&
+      !currentUser.isEmailVerified
+  );
+
+  useEffect(() => {
+    if (token) return;
+    if (!canResendVerification) return;
+    if (hasAttemptedAutoResend.current) return;
+
+    hasAttemptedAutoResend.current = true;
+
+    const sendInitialEmail = async () => {
+      const result = await handleSendEmailVerification("resend");
+      if (result?.success) {
+        setStatus("idle");
+        setMessage(result.message || "Verification email sent. Please check your inbox.");
+        return;
+      }
+
+      setStatus("error");
+      setMessage(result?.message || "Unable to send verification email.");
+    };
+
+    void sendInitialEmail();
+  }, [canResendVerification, handleSendEmailVerification, token]);
 
   return (
     <AuthScreen>
@@ -105,7 +164,7 @@ export default function VerifyEmailScreen() {
               title="Continue"
               onPress={() => {
                 if (isAuthenticated) {
-                  router.replace("/(tabs)/home");
+                  router.replace(APP_ROUTES.AUTH_COMPLETE_PROFILE);
                   return;
                 }
 
@@ -128,10 +187,44 @@ export default function VerifyEmailScreen() {
             />
           ) : null}
 
+          {status !== "success" && isAuthenticated ? (
+            <AppButton
+              title="I have verified"
+              onPress={handleRefreshVerification}
+              variant="ghost"
+            />
+          ) : null}
+
+          {status !== "success" && isAuthenticated && requiresVerification ? (
+            <AppButton
+              title="Continue"
+              onPress={() => {
+                deferVerification(true);
+                router.replace(APP_ROUTES.AUTH_COMPLETE_PROFILE);
+              }}
+              variant="ghost"
+            />
+          ) : null}
+
           <AuthFooterLink
             prefix="Need to leave this flow?"
-            actionLabel="Back to sign in"
-            onPress={() => router.replace(APP_ROUTES.AUTH_LOGIN)}
+            actionLabel={
+              isAuthenticated
+                ? requiresVerification
+                  ? "Sign out"
+                  : "Back to home"
+                : "Back to sign in"
+            }
+            onPress={async () => {
+              if (isAuthenticated && requiresVerification) {
+                await clearTokens();
+                logout();
+                router.replace(APP_ROUTES.AUTH_LOGIN);
+                return;
+              }
+
+              router.replace(isAuthenticated ? "/(tabs)/home" : APP_ROUTES.AUTH_LOGIN);
+            }}
           />
         </Stack>
       </AuthCard>

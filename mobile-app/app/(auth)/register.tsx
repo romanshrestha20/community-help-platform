@@ -22,9 +22,10 @@ import { useFormValidation } from "@/utils/validation/useFormValidation";
 export default function RegisterScreen() {
   const router = useRouter();
   const { handleRegister, handleGoogleLogin, loadingRegister, loadingGoogleLogin, error } = useAuth();
-  const { isGoogleConfigured, signIn } = useGoogleAuth();
+  const { isGoogleConfigured, isSigningIn, signIn } = useGoogleAuth();
 
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -35,12 +36,18 @@ export default function RegisterScreen() {
     setFieldErrors,
     clearFieldError,
     clearValidationError,
-  } = useFormValidation<"email" | "password" | "confirmPassword">();
+  } = useFormValidation<"fullName" | "email" | "password" | "confirmPassword">();
 
-  const isBusy = loadingRegister || loadingGoogleLogin;
+  const isBusy = loadingRegister || loadingGoogleLogin || isSigningIn;
   const displayError = validationError || error;
 
   const handleEmailRegister = async () => {
+    if (!fullName.trim()) {
+      setFieldErrors({ fullName: "Name is required." });
+      setValidationError("Name is required.");
+      return;
+    }
+
     if (!email.trim()) {
       setFieldErrors({ email: "Email is required." });
       setValidationError("Email is required.");
@@ -53,9 +60,33 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (password.trim().length < 8) {
-      setFieldErrors({ password: "Password must be at least 8 characters." });
-      setValidationError("Password must be at least 8 characters.");
+    if (password.trim().length < 12) {
+      setFieldErrors({ password: "Password must be at least 12 characters." });
+      setValidationError("Password must be at least 12 characters.");
+      return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      setFieldErrors({ password: "Password must include at least one uppercase letter." });
+      setValidationError("Password must include at least one uppercase letter.");
+      return;
+    }
+
+    if (!/[a-z]/.test(password)) {
+      setFieldErrors({ password: "Password must include at least one lowercase letter." });
+      setValidationError("Password must include at least one lowercase letter.");
+      return;
+    }
+
+    if (!/\d/.test(password)) {
+      setFieldErrors({ password: "Password must include at least one number." });
+      setValidationError("Password must include at least one number.");
+      return;
+    }
+
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      setFieldErrors({ password: "Password must include at least one special character." });
+      setValidationError("Password must include at least one special character.");
       return;
     }
 
@@ -74,12 +105,12 @@ export default function RegisterScreen() {
 
     clearValidationError();
 
-    const result = await handleRegister({ email, password });
+    const result = await handleRegister({ fullName: fullName.trim(), email, password });
     if (!result?.success) {
       return;
     }
 
-    router.replace(APP_ROUTES.AUTH_COMPLETE_PROFILE);
+    router.replace(`${APP_ROUTES.AUTH_VERIFY_EMAIL}?source=register`);
   };
 
   const handleGooglePress = async () => {
@@ -117,6 +148,19 @@ export default function RegisterScreen() {
 
       <AuthCard>
         {displayError ? <AuthBanner tone="error">{displayError}</AuthBanner> : null}
+
+        <AppInput
+          label="Full name"
+          placeholder="Alex Taylor"
+          value={fullName}
+          error={fieldErrors.fullName ?? null}
+          onChangeText={(value) => {
+            clearFieldError("fullName");
+            setFullName(value);
+          }}
+          autoCapitalize="words"
+          textContentType="name"
+        />
 
         <AppInput
           label="Email"
@@ -174,9 +218,9 @@ export default function RegisterScreen() {
           <AuthDivider label="or continue with" />
 
           <AppButton
-            title={loadingGoogleLogin ? "Connecting to Google..." : "Continue with Google"}
+            title={loadingGoogleLogin || isSigningIn ? "Connecting to Google..." : "Continue with Google"}
             onPress={handleGooglePress}
-            loading={loadingGoogleLogin}
+            loading={loadingGoogleLogin || isSigningIn}
             disabled={isBusy}
             variant="secondary"
             icon={<Ionicons name="logo-google" size={16} />}
