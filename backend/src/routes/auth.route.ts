@@ -55,9 +55,9 @@ router.get("/sessions", authenticateUser, getMySessions);
 
 // Profile
 router.get("/profile", authenticateUser, getUserProfile);
-router.patch("/profile", authenticateUser, requireVerifiedUser, updateUserProfile);
-router.delete("/profile", authenticateUser, requireVerifiedUser, deleteUserAccount);
-router.put("/profile/skills", authenticateUser, requireVerifiedUser, replaceUserSkills);
+router.patch("/profile", authenticateUser, updateUserProfile);
+router.delete("/profile", authenticateUser, deleteUserAccount);
+router.put("/profile/skills", authenticateUser, replaceUserSkills);
 router.post(
   "/profile/certifications",
   authenticateUser,
@@ -76,7 +76,6 @@ router.delete(
 router.post(
   "/profile/avatar",
   authenticateUser,
-  requireVerifiedUser,
   upload.single("avatar"),
   uploadUserAvatar
 );
@@ -84,7 +83,6 @@ router.post(
 router.delete(
   "/profile/avatar",
   authenticateUser,
-  requireVerifiedUser,
   deleteUserAvatar
 );
 

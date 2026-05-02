@@ -1377,12 +1377,16 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
       userAgent: getRequestUserAgent(req),
       invalidateAllExisting: false,
     });
-    await recordSuccessfulLogin({
-      userId,
-      email: googlePayload.email,
-      ipAddress: getRequestIp(req),
-      userAgent: getRequestUserAgent(req),
-    });
+    try {
+      await recordSuccessfulLogin({
+        userId,
+        email: googlePayload.email,
+        ipAddress: getRequestIp(req),
+        userAgent: getRequestUserAgent(req),
+      });
+    } catch (monitoringError) {
+      console.error("Failed to record successful Google login event:", monitoringError);
+    }
 
     return sendResponse(res, {
       statusCode: 200,

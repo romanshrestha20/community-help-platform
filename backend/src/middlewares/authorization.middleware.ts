@@ -18,7 +18,6 @@ export const requireVerifiedUser = async (
       where: { id: userId },
       select: {
         isEmailVerified: true,
-        isVerified: true,
       },
     });
 
@@ -26,7 +25,7 @@ export const requireVerifiedUser = async (
       return next(new AppError("Unauthorized", 401));
     }
 
-    if (!user.isEmailVerified || !user.isVerified) {
+    if (!user.isEmailVerified) {
       return next(new AppError("Account verification required", 403));
     }
 
