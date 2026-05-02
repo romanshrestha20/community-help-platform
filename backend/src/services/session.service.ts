@@ -214,15 +214,20 @@ export const revokeSessionByRefreshToken = async ({
     },
   });
 
-  await prisma.securityEvent.create({
-    data: {
-      userId: storedToken.userId,
-      type: SecurityEventType.REFRESH_TOKEN_REVOKED,
-      metadata: {
-        reason,
+  try {
+    await prisma.securityEvent.create({
+      data: {
+        userId: storedToken.userId,
+        type: SecurityEventType.REFRESH_TOKEN_REVOKED,
+        metadata: {
+          reason,
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    // Do not fail logout when audit logging is unavailable or schema is lagging.
+    console.error("Failed to persist logout security event:", error);
+  }
 };
 
 export const revokeAllSessionsForUser = async (userId: string, reason = "USER_LOGOUT_ALL") => {
@@ -241,16 +246,21 @@ export const revokeAllSessionsForUser = async (userId: string, reason = "USER_LO
     }),
   ]);
 
-  await prisma.securityEvent.create({
-    data: {
-      userId,
-      type: SecurityEventType.REFRESH_TOKEN_REVOKED,
-      metadata: {
-        reason,
-        scope: "ALL_SESSIONS",
+  try {
+    await prisma.securityEvent.create({
+      data: {
+        userId,
+        type: SecurityEventType.REFRESH_TOKEN_REVOKED,
+        metadata: {
+          reason,
+          scope: "ALL_SESSIONS",
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    // Do not fail logout-all when audit logging is unavailable or schema is lagging.
+    console.error("Failed to persist logout-all security event:", error);
+  }
 };
 
 export const listUserSessions = async (userId: string) => {

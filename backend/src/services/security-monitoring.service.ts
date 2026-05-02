@@ -4,7 +4,6 @@ import { getRedisClient } from "../lib/redis.js";
 import { SecurityEventType } from "../../generated/prisma/client.js";
 
 const normalize = (value: string) => value.trim().toLowerCase();
-const isFailClosed = process.env.AUTH_FAIL_CLOSED === "true";
 
 const LOGIN_FAIL_WINDOW_SECONDS = 15 * 60;
 const LOGIN_FAIL_LOCK_THRESHOLDS = [
@@ -39,9 +38,6 @@ export const assertLoginAllowed = async ({
   try {
     const redis = await getRedisClient();
     if (!redis) {
-      if (isFailClosed) {
-        throw new AppError("Security controls unavailable.", 503);
-      }
       console.warn("Security controls unavailable: Redis not connected, allowing login (fail-open mode).");
       return;
     }
@@ -57,9 +53,6 @@ export const assertLoginAllowed = async ({
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
-    }
-    if (isFailClosed) {
-      throw new AppError("Security controls unavailable.", 503);
     }
     console.warn("Security controls unavailable: Redis check failed, allowing login (fail-open mode).", error);
   }
@@ -79,9 +72,6 @@ export const recordFailedLoginAttempt = async ({
   try {
     const redis = await getRedisClient();
     if (!redis) {
-      if (isFailClosed) {
-        throw new AppError("Security controls unavailable.", 503);
-      }
       console.warn("Security controls unavailable: Redis not connected, skipping failed-login tracking.");
       return;
     }
@@ -113,9 +103,6 @@ export const recordFailedLoginAttempt = async ({
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
-    }
-    if (isFailClosed) {
-      throw new AppError("Security controls unavailable.", 503);
     }
     console.warn("Security controls unavailable: failed-login tracking skipped.", error);
     return;
@@ -173,9 +160,6 @@ export const recordSuccessfulLogin = async ({
   try {
     const redis = await getRedisClient();
     if (!redis) {
-      if (isFailClosed) {
-        throw new AppError("Security controls unavailable.", 503);
-      }
       console.warn("Security controls unavailable: Redis not connected, skipping successful-login tracking.");
       return;
     }
@@ -193,9 +177,6 @@ export const recordSuccessfulLogin = async ({
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
-    }
-    if (isFailClosed) {
-      throw new AppError("Security controls unavailable.", 503);
     }
     console.warn("Security controls unavailable: successful-login tracking skipped.", error);
     return;
