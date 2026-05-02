@@ -41,7 +41,7 @@ import { useAuthStore } from "@/features/auth/store/auth.store";
 import { ProfileAvatar } from "@/features/user/components/ProfileAvatar";
 import { goBackOrFallback } from "@/utils/navigation";
 import { APP_ROUTES } from "@/config/routes";
-import { showErrorToast, showSuccessToast } from "@/utils/toast";
+import { showErrorToast, showInfoToast, showSuccessToast } from "@/utils/toast";
 
 type Props = {
   requestId?: string;
@@ -505,9 +505,24 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
 
   const handleOpenBidChat = useCallback(
     (bidRequestId: string) => {
+      const canMessage =
+        Boolean(acceptedBid) ||
+        myBid?.status === "ACCEPTED" ||
+        (request?.status === "ASSIGNED" &&
+          Boolean(request.assignedHelperId) &&
+          request.assignedHelperId === currentUserId);
+
+      if (!canMessage) {
+        showInfoToast(
+          "Chat not available yet",
+          "Messaging is available after an offer is accepted."
+        );
+        return;
+      }
+
       router.push(`/messages/chat?requestId=${bidRequestId}` as never);
     },
-    [router]
+    [acceptedBid, currentUserId, myBid?.status, request?.assignedHelperId, request?.status, router]
   );
 
   const handleOpenHelperProfile = useCallback(() => {
@@ -886,7 +901,7 @@ export const RequestDetailsScreen = ({ requestId }: Props) => {
             onBidAccept={async (bid) => {
               const accepted = await acceptBid(bid.id);
               if (accepted) {
-                showSuccessToast("Helper assigned successfully");
+                showSuccessToast("Offer accepted. Chat is ready.");
               }
             }}
             onBidReject={(bid) => rejectBid(bid.id)}
