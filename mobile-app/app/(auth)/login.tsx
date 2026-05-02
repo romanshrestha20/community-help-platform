@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -18,9 +18,10 @@ import {
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { APP_ROUTES } from "@/config/routes";
-import { validateLoginFormFields } from "@/features/auth/utils/authValidation";
+import { validateLoginFormFields } from "@/features/auth/validation/auth.validation";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { useGoogleAuth } from "@/features/auth/google";
+import { formEvents } from "@/utils/formEvents";
 
 const shouldRouteToCompleteProfile = (user: any) => {
   const fullName = user?.fullName || user?.profile?.fullName;
@@ -38,6 +39,7 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     validationError,
@@ -51,16 +53,22 @@ export default function LoginScreen() {
   const isFormDisabled = loadingLogin || loadingGoogleLogin || isSigningIn;
   const bannerMessage = validationError || error;
 
+  React.useEffect(() => {
+    formEvents.formStarted("auth_login");
+  }, []);
+
   const handleEmailLogin = async () => {
     const validation = validateLoginFormFields({ email, password });
 
     if (!validation.isValid) {
       setValidationError(validation.formError);
       setFieldErrors(validation.fieldErrors);
+      formEvents.formValidationFailed("auth_login", Object.keys(validation.fieldErrors)[0]);
       return;
     }
 
     clearValidationError();
+    formEvents.formSubmitStarted("auth_login");
     await handleLogin({ email, password });
   };
 
@@ -109,6 +117,8 @@ export default function LoginScreen() {
 
           <AppInput
             label="Email"
+            required
+            helperText="Use the email linked to your account."
             placeholder="name@example.com"
             value={email}
             error={fieldErrors.email ?? null}
@@ -118,11 +128,14 @@ export default function LoginScreen() {
             }}
             autoCapitalize="none"
             keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
             editable={!isFormDisabled}
           />
 
           <AppInput
             label="Password"
+            required
             placeholder="Enter password"
             value={password}
             error={fieldErrors.password ?? null}
@@ -130,8 +143,26 @@ export default function LoginScreen() {
               clearFieldError("password");
               setPassword(value);
             }}
-            secureTextEntry
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoComplete="password"
+            textContentType="password"
             editable={!isFormDisabled}
+            rightAction={
+              <Pressable
+                onPress={() => setShowPassword((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                accessibilityHint="Toggles password visibility"
+                hitSlop={8}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={18}
+                  color={palette.textSecondary}
+                />
+              </Pressable>
+            }
           />
 
           <Text

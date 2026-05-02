@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -14,8 +16,9 @@ import {
 } from "@/features/auth/components";
 import { APP_ROUTES } from "@/config/routes";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
-import { validateResetPasswordFormFields } from "@/features/auth/utils/authValidation";
+import { validateResetPasswordFormFields } from "@/features/auth/validation/auth.validation";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
+import { formEvents } from "@/utils/formEvents";
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -25,6 +28,8 @@ export default function ResetPasswordScreen() {
   const { handleResetPassword, loadingResetPassword, error } = useAuth();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const {
     validationError,
@@ -38,6 +43,10 @@ export default function ResetPasswordScreen() {
   const tokenError = token ? null : "Reset token is missing. Request a new reset link.";
   const isFormDisabled = loadingResetPassword || Boolean(tokenError);
 
+  React.useEffect(() => {
+    formEvents.formStarted("auth_reset_password");
+  }, []);
+
   const handleSubmit = async () => {
     const validation = validateResetPasswordFormFields({
       newPassword,
@@ -48,6 +57,7 @@ export default function ResetPasswordScreen() {
       setValidationError(validation.formError);
       setFieldErrors(validation.fieldErrors);
       setSuccessMessage(null);
+      formEvents.formValidationFailed("auth_reset_password", Object.keys(validation.fieldErrors)[0]);
       return;
     }
 
@@ -58,6 +68,7 @@ export default function ResetPasswordScreen() {
     }
 
     clearValidationError();
+    formEvents.formSubmitStarted("auth_reset_password");
 
     const result = await handleResetPassword(token, newPassword);
 
@@ -89,6 +100,8 @@ export default function ResetPasswordScreen() {
 
           <AppInput
             label="New password"
+            required
+            helperText="Use a strong password you haven’t used before."
             placeholder="Enter a new password"
             value={newPassword}
             error={fieldErrors.newPassword ?? null}
@@ -96,12 +109,30 @@ export default function ResetPasswordScreen() {
               clearFieldError("newPassword");
               setNewPassword(value);
             }}
-            secureTextEntry
+            secureTextEntry={!showNewPassword}
+            autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
             editable={!isFormDisabled}
+            rightAction={
+              <Pressable
+                onPress={() => setShowNewPassword((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={showNewPassword ? "Hide new password" : "Show new password"}
+                accessibilityHint="Toggles password visibility"
+                hitSlop={8}
+              >
+                <Ionicons
+                  name={showNewPassword ? "eye-off-outline" : "eye-outline"}
+                  size={18}
+                />
+              </Pressable>
+            }
           />
 
           <AppInput
             label="Confirm new password"
+            required
             placeholder="Re-enter your new password"
             value={confirmPassword}
             error={fieldErrors.confirmPassword ?? null}
@@ -109,8 +140,25 @@ export default function ResetPasswordScreen() {
               clearFieldError("confirmPassword");
               setConfirmPassword(value);
             }}
-            secureTextEntry
+            secureTextEntry={!showConfirmPassword}
+            autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
             editable={!isFormDisabled}
+            rightAction={
+              <Pressable
+                onPress={() => setShowConfirmPassword((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                accessibilityHint="Toggles password visibility"
+                hitSlop={8}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                  size={18}
+                />
+              </Pressable>
+            }
           />
 
           <AuthActions>

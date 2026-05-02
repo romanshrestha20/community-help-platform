@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { Pressable } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -16,8 +17,9 @@ import {
 import { useGoogleAuth } from "@/features/auth/google";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { APP_ROUTES } from "@/config/routes";
-import { validatePasswordConfirmation } from "@/features/auth/utils/authValidation";
+import { validatePasswordConfirmation } from "@/features/auth/validation/auth.validation";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
+import { formEvents } from "@/utils/formEvents";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -28,6 +30,8 @@ export default function RegisterScreen() {
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     validationError,
@@ -41,52 +45,64 @@ export default function RegisterScreen() {
   const isBusy = loadingRegister || loadingGoogleLogin || isSigningIn;
   const displayError = validationError || error;
 
+  React.useEffect(() => {
+    formEvents.formStarted("auth_register");
+  }, []);
+
   const handleEmailRegister = async () => {
     if (!fullName.trim()) {
       setFieldErrors({ fullName: "Name is required." });
       setValidationError("Name is required.");
+      formEvents.formValidationFailed("auth_register", "fullName");
       return;
     }
 
     if (!email.trim()) {
       setFieldErrors({ email: "Email is required." });
       setValidationError("Email is required.");
+      formEvents.formValidationFailed("auth_register", "email");
       return;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setFieldErrors({ email: "Please enter a valid email address." });
       setValidationError("Please enter a valid email address.");
+      formEvents.formValidationFailed("auth_register", "email");
       return;
     }
 
     if (password.trim().length < 12) {
       setFieldErrors({ password: "Password must be at least 12 characters." });
       setValidationError("Password must be at least 12 characters.");
+      formEvents.formValidationFailed("auth_register", "password");
       return;
     }
 
     if (!/[A-Z]/.test(password)) {
       setFieldErrors({ password: "Password must include at least one uppercase letter." });
       setValidationError("Password must include at least one uppercase letter.");
+      formEvents.formValidationFailed("auth_register", "password");
       return;
     }
 
     if (!/[a-z]/.test(password)) {
       setFieldErrors({ password: "Password must include at least one lowercase letter." });
       setValidationError("Password must include at least one lowercase letter.");
+      formEvents.formValidationFailed("auth_register", "password");
       return;
     }
 
     if (!/\d/.test(password)) {
       setFieldErrors({ password: "Password must include at least one number." });
       setValidationError("Password must include at least one number.");
+      formEvents.formValidationFailed("auth_register", "password");
       return;
     }
 
     if (!/[^A-Za-z0-9]/.test(password)) {
       setFieldErrors({ password: "Password must include at least one special character." });
       setValidationError("Password must include at least one special character.");
+      formEvents.formValidationFailed("auth_register", "password");
       return;
     }
 
@@ -94,16 +110,19 @@ export default function RegisterScreen() {
     if (passwordRequiredError) {
       setFieldErrors({ confirmPassword: passwordRequiredError });
       setValidationError(passwordRequiredError);
+      formEvents.formValidationFailed("auth_register", "confirmPassword");
       return;
     }
 
     if (password !== confirmPassword) {
       setFieldErrors({ confirmPassword: "Passwords do not match." });
       setValidationError("Passwords do not match.");
+      formEvents.formValidationFailed("auth_register", "confirmPassword");
       return;
     }
 
     clearValidationError();
+    formEvents.formSubmitStarted("auth_register");
 
     const result = await handleRegister({ fullName: fullName.trim(), email, password });
     if (!result?.success) {
@@ -151,6 +170,8 @@ export default function RegisterScreen() {
 
         <AppInput
           label="Full name"
+          required
+          helperText="Enter your first and last name."
           placeholder="Alex Taylor"
           value={fullName}
           error={fieldErrors.fullName ?? null}
@@ -164,6 +185,7 @@ export default function RegisterScreen() {
 
         <AppInput
           label="Email"
+          required
           placeholder="name@example.com"
           value={email}
           error={fieldErrors.email ?? null}
@@ -179,6 +201,8 @@ export default function RegisterScreen() {
 
         <AppInput
           label="Password"
+          required
+          helperText="Minimum 12 characters with upper/lower/number/symbol."
           placeholder="Create a password"
           value={password}
           error={fieldErrors.password ?? null}
@@ -186,14 +210,29 @@ export default function RegisterScreen() {
             clearFieldError("password");
             setPassword(value);
           }}
-          secureTextEntry
+          secureTextEntry={!showPassword}
           autoCapitalize="none"
           autoComplete="new-password"
           textContentType="newPassword"
+          rightAction={
+            <Pressable
+              onPress={() => setShowPassword((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+              accessibilityHint="Toggles password visibility"
+              hitSlop={8}
+            >
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={18}
+              />
+            </Pressable>
+          }
         />
 
         <AppInput
           label="Confirm password"
+          required
           placeholder="Re-enter password"
           value={confirmPassword}
           error={fieldErrors.confirmPassword ?? null}
@@ -201,10 +240,24 @@ export default function RegisterScreen() {
             clearFieldError("confirmPassword");
             setConfirmPassword(value);
           }}
-          secureTextEntry
+          secureTextEntry={!showConfirmPassword}
           autoCapitalize="none"
           autoComplete="new-password"
           textContentType="newPassword"
+          rightAction={
+            <Pressable
+              onPress={() => setShowConfirmPassword((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+              accessibilityHint="Toggles password visibility"
+              hitSlop={8}
+            >
+              <Ionicons
+                name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                size={18}
+              />
+            </Pressable>
+          }
         />
 
         <AuthActions>

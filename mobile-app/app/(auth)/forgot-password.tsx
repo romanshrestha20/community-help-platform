@@ -13,9 +13,10 @@ import {
   AuthScreen,
 } from "@/features/auth/components";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
-import { validateForgotPasswordFormFields } from "@/features/auth/utils/authValidation";
+import { validateForgotPasswordFormFields } from "@/features/auth/validation/auth.validation";
 import { APP_ROUTES } from "@/config/routes";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
+import { formEvents } from "@/utils/formEvents";
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -31,6 +32,10 @@ export default function ForgotPasswordScreen() {
     clearValidationError,
   } = useFormValidation<"email">();
 
+  React.useEffect(() => {
+    formEvents.formStarted("auth_forgot_password");
+  }, []);
+
   const handleSubmit = async () => {
     const validation = validateForgotPasswordFormFields({ email });
 
@@ -38,10 +43,12 @@ export default function ForgotPasswordScreen() {
       setValidationError(validation.formError);
       setFieldErrors(validation.fieldErrors);
       setSuccessMessage(null);
+      formEvents.formValidationFailed("auth_forgot_password", Object.keys(validation.fieldErrors)[0]);
       return;
     }
 
     clearValidationError();
+    formEvents.formSubmitStarted("auth_forgot_password");
 
     const result = await handleForgotPassword(email);
 
@@ -73,6 +80,8 @@ export default function ForgotPasswordScreen() {
 
           <AppInput
             label="Email"
+            required
+            helperText="We’ll send a reset link to this address."
             placeholder="name@example.com"
             value={email}
             error={fieldErrors.email ?? null}
@@ -82,6 +91,8 @@ export default function ForgotPasswordScreen() {
             }}
             autoCapitalize="none"
             keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
             editable={!loadingForgotPassword}
           />
 
