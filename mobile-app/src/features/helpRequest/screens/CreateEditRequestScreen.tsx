@@ -15,7 +15,7 @@ import { useCreateEditRequestScreen } from "@/features/helpRequest/hooks/useCrea
 import { useCategories } from "@/features/category/hooks/category.hook";
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
 import { RequestImageUploadInput } from "@/features/helpRequest/types/helpRequest.types";
-import { showInfoToast, showSuccessToast } from "@/utils/toast";
+import { showErrorToast, showInfoToast, showSuccessToast } from "@/utils/toast";
 import { APP_ROUTES } from "@/config/routes";
 import { goBackOrFallback } from "@/utils/navigation";
 
@@ -98,7 +98,15 @@ export const CreateEditRequestScreen = ({ requestId }: Props) => {
 
     const handleSave = async () => {
         const saved = await submitRequest(selectedImages);
-        if (!saved) return;
+        if (!saved) {
+            if ((requestError || "").toLowerCase().includes("verification required")) {
+                showErrorToast(
+                    "Email verification required",
+                    "Verify your email to create or edit requests."
+                );
+            }
+            return;
+        }
 
         showSuccessToast(isEditing ? "Request updated successfully" : "Request created successfully");
         router.replace(requestDetailRoute(saved.id));
