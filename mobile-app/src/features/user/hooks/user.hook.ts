@@ -20,9 +20,15 @@ import {
 
 export const useUser = () => {
   const logout = useAuthStore((state) => state.logout);
-  const authUser = useAuthStore((state) => state.user);
   const authUserId = useAuthStore((state) => state.user?.id);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const canAccessProfileRoutes = useAuthStore((state) =>
+    Boolean(
+      state.isAuthenticated &&
+        state.user &&
+        state.user.id
+    )
+  );
   const {
     user,
     loading,
@@ -82,7 +88,7 @@ export const useUser = () => {
   );
 
   const loadUserProfile = useCallback(async () => {
-    if (!isAuthenticated || !authUserId) {
+    if (!isAuthenticated || !authUserId || !canAccessProfileRoutes) {
       clearUser();
       return;
     }
@@ -101,10 +107,28 @@ export const useUser = () => {
       }
 
     setLoading(false);
-  }, [authUserId, clearUser, isAuthenticated, setError, setLoading, setUser, syncAuthUser]);
+  }, [
+    authUserId,
+    canAccessProfileRoutes,
+    clearUser,
+    isAuthenticated,
+    setError,
+    setLoading,
+    setUser,
+    syncAuthUser,
+  ]);
 
   const handleUpdateProfile = useCallback(
     async (profileData: Partial<UpdateUserProfilePayload>) => {
+      if (!canAccessProfileRoutes) {
+        const message = "Account verification required";
+        setError(message);
+        return {
+          success: false,
+          message,
+        };
+      }
+
       setLoading(true);
       setError(null);
 
@@ -123,11 +147,16 @@ export const useUser = () => {
         message: result.message || (result.success ? null : "Failed to update profile"),
       };
     },
-    [user, setUser, setLoading, setError, syncAuthUser]
+    [canAccessProfileRoutes, user, setUser, setLoading, setError, syncAuthUser]
   );
 
   const handleUploadAvatar = useCallback(
     async (file: AvatarUploadInput) => {
+      if (!canAccessProfileRoutes) {
+        setError("Account verification required");
+        return false;
+      }
+
       setLoading(true);
       setError(null);
 
@@ -143,10 +172,15 @@ export const useUser = () => {
       setLoading(false);
       return result.success;
     },
-    [user, setUser, setLoading, setError, syncAuthUser]
+    [canAccessProfileRoutes, user, setUser, setLoading, setError, syncAuthUser]
   );
 
   const handleDeleteAvatar = useCallback(async () => {
+    if (!canAccessProfileRoutes) {
+      setError("Account verification required");
+      return false;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -161,10 +195,18 @@ export const useUser = () => {
 
     setLoading(false);
     return result.success;
-  }, [user, setUser, setLoading, setError, syncAuthUser]);
+  }, [canAccessProfileRoutes, user, setUser, setLoading, setError, syncAuthUser]);
 
   const handleReplaceUserSkills = useCallback(
     async (skills: NonNullable<UpdateUserProfilePayload["skills"]>) => {
+      if (!canAccessProfileRoutes) {
+        return {
+          success: false,
+          message: "Account verification required",
+          data: null,
+        };
+      }
+
       setLoading(true);
       setError(null);
 
@@ -180,11 +222,19 @@ export const useUser = () => {
       setLoading(false);
       return result;
     },
-    [setError, setLoading, setUser, syncAuthUser, user]
+    [canAccessProfileRoutes, setError, setLoading, setUser, syncAuthUser, user]
   );
 
   const handleUploadCertification = useCallback(
     async (file: CertificationUploadInput) => {
+      if (!canAccessProfileRoutes) {
+        return {
+          success: false,
+          message: "Account verification required",
+          data: null,
+        };
+      }
+
       setLoading(true);
       setError(null);
 
@@ -200,11 +250,19 @@ export const useUser = () => {
       setLoading(false);
       return result;
     },
-    [setError, setLoading, setUser, syncAuthUser, user]
+    [canAccessProfileRoutes, setError, setLoading, setUser, syncAuthUser, user]
   );
 
   const handleDeleteCertification = useCallback(
     async (certificationId: string) => {
+      if (!canAccessProfileRoutes) {
+        return {
+          success: false,
+          message: "Account verification required",
+          data: null,
+        };
+      }
+
       setLoading(true);
       setError(null);
 
@@ -220,10 +278,15 @@ export const useUser = () => {
       setLoading(false);
       return result;
     },
-    [setError, setLoading, setUser, syncAuthUser, user]
+    [canAccessProfileRoutes, setError, setLoading, setUser, syncAuthUser, user]
   );
 
   const handleDeleteProfile = useCallback(async (password?: string) => {
+    if (!canAccessProfileRoutes) {
+      setError("Account verification required");
+      return false;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -239,7 +302,7 @@ export const useUser = () => {
 
     setLoading(false);
     return result.success;
-  }, [clearUser, logout, setLoading, setError]);
+  }, [canAccessProfileRoutes, clearUser, logout, setLoading, setError]);
 
   return {
     user,
