@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Text } from "react-native";
 import { useRouter } from "expo-router";
-import Toast from "react-native-toast-message";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppInput } from "@/components/ui/AppInput";
@@ -10,6 +9,7 @@ import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { APP_ROUTES } from "@/config/routes";
 import { validateChangePasswordFormFields } from "@/features/auth/utils/authValidation";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
+import { showErrorToast, showSuccessToast } from "@/utils/toast";
 
 
 export const ChangePasswordSection = () => {
@@ -50,23 +50,23 @@ export const ChangePasswordSection = () => {
             );
             if (result.success) {
                 router.replace(APP_ROUTES.AUTH_LOGIN);
-                Toast.show({
-                    type: "success",
-                    text1: "Password changed successfully. Please log in again."
-                });
+                showSuccessToast(
+                    "Password changed",
+                    "Please sign in again with your new password."
+                );
 
             } else {
-                Toast.show({
-                    type: "error",
-                    text1: error || "Failed to change password"
-                });
+                showErrorToast(
+                    "Password change failed",
+                    result.message || error || "Please try again."
+                );
             }
         } catch (err: any) {
             console.error("[ChangePassword] Error:", err);
-            Toast.show({
-                type: "error",
-                text1: err?.message || "Failed to change password"
-            });
+            showErrorToast(
+                "Password change failed",
+                err?.message || "Please try again."
+            );
         }
     }
     if (!isOpen) {
