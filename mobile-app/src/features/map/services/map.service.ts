@@ -93,9 +93,8 @@ export const getNearbyRequests = async (
     params.categoryId = filters.categoryId;
   }
 
-  if (filters.status && filters.status !== "ALL") {
-    params.status = filters.status;
-  }
+  // Public discovery map should only include open requests.
+  params.status = "OPEN";
 
   if (filters.search?.trim()) {
     params.search = filters.search.trim();
@@ -108,7 +107,8 @@ export const getNearbyRequests = async (
     filters.radiusKm != null
       ? await getNearbyHelpRequests(params)
       : await getAllHelpRequests(params);
-  const withCoordinates = requests.filter(hasCoordinates);
+  const publicFeedRequests = requests.filter((request) => request.status === "OPEN");
+  const withCoordinates = publicFeedRequests.filter(hasCoordinates);
 
   const filteredByBounds = filters.bounds
     ? withCoordinates.filter((request) => isWithinBounds(request, filters.bounds!))
