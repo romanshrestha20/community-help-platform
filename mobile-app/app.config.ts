@@ -27,6 +27,10 @@ const config: ExpoConfig = {
   android: {
     package: "com.romann_shrr.mobileapp",
     googleServicesFile: "./google-services.json",
+    permissions: [
+      "ACCESS_COARSE_LOCATION",
+      "ACCESS_FINE_LOCATION",
+    ],
     adaptiveIcon: {
       foregroundImage: "./assets/images/icon.png",
       backgroundColor: "#F6F5F0",
