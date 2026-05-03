@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { theme } from "@/design-system";
@@ -12,8 +12,11 @@ import {
 } from "@/features/helpRequest/utils/requestDisplay";
 import { getRelativePostedTime } from "@/features/helpRequest/utils/requestTime";
 import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
+import {
+  getUrgentTimeRemainingLabel,
+  isUrgentRequestActive,
+} from "@/features/helpRequest/utils/urgent";
 import { formatDistance } from "@/utils/distance";
-import { AppButton } from "@/components/ui/AppButton";
 
 type Props = {
   request: MapRequestItem;
@@ -24,128 +27,118 @@ type Props = {
 export const SelectedRequestSheet = ({ request, onViewDetails, onBidRequest }: Props) => {
   const { palette } = useThemeContext();
   const canBid = Boolean(onBidRequest && isRequestOpenForBidding(request.status));
+  const isUrgentActive = request.status === "OPEN" && isUrgentRequestActive(request);
 
   return (
-    <View style={styles.container}>
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: palette.surface,
-            borderColor: palette.border,
-          },
-        ]}
-      >
-        <View style={styles.header}>
-          <View style={styles.copy}>
-            <Text style={[styles.title, { color: palette.textPrimary }]}>
-              {request.title}
-            </Text>
-            <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-              {getRequestCategoryLabel(request)}
-            </Text>
-          </View>
-
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={palette.textSecondary}
-          />
-        </View>
-
-        <View style={styles.metaRow}>
-          <View style={styles.pillGroup}>
-            <View
-              style={[
-                styles.pill,
-                { backgroundColor: palette.surfaceMuted },
-              ]}
-            >
-              <Text style={[styles.pillText, { color: palette.textSecondary }]}>
-                {request.status}
-              </Text>
-            </View>
-
-            {typeof request.distanceKm === "number" ? (
-              <View
-                style={[
-                  styles.pill,
-                  { backgroundColor: `${palette.primary}14` },
-                ]}
-              >
-                <Text style={[styles.pillText, { color: palette.primary }]}>
-                  {formatDistance(request.distanceKm)} away
-                </Text>
-              </View>
-            ) : null}
-
-            <View
-              style={[
-                styles.pill,
-                { backgroundColor: palette.surfaceMuted },
-              ]}
-            >
-              <Text style={[styles.pillText, { color: palette.textSecondary }]}>
-                {getRelativePostedTime(request.createdAt)}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={[styles.budget, { color: palette.primary }]}>
-            {formatRequestBudget(request)}
+    <View style={styles.contentContainer}>
+      <View style={styles.header}>
+        <View style={styles.copy}>
+          <Text style={[styles.title, { color: palette.textPrimary }]}>{request.title}</Text>
+          <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+            {getRequestCategoryLabel(request)}
           </Text>
         </View>
 
-        <Text
-          numberOfLines={1}
-          style={[styles.location, { color: palette.textSecondary }]}
-        >
-          {formatRequestLocation(request)}
-        </Text>
+        <Ionicons name="chevron-forward" size={20} color={palette.textSecondary} />
+      </View>
 
-        <View style={styles.actionsRow}>
-          <AppButton
-            title="View details"
-            variant="secondary"
-            onPress={onViewDetails}
-            fullWidth={false}
-          />
-          {canBid ? (
-            <AppButton
-              title="Submit offer"
-              variant="primary"
-              onPress={() => onBidRequest?.()}
-              fullWidth={false}
-            />
+      <View style={styles.metaRow}>
+        <View style={styles.pillGroup}>
+          <View style={[styles.pill, { backgroundColor: palette.surfaceSecondary }]}>
+            <Text style={[styles.pillText, { color: palette.textPrimary }]}>{request.status}</Text>
+          </View>
+
+          {isUrgentActive ? (
+            <View style={[styles.pill, { backgroundColor: palette.dangerSoftFill }]}>
+              <Text style={[styles.pillText, { color: palette.danger }]}>
+                Urgent · {getUrgentTimeRemainingLabel(request.urgentExpiresAt)}
+              </Text>
+            </View>
           ) : null}
+
+          {typeof request.distanceKm === "number" ? (
+            <View style={[styles.pill, { backgroundColor: palette.primarySoft }]}>
+              <Text style={[styles.pillText, { color: palette.primary }]}>
+                {formatDistance(request.distanceKm)} away
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={[styles.pill, { backgroundColor: palette.surfaceSecondary }]}>
+            <Text style={[styles.pillText, { color: palette.textSecondary }]}>
+              {getRelativePostedTime(request.createdAt)}
+            </Text>
+          </View>
+
+          <View style={[styles.pill, { backgroundColor: palette.surfaceSecondary }]}>
+            <Text style={[styles.pillText, { color: palette.textSecondary }]}>
+              {request.bidCount} bid{request.bidCount === 1 ? "" : "s"}
+            </Text>
+          </View>
         </View>
+
+        <View style={styles.budgetWrap}>
+          <Text style={[styles.budget, { color: palette.primary }]}>{formatRequestBudget(request)}</Text>
+        </View>
+      </View>
+
+      <Text numberOfLines={1} style={[styles.location, { color: palette.textSecondary }]}>
+        {formatRequestLocation(request)}
+      </Text>
+
+      <Text numberOfLines={1} style={[styles.requester, { color: palette.textSecondary }]}>
+        {request.requesterName
+          ? `Requester: ${request.requesterName}`
+          : "Requester: Community member"}
+      </Text>
+
+      <View style={styles.actionsRow}>
+        <Pressable
+          onPress={onViewDetails}
+          style={({ pressed }) => [
+            styles.ghostAction,
+            {
+              borderColor: palette.borderStrong,
+              backgroundColor: palette.surface,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}
+        >
+          <Text style={[styles.ghostActionText, { color: palette.textPrimary }]}>
+            {canBid ? "Details" : "View details"}
+          </Text>
+        </Pressable>
+
+        {canBid ? (
+          <Pressable
+            onPress={() => onBidRequest?.()}
+            style={({ pressed }) => [
+              styles.primaryAction,
+              {
+                backgroundColor: palette.primary,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.primaryActionText, { color: palette.textInverse }]}>Submit offer</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    position: "absolute",
-    left: theme.spacing.md,
-    right: theme.spacing.md,
-    bottom: theme.spacing.md,
-  },
-  card: {
-    borderWidth: 1,
-    borderRadius: 22,
-    padding: theme.spacing.md,
-    shadowColor: "#122013",
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
+  contentContainer: {
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 14,
   },
   header: {
     flexDirection: "row",
-    alignItems: "center",
-    columnGap: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
+    alignItems: "flex-start",
+    columnGap: 10,
+    marginBottom: 6,
   },
   copy: {
     flex: 1,
@@ -153,16 +146,21 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.typography.fontSize.md,
+    lineHeight: theme.typography.lineHeight.md,
     fontWeight: theme.typography.fontWeight.bold,
+    letterSpacing: -0.1,
   },
   subtitle: {
     fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+    fontWeight: theme.typography.fontWeight.medium,
   },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    columnGap: theme.spacing.sm,
+    columnGap: 10,
+    marginTop: 2,
   },
   pillGroup: {
     flex: 1,
@@ -172,27 +170,64 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pill: {
-    borderRadius: theme.radius.fill,
+    borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   pillText: {
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+    letterSpacing: 0.2,
+  },
+  budgetWrap: {
+    minWidth: 84,
+    alignItems: "flex-end",
   },
   budget: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold,
+    letterSpacing: 0.2,
   },
   location: {
-    marginTop: 10,
-    fontSize: 13,
+    marginTop: 12,
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: theme.typography.lineHeight.sm,
+  },
+  requester: {
+    marginTop: 6,
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: theme.typography.lineHeight.sm,
   },
   actionsRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    columnGap: theme.spacing.sm,
-    rowGap: theme.spacing.sm,
-    marginTop: theme.spacing.md,
+    columnGap: 10,
+    marginTop: 16,
+  },
+  ghostAction: {
+    flex: 1,
+    minHeight: 52,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ghostActionText: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.semibold,
+    letterSpacing: 0.1,
+  },
+  primaryAction: {
+    flex: 2,
+    minHeight: 52,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryActionText: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.bold,
+    letterSpacing: 0.1,
   },
 });
