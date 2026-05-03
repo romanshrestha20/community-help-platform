@@ -10,6 +10,7 @@ export interface TabItem {
   label: string;
   activeMatchPaths?: string[];
   badge?: number;
+  isBottomSheetTrigger?: boolean;
 }
 
 export interface TabBarConfig {
