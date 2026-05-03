@@ -851,11 +851,6 @@ const styles = StyleSheet.create({
     height: 1,
     marginLeft: 46,
   },
-  actionBlock: {
-    paddingTop: 12,
-    gap: 8,
-    marginTop: "auto",
-  },
   actionBlockCompact: {
     paddingTop: 10,
     gap: 6,
