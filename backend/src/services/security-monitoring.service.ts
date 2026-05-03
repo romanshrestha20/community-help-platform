@@ -1,7 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import AppError from "../utils/appError.js";
 import { getRedisClient } from "../lib/redis.js";
-import { SecurityEventType } from "../../generated/prisma/client.js";
+import { Prisma, SecurityEventType } from "../../generated/prisma/client.js";
 
 const normalize = (value: string) => value.trim().toLowerCase();
 
@@ -13,10 +13,15 @@ const LOGIN_FAIL_LOCK_THRESHOLDS = [
 ];
 
 const getIpFailKey = (ip: string) => `auth:login:fail:ip:${normalize(ip)}`;
-const getEmailFailKey = (email: string) => `auth:login:fail:email:${normalize(email)}`;
+const getEmailFailKey = (email: string) =>
+  `auth:login:fail:email:${normalize(email)}`;
 const getIpLockKey = (ip: string) => `auth:login:lock:ip:${normalize(ip)}`;
-const getEmailLockKey = (email: string) => `auth:login:lock:email:${normalize(email)}`;
+const getEmailLockKey = (email: string) =>
+  `auth:login:lock:email:${normalize(email)}`;
 const getLastLoginIpKey = (userId: string) => `auth:last-login-ip:${userId}`;
+const isMissingSecurityEventsTableError = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === "P2021";
 
 const resolveLockDurationSeconds = (attempts: number) => {
   let selected = 0;
@@ -38,7 +43,9 @@ export const assertLoginAllowed = async ({
   try {
     const redis = await getRedisClient();
     if (!redis) {
-      console.warn("Security controls unavailable: Redis not connected, allowing login (fail-open mode).");
+      console.warn(
+        "Security controls unavailable: Redis not connected, allowing login (fail-open mode).",
+      );
       return;
     }
 
@@ -48,13 +55,19 @@ export const assertLoginAllowed = async ({
     ]);
 
     if (ipLocked > 0 || emailLocked > 0) {
-      throw new AppError("Too many login attempts. Please try again later.", 429);
+      throw new AppError(
+        "Too many login attempts. Please try again later.",
+        429,
+      );
     }
   } catch (error) {
     if (error instanceof AppError) {
       throw error;
     }
-    console.warn("Security controls unavailable: Redis check failed, allowing login (fail-open mode).", error);
+    console.warn(
+      "Security controls unavailable: Redis check failed, allowing login (fail-open mode).",
+      error,
+    );
   }
 };
 
@@ -72,7 +85,9 @@ export const recordFailedLoginAttempt = async ({
   try {
     const redis = await getRedisClient();
     if (!redis) {
-      console.warn("Security controls unavailable: Redis not connected, skipping failed-login tracking.");
+      console.warn(
+        "Security controls unavailable: Redis not connected, skipping failed-login tracking.",
+      );
       return;
     }
 
@@ -91,7 +106,7 @@ export const recordFailedLoginAttempt = async ({
 
     const lockDurationSeconds = Math.max(
       resolveLockDurationSeconds(ipAttempts),
-      resolveLockDurationSeconds(emailAttempts)
+      resolveLockDurationSeconds(emailAttempts),
     );
 
     if (lockDurationSeconds > 0) {
@@ -104,7 +119,10 @@ export const recordFailedLoginAttempt = async ({
     if (error instanceof AppError) {
       throw error;
     }
-    console.warn("Security controls unavailable: failed-login tracking skipped.", error);
+    console.warn(
+      "Security controls unavailable: failed-login tracking skipped.",
+      error,
+    );
     return;
   }
 
@@ -114,12 +132,13 @@ export const recordFailedLoginAttempt = async ({
       return;
     }
 
-    const [ipAttemptsRaw, emailAttemptsRaw, ipLockTtl, emailLockTtl] = await Promise.all([
-      redis.get(getIpFailKey(ipAddress)),
-      redis.get(getEmailFailKey(email)),
-      redis.ttl(getIpLockKey(ipAddress)),
-      redis.ttl(getEmailLockKey(email)),
-    ]);
+    const [ipAttemptsRaw, emailAttemptsRaw, ipLockTtl, emailLockTtl] =
+      await Promise.all([
+        redis.get(getIpFailKey(ipAddress)),
+        redis.get(getEmailFailKey(email)),
+        redis.ttl(getIpLockKey(ipAddress)),
+        redis.ttl(getEmailLockKey(email)),
+      ]);
 
     const ipAttempts = Number(ipAttemptsRaw ?? 0);
     const emailAttempts = Number(emailAttemptsRaw ?? 0);
@@ -128,7 +147,10 @@ export const recordFailedLoginAttempt = async ({
     await prisma.securityEvent.create({
       data: {
         userId: userId ?? null,
-        type: lockDurationSeconds > 0 ? SecurityEventType.LOGIN_LOCKOUT : SecurityEventType.LOGIN_FAILURE,
+        type:
+          lockDurationSeconds > 0
+            ? SecurityEventType.LOGIN_LOCKOUT
+            : SecurityEventType.LOGIN_FAILURE,
         ipAddress,
         userAgent: userAgent ?? null,
         metadata: {
@@ -140,6 +162,12 @@ export const recordFailedLoginAttempt = async ({
       },
     });
   } catch (error) {
+    if (isMissingSecurityEventsTableError(error)) {
+      console.warn(
+        "Security audit table unavailable; skipping failed-login event persistence.",
+      );
+      return;
+    }
     console.error("Failed to persist failed login security event:", error);
   }
 };
@@ -161,7 +189,9 @@ export const recordSuccessfulLogin = async ({
   try {
     const redis = await getRedisClient();
     if (!redis) {
-      console.warn("Security controls unavailable: Redis not connected, skipping successful-login tracking.");
+      console.warn(
+        "Security controls unavailable: Redis not connected, skipping successful-login tracking.",
+      );
       return;
     }
 
@@ -179,7 +209,10 @@ export const recordSuccessfulLogin = async ({
     if (error instanceof AppError) {
       throw error;
     }
-    console.warn("Security controls unavailable: successful-login tracking skipped.", error);
+    console.warn(
+      "Security controls unavailable: successful-login tracking skipped.",
+      error,
+    );
     return;
   }
 
@@ -213,6 +246,12 @@ export const recordSuccessfulLogin = async ({
       },
     });
   } catch (error) {
+    if (isMissingSecurityEventsTableError(error)) {
+      console.warn(
+        "Security audit table unavailable; skipping successful-login event persistence.",
+      );
+      return;
+    }
     console.error("Failed to persist successful login security event:", error);
   }
 
