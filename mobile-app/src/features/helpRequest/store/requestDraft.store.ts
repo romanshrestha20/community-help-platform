@@ -15,6 +15,7 @@ type RequestDraftState = {
   saveDraft: (key: string, draft: RequestDraft) => void;
   getDraft: (key: string) => RequestDraft | null;
   clearDraft: (key: string) => void;
+  clearStaleEditDrafts: (activeRequestId?: string) => void;
 };
 
 export const buildRequestDraftKey = (requestId?: string) =>
@@ -35,5 +36,22 @@ export const useRequestDraftStore = create<RequestDraftState>((set, get) => ({
       if (!state.drafts[key]) return state;
       const { [key]: _removed, ...rest } = state.drafts;
       return { drafts: rest };
+    }),
+  clearStaleEditDrafts: (activeRequestId) =>
+    set((state) => {
+      const activeKey = buildRequestDraftKey(activeRequestId);
+      let changed = false;
+
+      const nextDrafts = Object.fromEntries(
+        Object.entries(state.drafts).filter(([key]) => {
+          const keep = !key.startsWith("edit-request-") || key === activeKey;
+          if (!keep) {
+            changed = true;
+          }
+          return keep;
+        })
+      );
+
+      return changed ? { drafts: nextDrafts } : state;
     }),
 }));
