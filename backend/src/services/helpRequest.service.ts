@@ -514,6 +514,7 @@ export const getNearbyHelpRequests = async (query: NearbyHelpRequestQuery) => {
   });
 
   const filteredRequests = fallback.requests
+    .filter((request) => request.status === "OPEN")
     .filter((request) => request.requesterId !== userId)
     .sort((left, right) => {
       const leftUrgent = isActiveUrgentRequest(left);
