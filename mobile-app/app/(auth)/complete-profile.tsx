@@ -106,7 +106,7 @@ export default function CompleteProfileScreen() {
     setFieldErrors,
     clearFieldError,
     clearValidationError,
-  } = useFormValidation<"firstName" | "lastName" | "location" | "avatar">();
+  } = useFormValidation<"firstName" | "lastName" | "location">();
 
   const locationPicker = useLocationPicker({ autoUseCurrentLocationOnMount: true, storageKey: null });
 
@@ -182,10 +182,6 @@ export default function CompleteProfileScreen() {
       }
     }
 
-    if (step === 3 && !avatar && !(authUser?.avatarUrl || authUser?.profile?.avatarUrl)) {
-      errors.avatar = "Profile photo is required.";
-    }
-
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       setValidationError(Object.values(errors)[0] || "Please complete this step.");
@@ -204,7 +200,6 @@ export default function CompleteProfileScreen() {
 
   const handlePickAvatar = async () => {
     clearValidationError();
-    clearFieldError("avatar");
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -488,9 +483,6 @@ export default function CompleteProfileScreen() {
                   )}
                   <Text style={[styles.photoPickerText, { color: palette.textPrimary }]}>Choose photo</Text>
                 </Pressable>
-                {fieldErrors.avatar ? (
-                  <Text style={[styles.inlineError, { color: palette.danger }]}>{fieldErrors.avatar}</Text>
-                ) : null}
               </View>
             </>
           ) : null}
