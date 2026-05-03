@@ -1,8 +1,12 @@
 import { prisma } from "../lib/prisma.js";
 import AppError from "../utils/appError.js";
-import { accessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
+import {
+  accessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from "../utils/jwt.js";
 import { generateSecureToken, hashToken } from "../utils/token.js";
-import { SecurityEventType } from "../../generated/prisma/client.js";
+import { Prisma, SecurityEventType } from "../../generated/prisma/client.js";
 
 const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -11,6 +15,30 @@ const buildExpiryDate = () => new Date(Date.now() + REFRESH_TTL_MS);
 const getUserAgent = (value?: string | string[]) => {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
+};
+
+const isMissingSecurityEventsTableError = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === "P2021";
+
+const createSecurityEventSafely = async ({
+  context,
+  data,
+}: {
+  context: string;
+  data: Prisma.SecurityEventUncheckedCreateInput;
+}) => {
+  try {
+    await prisma.securityEvent.create({ data });
+  } catch (error) {
+    if (isMissingSecurityEventsTableError(error)) {
+      console.warn(
+        `Security audit table unavailable during ${context}; skipping event persistence.`,
+      );
+      return;
+    }
+    console.error(`Failed to persist security event during ${context}:`, error);
+  }
 };
 
 const getUserTokenVersion = async (userId: string) => {
@@ -92,7 +120,10 @@ export const rotateRefreshToken = async ({
     throw new AppError("Invalid refresh token", 401);
   }
 
-  if (storedToken.jti !== decoded.jti || storedToken.familyId !== decoded.familyId) {
+  if (
+    storedToken.jti !== decoded.jti ||
+    storedToken.familyId !== decoded.familyId
+  ) {
     throw new AppError("Invalid refresh token", 401);
   }
 
@@ -105,7 +136,8 @@ export const rotateRefreshToken = async ({
       },
     });
 
-    await prisma.securityEvent.create({
+    await createSecurityEventSafely({
+      context: "refresh token reuse handling",
       data: {
         userId: storedToken.userId,
         type: SecurityEventType.REFRESH_TOKEN_REUSE_DETECTED,
@@ -117,7 +149,6 @@ export const rotateRefreshToken = async ({
         },
       },
     });
-
     throw new AppError("Session compromised. Please log in again.", 401);
   }
 
@@ -214,23 +245,22 @@ export const revokeSessionByRefreshToken = async ({
     },
   });
 
-  try {
-    await prisma.securityEvent.create({
-      data: {
-        userId: storedToken.userId,
-        type: SecurityEventType.REFRESH_TOKEN_REVOKED,
-        metadata: {
-          reason,
-        },
+  await createSecurityEventSafely({
+    context: "single-session logout",
+    data: {
+      userId: storedToken.userId,
+      type: SecurityEventType.REFRESH_TOKEN_REVOKED,
+      metadata: {
+        reason,
       },
-    });
-  } catch (error) {
-    // Do not fail logout when audit logging is unavailable or schema is lagging.
-    console.error("Failed to persist logout security event:", error);
-  }
+    },
+  });
 };
 
-export const revokeAllSessionsForUser = async (userId: string, reason = "USER_LOGOUT_ALL") => {
+export const revokeAllSessionsForUser = async (
+  userId: string,
+  reason = "USER_LOGOUT_ALL",
+) => {
   await prisma.$transaction([
     prisma.refreshToken.updateMany({
       where: { userId, revokedAt: null },
@@ -246,21 +276,17 @@ export const revokeAllSessionsForUser = async (userId: string, reason = "USER_LO
     }),
   ]);
 
-  try {
-    await prisma.securityEvent.create({
-      data: {
-        userId,
-        type: SecurityEventType.REFRESH_TOKEN_REVOKED,
-        metadata: {
-          reason,
-          scope: "ALL_SESSIONS",
-        },
+  await createSecurityEventSafely({
+    context: "logout all sessions",
+    data: {
+      userId,
+      type: SecurityEventType.REFRESH_TOKEN_REVOKED,
+      metadata: {
+        reason,
+        scope: "ALL_SESSIONS",
       },
-    });
-  } catch (error) {
-    // Do not fail logout-all when audit logging is unavailable or schema is lagging.
-    console.error("Failed to persist logout-all security event:", error);
-  }
+    },
+  });
 };
 
 export const listUserSessions = async (userId: string) => {
