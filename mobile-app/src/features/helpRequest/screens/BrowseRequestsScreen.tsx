@@ -25,14 +25,11 @@ import {
   buildRequestSearchParams,
   useRequestSearch,
 } from "@/features/helpRequest/hooks/useRequestSearch";
-import {
-  HelpRequestStatus,
-} from "@/features/helpRequest/types/helpRequest.types";
+import { HelpRequestStatus } from "@/features/helpRequest/types/helpRequest.types";
 import { APP_ROUTES } from "@/config/routes";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { useCategories } from "@/features/category/hooks/category.hook";
 import { RequestMapView } from "@/features/map/components/RequestMapView";
-import { MapRequestFilters } from "@/features/map/types/map.types";
 import { BidRequestModal } from "@/features/bid/components/BidRequestModal";
 import { useBidRequestFlow } from "@/features/bid/hooks";
 import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestValidation";
@@ -301,7 +298,7 @@ export const BrowseRequestsScreen = () => {
   const { requests, loading, refreshing, refreshRequests } = useRequestList({
     scope: "browse",
     params: requestParams,
-    useNearbyEndpoint: filters.radiusKm !== "ANY" && hasCoordinates,
+    useNearbyEndpoint: true,
   });
 
   const isNearbyActive = filters.radiusKm !== "ANY";
@@ -335,6 +332,10 @@ export const BrowseRequestsScreen = () => {
     () => publicFeedRequests.filter((request) => isUrgentRequestActive(request)).length,
     [publicFeedRequests]
   );
+  const locationLabel =
+    userLocation?.city?.trim() ||
+    userLocation?.addressLine1?.trim() ||
+    "Nearby";
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -346,24 +347,6 @@ export const BrowseRequestsScreen = () => {
     if (searchQuery.trim()) count += 1;
     return count;
   }, [filters, searchQuery]);
-
-  const mapFilters = useMemo<MapRequestFilters>(
-    () => ({
-      latitude: userLocation?.latitude,
-      longitude: userLocation?.longitude,
-      categoryId: filters.categoryId === "ALL" ? null : filters.categoryId,
-      status: "OPEN",
-      search: debouncedSearchQuery.trim() || undefined,
-      radiusKm: filters.radiusKm === "ANY" ? undefined : Number(filters.radiusKm),
-    }),
-    [
-      filters.categoryId,
-      filters.radiusKm,
-      debouncedSearchQuery,
-      userLocation?.latitude,
-      userLocation?.longitude,
-    ]
-  );
 
   const handleResetAll = () => {
     resetFilters();
@@ -409,6 +392,10 @@ export const BrowseRequestsScreen = () => {
                 Nearby Requests
               </Text>
             </View>
+            <Text style={[styles.headerSubtitle, { color: palette.textSecondary }]}>
+              {locationLabel} · {filteredRequests.length} open request
+              {filteredRequests.length === 1 ? "" : "s"}
+            </Text>
           </View>
         </View>
       </View>
@@ -445,7 +432,7 @@ export const BrowseRequestsScreen = () => {
           <Text style={[styles.resultSummaryText, { color: palette.textSecondary }]}>
             {loading && !requests.length
               ? "Loading requests..."
-              : `${filteredRequests.length} request${filteredRequests.length === 1 ? "" : "s"} shown`}
+              : `${filteredRequests.length} open request${filteredRequests.length === 1 ? "" : "s"} shown`}
           </Text>
           {searchQuery !== debouncedSearchQuery ? (
             <Text style={[styles.resultSummaryText, { color: palette.primary }]}>
@@ -567,7 +554,10 @@ export const BrowseRequestsScreen = () => {
           />
         ) : (
           <RequestMapView
-            filters={mapFilters}
+            requests={filteredRequests}
+            loading={loading}
+            userLocation={userLocation}
+            onSearchArea={refreshRequests}
             onOpenRequest={(requestId) =>
               router.push(APP_ROUTES.HOME_REQUEST_DETAILS(requestId))
             }
@@ -620,6 +610,12 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xl,
     lineHeight: theme.typography.lineHeight.lg,
     fontWeight: theme.typography.fontWeight.bold,
+  },
+  headerSubtitle: {
+    marginTop: 4,
+    fontSize: theme.typography.fontSize.sm,
+    lineHeight: 20,
+    fontWeight: "600",
   },
   searchCard: {
     borderRadius: 24,
