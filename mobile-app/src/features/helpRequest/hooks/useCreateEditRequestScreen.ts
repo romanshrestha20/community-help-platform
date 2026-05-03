@@ -66,6 +66,7 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
     const saveDraft = useRequestDraftStore((state) => state.saveDraft);
     const getDraftEntry = useRequestDraftStore((state) => state.getDraft);
     const clearDraft = useRequestDraftStore((state) => state.clearDraft);
+    const clearStaleEditDrafts = useRequestDraftStore((state) => state.clearStaleEditDrafts);
 
     const {
         loading: requestLoading,
@@ -84,6 +85,7 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
 
     const [request, setRequest] = useState<HelpRequest | null>(null);
     const [loadingRequest, setLoadingRequest] = useState(Boolean(requestId));
+    const [isHydrated, setIsHydrated] = useState(!requestId);
     const [saving, setSaving] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<
@@ -94,11 +96,18 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
     const isEditing = Boolean(requestId);
 
     useEffect(() => {
+        clearStaleEditDrafts(requestId);
+    }, [clearStaleEditDrafts, requestId]);
+
+    useEffect(() => {
+        setIsHydrated(!requestId);
+
         if (!requestId) {
             const draft = getDraftEntry(draftKey);
             setForm(draft?.form ?? DEFAULT_REQUEST_FORM);
             setRequest(null);
             void setLocationValue(draft?.location ?? null);
+            setIsHydrated(true);
             return;
         }
 
@@ -128,6 +137,7 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
             setForm(draft?.form ?? hydratedForm);
             await setLocationValue(draft?.location ?? toRequestLocation(loaded));
             setLoadingRequest(false);
+            setIsHydrated(true);
         };
 
         void loadRequest();
@@ -138,12 +148,14 @@ export const useCreateEditRequestScreen = ({ requestId }: Options = {}) => {
     }, [draftKey, getDraftEntry, getHelpRequestById, requestId, setLocationValue]);
 
     useEffect(() => {
+        if (!isHydrated) return;
+
         saveDraft(draftKey, {
             form,
             location: locationPicker.value,
             selectedImages: getDraftEntry(draftKey)?.selectedImages ?? [],
         });
-    }, [draftKey, form, getDraftEntry, locationPicker.value, saveDraft]);
+    }, [draftKey, form, getDraftEntry, isHydrated, locationPicker.value, saveDraft]);
 
     const budgetValue = useMemo(() => {
         const parsed = parseBudgetInput(form.budget);
