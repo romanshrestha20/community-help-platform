@@ -13,11 +13,12 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppInput } from "@/components/ui/AppInput";
 import { AppButton } from "@/components/ui/AppButton";
+import { BottomSheetSurface } from "@/components/ui/BottomSheetSurface";
 import { APP_ROUTES } from "@/config/routes";
 import { Row, ScreenView, Stack, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
@@ -45,9 +46,25 @@ type Props = {
 
 export const NewPostComposerScreen = ({ requestId }: Props) => {
   const params = useLocalSearchParams<{ id?: string }>();
-  const activeRequestId = requestId || params.id;
+  const activeRequestId = useMemo(() => {
+    if (typeof requestId === "string" && requestId.trim()) {
+      return requestId.trim();
+    }
+
+    const routeId = params.id;
+    if (Array.isArray(routeId)) {
+      return routeId[0]?.trim() || undefined;
+    }
+
+    if (typeof routeId === "string" && routeId.trim()) {
+      return routeId.trim();
+    }
+
+    return undefined;
+  }, [params.id, requestId]);
 
   const router = useRouter();
+  const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { palette } = useThemeContext();
   const { categories } = useCategories();
@@ -83,27 +100,61 @@ export const NewPostComposerScreen = ({ requestId }: Props) => {
   } = useCreateEditRequestScreen({ requestId: activeRequestId });
 
   const requestListRoute = APP_ROUTES.HOME_REQUESTS;
-  const requestDetailRoute = (id: string) => APP_ROUTES.HOME_REQUEST_DETAILS(id);
+  const isProfileEditRoute = pathname.startsWith(APP_ROUTES.PROFILE_REQUESTS);
+  const requestDetailRoute = (id: string) =>
+    isProfileEditRoute
+      ? APP_ROUTES.PROFILE_REQUEST_DETAILS(id)
+      : APP_ROUTES.HOME_REQUEST_DETAILS(id);
 
   const hasUnsavedChanges = useMemo(() => {
+    if (!isEditing || !request) {
+      return Boolean(
+        form.title?.trim() ||
+          form.description?.trim() ||
+          form.categoryId ||
+          form.budget ||
+          form.isUrgent ||
+          form.urgentDurationMinutes !== 120 ||
+          locationPicker.value ||
+          selectedImages.length
+      );
+    }
+
+    const normalizedOriginalBudget =
+      typeof request.budget === "number" ? String(request.budget) : "";
+    const normalizedOriginalCategoryId =
+      request.categoryId || request.category?.id || "";
+
+    const currentLocation = locationPicker.value;
+    const originalLocation = request.location;
+    const locationChanged = Boolean(
+      (currentLocation?.latitude ?? null) !== (originalLocation?.latitude ?? null) ||
+        (currentLocation?.longitude ?? null) !== (originalLocation?.longitude ?? null) ||
+        (currentLocation?.formattedAddress ?? null) !==
+          (originalLocation?.formattedAddress ?? null) ||
+        (currentLocation?.city ?? null) !== (originalLocation?.city ?? null) ||
+        (currentLocation?.country ?? null) !== (originalLocation?.country ?? null)
+    );
+
     return Boolean(
-      form.title?.trim() ||
-        form.description?.trim() ||
-        form.categoryId ||
-        form.budget ||
-        form.isUrgent ||
-        form.urgentDurationMinutes !== 120 ||
-        locationPicker.value ||
+      form.title.trim() !== request.title.trim() ||
+        form.description.trim() !== request.description.trim() ||
+        form.categoryId !== normalizedOriginalCategoryId ||
+        form.budget.trim() !== normalizedOriginalBudget ||
+        form.isUrgent !== Boolean(request.isUrgent) ||
+        locationChanged ||
         selectedImages.length
     );
   }, [
-    form.title,
-    form.description,
-    form.categoryId,
     form.budget,
+    form.categoryId,
+    form.description,
     form.isUrgent,
+    form.title,
     form.urgentDurationMinutes,
+    isEditing,
     locationPicker.value,
+    request,
     selectedImages.length,
   ]);
 
@@ -234,7 +285,20 @@ export const NewPostComposerScreen = ({ requestId }: Props) => {
       isEditing ? "Request updated successfully" : "Request created successfully"
     );
 
-    router.replace(requestDetailRoute(saved.id));
+    const targetRequestId =
+      typeof saved.id === "string" && saved.id.trim()
+        ? saved.id
+        : activeRequestId;
+
+    if (targetRequestId) {
+      router.replace(requestDetailRoute(targetRequestId));
+      return;
+    }
+
+    goBackOrFallback({
+      fallback: requestListRoute,
+      replace: true,
+    });
   };
 
   if (loadingRequest) {
@@ -267,7 +331,7 @@ export const NewPostComposerScreen = ({ requestId }: Props) => {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.keyboardView}
       >
-        <View
+        <BottomSheetSurface
           style={[
             styles.sheet,
             {
@@ -275,9 +339,9 @@ export const NewPostComposerScreen = ({ requestId }: Props) => {
               paddingBottom: insets.bottom,
             },
           ]}
+          showGrabber
+          grabberColor={palette.borderStrong}
         >
-          <View style={[styles.grabber, { backgroundColor: palette.borderStrong }]} />
-
           <View style={styles.header}>
             <View style={styles.headerText}>
               <Text style={[styles.title, { color: palette.textPrimary }]}>
@@ -519,7 +583,7 @@ export const NewPostComposerScreen = ({ requestId }: Props) => {
               </View>
             </Row>
           </View>
-        </View>
+        </BottomSheetSurface>
       </KeyboardAvoidingView>
     </View>
   );
@@ -573,16 +637,6 @@ const styles = StyleSheet.create({
     height: "92%",
     borderTopLeftRadius: 34,
     borderTopRightRadius: 34,
-    overflow: "hidden",
-  },
-
-  grabber: {
-    alignSelf: "center",
-    width: 46,
-    height: 5,
-    borderRadius: theme.radius.fill,
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
   },
 
   header: {
