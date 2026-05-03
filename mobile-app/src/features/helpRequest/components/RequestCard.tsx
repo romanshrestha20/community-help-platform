@@ -96,7 +96,7 @@ export const RequestCard = ({
   const categoryLabel = getRequestCategoryLabel(request);
   const bidCount = request.bidCount ?? 0;
   const isUnpaid = !request.isPaid;
-  const isUrgentActive = isUrgentRequestActive(request);
+  const isUrgentActive = request.status === "OPEN" && isUrgentRequestActive(request);
 
   const infoEntries = [
     { icon: "location-outline" as const, value: location, highlight: false },

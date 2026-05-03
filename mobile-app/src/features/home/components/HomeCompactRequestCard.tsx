@@ -35,7 +35,7 @@ export function HomeCompactRequestCard({
 
   const categoryLabel = getRequestCategoryLabel(request);
   const isOpen = request.status === "OPEN";
-  const isUrgentActive = isUrgentRequestActive(request);
+  const isUrgentActive = isOpen && isUrgentRequestActive(request);
   const previewImages = useMemo<PreviewImageItem[]>(
     () =>
       (request.images ?? [])

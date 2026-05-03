@@ -226,7 +226,8 @@ export const RequestMap = ({
 
     validRequests.forEach((request) => {
       const isSelected = request.id === selectedRequestId;
-      const isUrgentActive = isUrgentRequestActive(request);
+      const isUrgentActive =
+        request.status === "OPEN" && isUrgentRequestActive(request);
       const markerFill = isUrgentActive ? "#DC2626" : "#2E9D74";
       const markerStroke = isUrgentActive ? "#991B1B" : "#1F7A58";
       const markerBudget = formatRequestBudget(request);

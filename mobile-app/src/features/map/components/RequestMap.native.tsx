@@ -85,7 +85,8 @@ export const RequestMap: React.FC<Props> = ({
         }}
       >
         {validRequests.map((request) => {
-          const isUrgentActive = isUrgentRequestActive(request);
+          const isUrgentActive =
+            request.status === "OPEN" && isUrgentRequestActive(request);
           return (
           <Marker
             key={request.id}
