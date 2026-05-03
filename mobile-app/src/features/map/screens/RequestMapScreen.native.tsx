@@ -12,16 +12,16 @@ import { useRouter } from "expo-router";
 import type MapView from "react-native-maps";
 
 import { AppButton } from "@/components/ui/AppButton";
-import { AppHeader } from "@/components/ui/AppHeader";
 import { SearchField } from "@/components/ui/SearchField";
-import { Row, ScreenView, theme } from "@/design-system";
+import { theme } from "@/design-system";
 import { APP_ROUTES } from "@/config/routes";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useCategories } from "@/features/category/hooks/category.hook";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useRequestSearch } from "@/features/helpRequest/hooks/useRequestSearch";
 import { MapFloatingActions } from "@/features/map/components/MapFloatingActions";
 import { RequestMap } from "@/features/map/components/RequestMap.native";
-import { SelectedRequestSheet } from "@/features/map/components/SelectedRequestSheet";
+import { SelectedRequestPreviewCard } from "@/features/map/components/SelectedRequestPreviewCard";
 import { useCurrentLocation } from "@/features/map/hooks/useCurrentLocation";
 import { useRequestMap } from "@/features/map/hooks/useRequestMap";
 import { MapRequestFilters, MapRequestItem } from "@/features/map/types/map.types";
@@ -43,7 +43,7 @@ function CategoryChip({ label, active = false, onPress }: CategoryChipProps) {
       style={({ pressed }) => [
         styles.categoryChip,
         {
-          backgroundColor: active ? palette.primary : palette.surface,
+          backgroundColor: active ? palette.primary : palette.surfaceSecondary,
           borderColor: active ? palette.primary : palette.border,
           opacity: pressed ? 0.92 : 1,
         },
@@ -64,6 +64,7 @@ function CategoryChip({ label, active = false, onPress }: CategoryChipProps) {
 export default function RequestMapScreen() {
   const router = useRouter();
   const { palette } = useThemeContext();
+  const authUser = useAuthStore((state) => state.user);
   const {
     buildParams,
     filters: searchFilters,
@@ -136,254 +137,127 @@ export default function RequestMapScreen() {
   };
 
   const screenError = locationError ?? requestsError ?? null;
-  const shouldShowEmptyState =
-    !locationLoading &&
-    !requestsLoading &&
-    !permissionDenied &&
-    !locationError &&
-    requests.length === 0;
+  const openCount = requests.filter((item) => item.status === "OPEN").length;
+  const countLabel = `${openCount} open requests nearby`;
+
+  const selectedOwnedByUser = Boolean(
+    selectedRequest && authUser && selectedRequest.requesterId === authUser.id
+  );
 
   return (
-    <ScreenView style={styles.screen}>
-      <AppHeader
-        title="Request map"
-        subtitle="Explore nearby requests geographically."
-        showBackButton
-        backButtonProps={{
-          fallback: APP_ROUTES.HOME_REQUESTS,
-          variant: "secondary",
-        }}
-        rightAction={{
-          icon: "list-outline",
-          onPress: () => router.replace(APP_ROUTES.HOME_REQUESTS),
-          accessibilityLabel: "Switch to list view",
-          color: palette.textPrimary,
-        }}
-      />
+    <View style={[styles.screen, { backgroundColor: palette.background }]}> 
+      <View style={styles.headerWrap}>
+        <RowHeader
+          title="Nearby Requests"
+          subtitle={countLabel}
+          onBack={() => router.replace(APP_ROUTES.HOME_REQUESTS)}
+        />
 
-      <View
-        style={[
-          styles.controlsCard,
-          {
-            backgroundColor: palette.surface,
-            borderColor: palette.border,
-          },
-        ]}
-      >
-        <View style={styles.controlsHeaderRow}>
-          <View style={styles.controlsCopy}>
-            <Text style={[styles.controlsEyebrow, { color: palette.primary }]}>
-              Nearby map
-            </Text>
-            <Text style={[styles.controlsTitle, { color: palette.textPrimary }]}>
-              Search and explore requests by area
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.resultsPill,
-              {
-                backgroundColor: palette.surfaceMuted,
-                borderColor: palette.border,
-              },
-            ]}
-          >
-            <Ionicons name="location-outline" size={14} color={palette.primary} />
-            <Text style={[styles.resultsPillText, { color: palette.textPrimary }]}>
-              {requests.length}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.controlsTopRow}>
-          <View style={styles.searchWrap}>
-            <SearchField
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search requests on the map..."
-              containerStyle={styles.searchField}
-            />
-          </View>
-
-          <Pressable
-            onPress={() => router.replace(APP_ROUTES.HOME_REQUESTS)}
-            style={({ pressed }) => [
-              styles.viewSwitchButton,
-              {
-                backgroundColor: palette.surfaceMuted,
-                borderColor: palette.border,
-                opacity: pressed ? 0.92 : 1,
-              },
-            ]}
-          >
-            <Text style={[styles.viewSwitchText, { color: palette.textPrimary }]}>
-              List
-            </Text>
-          </Pressable>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryRail}
+        <View
+          style={[
+            styles.filtersCard,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+            },
+          ]}
         >
-          <CategoryChip
-            label="All"
-            active={searchFilters.categoryId === "ALL"}
-            onPress={() => updateFilter("categoryId", "ALL")}
+          <SearchField
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search by title, category, or location"
           />
-          {categories.slice(0, 5).map((category) => (
-            <CategoryChip
-              key={category.id}
-              label={category.name}
-              active={searchFilters.categoryId === category.id}
-              onPress={() => updateFilter("categoryId", category.id)}
-            />
-          ))}
-        </ScrollView>
 
-        <View style={styles.secondaryActionsRow}>
-          <View
-            style={[
-              styles.radiusControl,
-              { backgroundColor: palette.surfaceMuted, borderColor: palette.border },
-            ]}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryRail}
           >
-            <Row justify="space-between" align="center" gap="sm">
-              <Text style={[styles.radiusTitle, { color: palette.textPrimary }]}>
-                Radius
-              </Text>
-              <Text style={[styles.radiusValue, { color: palette.primary }]}>
-                {searchFilters.radiusKm === "ANY"
-                  ? "Anywhere"
-                  : `${searchFilters.radiusKm} km`}
-              </Text>
-            </Row>
+            <CategoryChip
+              label="All"
+              active={searchFilters.categoryId === "ALL"}
+              onPress={() => updateFilter("categoryId", "ALL")}
+            />
+            <CategoryChip
+              label="Nearby"
+              active={searchFilters.radiusKm === "10"}
+              onPress={() => updateFilter("radiusKm", "10")}
+            />
+            <CategoryChip
+              label="Urgent"
+              active={searchFilters.status === "OPEN"}
+              onPress={() => updateFilter("status", searchFilters.status === "OPEN" ? "ALL" : "OPEN")}
+            />
+            {categories.slice(0, 4).map((category) => (
+              <CategoryChip
+                key={category.id}
+                label={category.name}
+                active={searchFilters.categoryId === category.id}
+                onPress={() => updateFilter("categoryId", category.id)}
+              />
+            ))}
+          </ScrollView>
 
-            <View style={styles.radiusTrackRow}>
-              {RADIUS_OPTIONS_KM.map((radius) => {
-                const radiusValue = String(radius) as
-                  | "5"
-                  | "10"
-                  | "25"
-                  | "50"
-                  | "100";
-                const active = searchFilters.radiusKm === radiusValue;
-
-                return (
-                  <Pressable
-                    key={radius}
-                    onPress={() => updateFilter("radiusKm", radiusValue)}
-                    style={({ pressed }) => [
-                      styles.radiusStep,
-                      {
-                        backgroundColor: active ? palette.primary : palette.surface,
-                        borderColor: active ? palette.primary : palette.border,
-                        opacity: pressed ? 0.88 : 1,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.radiusStepText,
-                        { color: active ? palette.textInverse : palette.textSecondary },
-                      ]}
-                    >
-                      {radius}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+          <View style={styles.compactControlsRow}>
+            <View style={styles.mapToggleWrap}>
+              <Pressable
+                style={[styles.modeButton, { backgroundColor: palette.surfaceSecondary, borderColor: palette.border }]}
+                onPress={() => router.replace(APP_ROUTES.HOME_REQUESTS)}
+              >
+                <Ionicons name="list-outline" size={18} color={palette.textSecondary} />
+                <Text style={[styles.modeButtonText, { color: palette.textSecondary }]}>List</Text>
+              </Pressable>
+              <View style={[styles.modeButtonActive, { backgroundColor: palette.surface, borderColor: palette.borderStrong }]}>
+                <Ionicons name="map-outline" size={18} color={palette.textPrimary} />
+                <Text style={[styles.modeButtonText, { color: palette.textPrimary }]}>Map</Text>
+              </View>
             </View>
 
             <Pressable
-              onPress={() => updateFilter("radiusKm", "ANY")}
-              style={({ pressed }) => [
-                styles.anywhereButton,
-                {
-                  backgroundColor:
-                    searchFilters.radiusKm === "ANY"
-                      ? `${palette.primary}14`
-                      : palette.surface,
-                  borderColor:
-                    searchFilters.radiusKm === "ANY" ? palette.primary : palette.border,
-                  opacity: pressed ? 0.92 : 1,
-                },
-              ]}
+              onPress={resetSearch}
+              style={[styles.filterReset, { borderColor: palette.border, backgroundColor: palette.surfaceSecondary }]}
             >
-              <Text
-                style={[
-                  styles.anywhereText,
-                  {
-                    color:
-                      searchFilters.radiusKm === "ANY"
-                        ? palette.primary
-                        : palette.textSecondary,
-                  },
-                ]}
-              >
-                Anywhere
-              </Text>
+              <Ionicons name="options-outline" size={18} color={palette.textSecondary} />
+              <Text style={[styles.modeButtonText, { color: palette.textSecondary }]}>Filter</Text>
             </Pressable>
           </View>
 
-          <View
-            style={[
-              styles.selectionSummary,
-              { backgroundColor: palette.surfaceMuted, borderColor: palette.border },
-            ]}
-          >
-            <Text style={[styles.selectionSummaryText, { color: palette.textSecondary }]}>
-              {searchFilters.categoryId === "ALL"
-                ? "All categories"
-                : categories.find((category) => category.id === searchFilters.categoryId)
-                    ?.name ?? "Filtered"}
-            </Text>
+          <View style={styles.radiusRow}>
+            {RADIUS_OPTIONS_KM.map((radius) => {
+              const radiusValue = String(radius) as "5" | "10" | "25" | "50" | "100";
+              const active = searchFilters.radiusKm === radiusValue;
+              return (
+                <Pressable
+                  key={radius}
+                  onPress={() => updateFilter("radiusKm", radiusValue)}
+                  style={[
+                    styles.radiusChip,
+                    {
+                      backgroundColor: active ? palette.primary : palette.surfaceSecondary,
+                      borderColor: active ? palette.primary : palette.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.radiusChipText, { color: active ? palette.textInverse : palette.textSecondary }]}> 
+                    {radius}km
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
-
-          <Pressable
-            onPress={resetSearch}
-            style={({ pressed }) => [
-              styles.secondaryActionButton,
-              {
-                backgroundColor: palette.surfaceMuted,
-                borderColor: palette.border,
-                opacity: pressed ? 0.92 : 1,
-              },
-            ]}
-          >
-            <Text style={[styles.secondaryActionText, { color: palette.textSecondary }]}>
-              Reset
-            </Text>
-          </Pressable>
         </View>
       </View>
 
-      <View style={styles.mapWrap}>
+      <View style={[styles.mapCard, { borderColor: palette.border }]}> 
         {locationLoading ? (
           <View style={styles.centerState}>
             <ActivityIndicator color={palette.primary} />
-            <Text style={[styles.centerStateText, { color: palette.textSecondary }]}>
-              Locating nearby requests...
-            </Text>
+            <Text style={[styles.centerStateText, { color: palette.textSecondary }]}>Locating nearby requests...</Text>
           </View>
         ) : permissionDenied ? (
-          <View
-            style={[
-              styles.stateCard,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-              },
-            ]}
-          >
-            <Text style={[styles.stateTitle, { color: palette.textPrimary }]}>
-              Location permission is required
-            </Text>
-            <Text style={[styles.stateBody, { color: palette.textSecondary }]}>
-              Allow location access to show nearby requests on the map.
-            </Text>
+          <View style={[styles.stateCard, { backgroundColor: palette.surface, borderColor: palette.border }]}> 
+            <Text style={[styles.stateTitle, { color: palette.textPrimary }]}>Location permission is required</Text>
+            <Text style={[styles.stateBody, { color: palette.textSecondary }]}>Allow location access to show nearby requests on the map.</Text>
             <View style={styles.actionWrap}>
               <AppButton title="Try again" variant="primary" onPress={handleReload} />
             </View>
@@ -394,147 +268,118 @@ export default function RequestMapScreen() {
               mapRef={mapRef}
               userLocation={location}
               requests={requests}
+              selectedRequestId={selectedRequest?.id ?? null}
               onSelectRequest={setSelectedRequest}
               onPressMap={() => setSelectedRequest(null)}
             />
 
-            <MapFloatingActions
-              mappedCount={requests.length}
-              onPressRecenter={handleRecenter}
-            />
+            <MapFloatingActions mappedCount={requests.length} onPressRecenter={handleRecenter} />
 
             {requestsLoading ? (
-              <View
-                style={[
-                  styles.loadingBadge,
-                  { backgroundColor: "rgba(255,255,255,0.94)" },
-                ]}
-              >
+              <View style={[styles.loadingBadge, { backgroundColor: palette.surface, borderColor: palette.border }]}> 
                 <ActivityIndicator size="small" color={palette.primary} />
-                <Text style={[styles.loadingBadgeText, { color: palette.textPrimary }]}>
-                  Updating map
-                </Text>
+                <Text style={[styles.loadingBadgeText, { color: palette.textPrimary }]}>Updating map</Text>
               </View>
-            ) : null}
-
-            {selectedRequest ? (
-              <SelectedRequestSheet
-                request={selectedRequest}
-                onViewDetails={() =>
-                  router.push(APP_ROUTES.HOME_REQUEST_DETAILS(selectedRequest.id))
-                }
-              />
             ) : null}
           </>
         )}
       </View>
 
-      {shouldShowEmptyState ? (
-        <View
-          style={[
-            styles.emptyCard,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>
-            No requests match this map view
-          </Text>
-          <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
-            Try another category, clear the search, or widen the radius to see more
-            nearby requests.
-          </Text>
+      {selectedRequest ? (
+        <SelectedRequestPreviewCard
+          request={selectedRequest}
+          isOwner={selectedOwnedByUser}
+          onDetails={() => router.push(APP_ROUTES.HOME_REQUEST_DETAILS(selectedRequest.id))}
+          onPrimary={() => {
+            if (selectedOwnedByUser && selectedRequest.status === "OPEN") {
+              router.push(APP_ROUTES.HOME_REQUEST_EDIT(selectedRequest.id));
+              return;
+            }
+            router.push(APP_ROUTES.HOME_REQUEST_DETAILS(selectedRequest.id));
+          }}
+        />
+      ) : null}
+
+      {!selectedRequest && !locationLoading && !requestsLoading && requests.length === 0 ? (
+        <View style={[styles.emptyToast, { backgroundColor: palette.surface, borderColor: palette.border }]}> 
+          <Text style={[styles.emptyToastText, { color: palette.textPrimary }]}>No requests in this area</Text>
         </View>
       ) : null}
 
       {screenError ? (
-        <Text style={[styles.errorText, { color: palette.danger }]}>
-          {screenError}
-        </Text>
+        <Text style={[styles.errorText, { color: palette.danger }]}>{screenError}</Text>
       ) : null}
-    </ScreenView>
+    </View>
   );
 }
+
+const RowHeader = ({
+  title,
+  subtitle,
+  onBack,
+}: {
+  title: string;
+  subtitle: string;
+  onBack: () => void;
+}) => {
+  const { palette } = useThemeContext();
+
+  return (
+    <View style={styles.headerRow}>
+      <Pressable onPress={onBack} style={[styles.backButton, { borderColor: palette.border, backgroundColor: palette.surfaceSecondary }]}>
+        <Ionicons name="chevron-back" size={22} color={palette.textPrimary} />
+      </Pressable>
+      <View>
+        <Text style={[styles.headerTitle, { color: palette.textPrimary }]}>{title}</Text>
+        <Text style={[styles.headerSubtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
+      </View>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.lg,
+    gap: theme.spacing.sm,
   },
-  controlsCard: {
+  headerWrap: {
+    gap: theme.spacing.sm,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.md,
+  },
+  backButton: {
+    width: 50,
+    height: 50,
+    borderRadius: theme.radius.fill,
     borderWidth: 1,
-    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 52 / 2,
+    fontWeight: "800",
+  },
+  headerSubtitle: {
+    marginTop: 2,
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  filtersCard: {
+    borderWidth: 1,
+    borderRadius: theme.radius.xl,
     padding: theme.spacing.md,
     gap: theme.spacing.sm,
-    marginTop: theme.spacing.sm,
-  },
-  controlsHeaderRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: theme.spacing.sm,
-  },
-  controlsCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  controlsEyebrow: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.bold,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
-  controlsTitle: {
-    fontSize: theme.typography.fontSize.lg,
-    lineHeight: 28,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  resultsPill: {
-    minHeight: 36,
-    minWidth: 54,
-    borderWidth: 1,
-    borderRadius: theme.radius.fill,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  resultsPillText: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  controlsTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing.sm,
-  },
-  searchWrap: {
-    flex: 1,
-  },
-  searchField: {
-    minHeight: 48,
-    borderRadius: 18,
-  },
-  viewSwitchButton: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: theme.spacing.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  viewSwitchText: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
   },
   categoryRail: {
     gap: theme.spacing.sm,
-    paddingRight: theme.spacing.xs,
   },
   categoryChip: {
-    minHeight: 42,
+    minHeight: 40,
     borderWidth: 1,
     borderRadius: theme.radius.fill,
     paddingHorizontal: 16,
@@ -542,98 +387,83 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   categoryChipText: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.bold,
   },
-  secondaryActionsRow: {
+  compactControlsRow: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
+    justifyContent: "space-between",
     gap: theme.spacing.sm,
   },
-  radiusControl: {
-    width: "100%",
+  mapToggleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: theme.radius.fill,
+    padding: 4,
+    gap: 6,
+  },
+  modeButton: {
+    minHeight: 42,
     borderWidth: 1,
-    borderRadius: 16,
-    padding: theme.spacing.sm,
-    gap: theme.spacing.xs,
-  },
-  radiusTitle: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.bold,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
-  radiusValue: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  radiusTrackRow: {
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  radiusStep: {
-    flex: 1,
-    minHeight: 34,
+  modeButtonActive: {
+    minHeight: 42,
     borderWidth: 1,
     borderRadius: theme.radius.fill,
+    paddingHorizontal: 14,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 6,
   },
-  radiusStepText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
+  modeButtonText: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.bold,
   },
-  anywhereButton: {
-    alignSelf: "flex-start",
-    minHeight: 30,
+  filterReset: {
+    minHeight: 42,
+    borderWidth: 1,
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  radiusRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.xs,
+  },
+  radiusChip: {
+    minHeight: 32,
     borderWidth: 1,
     borderRadius: theme.radius.fill,
     paddingHorizontal: 10,
-    justifyContent: "center",
-  },
-  anywhereText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
-  },
-  selectionSummary: {
-    flex: 1,
-    minHeight: 40,
-    minWidth: 120,
-    borderWidth: 1,
-    borderRadius: theme.radius.fill,
-    paddingHorizontal: 14,
-    justifyContent: "center",
-  },
-  selectionSummaryText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  secondaryActionButton: {
-    minHeight: 40,
-    borderWidth: 1,
-    borderRadius: theme.radius.fill,
-    paddingHorizontal: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  secondaryActionText: {
+  radiusChipText: {
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
   },
-  mapWrap: {
+  mapCard: {
     flex: 1,
+    borderWidth: 1,
+    borderRadius: theme.radius.xl,
     overflow: "hidden",
-    borderRadius: 24,
-    marginTop: theme.spacing.sm,
-    backgroundColor: "#DCE8D4",
+    backgroundColor: theme.colors.primaryLight,
+    minHeight: 260,
   },
   stateCard: {
     flex: 1,
     justifyContent: "center",
     borderWidth: 1,
-    borderRadius: 24,
+    borderRadius: theme.radius.xl,
     padding: theme.spacing.lg,
     gap: theme.spacing.sm,
   },
@@ -643,7 +473,7 @@ const styles = StyleSheet.create({
   },
   stateBody: {
     fontSize: theme.typography.fontSize.sm,
-    lineHeight: 22,
+    lineHeight: theme.typography.lineHeight.sm,
   },
   actionWrap: {
     marginTop: theme.spacing.xs,
@@ -660,43 +490,32 @@ const styles = StyleSheet.create({
   },
   loadingBadge: {
     position: "absolute",
-    top: theme.spacing.xl + 12,
+    top: theme.spacing.md,
     left: theme.spacing.md,
     flexDirection: "row",
     alignItems: "center",
-    columnGap: 8,
+    gap: 8,
+    borderWidth: 1,
     borderRadius: theme.radius.fill,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    shadowColor: "#122013",
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   loadingBadgeText: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
-  emptyCard: {
-    marginTop: theme.spacing.sm,
+  emptyToast: {
     borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    gap: 6,
+    borderRadius: theme.radius.fill,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignSelf: "center",
   },
-  emptyTitle: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  emptyText: {
-    textAlign: "center",
-    fontSize: theme.typography.fontSize.sm,
-    lineHeight: 21,
+  emptyToastText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   errorText: {
-    marginTop: theme.spacing.xs,
     textAlign: "center",
     fontSize: theme.typography.fontSize.xs,
   },
