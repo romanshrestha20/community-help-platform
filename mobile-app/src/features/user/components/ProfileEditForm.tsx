@@ -29,6 +29,7 @@ import {
   combinePhoneNumber,
   getCallingCodeForCountry,
   getPhoneRegionHint,
+  normalizePhoneInput,
   resolvePhoneCountryCode,
   splitPhoneNumber,
 } from "@/utils/phone";
@@ -239,14 +240,31 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
 
     const syncPhoneState = async () => {
       const parsedPhone = await splitPhoneNumber(user?.phone);
+      const fallbackCountryCode = await resolvePhoneCountryCode(
+        user?.address?.countryCode ?? null,
+        user?.address?.country ?? null
+      );
+      const shouldUseFallbackCountry =
+        Boolean(user?.phone?.trim()) &&
+        parsedPhone.countryCode === "NP" &&
+        fallbackCountryCode &&
+        fallbackCountryCode !== parsedPhone.countryCode;
+
+      const nextCountryCode = shouldUseFallbackCountry
+        ? fallbackCountryCode
+        : parsedPhone.countryCode;
+      const nextCallingCode = shouldUseFallbackCountry
+        ? await getCallingCodeForCountry(fallbackCountryCode)
+        : parsedPhone.callingCode;
 
       if (isCancelled) {
         return;
       }
 
-      setPhoneCountryCode(parsedPhone.countryCode);
-      setPhoneCallingCode(`+${parsedPhone.callingCode.replace(/^\+/, "")}`);
+      setPhoneCountryCode(nextCountryCode);
+      setPhoneCallingCode(`+${(nextCallingCode ?? "").replace(/^\+/, "")}`);
       setPhoneNationalNumber(parsedPhone.nationalNumber);
+      setPhoneCountryTouched(false);
       setPhoneCountryDetected(false);
     };
 
@@ -263,13 +281,23 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     setCertificationCredentialId(draft?.certificationCredentialId ?? "");
     setCertificationIssuedAt(draft?.certificationIssuedAt ?? "");
     setCertificationExpiresAt(draft?.certificationExpiresAt ?? "");
-    if (draft?.phoneCountryCode) {
+    const draftPhone = draft?.phoneCountryCode
+      ? combinePhoneNumber(draft.phoneCallingCode, draft.phoneNationalNumber)
+      : "";
+    const savedPhone = normalizePhoneInput(user?.phone ?? "");
+    const shouldUseDraftPhone =
+      Boolean(draft?.phoneCountryCode) &&
+      (!savedPhone || normalizePhoneInput(draftPhone) === savedPhone);
+
+    if (shouldUseDraftPhone && draft?.phoneCountryCode) {
       setPhoneCountryCode(draft.phoneCountryCode);
       setPhoneCallingCode(draft.phoneCallingCode);
       setPhoneNationalNumber(draft.phoneNationalNumber);
+      setPhoneCountryTouched(false);
+      setPhoneCountryDetected(false);
     }
     clearValidationError();
-    if (!draft?.phoneCountryCode) {
+    if (!shouldUseDraftPhone) {
       void syncPhoneState();
     }
 
