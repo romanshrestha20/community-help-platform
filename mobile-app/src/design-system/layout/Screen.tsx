@@ -14,7 +14,7 @@ import {
 
 import { theme } from "../theme";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
-import { TAB_BAR_CONSTANTS } from "@/config/tabBarConfig";
+import { getTabBarOverlayHeight } from "@/config/tabBarConfig";
 
 type BaseScreenProps = {
   centered?: boolean;
@@ -48,7 +48,7 @@ export function Screen({
   const insets = useSafeAreaInsets();
 
   const bottomSpacing = withTabBarSpacing
-    ? TAB_BAR_CONSTANTS.HEIGHT + insets.bottom + theme.spacing.sm
+    ? getTabBarOverlayHeight(insets.bottom) + theme.spacing.sm
     : 0;
 
   const scrollView = (
