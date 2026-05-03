@@ -77,6 +77,23 @@ const PHONE_VERIFICATION_SENT_MESSAGE =
 const PHONE_VERIFICATION_MAX_ATTEMPTS = Number(
   process.env.PHONE_VERIFICATION_MAX_ATTEMPTS || 5
 );
+const VERIFICATION_ATTEMPT_WINDOW_MINUTES = Number(
+  process.env.VERIFICATION_ATTEMPT_WINDOW_MINUTES || 15
+);
+const VERIFICATION_ATTEMPT_WINDOW_MS =
+  VERIFICATION_ATTEMPT_WINDOW_MINUTES * 60 * 1000;
+const VERIFY_EMAIL_IP_RATE_LIMIT = Number(
+  process.env.VERIFY_EMAIL_IP_RATE_LIMIT || 30
+);
+const VERIFY_EMAIL_TOKEN_RATE_LIMIT = Number(
+  process.env.VERIFY_EMAIL_TOKEN_RATE_LIMIT || 15
+);
+const VERIFY_PHONE_IP_RATE_LIMIT = Number(
+  process.env.VERIFY_PHONE_IP_RATE_LIMIT || 30
+);
+const VERIFY_PHONE_USER_RATE_LIMIT = Number(
+  process.env.VERIFY_PHONE_USER_RATE_LIMIT || 30
+);
 const PHONE_VERIFICATION_RESEND_COOLDOWN_SECONDS = Number(
   process.env.PHONE_VERIFICATION_RESEND_COOLDOWN_SECONDS || 60
 );
@@ -633,15 +650,15 @@ const verifyEmailToken = async ({
   await assertRateLimit({
     bucket: "verify-email:ip",
     key: ipAddress,
-    limit: 10,
-    windowMs: 15 * 60 * 1000,
+    limit: VERIFY_EMAIL_IP_RATE_LIMIT,
+    windowMs: VERIFICATION_ATTEMPT_WINDOW_MS,
     message: "Too many verification attempts. Please try again later.",
   });
   await assertRateLimit({
     bucket: "verify-email:token",
     key: token,
-    limit: 5,
-    windowMs: 15 * 60 * 1000,
+    limit: VERIFY_EMAIL_TOKEN_RATE_LIMIT,
+    windowMs: VERIFICATION_ATTEMPT_WINDOW_MS,
     message: "Too many verification attempts. Please request a new verification email.",
   });
 
@@ -961,15 +978,15 @@ export const verifyPhoneCode = async (req: Request, res: Response, next: NextFun
     await assertRateLimit({
       bucket: "verify-phone-code:ip",
       key: ipAddress,
-      limit: 10,
-      windowMs: 15 * 60 * 1000,
+      limit: VERIFY_PHONE_IP_RATE_LIMIT,
+      windowMs: VERIFICATION_ATTEMPT_WINDOW_MS,
       message: "Too many verification attempts. Please try again later.",
     });
     await assertRateLimit({
       bucket: "verify-phone-code:user",
       key: user.id,
-      limit: 10,
-      windowMs: 15 * 60 * 1000,
+      limit: VERIFY_PHONE_USER_RATE_LIMIT,
+      windowMs: VERIFICATION_ATTEMPT_WINDOW_MS,
       message: "Too many verification attempts. Please try again later.",
     });
 
