@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import {
     useHomeData,
@@ -9,12 +10,14 @@ import { useBidRequestFlow } from "@/features/bid/hooks";
 import { Bid } from "@/features/bid/types/bid.types";
 import { showErrorToast, showSuccessToast, showToast } from "@/utils/toast";
 import { isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
+import { useRequestFeedSyncStore } from "@/features/helpRequest/store/requestFeedSync.store";
 
 export const useHomeScreen = () => {
     const user = useAuthStore((state) => state.user);
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
     const currentUserId = user?.id || user?.profile?.userId;
     const { filters, updateFilter, resetFilters } = useGlobalFilters();
+    const requestFeedSyncVersion = useRequestFeedSyncStore((state) => state.version);
     const { requests, recentBids, myBids, loading, loadHomeData, addNewRequest, deleteBid } = useHomeData();
     const [creatingRequest, setCreatingRequest] = useState(false);
     const [createRequestError, setCreateRequestError] = useState<string | null>(null);
@@ -115,6 +118,24 @@ export const useHomeScreen = () => {
 
         loadHomeData();
     }, [isAuthenticated, loadHomeData]);
+
+    useFocusEffect(
+        useCallback(() => {
+            if (!isAuthenticated) {
+                return;
+            }
+
+            void loadHomeData(filters);
+        }, [filters, isAuthenticated, loadHomeData])
+    );
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            return;
+        }
+
+        void loadHomeData(filters);
+    }, [filters, isAuthenticated, loadHomeData, requestFeedSyncVersion]);
 
     const handleCreateRequest = async (data: CreateHelpRequestData) => {
         setCreateRequestError(null);

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { HelpRequest } from "../types/helpRequest.types";
 import { useHelpRequest } from "./helpRequest.hook";
+import { useRequestFeedSyncStore } from "../store/requestFeedSync.store";
 
 type Scope = "mine" | "browse";
 
@@ -25,6 +26,7 @@ export const useRequestList = ({
     useNearbyEndpoint = false,
 }: UseRequestListOptions = {}) => {
     const user = useAuthStore((state) => state.user);
+    const requestFeedSyncVersion = useRequestFeedSyncStore((state) => state.version);
     const currentUserId = user?.id || user?.profile?.userId;
     const { loading, error, getMyHelpRequests, getNearbyHelpRequests } = useHelpRequest();
     const [requests, setRequests] = useState<HelpRequest[]>([]);
@@ -47,7 +49,12 @@ export const useRequestList = ({
                     : requesterId !== null && requesterId !== currentUserId;
             });
 
-            setRequests(scoped);
+            const publicDiscoveryRequests =
+                scope === "browse"
+                    ? scoped.filter((request) => request.status === "OPEN")
+                    : scoped;
+
+            setRequests(publicDiscoveryRequests);
         }
     }, [currentUserId, getMyHelpRequests, getNearbyHelpRequests, params, scope, useNearbyEndpoint]);
 
@@ -61,6 +68,11 @@ export const useRequestList = ({
         if (!autoFetch) return;
         fetchRequests();
     }, [autoFetch, fetchRequests]);
+
+    useEffect(() => {
+        if (!autoFetch) return;
+        void fetchRequests();
+    }, [autoFetch, fetchRequests, requestFeedSyncVersion]);
 
     return {
         requests,

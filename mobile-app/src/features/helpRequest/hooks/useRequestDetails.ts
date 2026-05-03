@@ -11,6 +11,7 @@ import {
     canTransitionRequestStatus,
     isRequestOpenForBidding,
 } from "../utils/requestValidation";
+import { useRequestFeedSyncStore } from "../store/requestFeedSync.store";
 
 export const useRequestDetails = (requestId: string) => {
     const {
@@ -39,6 +40,7 @@ export const useRequestDetails = (requestId: string) => {
     const [request, setRequest] = useState<HelpRequest | null>(null);
     const [bids, setBids] = useState<Bid[]>([]);
     const [actionError, setActionError] = useState<string | null>(null);
+    const bumpRequestFeeds = useRequestFeedSyncStore((state) => state.bump);
 
     const myBid = bids.find((bid) => bid.helperId === currentUserId) ?? null;
     const isOwner = Boolean(currentUserId && request?.requesterId && request.requesterId === currentUserId);
@@ -221,9 +223,11 @@ export const useRequestDetails = (requestId: string) => {
         const updated = await updateHelpRequestStatus(requestId, status);
         if (updated) {
             setRequest((prev) => (prev ? { ...prev, ...updated } : updated));
+            bumpRequestFeeds();
+            await fetchDetails();
         }
         return updated;
-    }, [request, requestId, updateHelpRequestStatus]);
+    }, [bumpRequestFeeds, fetchDetails, request, requestId, updateHelpRequestStatus]);
 
     const removeRequest = useCallback(async () => {
         if (!request) {
@@ -237,8 +241,10 @@ export const useRequestDetails = (requestId: string) => {
         }
 
         setActionError(null);
-        return deleteHelpRequest(request.id);
-    }, [deleteHelpRequest, request]);
+        const deleted = await deleteHelpRequest(request.id);
+        bumpRequestFeeds();
+        return deleted;
+    }, [bumpRequestFeeds, deleteHelpRequest, request]);
 
     useEffect(() => {
         if (!requestId) return;

@@ -22,7 +22,7 @@ export const useHomeData = () => {
   } | null;
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const canUseVerifiedActions = useAuthStore((state) => Boolean(state.user?.isEmailVerified));
-  const { getMyHelpRequests } = useHelpRequest();
+  const { getNearbyHelpRequests } = useHelpRequest();
   const { getBidsByHelpRequestId, getMyBids, deleteBid } = useBid();
 
   const [requests, setRequests] = useState<HelpRequest[]>([]);
@@ -79,9 +79,9 @@ export const useHomeData = () => {
 
       setLoading(true);
       try {
-        const allRequests = (await getMyHelpRequests()) ?? [];
+        const nearbyRequests = (await getNearbyHelpRequests()) ?? [];
 
-        const normalizedRequests = allRequests.map((request) => ({
+        const normalizedRequests = nearbyRequests.map((request) => ({
           ...request,
           requesterId: getRequesterId(request) || undefined,
         }));
@@ -92,7 +92,8 @@ export const useHomeData = () => {
           )
           : normalizedRequests;
 
-        let filtered = [...visibleRequests];
+        // Home feed must only show open opportunities.
+        let filtered = visibleRequests.filter((request) => request.status === "OPEN");
 
         if (filters?.status && filters.status !== "ALL") {
           filtered = filtered.filter((r) => r.status === filters.status);
@@ -174,7 +175,7 @@ export const useHomeData = () => {
       canUseVerifiedActions,
       currentUserId,
       currentUserLocation,
-      getMyHelpRequests,
+      getNearbyHelpRequests,
       getBidsByHelpRequestId,
       getMyBids,
       isAuthenticated,
