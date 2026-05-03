@@ -86,6 +86,10 @@ export default function Home() {
 
   const visibleRequests = useMemo(() => {
     return helperRequests.filter((request) => {
+      if (request.status !== "OPEN") {
+        return false;
+      }
+
       const matchesCategory =
         selectedCategoryId === "ALL" || request.categoryId === selectedCategoryId;
 

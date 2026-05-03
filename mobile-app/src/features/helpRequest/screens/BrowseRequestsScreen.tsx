@@ -210,9 +210,6 @@ const FiltersModal = ({
             options={[
               { label: "All", value: "ALL" },
               { label: "Open", value: "OPEN" },
-              { label: "Assigned", value: "ASSIGNED" },
-              { label: "Completed", value: "COMPLETED" },
-              { label: "Cancelled", value: "CANCELLED" },
             ]}
           />
           <AppDropdown
@@ -314,9 +311,14 @@ export const BrowseRequestsScreen = () => {
     !filters.urgentOnly;
   const urgentOnlyActive = filters.urgentOnly;
 
+  const publicFeedRequests = useMemo(
+    () => requests.filter((request) => request.status === "OPEN"),
+    [requests]
+  );
+
   const filteredRequests = useMemo(
     () =>
-      applyRequestFiltersAndSort(requests, filters, {
+      applyRequestFiltersAndSort(publicFeedRequests, filters, {
         searchQuery: debouncedSearchQuery,
         latitude: userLocation?.latitude,
         longitude: userLocation?.longitude,
@@ -324,15 +326,14 @@ export const BrowseRequestsScreen = () => {
     [
       debouncedSearchQuery,
       filters,
-      requests,
+      publicFeedRequests,
       userLocation?.latitude,
       userLocation?.longitude,
     ]
   );
-  const urgentRequestsCount = useMemo(
-    () =>
-      filteredRequests.filter((request) => isUrgentRequestActive(request)).length,
-    [filteredRequests]
+  const urgentOpenCount = useMemo(
+    () => publicFeedRequests.filter((request) => isUrgentRequestActive(request)).length,
+    [publicFeedRequests]
   );
 
   const activeFilterCount = useMemo(() => {
@@ -351,14 +352,13 @@ export const BrowseRequestsScreen = () => {
       latitude: userLocation?.latitude,
       longitude: userLocation?.longitude,
       categoryId: filters.categoryId === "ALL" ? null : filters.categoryId,
-      status: filters.status,
+      status: "OPEN",
       search: debouncedSearchQuery.trim() || undefined,
       radiusKm: filters.radiusKm === "ANY" ? undefined : Number(filters.radiusKm),
     }),
     [
       filters.categoryId,
       filters.radiusKm,
-      filters.status,
       debouncedSearchQuery,
       userLocation?.latitude,
       userLocation?.longitude,
@@ -527,11 +527,11 @@ export const BrowseRequestsScreen = () => {
       </View>
 
       <View style={styles.contentContainer}>
-        {urgentRequestsCount > 0 ? (
+        {urgentOpenCount > 0 ? (
           <View style={[styles.urgentBanner, { borderColor: `${palette.danger}66`, backgroundColor: `${palette.danger}12` }]}>
             <Ionicons name="flash" size={16} color={palette.danger} />
             <Text style={[styles.urgentBannerText, { color: palette.danger }]}>
-              {urgentRequestsCount} urgent request{urgentRequestsCount === 1 ? "" : "s"} prioritized near you
+              {urgentOpenCount} urgent request{urgentOpenCount === 1 ? "" : "s"} prioritized near you
             </Text>
           </View>
         ) : null}
