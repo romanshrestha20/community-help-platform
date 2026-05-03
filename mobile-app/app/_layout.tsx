@@ -45,8 +45,7 @@ export default function Layout() {
     isAuthenticated &&
       user &&
       ((!user.fullName && !user.profile?.fullName) ||
-        !user.profile?.address ||
-        !(user.avatarUrl || user.profile?.avatarUrl))
+        !user.profile?.address)
   );
 
   usePushNotifications();
