@@ -30,10 +30,12 @@ import { RequestPhotoUploadSection } from "@/features/helpRequest/components/Req
 import { RequestEmptyState } from "@/features/helpRequest/components/RequestEmptyState";
 import { RequestImageUploadInput } from "@/features/helpRequest/types/helpRequest.types";
 import { mapRequestErrorMessage } from "@/features/helpRequest/utils/requestErrorMessage";
+import { formatUrgentDurationLabel } from "@/features/helpRequest/utils/urgent";
 import { showErrorToast, showSuccessToast, showInfoToast } from "@/utils/toast";
 import { goBackOrFallback } from "@/utils/navigation";
 
 const MAX_REQUEST_IMAGES = 5;
+const URGENT_DURATION_OPTIONS = [30, 60, 120, 240] as const;
 
 type SectionKey = "title" | "description" | "photos" | "category" | "location";
 
@@ -89,6 +91,8 @@ export const NewPostComposerScreen = ({ requestId }: Props) => {
         form.description?.trim() ||
         form.categoryId ||
         form.budget ||
+        form.isUrgent ||
+        form.urgentDurationMinutes !== 120 ||
         locationPicker.value ||
         selectedImages.length
     );
@@ -97,6 +101,8 @@ export const NewPostComposerScreen = ({ requestId }: Props) => {
     form.description,
     form.categoryId,
     form.budget,
+    form.isUrgent,
+    form.urgentDurationMinutes,
     locationPicker.value,
     selectedImages.length,
   ]);
@@ -383,6 +389,42 @@ export const NewPostComposerScreen = ({ requestId }: Props) => {
                 />
               </View>
 
+              <ComposerSection title="Priority" palette={palette}>
+                <View style={styles.urgentHeader}>
+                  <Text style={[styles.urgentTitle, { color: palette.textPrimary }]}>
+                    Emergency request
+                  </Text>
+                  <Text style={[styles.urgentMeta, { color: palette.textSecondary }]}>
+                    Prioritized nearby
+                  </Text>
+                </View>
+
+                <View style={styles.urgentButtonRow}>
+                  <AppButton
+                    title={form.isUrgent ? "Urgent on" : "Mark urgent"}
+                    variant={form.isUrgent ? "danger" : "secondary"}
+                    fullWidth={false}
+                    disabled={saving}
+                    onPress={() => updateField("isUrgent", !form.isUrgent)}
+                  />
+                </View>
+
+                {form.isUrgent ? (
+                  <View style={styles.urgentButtonRow}>
+                    {URGENT_DURATION_OPTIONS.map((minutes) => (
+                      <AppButton
+                        key={minutes}
+                        title={formatUrgentDurationLabel(minutes)}
+                        onPress={() => updateField("urgentDurationMinutes", minutes)}
+                        variant={form.urgentDurationMinutes === minutes ? "danger" : "ghost"}
+                        fullWidth={false}
+                        disabled={saving}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+              </ComposerSection>
+
               <View onLayout={onSectionLayout("location")}>
                 <LocationPickerField
                   label="Location"
@@ -638,6 +680,28 @@ const styles = StyleSheet.create({
 
   actionButton: {
     flex: 1,
+  },
+
+  urgentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  urgentTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+
+  urgentMeta: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+
+  urgentButtonRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
   },
 });
 
