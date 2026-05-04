@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppBackButton } from "@/components/ui/AppBackButton";
 import { Row, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useAuthStore } from "@/features/auth/store/auth.store";
@@ -36,6 +37,7 @@ type ThreadRow =
 
 interface ChatProps {
     conversation: Conversation | null;
+    requestId?: string;
     messages: Message[];
     loading?: boolean;
     refreshing?: boolean;
@@ -101,6 +103,7 @@ const Chat: React.FC<ChatProps> = ({
     onDeleteMessage,
     typingLabel,
     requestScoped = false,
+    requestId,
 }) => {
     const { palette } = useThemeContext();
     const insets = useSafeAreaInsets();
@@ -172,7 +175,47 @@ const Chat: React.FC<ChatProps> = ({
     }
 
     if (!conversation) {
-        return <ChatEmptyState requestScoped={requestScoped} />;
+        return (
+            <View style={[styles.screen, { backgroundColor: palette.background }]}>
+                <View
+                    style={[
+                        styles.unavailableHeader,
+                        {
+                            backgroundColor: palette.background,
+                            borderBottomColor: palette.border,
+                            paddingTop: insets.top + theme.spacing.xs,
+                        },
+                    ]}
+                >
+                    <Row justify="space-between" align="center">
+                        <AppBackButton
+                            title=""
+                            iconOnly
+                            size="sm"
+                            variant="secondary"
+                            fallback="/messages"
+                        />
+                        <Text style={[styles.unavailableHeaderTitle, { color: palette.textPrimary }]}>
+                            Messages
+                        </Text>
+                        <View style={styles.headerSpacer} />
+                    </Row>
+                </View>
+                <View style={styles.unavailableStateWrap}>
+                    <ChatEmptyState
+                        requestScoped={requestScoped}
+                        ctaLabel={requestScoped && requestId ? "View request" : "Go back"}
+                        onPressCta={() => {
+                            if (requestScoped && requestId) {
+                                router.push(APP_ROUTES.HOME_REQUEST_DETAILS(requestId));
+                                return;
+                            }
+                            router.back();
+                        }}
+                    />
+                </View>
+            </View>
+        );
     }
 
     const composerStatusLabel = canSend
@@ -191,7 +234,11 @@ const Chat: React.FC<ChatProps> = ({
                 <View
                     style={[
                         styles.headerShell,
-                        { backgroundColor: palette.background, borderBottomColor: palette.border },
+                        {
+                            backgroundColor: palette.background,
+                            borderBottomColor: palette.border,
+                            paddingTop: insets.top,
+                        },
                     ]}
                 >
                     <ChatHeader
@@ -394,6 +441,25 @@ const styles = StyleSheet.create({
     },
     headerShell: {
         borderBottomWidth: 1,
+    },
+    unavailableHeader: {
+        borderBottomWidth: 1,
+        paddingHorizontal: theme.spacing.md,
+        paddingBottom: theme.spacing.sm,
+    },
+    unavailableHeaderTitle: {
+        ...theme.typography.textStyle.bodyMedium,
+        fontWeight: "700",
+    },
+    headerSpacer: {
+        width: 36,
+    },
+    unavailableStateWrap: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: theme.spacing.lg,
+        paddingBottom: theme.spacing.xl,
     },
     feedbackBar: {
         marginHorizontal: theme.spacing.md,

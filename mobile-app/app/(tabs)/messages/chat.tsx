@@ -47,6 +47,7 @@ export default function ConversationChatRoute() {
         <ScreenView useSafeArea={false} style={{ padding: 0 }}>
             <Chat
                 conversation={conversation}
+                requestId={typeof requestId === "string" ? requestId : undefined}
                 messages={messages}
                 loading={loading}
                 refreshing={refreshing}
