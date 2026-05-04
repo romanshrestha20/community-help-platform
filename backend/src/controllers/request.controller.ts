@@ -879,6 +879,8 @@ export const updateHelpRequest = async (
       ...(serviceRadiusMeters !== undefined && {
         serviceRadiusMeters,
       }),
+      // Treat edits on a cancelled request as a repost by reopening it.
+      ...(request.status === "CANCELLED" && { status: "OPEN" }),
     };
 
     if (location) {
