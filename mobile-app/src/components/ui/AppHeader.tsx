@@ -30,6 +30,8 @@ type Props = {
   divider?: boolean;
   titleNumberOfLines?: number;
   subtitleNumberOfLines?: number;
+  titleColor?: string;
+  subtitleColor?: string;
 };
 
 export const AppHeader = ({
@@ -43,6 +45,8 @@ export const AppHeader = ({
   divider = false,
   titleNumberOfLines = 1,
   subtitleNumberOfLines = 2,
+  titleColor,
+  subtitleColor,
 }: Props) => {
   const { palette } = useThemeContext();
   const fallback = (backButtonProps?.fallback as Href | undefined) ?? undefined;
@@ -96,7 +100,7 @@ export const AppHeader = ({
             style={[
               titleStyles,
               {
-                color: palette.textPrimary,
+                color: titleColor ?? palette.textPrimary,
                 textAlign: isCentered ? "center" : "left",
               },
             ]}
@@ -110,7 +114,7 @@ export const AppHeader = ({
               style={[
                 subtitleStyles,
                 {
-                  color: palette.textSecondary,
+                  color: subtitleColor ?? palette.textSecondary,
                   textAlign: isCentered ? "center" : "left",
                   opacity: 0.85,
                 },
