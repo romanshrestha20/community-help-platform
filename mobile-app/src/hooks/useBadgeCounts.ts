@@ -8,6 +8,7 @@ import { fetchNotifications } from "@/features/notifications/service/notificatio
 import { useNotificationSettingsStore } from "@/features/settings/store/notification-settings.store";
 import { filterNotificationsByPreferences } from "@/features/notifications/utils/notification-preferences";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { addSocketListener, connectSocket } from "@/lib/socket-client";
 
 export interface BadgeCounts {
     messages: number;
@@ -140,6 +141,55 @@ export const useBadgeCounts = (): BadgeCounts => {
             appStateSubscription.remove();
         };
     }, [refreshMessageCount, refreshNotificationCount]);
+
+    useEffect(() => {
+        if (!canAccessVerifiedRoutes) {
+            return;
+        }
+
+        let isMounted = true;
+        const cleanupFns: (() => void)[] = [];
+
+        const bindRealtime = async () => {
+            try {
+                await connectSocket();
+
+                cleanupFns.push(
+                    addSocketListener<{ unreadCount?: number }>("notification:event", (payload) => {
+                        if (!isMounted) return;
+
+                        if (typeof payload?.unreadCount === "number") {
+                            useBadgeCountStore.getState().setNotificationCount(payload.unreadCount);
+                            return;
+                        }
+
+                        void refreshNotificationCount();
+                    }),
+                    addSocketListener("conversation:message", () => {
+                        if (!isMounted) return;
+                        void refreshMessageCount();
+                    }),
+                    addSocketListener("conversation:upsert", () => {
+                        if (!isMounted) return;
+                        void refreshMessageCount();
+                    }),
+                    addSocketListener("message:read", () => {
+                        if (!isMounted) return;
+                        void refreshMessageCount();
+                    })
+                );
+            } catch (error) {
+                console.warn("Failed to bind realtime badge listeners:", error);
+            }
+        };
+
+        void bindRealtime();
+
+        return () => {
+            isMounted = false;
+            cleanupFns.forEach((cleanup) => cleanup());
+        };
+    }, [canAccessVerifiedRoutes, refreshMessageCount, refreshNotificationCount]);
 
     useEffect(() => {
         if (Platform.OS === "web") {

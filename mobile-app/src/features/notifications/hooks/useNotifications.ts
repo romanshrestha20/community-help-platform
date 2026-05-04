@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppState } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { addSocketListener, connectSocket } from "@/lib/socket-client";
 
 import { setNotificationBadgeCount } from "@/hooks/useBadgeCounts";
 import { useNotificationSettingsStore } from "@/features/settings/store/notification-settings.store";
@@ -181,6 +182,43 @@ export const useNotifications = () => {
 
         return () => {
             subscription.remove();
+        };
+    }, [canAccessVerifiedRoutes, isHydrated, loadNotifications]);
+
+    useEffect(() => {
+        if (!isHydrated || !canAccessVerifiedRoutes) {
+            return;
+        }
+
+        let isMounted = true;
+        const cleanupFns: (() => void)[] = [];
+
+        const bindRealtime = async () => {
+            try {
+                await connectSocket();
+                cleanupFns.push(
+                    addSocketListener<{ unreadCount?: number }>("notification:event", (payload) => {
+                        if (!isMounted) return;
+
+                        if (typeof payload?.unreadCount === "number") {
+                            setUnreadCount(payload.unreadCount);
+                        }
+
+                        void loadNotifications().catch((caughtError) => {
+                            setError(getErrorMessage(caughtError, "Could not refresh notifications"));
+                        });
+                    })
+                );
+            } catch (caughtError) {
+                setError(getErrorMessage(caughtError, "Could not connect live notifications"));
+            }
+        };
+
+        void bindRealtime();
+
+        return () => {
+            isMounted = false;
+            cleanupFns.forEach((cleanup) => cleanup());
         };
     }, [canAccessVerifiedRoutes, isHydrated, loadNotifications]);
 
