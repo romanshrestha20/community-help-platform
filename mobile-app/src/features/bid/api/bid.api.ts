@@ -7,7 +7,10 @@ export const createBidApi = (data: CreateBidData) =>
     apiClient.post("/bids", data);
 
 export const getBidsByHelpRequestIdApi = (helpRequestId: string) =>
-    apiClient.get(`/bids/help-request/${helpRequestId}`);
+    apiClient.get(`/bids/help-request/${helpRequestId}`, {
+        skipErrorToast: true,
+        suppressErrorLog: true,
+    });
 
 export const getMyBidsApi = () =>
     apiClient.get("/bids/my");
