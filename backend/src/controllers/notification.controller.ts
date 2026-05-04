@@ -6,6 +6,10 @@ import {
     pushTokenBodySchema,
 } from "../utils/validation-schemas.js";
 import {
+    broadcastNotificationDeleted,
+    broadcastNotificationRead,
+    broadcastNotificationReadAll,
+    broadcastNotificationUnread,
     deleteNotification,
     getUnreadNotificationCount,
     getUserNotifications,
@@ -148,6 +152,7 @@ export const readNotification = async (
         }
 
         await markNotificationAsRead(id, userId);
+        await broadcastNotificationRead(userId, id);
 
         handleResponse(res, null, "Notification marked as read");
     } catch (error) {
@@ -172,6 +177,7 @@ export const unreadNotification = async (
         }
 
         await markNotificationAsUnread(id, userId);
+        await broadcastNotificationUnread(userId, id);
 
         handleResponse(res, null, "Notification marked as unread");
     } catch (error) {
@@ -191,6 +197,7 @@ export const readAllNotifications = async (
         }
 
         await markAllNotificationsAsRead(userId);
+        await broadcastNotificationReadAll(userId);
 
         handleResponse(res, null, "All notifications marked as read");
     } catch (error) {
@@ -215,6 +222,7 @@ export const removeNotification = async (
         }
 
         await deleteNotification(id, userId);
+        await broadcastNotificationDeleted(userId, id);
 
         res.json({
             success: true,

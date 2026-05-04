@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import { NotificationType, Prisma } from "../../generated//prisma/client.js";
 import { dispatchNotificationPush } from "./notification-dispatch.service.js";
+import { getIO } from "../lib/socket.js";
 
 type CreateNotificationInput = {
     userId: string;
@@ -16,6 +17,24 @@ type CreateNotificationInput = {
     data?: Prisma.InputJsonValue;
 };
 
+type NotificationRealtimeEvent = {
+    action: "created" | "read" | "unread" | "read_all" | "deleted";
+    notificationId?: string;
+    unreadCount: number;
+    notification?: unknown;
+};
+
+const emitNotificationRealtimeEvent = async (
+    userId: string,
+    event: NotificationRealtimeEvent
+) => {
+    try {
+        const io = getIO();
+        io.to(`user:${userId}`).emit("notification:event", event);
+    } catch (error) {
+        console.warn("Notification realtime emit skipped:", error);
+    }
+};
 
 export const createNotification = async (input: CreateNotificationInput) => {
     const notification = await prisma.notification.create({
@@ -36,6 +55,14 @@ export const createNotification = async (input: CreateNotificationInput) => {
 
     void dispatchNotificationPush(notification).catch((error) => {
         console.warn("Notification push dispatch failed:", error);
+    });
+
+    const unreadCount = await getUnreadNotificationCount(input.userId);
+    await emitNotificationRealtimeEvent(input.userId, {
+        action: "created",
+        notificationId: notification.id,
+        unreadCount,
+        notification,
     });
 
     return notification;
@@ -164,3 +191,46 @@ export const deleteNotification = async (
     });
 };
 
+export const broadcastNotificationRead = async (
+    userId: string,
+    notificationId: string
+) => {
+    const unreadCount = await getUnreadNotificationCount(userId);
+    await emitNotificationRealtimeEvent(userId, {
+        action: "read",
+        notificationId,
+        unreadCount,
+    });
+};
+
+export const broadcastNotificationUnread = async (
+    userId: string,
+    notificationId: string
+) => {
+    const unreadCount = await getUnreadNotificationCount(userId);
+    await emitNotificationRealtimeEvent(userId, {
+        action: "unread",
+        notificationId,
+        unreadCount,
+    });
+};
+
+export const broadcastNotificationReadAll = async (userId: string) => {
+    const unreadCount = await getUnreadNotificationCount(userId);
+    await emitNotificationRealtimeEvent(userId, {
+        action: "read_all",
+        unreadCount,
+    });
+};
+
+export const broadcastNotificationDeleted = async (
+    userId: string,
+    notificationId: string
+) => {
+    const unreadCount = await getUnreadNotificationCount(userId);
+    await emitNotificationRealtimeEvent(userId, {
+        action: "deleted",
+        notificationId,
+        unreadCount,
+    });
+};
