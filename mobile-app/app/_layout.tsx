@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Slot, useRouter, useSegments } from "expo-router";
 import {
   Inter_400Regular,
@@ -208,10 +209,12 @@ export default function Layout() {
   return (
 
     <TamaguiProvider config={appTamaguiConfig} defaultTheme="light">
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <Slot />
-        <Toast config={toastConfig} />
-      </GestureHandlerRootView>
+      <SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <Slot />
+          <Toast config={toastConfig} />
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
     </TamaguiProvider>
   );
 }
