@@ -51,7 +51,10 @@ export const useBid = () => {
         setLoadingByRequestId((prev) => ({ ...prev, [helpRequestId]: true }));
 
         try {
-            const bids = await run(() => bidService.getBidsByHelpRequestId(helpRequestId));
+            const bids = await run(
+                () => bidService.getBidsByHelpRequestId(helpRequestId),
+                { showErrorToast: false }
+            );
             if (bids) {
                 // Guard against accidental cross-request payloads.
                 const requestScopedBids = bids.filter((bid) => bid.helpRequestId === helpRequestId);
