@@ -4,7 +4,6 @@ import {
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,11 +11,13 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { useOverlayStore } from "@/features/ui/store/overlay.store";
+import { AppHeader } from "@/components/ui/AppHeader";
 
 const THUMB_SIZE = 64;
 const THUMB_GAP = theme.spacing.sm;
@@ -43,7 +44,9 @@ export const ImagePreviewModal = ({
   onClose,
 }: Props) => {
   const { palette } = useThemeContext();
-  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const setImagePreviewVisible = useOverlayStore((state) => state.setImagePreviewVisible);
+  const { width: viewportWidth } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(initialIndex);
 
   const imagePagerRef = useRef<ScrollView | null>(null);
@@ -82,41 +85,42 @@ export const ImagePreviewModal = ({
     });
   }, [safeIndex, viewportWidth, visible, images.length]);
 
+  useEffect(() => {
+    setImagePreviewVisible(visible);
+    return () => {
+      setImagePreviewVisible(false);
+    };
+  }, [setImagePreviewVisible, visible]);
+
   const handleImageScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const next = Math.round(event.nativeEvent.contentOffset.x / viewportWidth);
     setActiveIndex(Math.max(0, Math.min(next, images.length - 1)));
   };
 
   const Header = ({ imageIndex }: { imageIndex: number }) => (
-    <SafeAreaView edges={["top", "left", "right"]}>
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          {images.length > 1 ? (
-            <Text style={styles.headerMeta}>
-              {imageIndex + 1} / {images.length}
-            </Text>
-          ) : null}
-        </View>
-
-        <Pressable
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="Close image preview"
-          style={styles.iconButton}
-        >
-          <Ionicons name="close" size={20} color="#FFFFFF" />
-        </Pressable>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, theme.spacing.md) }]}>
+        <AppHeader
+          title={title}
+          subtitle={images.length > 1 ? `${imageIndex + 1} / ${images.length}` : undefined}
+          variant="compact"
+          divider={false}
+          titleColor="#FFFFFF"
+          subtitleColor="rgba(255,255,255,0.8)"
+          rightAction={{
+            icon: "close",
+            onPress: onClose,
+            accessibilityLabel: "Close image preview",
+            color: "#FFFFFF",
+          }}
+        />
       </View>
-    </SafeAreaView>
   );
 
   const Footer = ({ imageIndex }: { imageIndex: number }) => {
     const activeImage = images[imageIndex];
 
     return (
-      <SafeAreaView edges={["bottom", "left", "right"]}>
-        <View style={styles.footerWrap}>
+        <View style={[styles.footerWrap, { paddingBottom: Math.max(insets.bottom, theme.spacing.md) }]}>
           {activeImage?.label ? (
             <View style={styles.labelWrap}>
               <Text style={styles.labelText}>{activeImage.label}</Text>
@@ -152,26 +156,33 @@ export const ImagePreviewModal = ({
                       },
                     ]}
                   >
-                    <Image source={{ uri: image.uri }} style={styles.thumbnailImage} resizeMode="cover" />
+                    <Image source={{ uri: image.uri }} style={styles.thumbnailImage}  />
                   </Pressable>
                 );
               })}
             </ScrollView>
           ) : null}
         </View>
-      </SafeAreaView>
     );
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      presentationStyle="fullScreen"
+      statusBarTranslucent
+      hardwareAccelerated
+      onRequestClose={onClose}
+    >
+      <StatusBar style="light" />
       <View style={styles.overlay}>
-        <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
           <Header imageIndex={safeIndex} />
 
           <View style={styles.viewerContent}>
             <ScrollView
               ref={imagePagerRef}
+              style={styles.pager}
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
@@ -181,7 +192,7 @@ export const ImagePreviewModal = ({
               {images.map((image, index) => (
                 <View
                   key={`${image.uri}-${index}`}
-                  style={[styles.slide, { width: viewportWidth, height: viewportHeight * 0.68 }]}
+                  style={[styles.slide, { width: viewportWidth, height: "100%" }]}
                 >
                   <Image source={{ uri: image.uri }} style={styles.slideImage} resizeMode="contain" />
                 </View>
@@ -190,7 +201,6 @@ export const ImagePreviewModal = ({
           </View>
 
           <Footer imageIndex={safeIndex} />
-        </SafeAreaView>
       </View>
     </Modal>
   );
@@ -199,45 +209,20 @@ export const ImagePreviewModal = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.96)",
-  },
-  safeArea: {
-    flex: 1,
+    backgroundColor: "#000000",
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.sm,
-  },
-  headerCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  headerTitle: {
-    color: "#FFFFFF",
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  headerMeta: {
-    color: "rgba(255,255,255,0.72)",
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  iconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: theme.radius.fill,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.16)",
+    paddingBottom: theme.spacing.xs,
+    zIndex: 3,
+    elevation: 3,
   },
   viewerContent: {
     flex: 1,
-    justifyContent: "center",
+    zIndex: 1,
+  },
+  pager: {
+    flex: 1,
   },
   slide: {
     alignItems: "center",
@@ -249,7 +234,8 @@ const styles = StyleSheet.create({
   },
   footerWrap: {
     gap: theme.spacing.sm,
-    paddingBottom: theme.spacing.sm,
+    zIndex: 3,
+    elevation: 3,
   },
   labelWrap: {
     alignSelf: "flex-start",
