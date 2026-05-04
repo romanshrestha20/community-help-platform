@@ -27,6 +27,7 @@ import {
 } from "@/config/tabBarConfig";
 import { darkColors, lightColors } from "@/design-system/tokens/colors";
 import type { ColorScheme, TabItem } from "@/types/tabBar";
+import { useOverlayStore } from "@/features/ui/store/overlay.store";
 
 interface CustomTabBarProps extends BottomTabBarProps {
   tabs?: TabItem[];
@@ -324,6 +325,7 @@ export const CustomTabBar = ({
   const systemColorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const imagePreviewVisible = useOverlayStore((state) => state.imagePreviewVisible);
 
   const resolvedColorScheme = useMemo(
     () => colorScheme ?? resolveColorScheme("system", systemColorScheme),
@@ -352,7 +354,7 @@ export const CustomTabBar = ({
 
   const hideTabBar = useMemo(() => shouldHideTabBar(pathname), [pathname]);
 
-  if (hideTabBar) {
+  if (hideTabBar || imagePreviewVisible) {
     return null;
   }
 
