@@ -19,6 +19,7 @@ const { prismaMock } = vi.hoisted(() => ({
         },
         message: {
             create: vi.fn(),
+            findFirst: vi.fn(),
             findUnique: vi.fn(),
             findMany: vi.fn(),
             count: vi.fn(),
@@ -118,6 +119,8 @@ describe("conversation.service", () => {
             request: { id: "req-1" },
             members: [],
         });
+        prismaMock.message.findFirst.mockResolvedValue(null);
+        prismaMock.message.create.mockResolvedValue({ id: "msg-system-1" });
 
         prismaMock.conversation.findUnique.mockResolvedValue({
             id: "conv-1",
