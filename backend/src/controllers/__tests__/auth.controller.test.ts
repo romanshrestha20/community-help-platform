@@ -79,6 +79,7 @@ const {
     emailServiceMock: {
         sendPasswordResetEmail: vi.fn(),
         sendEmailVerificationEmail: vi.fn(),
+        sendPasswordChangedSecurityEmail: vi.fn(),
     },
     smsServiceMock: {
         sendPhoneVerificationCode: vi.fn(),
@@ -135,6 +136,7 @@ vi.mock("../../services/auth-token.service.js", () => ({
 vi.mock("../../services/transactional-email.service.js", () => ({
     sendPasswordResetEmail: emailServiceMock.sendPasswordResetEmail,
     sendEmailVerificationEmail: emailServiceMock.sendEmailVerificationEmail,
+    sendPasswordChangedSecurityEmail: emailServiceMock.sendPasswordChangedSecurityEmail,
 }));
 
 vi.mock("../../services/sms.service.js", () => ({
