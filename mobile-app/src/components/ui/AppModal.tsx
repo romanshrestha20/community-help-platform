@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -23,6 +24,7 @@ type Props = {
   showCloseButton?: boolean;
   animationType?: "none" | "slide" | "fade";
   scrollable?: boolean;
+  size?: "sm" | "md" | "lg" | "xl";
 };
 
 export const AppModal = ({
@@ -35,8 +37,27 @@ export const AppModal = ({
   showCloseButton = false,
   animationType = "fade",
   scrollable = false,
+  size = "md",
 }: Props) => {
   const { palette } = useThemeContext();
+  const { height } = useWindowDimensions();
+  const isWeb = Platform.OS === "web";
+  const showHeader = Boolean(title) || showCloseButton;
+  const modalMaxHeight = Math.max(440, Math.min(height - theme.spacing.xl * 2, 920));
+  const modalMaxWidth = (() => {
+    switch (size) {
+      case "sm":
+        return 420;
+      case "lg":
+        return 760;
+      case "xl":
+        return 980;
+      case "md":
+      default:
+        return 560;
+    }
+  })();
+  const contentMaxHeight = Math.max(280, modalMaxHeight - (showHeader ? 210 : 160));
   const safeChildren = React.Children.toArray(children).filter(
     (child) => typeof child !== "string" && typeof child !== "number"
   );
@@ -49,8 +70,6 @@ export const AppModal = ({
       onClose();
     }
   };
-
-  const showHeader = Boolean(title) || showCloseButton;
 
   return (
     <Modal
@@ -73,6 +92,8 @@ export const AppModal = ({
               {
                 backgroundColor: palette.surface,
                 borderColor: palette.border,
+                maxWidth: modalMaxWidth,
+                maxHeight: modalMaxHeight,
               },
             ]}
           >
@@ -117,10 +138,15 @@ export const AppModal = ({
 
             {scrollable ? (
               <ScrollView
-                style={styles.contentScroll}
+                style={[
+                  styles.contentScroll,
+                  {
+                    maxHeight: contentMaxHeight,
+                  },
+                ]}
                 contentContainerStyle={styles.content}
                 keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={isWeb}
               >
                 {safeChildren}
               </ScrollView>
@@ -161,7 +187,6 @@ const styles = StyleSheet.create({
   },
   card: {
     width: "100%",
-    maxWidth: 420,
     borderWidth: 1,
     borderRadius: theme.radius.lg,
     overflow: "hidden",
@@ -197,7 +222,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold,
   },
   contentScroll: {
-    maxHeight: 420,
+    maxHeight: 520,
   },
   content: {
     paddingHorizontal: theme.spacing.lg,

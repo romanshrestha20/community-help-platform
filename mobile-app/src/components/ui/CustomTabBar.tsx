@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Text,
   useColorScheme,
+  useWindowDimensions,
   View,
   type PressableStateCallbackType,
   type StyleProp,
@@ -322,6 +323,7 @@ export const CustomTabBar = ({
   navigation,
   state,
 }: CustomTabBarProps) => {
+  const { width } = useWindowDimensions();
   const systemColorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
@@ -355,6 +357,10 @@ export const CustomTabBar = ({
   const hideTabBar = useMemo(() => shouldHideTabBar(pathname), [pathname]);
 
   if (hideTabBar || imagePreviewVisible) {
+    return null;
+  }
+
+  if (Platform.OS === "web" && width >= 1024) {
     return null;
   }
 
