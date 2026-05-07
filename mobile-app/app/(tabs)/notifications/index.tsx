@@ -1,10 +1,12 @@
 import React from "react";
 import {
+    Platform,
     Pressable,
     RefreshControl,
     SectionList,
     StyleSheet,
     Text,
+    useWindowDimensions,
     View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -17,6 +19,7 @@ import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
 import { AppNotification } from "@/features/notifications/types/notification.types";
 import { router } from "expo-router";
+import { WebSectionShell } from "@/features/web/components/WebSectionShell";
 
 type NotificationFilter = "all" | "unread";
 
@@ -472,9 +475,25 @@ const styles = StyleSheet.create({
         gap: theme.spacing.xs,
         marginTop: theme.spacing.xxs,
     },
+    webPanel: {
+        borderWidth: 1,
+        borderRadius: 14,
+        padding: 14,
+        gap: 8,
+    },
+    webPanelTitle: {
+        fontSize: 16,
+        fontWeight: "800",
+    },
+    webPanelBody: {
+        fontSize: 13,
+        lineHeight: 18,
+    },
 });
 
 export default function NotificationsScreen() {
+    const { width } = useWindowDimensions();
+    const isDesktopWeb = Platform.OS === "web" && width >= 1024;
     const { palette } = useThemeContext();
     const [filter, setFilter] = React.useState<NotificationFilter>("all");
     const {
@@ -740,7 +759,7 @@ export default function NotificationsScreen() {
         );
     };
 
-    return (
+    const content = (
         <TabScreenContainer>
             <SectionList
                 contentContainerStyle={styles.container}
@@ -865,4 +884,24 @@ export default function NotificationsScreen() {
             />
         </TabScreenContainer>
     );
+
+    if (isDesktopWeb) {
+        return (
+            <WebSectionShell
+                activeKey="notifications"
+                rightPanel={
+                    <View style={[styles.webPanel, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+                        <Text style={[styles.webPanelTitle, { color: palette.textPrimary }]}>Notification Center</Text>
+                        <Text style={[styles.webPanelBody, { color: palette.textSecondary }]}>
+                            Review updates, mark items as read, and open related requests or conversations.
+                        </Text>
+                    </View>
+                }
+            >
+                {content}
+            </WebSectionShell>
+        );
+    }
+
+    return content;
 }

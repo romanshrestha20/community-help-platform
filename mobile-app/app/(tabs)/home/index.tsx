@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 
 import { Screen, theme } from "@/design-system";
@@ -25,6 +25,7 @@ import { APP_ROUTES } from "@/config/routes";
 import { getDistanceToRequest } from "@/utils/distance";
 import { isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
 import { getMe, resendEmailVerification } from "@/features/auth/api/auth.api";
+import { HomeDesktopScreen } from "@/features/home/screens/HomeDesktopScreen";
 
 const matchesSearch = (request: HelpRequest, query: string) => {
   const normalized = query.trim().toLowerCase();
@@ -48,7 +49,7 @@ const matchesSearch = (request: HelpRequest, query: string) => {
   return haystack.includes(normalized);
 };
 
-export default function Home() {
+function HomeMobileScreen() {
   const router = useRouter();
   const { palette } = useThemeContext();
   const user = useAuthStore((state) => state.user);
@@ -274,6 +275,13 @@ export default function Home() {
       />
     </Screen>
   );
+}
+
+export default function Home() {
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && width >= 1024;
+
+  return isDesktopWeb ? <HomeDesktopScreen /> : <HomeMobileScreen />;
 }
 
 const styles = StyleSheet.create({
