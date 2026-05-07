@@ -290,6 +290,7 @@ export const BidderProfileModal = ({
       title="Helper Profile"
       onClose={onClose}
       scrollable
+      size="lg"
       actions={
         <View style={styles.footerActions}>
           {onMessage ? (

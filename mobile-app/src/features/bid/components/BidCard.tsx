@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Swipeable } from "react-native-gesture-handler";
 
@@ -59,6 +59,7 @@ export const BidCard = ({
   onSwipeOpen,
   onSwipeClose,
 }: Props) => {
+  const isDesktopWeb = Platform.OS === "web";
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const swipeableRef = useRef<Swipeable | null>(null);
   const { palette } = useThemeContext();
@@ -253,6 +254,21 @@ export const BidCard = ({
           ]}
         >
           <Stack gap="md">
+            {(bid.helpRequestTitle || bid.requesterName) ? (
+              <View style={styles.requestContext}>
+                {bid.helpRequestTitle ? (
+                  <Text style={[styles.requestTitle, { color: palette.textPrimary }]} numberOfLines={1}>
+                    Request: {bid.helpRequestTitle}
+                  </Text>
+                ) : null}
+                {bid.requesterName ? (
+                  <Text style={[styles.requestMeta, { color: palette.textSecondary }]} numberOfLines={1}>
+                    Posted by {bid.requesterName}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
             {/* HEADER */}
             <Row justify="space-between" align="flex-start">
               <Row align="center" gap="sm" style={{ flex: 1 }}>
@@ -324,17 +340,28 @@ export const BidCard = ({
                   { opacity: pressed ? 0.7 : 1 },
                 ]}
               >
-                <Ionicons
-                  name="person-circle-outline"
-                  size={16}
-                  color={palette.primary}
-                />
-                <Text style={[styles.profileLinkText, { color: palette.primary }]}>
-                  View profile
-                </Text>
+                <Ionicons name="person-circle-outline" size={16} color={palette.primary} />
+                <Text style={[styles.profileLinkText, { color: palette.primary }]}>View profile</Text>
               </Pressable>
-
-
+              {isDesktopWeb ? (
+              <View style={styles.inlineActions}>
+                {onPress ? (
+                  <Pressable onPress={onPress} style={[styles.inlineActionBtn, { borderColor: palette.border }]}>
+                    <Text style={[styles.inlineActionText, { color: palette.textPrimary }]}>View request</Text>
+                  </Pressable>
+                ) : null}
+                {canEdit && onUpdate ? (
+                  <Pressable onPress={onUpdate} style={[styles.inlineActionBtn, { borderColor: palette.border }]}>
+                    <Text style={[styles.inlineActionText, { color: palette.textPrimary }]}>Edit bid</Text>
+                  </Pressable>
+                ) : null}
+                {canDelete && onDelete ? (
+                  <Pressable onPress={onDelete} style={[styles.inlineActionBtn, { borderColor: palette.border }]}>
+                    <Text style={[styles.inlineActionText, { color: palette.danger }]}>Withdraw</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+              ) : null}
             </Row>
 
             {bid.status === "ACCEPTED" ? (
@@ -395,6 +422,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: typography.fontSize.sm,
   },
+  requestContext: {
+    gap: 2,
+  },
+  requestTitle: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: "700",
+  },
+  requestMeta: {
+    fontSize: typography.fontSize.xs,
+    fontWeight: "500",
+  },
   message: {
     fontSize: typography.fontSize.md,
     lineHeight: 22,
@@ -438,5 +476,20 @@ const styles = StyleSheet.create({
   acceptedLabel: {
     fontSize: typography.fontSize.sm,
     fontWeight: "600",
+  },
+  inlineActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  inlineActionBtn: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  inlineActionText: {
+    fontSize: typography.fontSize.xs,
+    fontWeight: "700",
   },
 });

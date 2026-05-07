@@ -231,7 +231,7 @@ export const MyBidsScreen = () => {
             ) : null}
 
             <Text style={[styles.caption, { color: palette.textSecondary }]}>
-                Pull down to refresh your latest bid activity.
+                Use refresh to load your latest bid activity.
             </Text>
         </Screen>
     );
@@ -248,14 +248,14 @@ const styles = StyleSheet.create({
         marginBottom: theme.spacing.sm,
     },
     summaryRow: {
-        flexWrap: "wrap",
+        flexWrap: "nowrap",
     },
     metricTile: {
         flex: 1,
-        minWidth: 70,
+        minWidth: 0,
         borderRadius: theme.radius.md,
         borderWidth: 1,
-        paddingVertical: theme.spacing.sm,
+        paddingVertical: theme.spacing.xs,
         paddingHorizontal: theme.spacing.sm,
     },
     metricValue: {

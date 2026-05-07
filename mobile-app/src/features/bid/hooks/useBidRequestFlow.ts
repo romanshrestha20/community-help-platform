@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
 import { showErrorToast, showSuccessToast } from "@/utils/toast";
 import { useBid } from "./bid.hook";
+import { mapBidErrorMessage } from "@/features/bid/utils/bidErrorMessage";
 
 interface UseBidRequestFlowOptions {
   onSuccess?: () => Promise<void> | void;
@@ -40,14 +41,20 @@ export const useBidRequestFlow = ({ onSuccess }: UseBidRequestFlowOptions = {}) 
       });
 
       if (!created) {
-        if ((bidError || "").toLowerCase().includes("verification required")) {
+        const friendlyError = mapBidErrorMessage(bidError || "Could not submit bid.");
+
+        if (friendlyError.toLowerCase().includes("verify your email")) {
           showErrorToast(
             "Email verification required",
             "Verify your email to send bids."
           );
           return;
         }
-        showErrorToast("Error", "Failed to submit bid. Please try again.");
+        if (friendlyError.toLowerCase().includes("already submitted an offer")) {
+          showErrorToast("Offer already submitted", friendlyError);
+          return;
+        }
+        showErrorToast("Error", friendlyError);
         return;
       }
 
