@@ -16,6 +16,9 @@ const normalizeBid = (bid: UnknownRecord): Bid => {
     const helper = (bid?.helper ?? {}) as UnknownRecord;
     const profile = (helper?.profile ?? {}) as UnknownRecord;
     const address = (profile?.address ?? {}) as UnknownRecord;
+    const helpRequest = (bid?.helpRequest ?? {}) as UnknownRecord;
+    const requester = (helpRequest?.user ?? {}) as UnknownRecord;
+    const requesterProfile = (requester?.profile ?? {}) as UnknownRecord;
 
     return {
         ...bid,
@@ -28,6 +31,9 @@ const normalizeBid = (bid: UnknownRecord): Bid => {
             address.formattedAddress ??
             [address.city, address.country].filter(Boolean).join(", ") ??
             undefined,
+        helpRequestTitle: bid.helpRequestTitle ?? helpRequest.title ?? undefined,
+        helpRequestCategory: bid.helpRequestCategory ?? helpRequest?.category?.name ?? undefined,
+        requesterName: bid.requesterName ?? requesterProfile.fullName ?? requester.email ?? undefined,
     } as Bid;
 };
 

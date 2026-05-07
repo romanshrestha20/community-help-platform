@@ -46,6 +46,9 @@ export interface Bid {
         reviewedAt?: string | null;
     }[];
     helperVerificationBadges?: VerificationBadge[];
+    helpRequestTitle?: string;
+    helpRequestCategory?: string;
+    requesterName?: string;
 
     createdAt: string;
     updatedAt?: string;
