@@ -9,6 +9,10 @@ const { notificationServiceMock } = vi.hoisted(() => ({
         markNotificationAsUnread: vi.fn(),
         markAllNotificationsAsRead: vi.fn(),
         deleteNotification: vi.fn(),
+        broadcastNotificationRead: vi.fn(),
+        broadcastNotificationUnread: vi.fn(),
+        broadcastNotificationReadAll: vi.fn(),
+        broadcastNotificationDeleted: vi.fn(),
     },
 }));
 
@@ -33,6 +37,10 @@ vi.mock("../../services/notification.service.js", () => ({
     markNotificationAsUnread: notificationServiceMock.markNotificationAsUnread,
     markAllNotificationsAsRead: notificationServiceMock.markAllNotificationsAsRead,
     deleteNotification: notificationServiceMock.deleteNotification,
+    broadcastNotificationRead: notificationServiceMock.broadcastNotificationRead,
+    broadcastNotificationUnread: notificationServiceMock.broadcastNotificationUnread,
+    broadcastNotificationReadAll: notificationServiceMock.broadcastNotificationReadAll,
+    broadcastNotificationDeleted: notificationServiceMock.broadcastNotificationDeleted,
 }));
 
 vi.mock("../../services/notification-preference.service.js", () => ({
