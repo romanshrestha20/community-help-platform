@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { usePathname, useRouter } from "expo-router";
+import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 
 import { AppBackButton } from "@/components/ui/AppBackButton";
 import { AppButton } from "@/components/ui/AppButton";
@@ -36,6 +38,7 @@ import { isRequestOpenForBidding } from "@/features/helpRequest/utils/requestVal
 import { useDebounce } from "@/hooks/useDebounce";
 import { RadiusSlider } from "@/features/map/components/RadiusSlider";
 import { isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
+import { calculateDistance } from "@/utils/distance";
 
 type ChipProps = {
   active?: boolean;
@@ -245,8 +248,17 @@ const FiltersModal = ({
 };
 
 export const BrowseRequestsScreen = () => {
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && width >= 1024;
   const router = useRouter();
   const pathname = usePathname();
+  const params = useLocalSearchParams<{
+    q?: string;
+    category?: string;
+    distance?: string;
+    requestType?: string;
+    sortBy?: string;
+  }>();
   const { palette } = useThemeContext();
   const {
     filters,
@@ -257,6 +269,7 @@ export const BrowseRequestsScreen = () => {
     resetSearch,
   } = useRequestSearch();
   const [filtersVisible, setFiltersVisible] = useState(false);
+  const { categories } = useCategories();
   const isMapRoute = pathname.endsWith("/requests/map");
   const [viewMode, setViewMode] = useState<"list" | "map">(isMapRoute ? "map" : "list");
   const {
@@ -328,6 +341,49 @@ export const BrowseRequestsScreen = () => {
       userLocation?.longitude,
     ]
   );
+  const requestTypeParam =
+    typeof params.requestType === "string" ? params.requestType : "ALL";
+  const sortParam =
+    typeof params.sortBy === "string" ? params.sortBy : "NEWEST";
+  const finalFilteredRequests = useMemo(() => {
+    let next = [...filteredRequests];
+    if (requestTypeParam === "PAID") {
+      next = next.filter((request) => request.isPaid);
+    } else if (requestTypeParam === "UNPAID") {
+      next = next.filter((request) => !request.isPaid);
+    } else if (requestTypeParam === "URGENT_ONLY") {
+      next = next.filter((request) => isUrgentRequestActive(request));
+    }
+
+    if (sortParam === "BUDGET") {
+      next.sort((a, b) => {
+        const aBudget = typeof a.budget === "number" ? a.budget : 0;
+        const bBudget = typeof b.budget === "number" ? b.budget : 0;
+        return bBudget - aBudget;
+      });
+    } else if (sortParam === "NEAREST") {
+      next.sort((a, b) => {
+        const getDistanceValue = (request: (typeof next)[number]) => {
+          if (
+            !userLocation ||
+            request.location?.latitude == null ||
+            request.location?.longitude == null
+          ) {
+            return Number.MAX_SAFE_INTEGER;
+          }
+          return calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            request.location.latitude,
+            request.location.longitude
+          );
+        };
+        return getDistanceValue(a) - getDistanceValue(b);
+      });
+    }
+
+    return next;
+  }, [filteredRequests, requestTypeParam, sortParam, userLocation]);
   const urgentOpenCount = useMemo(
     () => publicFeedRequests.filter((request) => isUrgentRequestActive(request)).length,
     [publicFeedRequests]
@@ -345,8 +401,10 @@ export const BrowseRequestsScreen = () => {
     if (filters.radiusKm !== "ANY") count += 1;
     if (filters.sortBy !== "NEWEST") count += 1;
     if (searchQuery.trim()) count += 1;
+    if (requestTypeParam !== "ALL") count += 1;
+    if (sortParam !== "NEWEST") count += 1;
     return count;
-  }, [filters, searchQuery]);
+  }, [filters, requestTypeParam, searchQuery, sortParam]);
 
   const handleResetAll = () => {
     resetFilters();
@@ -356,6 +414,36 @@ export const BrowseRequestsScreen = () => {
   useEffect(() => {
     setViewMode(isMapRoute ? "map" : "list");
   }, [isMapRoute]);
+
+  useEffect(() => {
+    if (typeof params.q === "string" && params.q !== searchQuery) {
+      setSearchQuery(params.q);
+    }
+  }, [params.q, searchQuery, setSearchQuery]);
+
+  useEffect(() => {
+    if (!isDesktopWeb) return;
+    if (typeof params.distance === "string") {
+      if (["ANY", "1", "5", "10", "25", "50", "100"].includes(params.distance)) {
+        updateFilter("radiusKm", params.distance as GlobalFilters["radiusKm"]);
+      }
+    }
+    if (typeof params.category === "string") {
+      if (params.category === "All") {
+        updateFilter("categoryId", "ALL");
+        updateFilter("urgentOnly", false);
+      } else if (params.category === "Urgent") {
+        updateFilter("categoryId", "ALL");
+        updateFilter("urgentOnly", true);
+      } else {
+        const matched = categories.find((item) => item.name === params.category);
+        if (matched) {
+          updateFilter("categoryId", matched.id);
+          updateFilter("urgentOnly", false);
+        }
+      }
+    }
+  }, [categories, isDesktopWeb, params.category, params.distance, updateFilter]);
 
   const handleChangeViewMode = (nextView: "list" | "map") => {
     setViewMode(nextView);
@@ -393,8 +481,8 @@ export const BrowseRequestsScreen = () => {
               </Text>
             </View>
             <Text style={[styles.headerSubtitle, { color: palette.textSecondary }]}>
-              {locationLabel} · {filteredRequests.length} open request
-              {filteredRequests.length === 1 ? "" : "s"}
+              {locationLabel} · {finalFilteredRequests.length} open request
+              {finalFilteredRequests.length === 1 ? "" : "s"}
             </Text>
           </View>
         </View>
@@ -432,7 +520,7 @@ export const BrowseRequestsScreen = () => {
           <Text style={[styles.resultSummaryText, { color: palette.textSecondary }]}>
             {loading && !requests.length
               ? "Loading requests..."
-              : `${filteredRequests.length} open request${filteredRequests.length === 1 ? "" : "s"} shown`}
+              : `${finalFilteredRequests.length} open request${finalFilteredRequests.length === 1 ? "" : "s"} shown`}
           </Text>
           {searchQuery !== debouncedSearchQuery ? (
             <Text style={[styles.resultSummaryText, { color: palette.primary }]}>
@@ -524,7 +612,7 @@ export const BrowseRequestsScreen = () => {
         ) : null}
         {viewMode === "list" ? (
           <RequestList
-            requests={filteredRequests}
+            requests={finalFilteredRequests}
             loading={loading}
             userLocation={userLocation}
             onPressItem={(item) =>
@@ -554,7 +642,7 @@ export const BrowseRequestsScreen = () => {
           />
         ) : (
           <RequestMapView
-            requests={filteredRequests}
+            requests={finalFilteredRequests}
             loading={loading}
             userLocation={userLocation}
             onSearchArea={refreshRequests}
