@@ -18,6 +18,10 @@ const {
         markNotificationAsRead: vi.fn(),
         markNotificationAsUnread: vi.fn(),
         deleteNotification: vi.fn(),
+        broadcastNotificationRead: vi.fn(),
+        broadcastNotificationUnread: vi.fn(),
+        broadcastNotificationReadAll: vi.fn(),
+        broadcastNotificationDeleted: vi.fn(),
     },
     notificationPreferenceServiceMock: {
         getNotificationPreferencesForUser: vi.fn(),
@@ -49,6 +53,10 @@ vi.mock("../../services/notification.service.js", () => ({
     markNotificationAsRead: notificationServiceMock.markNotificationAsRead,
     markNotificationAsUnread: notificationServiceMock.markNotificationAsUnread,
     deleteNotification: notificationServiceMock.deleteNotification,
+    broadcastNotificationRead: notificationServiceMock.broadcastNotificationRead,
+    broadcastNotificationUnread: notificationServiceMock.broadcastNotificationUnread,
+    broadcastNotificationReadAll: notificationServiceMock.broadcastNotificationReadAll,
+    broadcastNotificationDeleted: notificationServiceMock.broadcastNotificationDeleted,
 }));
 
 vi.mock("../../services/notification-preference.service.js", () => ({
