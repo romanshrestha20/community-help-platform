@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppButton } from "@/components/ui/AppButton";
@@ -24,6 +26,8 @@ import { Review } from "@/features/reviews/types/review.types";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useProfileActivity } from "@/features/user/hooks/useProfileActivity";
 import { useUser } from "@/features/user/hooks/user.hook";
+import { WebSectionShell } from "@/features/web/components/WebSectionShell";
+import { ProfileTabsBar } from "@/features/web/components/ProfileTabsBar";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -83,9 +87,12 @@ const bidStatusVariant = (status: string): StatusVariant => {
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function ActivityHistoryScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && width >= 1024;
   const { user } = useUser();
   const { palette } = useThemeContext();
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const {
     requests,
     bids,
@@ -98,6 +105,23 @@ export default function ActivityHistoryScreen() {
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewsError, setReviewsError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("requests");
+
+  useEffect(() => {
+    const tabParam = typeof params.tab === "string" ? params.tab : "";
+    if (tabParam === "bids" || tabParam === "reviews" || tabParam === "requests") {
+      setActiveTab(tabParam);
+      return;
+    }
+    setActiveTab("requests");
+  }, [params.tab]);
+
+  const selectTab = useCallback(
+    (tab: TabKey) => {
+      setActiveTab(tab);
+      router.replace(`/profile/activity-history?tab=${tab}` as never);
+    },
+    [router]
+  );
 
   const loadReviews = useCallback(async () => {
     if (!user?.id) {
@@ -182,7 +206,7 @@ export default function ActivityHistoryScreen() {
     { key: "reviews", label: "Reviews", count: reviewItems.length },
   ];
 
-  return (
+  const content = (
     <Screen withTabBarSpacing={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -208,7 +232,7 @@ export default function ActivityHistoryScreen() {
           {tabs.map((tab, i) => (
             <Pressable
               key={tab.key}
-              onPress={() => setActiveTab(tab.key)}
+              onPress={() => selectTab(tab.key)}
               style={[
                 styles.summaryCell,
                 i < tabs.length - 1 && {
@@ -260,7 +284,7 @@ export default function ActivityHistoryScreen() {
             return (
               <Pressable
                 key={tab.key}
-                onPress={() => setActiveTab(tab.key)}
+                onPress={() => selectTab(tab.key)}
                 style={styles.tabItem}
               >
                 <Text
@@ -320,6 +344,39 @@ export default function ActivityHistoryScreen() {
       </ScrollView>
     </Screen>
   );
+
+  if (isDesktopWeb) {
+    return (
+      <WebSectionShell
+        activeKey="my-requests"
+        rightPanel={
+          <View style={styles.webRightRail}>
+            <View style={[styles.webPanel, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+              <Text style={[styles.webPanelTitle, { color: palette.textPrimary }]}>Activity history</Text>
+              <Text style={[styles.webPanelBody, { color: palette.textSecondary }]}>
+                Unified timeline for requests, bids, and reviews.
+              </Text>
+            </View>
+            <View style={[styles.webPanel, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+              <Text style={[styles.webPanelTitle, { color: palette.textPrimary }]}>Summary</Text>
+              <View style={styles.webMetaList}>
+                <Text style={[styles.webMetaItem, { color: palette.textSecondary }]}>Requests: {requestItems.length}</Text>
+                <Text style={[styles.webMetaItem, { color: palette.textSecondary }]}>Bids: {bidItems.length}</Text>
+                <Text style={[styles.webMetaItem, { color: palette.textSecondary }]}>Reviews: {reviewsLoading ? "—" : reviewItems.length}</Text>
+              </View>
+            </View>
+          </View>
+        }
+      >
+        <View style={styles.webContent}>
+          <ProfileTabsBar />
+          {content}
+        </View>
+      </WebSectionShell>
+    );
+  }
+
+  return content;
 }
 
 // ─── Tab: Requests ───────────────────────────────────────────────────────────
@@ -953,6 +1010,12 @@ function ErrorState({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  webContent: {
+    flex: 1,
+  },
+  webRightRail: {
+    gap: theme.spacing.sm,
+  },
   scroll: {
     paddingBottom: theme.spacing.xl,
   },
@@ -1219,5 +1282,28 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     lineHeight: 20,
     opacity: 0.8,
+  },
+  webPanel: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    gap: 8,
+  },
+  webPanelTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  webPanelBody: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  webMetaList: {
+    gap: 6,
+    marginTop: 2,
+  },
+  webMetaItem: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
 });

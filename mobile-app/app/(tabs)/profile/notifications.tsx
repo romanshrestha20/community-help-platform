@@ -1,11 +1,13 @@
 import React, { useEffect } from "react";
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Switch, Text, useWindowDimensions, View } from "react-native";
 
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Card, Screen, Stack, theme } from "@/design-system";
 import { APP_ROUTES } from "@/config/routes";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useNotificationSettingsStore } from "@/features/settings/store/notification-settings.store";
+import { WebSectionShell } from "@/features/web/components/WebSectionShell";
+import { ProfileTabsBar } from "@/features/web/components/ProfileTabsBar";
 
 const nearbyDistanceOptions: Array<1 | 3 | 5 | 10 | 25> = [1, 3, 5, 10, 25];
 const nearbyCategoryOptions = [
@@ -66,6 +68,8 @@ const SettingRow = ({
 };
 
 export default function NotificationSettingsScreen() {
+    const { width } = useWindowDimensions();
+    const isDesktopWeb = Platform.OS === "web" && width >= 1024;
     const { palette } = useThemeContext();
     const {
         isHydrated,
@@ -122,7 +126,7 @@ export default function NotificationSettingsScreen() {
         void initializeNotificationSettings();
     }, [initializeNotificationSettings]);
 
-    return (
+    const content = (
         <Screen>
             <AppHeader
                 title="Notification Settings"
@@ -424,9 +428,35 @@ export default function NotificationSettingsScreen() {
             )}
         </Screen>
     );
+
+    if (isDesktopWeb) {
+        return (
+            <WebSectionShell
+                activeKey="settings"
+                rightPanel={
+                    <View style={[styles.webPanel, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+                        <Text style={[styles.webPanelTitle, { color: palette.textPrimary }]}>Notification Preferences</Text>
+                        <Text style={[styles.webPanelBody, { color: palette.textSecondary }]}>
+                            Configure push delivery, nearby alerts, and topic-level notification controls.
+                        </Text>
+                    </View>
+                }
+            >
+                <View style={styles.webContent}>
+                    <ProfileTabsBar />
+                    {content}
+                </View>
+            </WebSectionShell>
+        );
+    }
+
+    return content;
 }
 
 const styles = StyleSheet.create({
+    webContent: {
+        flex: 1,
+    },
     loaderWrap: {
         flex: 1,
         alignItems: "center",
@@ -506,5 +536,19 @@ const styles = StyleSheet.create({
         fontSize: theme.typography.fontSize.xs + 1,
         lineHeight: theme.typography.lineHeight.xs + 2,
         fontWeight: theme.typography.fontWeight.medium,
+    },
+    webPanel: {
+        borderWidth: 1,
+        borderRadius: 14,
+        padding: 14,
+        gap: 8,
+    },
+    webPanelTitle: {
+        fontSize: 16,
+        fontWeight: "800",
+    },
+    webPanelBody: {
+        fontSize: 13,
+        lineHeight: 18,
     },
 });

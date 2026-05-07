@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -16,6 +16,8 @@ import { validateChangePasswordFormFields } from "@/features/auth/utils/authVali
 import { DeleteAccountModal } from "@/features/settings/components/DeleteAccountModal";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useUser } from "@/features/user/hooks/user.hook";
+import { WebSectionShell } from "@/features/web/components/WebSectionShell";
+import { ProfileTabsBar } from "@/features/web/components/ProfileTabsBar";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { showErrorToast, showSuccessToast } from "@/utils/toast";
 
@@ -95,6 +97,8 @@ const SecurityRow = ({
 };
 
 export default function PrivacySecurityScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && width >= 1024;
   const router = useRouter();
   const { palette } = useThemeContext();
   const authUser = useAuthStore((state) => state.user);
@@ -264,7 +268,7 @@ export default function PrivacySecurityScreen() {
     router.replace(APP_ROUTES.AUTH_LOGIN);
   };
 
-  return (
+  const content = (
     <Screen>
       <AppHeader
         title="Privacy & security"
@@ -526,9 +530,35 @@ export default function PrivacySecurityScreen() {
       />
     </Screen>
   );
+
+  if (isDesktopWeb) {
+    return (
+      <WebSectionShell
+        activeKey="settings"
+        rightPanel={
+          <View style={[styles.webPanel, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+            <Text style={[styles.webPanelTitle, { color: palette.textPrimary }]}>Security</Text>
+            <Text style={[styles.webPanelBody, { color: palette.textSecondary }]}>
+              Manage password, sessions, verification, and account safety controls.
+            </Text>
+          </View>
+        }
+      >
+        <View style={styles.webContent}>
+          <ProfileTabsBar />
+          {content}
+        </View>
+      </WebSectionShell>
+    );
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
+  webContent: {
+    flex: 1,
+  },
   sectionTitle: {
     fontSize: theme.typography.fontSize.md,
     lineHeight: theme.typography.lineHeight.md,
@@ -586,5 +616,19 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
+  },
+  webPanel: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    gap: 8,
+  },
+  webPanelTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  webPanelBody: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

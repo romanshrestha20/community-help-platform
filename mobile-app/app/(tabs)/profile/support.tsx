@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 
@@ -8,6 +8,8 @@ import { Screen, Stack, Row, theme } from "@/design-system";
 import { APP_ROUTES } from "@/config/routes";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { WebSectionShell } from "@/features/web/components/WebSectionShell";
+import { ProfileTabsBar } from "@/features/web/components/ProfileTabsBar";
 
 type SupportAction = {
   id: string;
@@ -62,6 +64,8 @@ const openSupportEmail = async (subject: string, body: string) => {
 };
 
 export default function HelpSupportScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && width >= 1024;
   const router = useRouter();
   const { palette } = useThemeContext();
   const authUser = useAuthStore((state) => state.user);
@@ -208,7 +212,7 @@ export default function HelpSupportScreen() {
     []
   );
 
-  return (
+  const content = (
     <Screen showsVerticalScrollIndicator={false}>
       <AppHeader
         title="Help & support"
@@ -310,6 +314,29 @@ export default function HelpSupportScreen() {
       </Stack>
     </Screen>
   );
+
+  if (isDesktopWeb) {
+    return (
+      <WebSectionShell
+        activeKey="settings"
+        rightPanel={
+          <View style={[styles.webPanel, { borderColor: palette.border, backgroundColor: palette.surface }]}>
+            <Text style={[styles.webPanelTitle, { color: palette.textPrimary }]}>Help & Support</Text>
+            <Text style={[styles.webPanelBody, { color: palette.textSecondary }]}>
+              Contact support, report issues, and review safety guidance from desktop.
+            </Text>
+          </View>
+        }
+      >
+        <View style={styles.webContent}>
+          <ProfileTabsBar />
+          {content}
+        </View>
+      </WebSectionShell>
+    );
+  }
+
+  return content;
 }
 
 const SupportSection = ({
@@ -415,6 +442,9 @@ const HelpTopicCard = ({ topic }: { topic: HelpTopic }) => {
 };
 
 const styles = StyleSheet.create({
+  webContent: {
+    flex: 1,
+  },
   hero: {
     position: "relative",
     overflow: "hidden",
@@ -559,5 +589,19 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xxs,
     fontSize: theme.typography.fontSize.sm,
     lineHeight: theme.typography.lineHeight.sm,
+  },
+  webPanel: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    gap: 8,
+  },
+  webPanelTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  webPanelBody: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
