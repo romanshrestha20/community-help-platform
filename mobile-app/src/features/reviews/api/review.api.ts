@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from "axios";
 import apiClient from "@/api/api-client";
 import type {
   CreateReviewPayload,
@@ -17,5 +18,12 @@ export const updateReviewApi = (reviewId: string, payload: UpdateReviewPayload) 
 export const deleteReviewApi = (reviewId: string) =>
   apiClient.delete(`/reviews/${reviewId}`);
 
-export const getUserReviewsApi = (userId: string, query?: ReviewsQuery) =>
-  apiClient.get(`/users/${userId}/reviews`, { params: query });
+export const getUserReviewsApi = (
+  userId: string,
+  query?: ReviewsQuery,
+  options?: AxiosRequestConfig
+) =>
+  apiClient.get(`/users/${userId}/reviews`, {
+    params: query,
+    ...(options ?? {}),
+  });
