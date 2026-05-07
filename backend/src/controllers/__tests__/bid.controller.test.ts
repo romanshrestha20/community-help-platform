@@ -3,6 +3,10 @@ import { makeNext, makeReq, makeRes } from "./test-utils.js";
 
 const { prismaMock } = vi.hoisted(() => ({
     prismaMock: {
+        userModel: {
+            findUnique: vi.fn(),
+            findMany: vi.fn(),
+        },
         helpRequest: {
             findUnique: vi.fn(),
             update: vi.fn(),
@@ -16,6 +20,9 @@ const { prismaMock } = vi.hoisted(() => ({
             delete: vi.fn(),
         },
         $transaction: vi.fn(),
+        message: {
+            findUnique: vi.fn(),
+        },
     },
 }));
 
@@ -50,9 +57,17 @@ describe("bid.controller", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         conversationServiceMock.ensureConversationForRequestInTransaction.mockResolvedValue({
-            conversation: { id: "conv-1" },
+            conversation: { id: "conv-1", members: [] },
             starterNote: "Bid accepted. You can now coordinate through chat.",
+            systemMessageCreated: false,
+            systemMessageId: null,
         });
+        prismaMock.userModel.findUnique.mockResolvedValue({
+            id: "requester-1",
+            email: "requester@example.com",
+        });
+        prismaMock.userModel.findMany.mockResolvedValue([]);
+        prismaMock.message.findUnique.mockResolvedValue(null);
     });
 
     it("placeBid: validates amount", async () => {
@@ -129,6 +144,7 @@ describe("bid.controller", () => {
                 message: "ok",
                 amount: 30,
                 createdAt: new Date("2026-03-29T00:00:00.000Z"),
+                request: { requesterId: "requester-1", title: "Need help" },
                 helper: {
                     id: "helper-1",
                     email: "helper@example.com",
@@ -247,6 +263,7 @@ describe("bid.controller", () => {
                 message: "ok",
                 amount: 25,
                 createdAt: new Date("2026-03-29T00:00:00.000Z"),
+                request: { requesterId: "requester-1", title: "Need help" },
                 helper: {
                     id: "helper-1",
                     email: "helper@example.com",
