@@ -134,6 +134,7 @@ const { prismaMock } = vi.hoisted(() => ({
     prismaMock: {
         userModel: {
             findUnique: vi.fn(),
+            findMany: vi.fn(),
         },
         category: {
             findFirst: vi.fn(),
@@ -170,8 +171,13 @@ const { notificationServiceMock } = vi.hoisted(() => ({
         getUserNotifications: vi.fn(),
         getUnreadNotificationCount: vi.fn(),
         markNotificationAsRead: vi.fn(),
+        markNotificationAsUnread: vi.fn(),
         markAllNotificationsAsRead: vi.fn(),
         deleteNotification: vi.fn(),
+        broadcastNotificationRead: vi.fn(),
+        broadcastNotificationUnread: vi.fn(),
+        broadcastNotificationReadAll: vi.fn(),
+        broadcastNotificationDeleted: vi.fn(),
     },
 }));
 
@@ -203,8 +209,13 @@ vi.mock("../../services/notification.service.js", () => ({
     getUserNotifications: notificationServiceMock.getUserNotifications,
     getUnreadNotificationCount: notificationServiceMock.getUnreadNotificationCount,
     markNotificationAsRead: notificationServiceMock.markNotificationAsRead,
+    markNotificationAsUnread: notificationServiceMock.markNotificationAsUnread,
     markAllNotificationsAsRead: notificationServiceMock.markAllNotificationsAsRead,
     deleteNotification: notificationServiceMock.deleteNotification,
+    broadcastNotificationRead: notificationServiceMock.broadcastNotificationRead,
+    broadcastNotificationUnread: notificationServiceMock.broadcastNotificationUnread,
+    broadcastNotificationReadAll: notificationServiceMock.broadcastNotificationReadAll,
+    broadcastNotificationDeleted: notificationServiceMock.broadcastNotificationDeleted,
 }));
 
 vi.mock("../../services/conversation.service.js", () => ({
@@ -259,10 +270,18 @@ describe("request/bid notification workflow routes", () => {
                 conversation: {
                     id: `conv-${requestId}`,
                     requestId,
+                    members: [
+                        { user: { id: USERS.requester.id } },
+                        { user: { id: USERS.helperOne.id } },
+                        { user: { id: USERS.helperTwo.id } },
+                    ],
                 },
                 starterNote: "Bid accepted. You can now coordinate through chat.",
+                systemMessageCreated: false,
+                systemMessageId: null,
             })
         );
+        prismaMock.userModel.findMany.mockResolvedValue([]);
 
         notificationServiceMock.getUserNotifications.mockImplementation(async (userId: string) => {
             return state.notifications
