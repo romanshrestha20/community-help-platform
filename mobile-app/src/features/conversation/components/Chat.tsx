@@ -350,7 +350,8 @@ const Chat: React.FC<ChatProps> = ({
                         }
 
                         const message = item.message;
-                        const isOwn = message.senderId === userId;
+                        const messageSenderId = message.senderId || message.sender?.id || "";
+                        const isOwn = Boolean(userId) && messageSenderId === userId;
                         const previousMessage =
                             item.messageIndex > 0 ? filteredMessages[item.messageIndex - 1] : null;
                         const nextMessage =
@@ -358,12 +359,12 @@ const Chat: React.FC<ChatProps> = ({
                                 ? filteredMessages[item.messageIndex + 1]
                                 : null;
                         const groupedWithPrevious =
-                            previousMessage?.senderId === message.senderId &&
+                            (previousMessage?.senderId || previousMessage?.sender?.id) === messageSenderId &&
                             previousMessage?.createdAt.slice(0, 10) === message.createdAt.slice(0, 10);
                         const groupedWithNext =
-                            nextMessage?.senderId === message.senderId &&
+                            (nextMessage?.senderId || nextMessage?.sender?.id) === messageSenderId &&
                             nextMessage?.createdAt.slice(0, 10) === message.createdAt.slice(0, 10);
-                        const senderMember = findConversationMember(message.senderId);
+                        const senderMember = findConversationMember(messageSenderId);
 
                         return (
                             <MessageBubble
