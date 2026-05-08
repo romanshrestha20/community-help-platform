@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useUserStore } from "../store/user.store";
 import { useAuthStore } from "@/features/auth/store/auth.store";
-import { clearTokens } from "@/utils/token";
+import { performClientLogout } from "@/features/auth/utils/logout";
 import {
   deleteUserCertificationService,
   deleteUserAvatarService,
@@ -19,7 +19,6 @@ import {
 } from "../types/user.types";
 
 export const useUser = () => {
-  const logout = useAuthStore((state) => state.logout);
   const authUserId = useAuthStore((state) => state.user?.id);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const canAccessProfileRoutes = useAuthStore((state) =>
@@ -293,8 +292,7 @@ export const useUser = () => {
     const result = await deleteUserProfileService(password);
 
     if (result.success) {
-      await clearTokens();
-      logout();
+      await performClientLogout();
       clearUser();
     } else {
       setError(result.message || "Failed to delete profile");
@@ -302,7 +300,7 @@ export const useUser = () => {
 
     setLoading(false);
     return result.success;
-  }, [canAccessProfileRoutes, clearUser, logout, setLoading, setError]);
+  }, [canAccessProfileRoutes, clearUser, setLoading, setError]);
 
   return {
     user,
