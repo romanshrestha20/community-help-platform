@@ -144,6 +144,13 @@ model RefreshToken {
   createdByIp String?
   lastUsedIp  String?
   userAgent   String?
+  deviceName  String?
+  deviceType  String?
+  platform    String?
+  browser     String?
+  locationLabel String?
+  appVersion  String?
+  loginMethod String?
 
   revokedAt         DateTime?
   revokedReason     String?
@@ -160,6 +167,7 @@ model RefreshToken {
   @@index([familyId])
   @@index([revokedAt])
   @@index([expiresAt])
+  @@index([userId, revokedAt, expiresAt])
   @@map("refresh_tokens")
 }
 
