@@ -12,6 +12,7 @@ export const APP_ROUTES = {
     PROFILE: "/profile",
     PROFILE_NOTIFICATIONS: "/profile/notifications",
     PROFILE_PRIVACY: "/profile/security",
+    PROFILE_LOGIN_ACTIVITY: "/profile/login-activity",
     PROFILE_SUPPORT: "/profile/support",
     PROFILE_REQUESTS: "/profile/requests",
     PROFILE_BIDS: "/profile/bids",
