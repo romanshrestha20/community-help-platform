@@ -130,6 +130,14 @@ export const logoutBodySchema = z.object({
   refreshToken: z.string().trim().min(1, "Refresh token is required."),
 });
 
+export const revokeSessionParamsSchema = z.object({
+  sessionId: z.string().trim().uuid("Session ID must be a valid UUID."),
+});
+
+export const logoutOtherSessionsBodySchema = z.object({
+  currentRefreshToken: z.string().trim().min(1, "Current refresh token is required."),
+});
+
 export const pushTokenBodySchema = z.object({
   token: z.string().trim().min(1, "Push token is required."),
   platform: z.string().trim().optional().nullable(),
