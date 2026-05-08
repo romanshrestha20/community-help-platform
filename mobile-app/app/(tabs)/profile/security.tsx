@@ -104,13 +104,9 @@ export default function PrivacySecurityScreen() {
   const authUser = useAuthStore((state) => state.user);
 
   const {
-    handleLogout,
-    handleLogoutAll,
     handleChangePassword,
     handleAddPassword,
     handleSendEmailVerification,
-    loadingLogout,
-    loadingLogoutAll,
     loadingChangePassword,
     loadingAddPassword,
     loadingSendEmailVerification,
@@ -258,15 +254,6 @@ export default function PrivacySecurityScreen() {
     );
   };
 
-  const logoutCurrentSession = async () => {
-    await handleLogout();
-    router.replace(APP_ROUTES.AUTH_LOGIN);
-  };
-
-  const logoutAllDevices = async () => {
-    await handleLogoutAll();
-    router.replace(APP_ROUTES.AUTH_LOGIN);
-  };
 
   const content = (
     <Screen>
@@ -315,22 +302,13 @@ export default function PrivacySecurityScreen() {
             />
 
             <SecurityRow
-              title="Log out from this device"
-              subtitle="End the current session and return to the sign-in screen."
-              actionLabel="Log out"
-              onPress={logoutCurrentSession}
-              disabled={loadingLogout}
-              loading={loadingLogout}
+              title="Login activity"
+              subtitle="View active sessions and log out other devices."
+              actionLabel="View"
+              onPress={() => router.push(APP_ROUTES.PROFILE_LOGIN_ACTIVITY)}
             />
 
-            <SecurityRow
-              title="Log out from all devices"
-              subtitle="Revoke all sessions and require sign-in everywhere."
-              actionLabel="Log out all"
-              onPress={logoutAllDevices}
-              disabled={loadingLogoutAll}
-              loading={loadingLogoutAll}
-            />
+      
           </Stack>
         </Card>
 

@@ -15,8 +15,8 @@ import { APP_ROUTES } from "@/config/routes";
 import { useAuth } from "@/features/auth/hooks/auth.hook";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
-import { clearTokens } from "@/utils/token";
 import { getMe } from "@/features/auth/api/auth.api";
+import { performClientLogout } from "@/features/auth/utils/logout";
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
@@ -30,7 +30,6 @@ export default function VerifyEmailScreen() {
   const hasAttemptedAutoResend = useRef(false);
   const currentUser = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const logout = useAuthStore((state) => state.logout);
   const {
     handleVerifyEmail,
     handleSendEmailVerification,
@@ -205,8 +204,7 @@ export default function VerifyEmailScreen() {
             }
             onPress={async () => {
               if (isAuthenticated && requiresVerification) {
-                await clearTokens();
-                logout();
+                await performClientLogout();
                 router.replace(APP_ROUTES.AUTH_LOGIN);
                 return;
               }

@@ -14,8 +14,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { canAccessAdminScreen } from "@/features/auth/utils/authz";
 import { useThemeStore } from "@/features/settings/store/theme.store";
-import { getAccessToken, getRefreshToken, clearTokens } from "@/utils/token";
+import { getAccessToken, getRefreshToken } from "@/utils/token";
 import { getMe } from "@/features/auth/api/auth.api";
+import { addSocketListener, connectSocket } from "@/lib/socket-client";
+import { performClientLogout } from "@/features/auth/utils/logout";
 import Toast from "react-native-toast-message";
 import { toastConfig } from "@/utils/toastConfig";
 import { configureToast } from "@/utils/toast";
@@ -38,7 +40,7 @@ export default function Layout() {
     Inter_700Bold,
   });
 
-  const { login, logout, isAuthenticated, user } = useAuthStore();
+  const { login, isAuthenticated, user } = useAuthStore();
   const { loadFavoriteIds, clearFavorites } = useFavorites();
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -95,15 +97,14 @@ export default function Layout() {
         ]);
 
         if (!storedAccessToken || !storedRefreshToken) {
-          logout();
+          await performClientLogout();
           return;
         }
 
         const result = await getMe();
 
         if (!result.success || !result.data) {
-          await clearTokens();
-          logout();
+          await performClientLogout();
           return;
         }
 
@@ -113,8 +114,7 @@ export default function Layout() {
           refreshToken: storedRefreshToken,
         });
       } catch {
-        await clearTokens();
-        logout();
+        await performClientLogout();
       } finally {
         if (isMounted) {
           setIsInitializing(false);
@@ -127,7 +127,7 @@ export default function Layout() {
     return () => {
       isMounted = false;
     };
-  }, [login, logout]);
+  }, [login]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -182,6 +182,23 @@ export default function Layout() {
       router.replace("/(tabs)/home");
     }
   }, [isAuthenticated, isInitializing, requiresOnboarding, router, segments, user]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const removeForceLogoutListener = addSocketListener("auth:force_logout", () => {
+      void (async () => {
+        await performClientLogout();
+        router.replace("/(auth)/login");
+      })();
+    });
+
+    void connectSocket().catch(() => undefined);
+
+    return () => {
+      removeForceLogoutListener();
+    };
+  }, [isAuthenticated, router]);
 
   useEffect(() => {
     if (isInitializing) return;
