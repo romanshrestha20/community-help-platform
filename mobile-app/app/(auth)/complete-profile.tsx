@@ -33,6 +33,7 @@ import {
   resolvePhoneCountryCode,
   splitPhoneNumber,
 } from "@/utils/phone";
+import { optimizePickedImage } from "@/utils/imageUpload";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 
 const TOTAL_STEPS = 3;
@@ -217,12 +218,8 @@ export default function CompleteProfileScreen() {
     if (result.canceled || !result.assets?.length) return;
 
     const asset = result.assets[0];
-    setAvatar({
-      uri: asset.uri,
-      name: asset.fileName ?? `avatar-${Date.now()}.jpg`,
-      type: asset.mimeType ?? "image/jpeg",
-      webFile: (asset as any).file ?? undefined,
-    });
+    const optimized = await optimizePickedImage(asset, `avatar-${Date.now()}.jpg`);
+    setAvatar(optimized);
   };
 
   const handleFinish = async () => {

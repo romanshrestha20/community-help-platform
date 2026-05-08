@@ -34,6 +34,7 @@ import { mapRequestErrorMessage } from "@/features/helpRequest/utils/requestErro
 import { formatUrgentDurationLabel } from "@/features/helpRequest/utils/urgent";
 import { showErrorToast, showSuccessToast, showInfoToast } from "@/utils/toast";
 import { goBackOrFallback } from "@/utils/navigation";
+import { optimizePickedImage } from "@/utils/imageUpload";
 
 const MAX_REQUEST_IMAGES = 5;
 const URGENT_DURATION_OPTIONS = [30, 60, 120, 240] as const;
@@ -212,12 +213,11 @@ export const NewPostComposerScreen = ({ requestId }: Props) => {
 
     if (result.canceled || !result.assets.length) return;
 
-    const nextImages = result.assets.slice(0, remainingSlots).map((asset, index) => ({
-      uri: asset.uri,
-      name: asset.fileName ?? `request-image-${Date.now()}-${index}.jpg`,
-      type: asset.mimeType ?? "image/jpeg",
-      webFile: (asset as any).file ?? undefined,
-    }));
+    const nextImages = await Promise.all(
+      result.assets.slice(0, remainingSlots).map((asset, index) =>
+        optimizePickedImage(asset, `request-image-${Date.now()}-${index}.jpg`)
+      )
+    );
 
     setSelectedImages((prev) => [...prev, ...nextImages]);
   };

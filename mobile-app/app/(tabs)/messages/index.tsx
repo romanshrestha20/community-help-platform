@@ -30,6 +30,7 @@ import { getHelpRequestById } from "@/features/helpRequest/services/helpRequest.
 import type { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
 import { formatRequestBudget, formatRequestLocation } from "@/features/helpRequest/utils/requestDisplay";
 import { APP_ROUTES } from "@/config/routes";
+import { getCloudinaryVariantUrl } from "@/utils/cloudinaryImage";
 
 const VAN_IMAGE =
   "https://images.unsplash.com/photo-1609521263047-f8f205293f24?auto=format&fit=crop&w=900&q=80";
@@ -287,7 +288,10 @@ export default function MessagesScreen() {
                 >
                   {message.content ? <Text style={[styles.bubbleText, { color: palette.textPrimary }]}>{message.content}</Text> : null}
                   {(message.images?.length ?? 0) > 0 ? (
-                    <Image source={{ uri: message.images[0].url }} style={styles.vanImage} />
+                    <Image
+                      source={{ uri: getCloudinaryVariantUrl(message.images[0].url, "thumbnail") }}
+                      style={styles.vanImage}
+                    />
                   ) : null}
                   <Text style={[styles.bubbleTime, { color: palette.textSecondary }]}>{formatTime(message.createdAt)}</Text>
                 </View>

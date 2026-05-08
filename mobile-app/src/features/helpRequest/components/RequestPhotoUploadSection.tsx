@@ -8,6 +8,7 @@ import { Card, Stack, colors, spacing, typography, theme } from "@/design-system
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { HelpRequest, RequestImageUploadInput } from "../types/helpRequest.types";
 import { FormFieldShell } from "@/components/ui/FormFieldShell";
+import { getCloudinaryVariantUrl } from "@/utils/cloudinaryImage";
 
 type PhotoGridProps = {
     images: PreviewImageItem[];
@@ -49,7 +50,10 @@ const PhotoGrid = ({ images, emptyLabel, onPressImage, onRemove }: PhotoGridProp
                     accessibilityRole={onPressImage ? "button" : undefined}
                     accessibilityLabel={onPressImage ? "Preview uploaded photo" : undefined}
                 >
-                    <Image source={{ uri: image.uri }} style={styles.photoImage} />
+                    <Image
+                        source={{ uri: getCloudinaryVariantUrl(image.uri, "thumbnail") }}
+                        style={styles.photoImage}
+                    />
                     {image.label ? (
                         <View style={styles.photoLabelPill}>
                             <Text style={styles.photoLabelText}>{image.label}</Text>
