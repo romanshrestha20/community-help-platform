@@ -19,8 +19,9 @@ import {
 
 import { LoginDto, RegisterDto } from "../types/auth.types";
 import { useAuthStore } from "../store/auth.store";
+import { performClientLogout } from "../utils/logout";
 
-import { saveTokens, clearTokens, getRefreshToken } from "@/utils/token";
+import { saveTokens, getRefreshToken } from "@/utils/token";
 
 const getErrorMessage = (error: any, fallback: string) => {
   return (
@@ -45,7 +46,6 @@ const normalizeForgotPasswordError = (message: string) => {
 
 export const useAuth = () => {
   const login = useAuthStore((state) => state.login);
-  const logout = useAuthStore((state) => state.logout);
   const setUser = useAuthStore((state) => state.setUser);
 
   const [loadingLogin, setLoadingLogin] = useState(false);
@@ -192,8 +192,7 @@ export const useAuth = () => {
       const message = getErrorMessage(err, "Logout request failed");
       setError(message);
     } finally {
-      await clearTokens();
-      logout();
+      await performClientLogout();
       setLoadingLogout(false);
     }
   };
@@ -208,8 +207,7 @@ export const useAuth = () => {
       const message = getErrorMessage(err, "Logout-all request failed");
       setError(message);
     } finally {
-      await clearTokens();
-      logout();
+      await performClientLogout();
       setLoadingLogoutAll(false);
     }
   };

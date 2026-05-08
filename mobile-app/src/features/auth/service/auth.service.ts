@@ -5,8 +5,9 @@ import type {
   RegisterDto,
 } from "../types/auth.types";
 import * as authApi from "../api/auth.api";
-import { saveTokens, clearTokens, getRefreshToken } from "../../../utils/token";
+import { saveTokens, getRefreshToken } from "../../../utils/token";
 import { useAuthStore } from "../store/auth.store";
+import { performClientLogout } from "../utils/logout";
 
 type AuthSuccessResult = {
   success: true;
@@ -111,8 +112,7 @@ export const logoutUser = async (): Promise<AuthActionResult> => {
       await authApi.logout(refreshToken);
     }
 
-    await clearTokens();
-    useAuthStore.getState().logout();
+    await performClientLogout();
 
     return {
       success: true,
@@ -139,8 +139,7 @@ export const changePassword = async (
     );
 
     if (response.success) {
-      await clearTokens();
-      useAuthStore.getState().logout();
+      await performClientLogout();
     }
 
     return response;
@@ -227,4 +226,3 @@ export const verifyPhoneCode = async (
     };
   }
 };
-
