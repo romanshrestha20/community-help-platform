@@ -5,11 +5,11 @@ import {
   getAccessToken,
   getRefreshToken,
   saveTokens,
-  clearTokens,
 } from "../utils/token";
 import { showToast } from "../utils/toast";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { reconnectSocketWithFreshToken } from "@/lib/socket-client";
+import { performClientLogout } from "@/features/auth/utils/logout";
 
 type RetryRequest = AxiosRequestConfig & {
   _retry?: boolean;
@@ -90,12 +90,26 @@ apiClient.interceptors.request.use(
   async (config) => {
     try {
       const token = await getAccessToken();
+      const constants = Constants as unknown as {
+        expoConfig?: { version?: string };
+        manifest2?: { extra?: { expoClient?: { version?: string } } };
+        deviceName?: string;
+      };
+      const appVersion =
+        constants.expoConfig?.version ||
+        constants.manifest2?.extra?.expoClient?.version ||
+        undefined;
+      const deviceName = constants.deviceName || undefined;
 
       config.headers = config.headers || {};
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+
+      config.headers["x-platform"] = Platform.OS;
+      if (appVersion) config.headers["x-app-version"] = appVersion;
+      if (deviceName) config.headers["x-device-name"] = deviceName;
 
       const isFormData =
         typeof FormData !== "undefined" && config.data instanceof FormData;
@@ -143,8 +157,7 @@ apiClient.interceptors.response.use(
     const authState = useAuthStore.getState();
 
     if (originalRequest.url?.includes("/auth/refresh")) {
-      await clearTokens();
-      authState.logout();
+      await performClientLogout();
       return Promise.reject(error);
     }
 
@@ -158,8 +171,7 @@ apiClient.interceptors.response.use(
       const refreshToken = await getRefreshToken();
 
       if (!refreshToken) {
-        await clearTokens();
-        authState.logout();
+        await performClientLogout();
         return Promise.reject(error);
       }
 
@@ -211,8 +223,7 @@ apiClient.interceptors.response.use(
       } catch (err) {
         processQueue(err, null);
 
-        await clearTokens();
-        authState.logout();
+        await performClientLogout();
 
         showToast("error", "Session expired", "Please login again");
 
