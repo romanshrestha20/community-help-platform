@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { io, type Socket } from "socket.io-client";
 
-import { getAccessToken } from "@/utils/token";
+import { getAccessToken, getRefreshToken } from "@/utils/token";
 
 type AckResponse<T = unknown> = {
   ok: boolean;
@@ -113,13 +113,16 @@ const emitAck = <T>(targetSocket: Socket, event: string, payload?: unknown) =>
 
 export const connectSocket = async () => {
   const targetSocket = ensureSocketInstance();
-  const token = await getAccessToken();
+  const [token, refreshToken] = await Promise.all([
+    getAccessToken(),
+    getRefreshToken(),
+  ]);
 
   if (!token) {
     throw new Error("Missing access token for socket connection");
   }
 
-  targetSocket.auth = { token };
+  targetSocket.auth = { token, refreshToken: refreshToken ?? undefined };
 
   if (targetSocket.connected) {
     return targetSocket;
@@ -169,13 +172,16 @@ export const disconnectSocket = () => {
 export const getSocket = () => socket;
 
 export const reconnectSocketWithFreshToken = async () => {
-  const token = await getAccessToken();
+  const [token, refreshToken] = await Promise.all([
+    getAccessToken(),
+    getRefreshToken(),
+  ]);
 
   if (!socket || !token) {
     return;
   }
 
-  socket.auth = { token };
+  socket.auth = { token, refreshToken: refreshToken ?? undefined };
 
   if (socket.connected) {
     socket.disconnect();
