@@ -15,6 +15,8 @@ import {
   googleLoginBodySchema,
   loginBodySchema,
   logoutBodySchema,
+  logoutOtherSessionsBodySchema,
+  revokeSessionParamsSchema,
   refreshTokenBodySchema,
   registerUserBodySchema,
   resetPasswordBodySchema,
@@ -57,6 +59,8 @@ import { buildVerificationBadges } from "../utils/verification-badges.js";
 import {
   issueSessionTokens,
   listUserSessions,
+  revokeOtherSessionsForUser,
+  revokeSessionById,
   revokeAllSessionsForUser,
   revokeSessionByRefreshToken,
   rotateRefreshToken,
@@ -110,6 +114,61 @@ const getRequestIp = (req: Request) => {
 };
 
 const getRequestUserAgent = (req: Request) => req.headers["user-agent"];
+const getRequestHeader = (req: Request, key: string) => {
+  const value = req.headers[key];
+  if (Array.isArray(value)) return value[0];
+  if (typeof value === "string") return value;
+  return undefined;
+};
+
+const getRequestSessionContext = (req: Request) => ({
+  deviceName: getRequestHeader(req, "x-device-name"),
+  platform: getRequestHeader(req, "x-platform"),
+  appVersion: getRequestHeader(req, "x-app-version"),
+  locationLabel: getRequestHeader(req, "x-location-label"),
+});
+
+const maskIpAddress = (value?: string | null) => {
+  if (!value) return null;
+  const ip = value.trim();
+  if (ip.includes(".")) {
+    const parts = ip.split(".");
+    if (parts.length === 4) {
+      return `${parts[0]}.xxx.xxx.${parts[3]}`;
+    }
+  }
+  if (ip.includes(":")) {
+    const parts = ip.split(":").filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0]}:****:${parts[parts.length - 1]}`;
+    }
+  }
+  return "hidden";
+};
+
+const inferSessionDeviceName = ({
+  deviceName,
+  browser,
+  platform,
+  userAgent,
+}: {
+  deviceName?: string | null;
+  browser?: string | null;
+  platform?: string | null;
+  userAgent?: string | null;
+}) => {
+  if (deviceName?.trim()) return deviceName.trim();
+  const ua = (userAgent ?? "").toLowerCase();
+  if (ua.includes("iphone")) return "iPhone";
+  if (ua.includes("ipad")) return "iPad";
+  if (ua.includes("android") && ua.includes("mobile")) return "Android phone";
+  if (ua.includes("android")) return "Android device";
+  if (ua.includes("windows")) return `${browser ?? "Browser"} · Windows`;
+  if (ua.includes("mac os") || ua.includes("macintosh")) return `${browser ?? "Browser"} · macOS`;
+  if (ua.includes("linux")) return `${browser ?? "Browser"} · Linux`;
+  const parts = [browser, platform].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Unknown device";
+};
 
 const queueEmailVerification = async ({
   userId,
@@ -300,6 +359,8 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       userId: createdUser.id,
       ipAddress: getRequestIp(req),
       userAgent: getRequestUserAgent(req),
+      ...getRequestSessionContext(req),
+      loginMethod: "EMAIL_PASSWORD",
       invalidateAllExisting: true,
     });
 
@@ -469,6 +530,8 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       userId: user.id,
       ipAddress,
       userAgent,
+      ...getRequestSessionContext(req),
+      loginMethod: "EMAIL_PASSWORD",
       invalidateAllExisting: false,
     });
     try {
@@ -1221,6 +1284,7 @@ export const refreshAccessToken = async (req: Request, res: Response, next: Next
       refreshToken,
       ipAddress: getRequestIp(req),
       userAgent: getRequestUserAgent(req),
+      ...getRequestSessionContext(req),
     });
 
     res.status(200).json({
@@ -1283,6 +1347,90 @@ export const logoutAllSessions = async (req: Request, res: Response, next: NextF
   }
 };
 
+export const revokeMySession = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    const parsedParams = revokeSessionParamsSchema.safeParse(req.params);
+    if (!parsedParams.success) {
+      return next(new AppError(getZodErrorMessage(parsedParams.error), 400));
+    }
+
+    const currentRefreshToken = getRequestHeader(req, "x-session-refresh-token");
+    if (!currentRefreshToken) {
+      return next(new AppError("Current session token is required", 400));
+    }
+
+    const currentRefreshTokenHash = hashToken(currentRefreshToken);
+    const [currentSession, targetSession] = await Promise.all([
+      prisma.refreshToken.findUnique({
+        where: { tokenHash: currentRefreshTokenHash },
+        select: { id: true, userId: true },
+      }),
+      prisma.refreshToken.findFirst({
+        where: {
+          id: parsedParams.data.sessionId,
+          userId,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!targetSession) {
+      return next(new AppError("Session not found", 404));
+    }
+
+    if (currentSession?.userId === userId && currentSession.id === targetSession.id) {
+      return next(new AppError("Use normal logout for the current device", 400));
+    }
+
+    await revokeSessionById({
+      sessionId: parsedParams.data.sessionId,
+      userId,
+      reason: "USER_REVOKED_SESSION",
+    });
+
+    return sendResponse(res, {
+      statusCode: 200,
+      message: "Session revoked successfully.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const logoutOtherSessions = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return next(new AppError("Unauthorized", 401));
+    }
+
+    const parsedBody = logoutOtherSessionsBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return next(new AppError(getZodErrorMessage(parsedBody.error), 400));
+    }
+
+    await revokeOtherSessionsForUser({
+      userId,
+      currentRefreshTokenHash: hashToken(parsedBody.data.currentRefreshToken),
+      reason: "USER_LOGOUT_OTHERS",
+    });
+
+    return sendResponse(res, {
+      statusCode: 200,
+      message: "Logged out from other sessions successfully.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 export const getMySessions = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.userId;
@@ -1290,11 +1438,41 @@ export const getMySessions = async (req: Request, res: Response, next: NextFunct
       return next(new AppError("Unauthorized", 401));
     }
 
+    const currentRefreshToken = getRequestHeader(req, "x-session-refresh-token");
+    const currentRefreshTokenHash = currentRefreshToken ? hashToken(currentRefreshToken) : null;
+    const currentSession = currentRefreshTokenHash
+      ? await prisma.refreshToken.findUnique({
+        where: { tokenHash: currentRefreshTokenHash },
+        select: { id: true, userId: true },
+      })
+      : null;
+
     const sessions = await listUserSessions(userId);
+    const data = sessions.map((session) => ({
+      id: session.id,
+      current: Boolean(currentSession && currentSession.userId === userId && currentSession.id === session.id),
+      deviceName: inferSessionDeviceName({
+        deviceName: session.deviceName,
+        browser: session.browser,
+        platform: session.platform,
+        userAgent: session.userAgent,
+      }),
+      deviceType: session.deviceType ?? "UNKNOWN",
+      platform: session.platform ?? null,
+      browser: session.browser ?? null,
+      locationLabel: session.locationLabel ?? null,
+      ipAddress: maskIpAddress(session.lastUsedIp ?? session.createdByIp),
+      loginMethod: session.loginMethod ?? "EMAIL_PASSWORD",
+      createdAt: session.createdAt,
+      lastActiveAt: session.lastUsedAt ?? session.createdAt,
+      expiresAt: session.expiresAt,
+      userAgent: session.userAgent ?? null,
+      appVersion: session.appVersion ?? null,
+    }));
 
     return sendResponse(res, {
       statusCode: 200,
-      data: sessions,
+      data,
       message: "Sessions retrieved successfully.",
     });
   } catch (error) {
@@ -1470,6 +1648,8 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
       userId,
       ipAddress: getRequestIp(req),
       userAgent: getRequestUserAgent(req),
+      ...getRequestSessionContext(req),
+      loginMethod: "GOOGLE",
       invalidateAllExisting: false,
     });
     try {

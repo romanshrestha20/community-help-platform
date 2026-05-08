@@ -16,7 +16,9 @@ import {
   loginWithGoogle,
   logoutCurrentSession,
   logoutAllSessions,
+  logoutOtherSessions,
   getMySessions,
+  revokeMySession,
 } from "../controllers/auth.controller.js";
 
 import {
@@ -54,6 +56,8 @@ router.post("/refresh", refreshAccessToken);
 router.post("/logout", authenticateUser, logoutCurrentSession);
 router.post("/logout-all", authenticateUser, logoutAllSessions);
 router.get("/sessions", authenticateUser, getMySessions);
+router.delete("/sessions/:sessionId", authenticateUser, revokeMySession);
+router.delete("/sessions", authenticateUser, logoutOtherSessions);
 
 // Profile
 router.get("/profile", authenticateUser, getUserProfile);
