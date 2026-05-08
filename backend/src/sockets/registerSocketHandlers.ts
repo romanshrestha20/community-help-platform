@@ -5,10 +5,12 @@ import {
   markConversationMessagesAsRead,
   sendConversationMessage,
 } from "../services/conversation.service.js";
-import { verifyAccessToken } from "../utils/jwt.js";
+import { verifyAccessToken, verifyRefreshToken } from "../utils/jwt.js";
+import { hashToken } from "../utils/token.js";
 
 type SocketUser = {
   userId: string;
+  sessionId?: string;
 };
 
 type AuthedSocket = Socket & {
@@ -31,8 +33,16 @@ const getTokenFromSocket = (socket: Socket) => {
   return null;
 };
 
+const getRefreshTokenFromSocket = (socket: Socket) => {
+  const authRefreshToken = socket.handshake.auth?.refreshToken;
+  if (typeof authRefreshToken === "string" && authRefreshToken.trim()) {
+    return authRefreshToken;
+  }
+  return null;
+};
+
 export const registerSocketHandlers = (io: Server) => {
-  io.use((socket: AuthedSocket, next) => {
+  io.use(async (socket: AuthedSocket, next) => {
     try {
       const token = getTokenFromSocket(socket);
       console.log("[socket] auth attempt", {
@@ -51,10 +61,32 @@ export const registerSocketHandlers = (io: Server) => {
         return next(new Error("Unauthorized"));
       }
 
-      socket.data.user = { userId: decoded.userId };
+      const refreshToken = getRefreshTokenFromSocket(socket);
+      let sessionId: string | undefined;
+
+      if (refreshToken) {
+        try {
+          const refreshPayload = verifyRefreshToken(refreshToken);
+          if (refreshPayload.userId === decoded.userId) {
+            const storedSession = await prisma.refreshToken.findUnique({
+              where: { tokenHash: hashToken(refreshToken) },
+              select: { id: true, userId: true },
+            });
+
+            if (storedSession?.userId === decoded.userId) {
+              sessionId = storedSession.id;
+            }
+          }
+        } catch {
+          // Ignore refresh-token errors for socket auth; access token is still authoritative.
+        }
+      }
+
+      socket.data.user = { userId: decoded.userId, sessionId };
       console.log("[socket] auth success", {
         socketId: socket.id,
         userId: decoded.userId,
+        sessionId: sessionId ?? null,
       });
       next();
     } catch (error) {
@@ -80,6 +112,10 @@ export const registerSocketHandlers = (io: Server) => {
     });
 
     socket.join(`user:${userId}`);
+    const sessionId = socket.data.user?.sessionId;
+    if (sessionId) {
+      socket.join(`session:${sessionId}`);
+    }
 
     socket.on("conversation:join", async ({ conversationId }, ack) => {
       try {
