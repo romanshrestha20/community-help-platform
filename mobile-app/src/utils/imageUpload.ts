@@ -1,6 +1,5 @@
 import type { ImagePickerAsset } from "expo-image-picker";
-// eslint-disable-next-line import/no-unresolved
-import { SaveFormat, manipulateAsync } from "expo-image-manipulator";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 
 type PickedImage = {
   uri: string;
@@ -39,14 +38,16 @@ export const optimizePickedImage = async (
 ): Promise<PickedImage> => {
   const resizeAction = getResizeAction(asset.width, asset.height);
 
-  const result = await manipulateAsync(
-    asset.uri,
-    resizeAction ? [resizeAction] : [],
-    {
-      compress: JPEG_QUALITY,
-      format: SaveFormat.JPEG,
-    }
-  );
+  const context = ImageManipulator.manipulate(asset.uri);
+  if (resizeAction?.resize) {
+    context.resize(resizeAction.resize);
+  }
+
+  const rendered = await context.renderAsync();
+  const result = await rendered.saveAsync({
+    compress: JPEG_QUALITY,
+    format: SaveFormat.JPEG,
+  });
 
   return {
     uri: result.uri,
