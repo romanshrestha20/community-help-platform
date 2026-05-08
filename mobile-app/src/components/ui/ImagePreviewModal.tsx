@@ -18,6 +18,7 @@ import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useOverlayStore } from "@/features/ui/store/overlay.store";
 import { AppHeader } from "@/components/ui/AppHeader";
+import { getCloudinaryVariantUrl } from "@/utils/cloudinaryImage";
 
 const THUMB_SIZE = 64;
 const THUMB_GAP = theme.spacing.sm;
@@ -156,7 +157,10 @@ export const ImagePreviewModal = ({
                       },
                     ]}
                   >
-                    <Image source={{ uri: image.uri }} style={styles.thumbnailImage}  />
+                    <Image
+                      source={{ uri: getCloudinaryVariantUrl(image.uri, "thumbnail") }}
+                      style={styles.thumbnailImage}
+                    />
                   </Pressable>
                 );
               })}
@@ -194,7 +198,11 @@ export const ImagePreviewModal = ({
                   key={`${image.uri}-${index}`}
                   style={[styles.slide, { width: viewportWidth, height: "100%" }]}
                 >
-                  <Image source={{ uri: image.uri }} style={styles.slideImage} resizeMode="contain" />
+                  <Image
+                    source={{ uri: getCloudinaryVariantUrl(image.uri, "detail") }}
+                    style={styles.slideImage}
+                    resizeMode="contain"
+                  />
                 </View>
               ))}
             </ScrollView>
