@@ -25,6 +25,7 @@ import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
 import { showErrorToast, showInfoToast, showSuccessToast } from "@/utils/toast";
+import { optimizePickedImage } from "@/utils/imageUpload";
 import {
   combinePhoneNumber,
   getCallingCodeForCountry,
@@ -516,14 +517,15 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     }
 
     const asset = result.assets[0];
+    const optimized = await optimizePickedImage(asset, `certification-${Date.now()}.jpg`);
 
     setUploadingCertification(true);
     try {
       const response = await handleUploadCertification({
-        uri: asset.uri,
-        name: asset.fileName ?? `certification-${Date.now()}.jpg`,
-        type: asset.mimeType ?? "image/jpeg",
-        webFile: (asset as any).file ?? undefined,
+        uri: optimized.uri,
+        name: optimized.name,
+        type: optimized.type,
+        webFile: optimized.webFile,
         certificationName,
         issuer: certificationIssuer,
         credentialId: certificationCredentialId || undefined,

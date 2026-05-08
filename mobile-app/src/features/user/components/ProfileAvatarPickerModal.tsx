@@ -5,7 +5,8 @@ import * as ImagePicker from "expo-image-picker";
 import { radius, spacing, typography } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useUser } from "../hooks/user.hook";
-import { showInfoToast, showSuccessToast, showToast } from "@/utils/toast";
+import { showInfoToast, showSuccessToast } from "@/utils/toast";
+import { optimizePickedImage } from "@/utils/imageUpload";
 
 type Props = {
   visible: boolean;
@@ -35,13 +36,9 @@ export const ProfileAvatarPickerModal = ({ visible, onClose }: Props) => {
       if (result.canceled || !result.assets?.length) return;
 
       const asset = result.assets[0];
+      const optimized = await optimizePickedImage(asset, `avatar-${Date.now()}.jpg`);
 
-      const success = await handleUploadAvatar({
-        uri: asset.uri,
-        name: asset.fileName ?? `avatar-${Date.now()}.jpg`,
-        type: asset.mimeType ?? "image/jpeg",
-        webFile: (asset as any).file ?? undefined,
-      });
+      const success = await handleUploadAvatar(optimized);
 
       if (success) {
         onClose();

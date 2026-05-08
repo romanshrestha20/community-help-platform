@@ -12,6 +12,7 @@ import {
 import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import type { HelpRequestImage } from "../types/helpRequest.types";
+import { getCloudinaryVariantUrl } from "@/utils/cloudinaryImage";
 
 type Props = {
   images: HelpRequestImage[];
@@ -71,7 +72,7 @@ export const RequestPhotoCarousel = ({
             ]}
           >
             <Image
-              source={{ uri: image.url }}
+              source={{ uri: getCloudinaryVariantUrl(image.url, "thumbnail") }}
               style={[
                 styles.image,
                 { backgroundColor: palette.surfaceMuted },

@@ -5,6 +5,7 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { AppButton } from "@/components/ui/AppButton";
 import { Card, theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
+import { getCloudinaryVariantUrl } from "@/utils/cloudinaryImage";
 
 type Props = {
   avatarUrl?: string | null;
@@ -60,7 +61,10 @@ export const ProfileHeroCard = ({
             ]}
           >
             {hasAvatar ? (
-              <Image source={{ uri: avatarUrl! }} style={styles.avatarImage} />
+              <Image
+                source={{ uri: getCloudinaryVariantUrl(avatarUrl!, "thumbnail") }}
+                style={styles.avatarImage}
+              />
             ) : (
               <Text style={[styles.avatarInitial, { color: palette.textPrimary }]}>
                 {initials}

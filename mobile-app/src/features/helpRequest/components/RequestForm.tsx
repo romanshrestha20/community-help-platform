@@ -9,6 +9,7 @@ import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
 import { useLocationPickerScreenStore } from "@/features/location/store/locationPickerScreen.store";
 import { showInfoToast } from "@/utils/toast";
 import { useFormValidation } from "@/utils/validation/useFormValidation";
+import { optimizePickedImage } from "@/utils/imageUpload";
 import { useHelpRequest } from "../hooks/helpRequest.hook";
 import { useCategories } from "@/features/category/hooks/category.hook";
 import {
@@ -140,12 +141,11 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 
         if (result.canceled || !result.assets.length) return;
 
-        const nextImages = result.assets.slice(0, remainingSlots).map((asset, index) => ({
-            uri: asset.uri,
-            name: asset.fileName ?? `request-image-${Date.now()}-${index}.jpg`,
-            type: asset.mimeType ?? "image/jpeg",
-            webFile: (asset as any).file ?? undefined,
-        }));
+        const nextImages = await Promise.all(
+            result.assets.slice(0, remainingSlots).map((asset, index) =>
+                optimizePickedImage(asset, `request-image-${Date.now()}-${index}.jpg`)
+            )
+        );
 
         setSelectedImages((prev) => [...prev, ...nextImages]);
     };
