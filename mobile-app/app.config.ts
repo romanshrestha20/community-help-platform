@@ -10,11 +10,14 @@ const config: ExpoConfig = {
   "owner": "romann_shrr",
 
   icon: "./assets/images/icon.png",
-
   splash: {
     image: "./assets/images/splash-screen.png",
     resizeMode: "cover",
     backgroundColor: "#F6F5F0",
+  },
+
+  web: {
+    favicon: "./assets/images/favicon.png",
   },
 
   ios: {
