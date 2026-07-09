@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getOtherParticipant, getLastMessagePreview, isValidConversation } from "./conversation.utils";
 import type { Conversation } from "../types/conversation.type";
 
@@ -36,6 +36,27 @@ describe("conversation.utils", () => {
         expect(getOtherParticipant(baseConversation, "user-2")?.id).toBe("user-1");
     });
 
+    it("getOtherParticipant falls back to assigned helper, requester, or undefined", () => {
+        expect(getOtherParticipant(baseConversation, "user-1", "b@b.com")?.id).toBe("user-2");
+
+        const requesterFallbackConversation: Conversation = {
+            ...baseConversation,
+            request: {
+                ...baseConversation.request,
+                assignedHelperId: null,
+            },
+        };
+
+        expect(getOtherParticipant(requesterFallbackConversation, "user-1", "b@b.com")?.id).toBe("user-1");
+
+        const noMembers: Conversation = {
+            ...baseConversation,
+            members: [],
+        };
+
+        expect(getOtherParticipant(noMembers, "user-1")).toBeUndefined();
+    });
+
     it("getLastMessagePreview returns correct preview", () => {
         expect(getLastMessagePreview(baseConversation, "user-1")).toBe("Hello!");
         expect(getLastMessagePreview(baseConversation, "user-2")).toBe("You: Hello!");
@@ -48,7 +69,43 @@ describe("conversation.utils", () => {
 
     it("getLastMessagePreview falls back to default", () => {
         const conv: Conversation = { ...baseConversation, lastMessage: null, starterNote: null };
-        expect(getLastMessagePreview(conv, "user-1")).toBe("No messages yet");
+        expect(getLastMessagePreview(conv, "user-1")).toBe("Chat is ready for handoff details and updates.");
+    });
+
+    it("getLastMessagePreview returns status-specific defaults and empty-content fallback", () => {
+        expect(
+            getLastMessagePreview(
+                { ...baseConversation, lastMessage: null, starterNote: null, request: { ...baseConversation.request, status: "COMPLETED" } },
+                "user-1"
+            )
+        ).toBe("This request is complete. Conversation remains for reference.");
+
+        expect(
+            getLastMessagePreview(
+                { ...baseConversation, lastMessage: null, starterNote: null, request: { ...baseConversation.request, status: "CANCELLED" } },
+                "user-1"
+            )
+        ).toBe("This request was cancelled. Conversation is closed.");
+
+        expect(
+            getLastMessagePreview(
+                { ...baseConversation, lastMessage: null, starterNote: null, request: { ...baseConversation.request, status: "OPEN" } },
+                "user-1"
+            )
+        ).toBe("Conversation opens once a helper is assigned.");
+
+        expect(
+            getLastMessagePreview(
+                {
+                    ...baseConversation,
+                    lastMessage: {
+                        ...baseConversation.lastMessage!,
+                        content: "",
+                    },
+                },
+                "user-1"
+            )
+        ).toBe("[No content]");
     });
 
     it("isValidConversation returns true for valid shape", () => {
