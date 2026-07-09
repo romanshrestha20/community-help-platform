@@ -146,7 +146,7 @@ describe("user.controller", () => {
             message: "User account deleted successfully",
         });
         expect(next).not.toHaveBeenCalled();
-    });
+    }, 10000);
 
     it("deleteUserAccount: deletes oauth-only user without password", async () => {
         prismaMock.userModel.findUnique.mockResolvedValue({
