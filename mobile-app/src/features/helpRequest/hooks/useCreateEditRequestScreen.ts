@@ -14,6 +14,7 @@ import {
     validateRequestDraftFields,
 } from "../utils/requestValidation";
 import { AppCategory } from "@/features/category/types/category.types";
+import { resolveRequestCategoryId } from "../utils/resolveRequestCategoryId";
 import {
     DEFAULT_REQUEST_FORM,
     RequestFormState,
@@ -22,25 +23,6 @@ import { buildRequestDraftKey, useRequestDraftStore } from "../store/requestDraf
 
 type Options = {
     requestId?: string;
-};
-
-export const resolveRequestCategoryId = (
-    request: Pick<HelpRequest, "categoryId" | "category">,
-    categories: AppCategory[] = []
-) => {
-    if (typeof request.categoryId === "string" && request.categoryId.trim()) {
-        return request.categoryId;
-    }
-
-    if (request.category?.id) {
-        return request.category.id;
-    }
-
-    if (request.category?.slug) {
-        return categories.find((category) => category.slug === request.category?.slug)?.id ?? "";
-    }
-
-    return "";
 };
 
 const toRequestLocation = (request: HelpRequest): AppLocation | null => {
