@@ -23,6 +23,15 @@ Run the full suite once:
 npm run test:run
 ```
 
+Run integration tests against disposable PostgreSQL and Redis containers:
+
+```bash
+npm run test:integration
+```
+
+The integration runner starts the containers, applies migrations, runs the
+integration suite, and removes the containers and volumes afterward.
+
 Run a single test file:
 
 ```bash
@@ -112,7 +121,7 @@ Common patterns:
 ## Coverage Notes
 
 - The current suite is focused on controller-level behavior.
-- There are no automated mobile-app tests in the repository yet.
+- Mobile-app unit tests run separately from `mobile-app/` with `npm run test:run`.
 - The test suite is intentionally lightweight and avoids hitting the real database or external Google APIs.
 
 ## Maintenance Notes

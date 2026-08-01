@@ -470,6 +470,7 @@ model Bid {
   @@index([helpRequestId])
   @@index([status])
   @@index([createdAt])
+  @@unique([helperId, helpRequestId])
   @@map("bids")
 }
 

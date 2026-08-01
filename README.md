@@ -100,6 +100,7 @@ Common backend config knobs:
 - `HOST` (default `0.0.0.0`)
 - `CORS_ALLOWED_ORIGINS` (comma-separated list)
 - `STRICT_REDIS_STARTUP` (`true` to fail startup when Redis is unavailable)
+- `REDIS_RETRY_COOLDOWN_MS` (development retry cooldown after a failed Redis connection; default `30000`)
 
 Common optional variables (depending on which features you want enabled):
 
@@ -132,6 +133,7 @@ npm run build
 npm start
 npm run test
 npm run test:run
+npm run check
 npm run prisma:migrate:deploy
 npm run prisma:migrate:deploy:retry
 ```
@@ -165,6 +167,23 @@ npm run android
 npm run ios
 npm run web
 ```
+
+Verify the mobile app before committing:
+
+```bash
+npm run check
+```
+
+This runs TypeScript, ESLint, and the mobile unit tests. GitHub Actions runs the
+backend and mobile checks for every pull request and every push to `main`.
+
+## Health Checks and Shutdown
+
+- `GET /health/live` reports whether the API process is running.
+- `GET /health/ready` verifies PostgreSQL and required Redis readiness.
+- `SIGTERM` and `SIGINT` stop accepting traffic and close HTTP, Redis, and
+  Prisma connections cleanly.
+- API responses include an `x-request-id` header for log correlation.
 
 ## Phone Verification Modes
 
