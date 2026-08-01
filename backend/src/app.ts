@@ -13,6 +13,9 @@ import userRoutes from './routes/user.route.js';
 import skillRoutes from './routes/skill.route.js';
 import adminRoutes from './routes/admin.route.js';
 import { errorHandler, notFound } from './middlewares/error.middleware.js';
+import { requestMonitoring } from './middlewares/request-monitoring.middleware.js';
+import { checkReadiness } from './services/health.service.js';
+import { logger } from './lib/logger.js';
 
 
 const app = express();
@@ -53,14 +56,15 @@ app.use(
     crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
+app.use(requestMonitoring);
 
 app.use((req, _res, next) => {
   if (req.method === "OPTIONS") {
     const requestOrigin = req.headers.origin;
     const requestMethod = req.headers["access-control-request-method"];
 
-    console.log("[cors] preflight", {
-      path: req.originalUrl,
+    logger.info("cors_preflight", {
+      path: req.path,
       origin: requestOrigin || null,
       requestMethod: requestMethod || null,
       allowed: isOriginAllowed(requestOrigin),
@@ -76,6 +80,18 @@ app.use(express.json());
 
 app.get('/', (req, res) => {
   res.send('Hello, server is running!');
+});
+
+app.get('/health/live', (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
+app.get('/health/ready', async (_req, res) => {
+  const readiness = await checkReadiness();
+  res.status(readiness.ready ? 200 : 503).json({
+    status: readiness.ready ? "ready" : "not_ready",
+    dependencies: readiness.dependencies,
+  });
 });
 
 app.use('/api/auth', authRoutes);
