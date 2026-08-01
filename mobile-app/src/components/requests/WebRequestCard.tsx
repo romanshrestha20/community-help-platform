@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { AppButton } from "@/components/ui/AppButton";
-import { theme } from "@/design-system";
 import { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
 import {
   formatRequestBudget,
