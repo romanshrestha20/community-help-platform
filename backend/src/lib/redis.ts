@@ -1,9 +1,10 @@
 import { createClient } from "redis";
 
 const redisUrl = process.env.REDIS_URL?.trim();
-const isProduction = process.env.NODE_ENV === "production";
 
 export const isRedisConfigured = Boolean(redisUrl);
+export const isRedisRequired =
+  process.env.STRICT_REDIS_STARTUP?.trim().toLowerCase() === "true";
 
 let redisClient: ReturnType<typeof createClient> | null = null;
 let hasInitAttempted = false;
@@ -17,8 +18,8 @@ const retryCooldownMs = Math.max(
 
 const buildClient = () => {
   if (!redisUrl) {
-    if (isProduction) {
-      throw new Error("REDIS_URL must be set in production.");
+    if (isRedisRequired) {
+      throw new Error("REDIS_URL must be set when STRICT_REDIS_STARTUP=true.");
     }
     return null;
   }
@@ -47,7 +48,7 @@ const buildClient = () => {
         : {}),
       reconnectStrategy: (retries) => {
         // Stop retrying after a short burst to avoid log spam.
-        const maxRetries = isProduction ? 5 : 2;
+        const maxRetries = isRedisRequired ? 5 : 2;
         if (retries > maxRetries) return false;
         return Math.min(retries * 200, 1500);
       },
@@ -117,8 +118,8 @@ export const assertRedisReady = async () => {
   const client = await getRedisClient();
 
   if (!client) {
-    if (isProduction) {
-      throw new Error("Redis client is unavailable in production.");
+    if (isRedisRequired) {
+      throw new Error("Redis client is unavailable but is required.");
     }
     return null;
   }

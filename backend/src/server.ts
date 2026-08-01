@@ -5,7 +5,11 @@ import { initSocketServer } from "./lib/socket.js";
 import { registerSocketHandlers } from "./sockets/registerSocketHandlers.js";
 import { getEmailServiceStatus } from "./services/email.service.js";
 import { getSmsServiceStatus } from "./services/sms.service.js";
-import { assertRedisReady, closeRedisClient } from "./lib/redis.js";
+import {
+  assertRedisReady,
+  closeRedisClient,
+  isRedisRequired,
+} from "./lib/redis.js";
 import { logger } from "./lib/logger.js";
 const httpServer = http.createServer(app);
 const io = initSocketServer(httpServer);
@@ -28,13 +32,10 @@ const verifyStartupDependencies = async () => {
         logger.info("startup_redis_disabled");
       }
     } catch (redisError) {
-      const strictRedisStartup =
-        process.env.NODE_ENV === "production" ||
-        process.env.STRICT_REDIS_STARTUP?.trim().toLowerCase() === "true";
       logger.warn("startup_redis_degraded", {
         message: redisError instanceof Error ? redisError.message : String(redisError),
       });
-      if (strictRedisStartup) {
+      if (isRedisRequired) {
         throw redisError;
       }
     }

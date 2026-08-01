@@ -79,7 +79,7 @@ community-help-platform/
 - Node.js 20+
 - npm 10+
 - PostgreSQL
-- Redis (optional in development; required in production)
+- Redis (recommended in production; required only when strict startup is enabled)
 - Expo CLI-compatible environment for mobile development
 
 ### 1) Backend Setup
@@ -104,7 +104,7 @@ Common backend config knobs:
 
 Common optional variables (depending on which features you want enabled):
 
-- `REDIS_URL` (required in production; optional in development)
+- `REDIS_URL` (recommended in production; optional when degraded in-memory controls are acceptable)
 - `GOOGLE_WEB_CLIENT_ID` or `GOOGLE_CLIENT_ID_WEB` / `GOOGLE_CLIENT_ID_IOS` / `GOOGLE_CLIENT_ID_ANDROID`
 - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
 - `SENDGRID_API_KEY` (or SMTP vars if using Nodemailer)
