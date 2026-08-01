@@ -1,6 +1,5 @@
 import React from "react";
 import { useLocalSearchParams } from "expo-router";
-import { StyleSheet } from "react-native";
 
 import { ScreenView } from "@/design-system";
 import Chat from "@/features/conversation/components/Chat";
@@ -68,4 +67,3 @@ export default function ConversationScreenWeb() {
     </WebSectionShell>
   );
 }
-const styles = StyleSheet.create({});

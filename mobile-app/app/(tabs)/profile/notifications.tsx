@@ -9,7 +9,7 @@ import { useNotificationSettingsStore } from "@/features/settings/store/notifica
 import { WebSectionShell } from "@/features/web/components/WebSectionShell";
 import { ProfileTabsBar } from "@/features/web/components/ProfileTabsBar";
 
-const nearbyDistanceOptions: Array<1 | 3 | 5 | 10 | 25> = [1, 3, 5, 10, 25];
+const nearbyDistanceOptions: (1 | 3 | 5 | 10 | 25)[] = [1, 3, 5, 10, 25];
 const nearbyCategoryOptions = [
     { slug: "errands", label: "Errands" },
     { slug: "moving", label: "Moving" },

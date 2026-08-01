@@ -9,7 +9,7 @@ type AppBottomSheetProps = {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
-  snapPoints?: Array<string | number>;
+  snapPoints?: (string | number)[];
   initialSnapIndex?: number;
   detached?: boolean;
   bottomInset?: number;

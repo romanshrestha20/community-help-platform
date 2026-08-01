@@ -37,5 +37,5 @@ export const useUnsavedChangesGuard = ({
     });
 
     return unsubscribe;
-  }, [enabled, message, navigation, title]);
+  }, [enabled, message, navigation, onPromptShown, title]);
 };

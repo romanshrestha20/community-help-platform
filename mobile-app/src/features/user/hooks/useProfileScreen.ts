@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useProfileForm } from "@/features/user/profile/hooks/useProfileForm";
 import { useUser } from "@/features/user/hooks/user.hook";
-import { Gender, UserType } from "@/features/user/types/user.types";
 
 export const useProfileScreen = () => {
   const { user, loading, error, loadUserProfile, handleUpdateProfile, handleDeleteProfile } = useUser();

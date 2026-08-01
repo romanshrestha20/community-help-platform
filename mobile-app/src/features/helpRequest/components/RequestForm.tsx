@@ -20,7 +20,7 @@ import {
 import { validateRequestDraftFields } from "../utils/requestValidation";
 import { RequestFormContent, RequestFormValues } from "./RequestFormContent";
 import { RequestFormTrigger } from "./RequestFormTrigger";
-import { resolveRequestCategoryId } from "../hooks/useCreateEditRequestScreen";
+import { resolveRequestCategoryId } from "../utils/resolveRequestCategoryId";
 import { APP_ROUTES } from "@/config/routes";
 
 const MAX_REQUEST_IMAGES = 5;

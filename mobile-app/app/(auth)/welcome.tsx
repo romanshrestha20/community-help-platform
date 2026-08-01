@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppButton } from "@/components/ui/AppButton";
-import { Card, Stack, theme } from "@/design-system";
+import { Stack, theme } from "@/design-system";
 import {
   AuthBanner,
   AuthCard,

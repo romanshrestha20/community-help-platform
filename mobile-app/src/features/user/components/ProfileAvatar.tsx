@@ -1,7 +1,7 @@
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { radius, spacing, typography } from "@/design-system";
+import { typography } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type Props = {

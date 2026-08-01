@@ -311,6 +311,8 @@ export const ProfileEditForm = ({ user, loading = false, onSubmit, onCancel }: P
     draftKey,
     getDraft,
     user?.bio,
+    user?.address?.country,
+    user?.address?.countryCode,
     user?.dateOfBirth,
     user?.fullName,
     user?.gender,
@@ -1283,52 +1285,6 @@ const Field = ({
   );
 };
 
-const SectionTitle = ({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle: string;
-}) => {
-  const { palette } = useThemeContext();
-
-  return (
-    <Stack gap="xxs" style={styles.sectionTitleWrap}>
-      <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>{title}</Text>
-      <Text style={[styles.sectionSubtitle, { color: palette.textSecondary }]}>{subtitle}</Text>
-    </Stack>
-  );
-};
-
-const SectionCard = ({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-}) => {
-  const { palette } = useThemeContext();
-
-  return (
-    <View
-      style={[
-        styles.sectionCard,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-        },
-      ]}
-    >
-      <SectionTitle title={title} subtitle={subtitle} />
-      <Stack gap="md" style={styles.sectionCardBody}>
-        {children}
-      </Stack>
-    </View>
-  );
-};
-
 const ModalEmptyState = ({
   title,
   description,
@@ -1448,26 +1404,6 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 110,
     paddingTop: theme.spacing.md,
-  },
-  sectionTitleWrap: {
-    gap: theme.spacing.xxs,
-  },
-  sectionCard: {
-    borderWidth: 1,
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.md,
-  },
-  sectionCardBody: {
-    marginTop: theme.spacing.md,
-  },
-  sectionTitle: {
-    fontSize: theme.typography.fontSize.md,
-    lineHeight: theme.typography.lineHeight.md,
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  sectionSubtitle: {
-    fontSize: theme.typography.fontSize.xs + 1,
-    lineHeight: theme.typography.lineHeight.xs + 3,
   },
   summaryCard: {
     borderWidth: 1,

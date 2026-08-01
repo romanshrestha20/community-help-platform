@@ -2,7 +2,6 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
-import { theme } from "@/design-system";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
 type Stat = { label: string; value: string; icon: React.ComponentProps<typeof Ionicons>["name"] };

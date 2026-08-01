@@ -22,7 +22,6 @@ import { HomeEmptyState } from "@/features/home/components/HomeEmptyState";
 import { HelpRequest } from "@/features/helpRequest/types/helpRequest.types";
 import { isUrgentRequestActive } from "@/features/helpRequest/utils/urgent";
 import { useLocationPicker } from "@/features/location/hooks/useLocationPicker";
-import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { calculateDistance } from "@/utils/distance";
 
@@ -43,14 +42,12 @@ export const HomeDesktopScreen = () => {
   const isTablet = width < 1360;
   const collapsedSidebar = width < 1360;
   const router = useRouter();
-  const { palette } = useThemeContext();
   const user = useAuthStore((state) => state.user);
   const { categories } = useCategories();
   const { value: userLocation } = useLocationPicker({ autoUseCurrentLocationOnMount: true });
 
   const {
     helperRequests,
-    loading,
     myBids,
     openBidModal,
     bidModalVisible,
@@ -61,7 +58,6 @@ export const HomeDesktopScreen = () => {
     bidError,
   } = useHomeScreen();
 
-  const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
@@ -97,8 +93,6 @@ export const HomeDesktopScreen = () => {
       const effectiveCategory = isTablet ? category : desktopCategory;
       const effectiveRequestType = isTablet ? requestTypeFilter : appliedDesktopFilters.requestType;
       const effectiveDistance = isTablet ? distanceFilter : appliedDesktopFilters.distance;
-      const effectiveSortBy = isTablet ? "NEWEST" : appliedDesktopFilters.sortBy;
-
       const categoryMatch =
         effectiveCategory === "All" ||
         (effectiveCategory === "Urgent"

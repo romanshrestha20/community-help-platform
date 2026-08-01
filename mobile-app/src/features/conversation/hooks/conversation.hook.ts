@@ -134,7 +134,7 @@ export const useConversations = () => {
             return;
         }
         let isActive = true;
-        const cleanupFns: Array<() => void> = [];
+        const cleanupFns: (() => void)[] = [];
 
         const bindSocket = async () => {
             try {
@@ -495,7 +495,7 @@ export const useConversationThread = (
             }
         };
 
-        const cleanupFns: Array<() => void> = [];
+        const cleanupFns: (() => void)[] = [];
 
         void bindSocket();
 

@@ -1,4 +1,4 @@
-import type { AppNotification } from "../types/notification.types";
+import type { AppNotification , NotificationPreferencesDto } from "../types/notification.types";
 import {
     deleteNotificationApi,
     fetchNotificationPreferencesApi,
@@ -11,7 +11,6 @@ import {
     unregisterPushTokenApi,
     updateNotificationPreferencesApi,
 } from "../api/notification.api";
-import type { NotificationPreferencesDto } from "../types/notification.types";
 
 export const fetchNotifications = async (): Promise<AppNotification[]> => {
     return fetchNotificationsApi();

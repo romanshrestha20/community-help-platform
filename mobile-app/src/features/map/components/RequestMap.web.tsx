@@ -144,6 +144,9 @@ export const RequestMap = ({
     () => getRegionForCoordinates(userLocation, validRequests),
     [userLocation, validRequests]
   );
+  const initialLatitude = initialRegion.latitude;
+  const initialLongitude = initialRegion.longitude;
+  const initialZoom = regionToZoom(initialRegion);
 
   useEffect(() => {
     let isMounted = true;
@@ -168,8 +171,8 @@ export const RequestMap = ({
         });
 
         map.setView(
-          [initialRegion.latitude, initialRegion.longitude],
-          regionToZoom(initialRegion)
+          [initialLatitude, initialLongitude],
+          initialZoom
         );
 
         leaflet
@@ -211,7 +214,7 @@ export const RequestMap = ({
     return () => {
       isMounted = false;
     };
-  }, [initialRegion.latitude, initialRegion.longitude, onBoundsChange, onPressMap]);
+  }, [initialLatitude, initialLongitude, initialZoom, onBoundsChange, onPressMap]);
 
   useEffect(() => {
     const leaflet = (window as LeafletWindow).L;
@@ -350,11 +353,11 @@ export const RequestMap = ({
     if (!map) return;
 
     map.setView(
-      [initialRegion.latitude, initialRegion.longitude],
-      regionToZoom(initialRegion),
+      [initialLatitude, initialLongitude],
+      initialZoom,
       { animate: true }
     );
-  }, [centerSignal]);
+  }, [centerSignal, initialLatitude, initialLongitude, initialZoom]);
 
   useEffect(() => {
     return () => {

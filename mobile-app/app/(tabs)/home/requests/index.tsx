@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Platform, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 
-import BrowseRequestsScreen from "@/features/helpRequest/screens/BrowseRequestsScreen";
+import { BrowseRequestsScreen } from "@/features/helpRequest/screens/BrowseRequestsScreen";
 import { WebSectionShell } from "@/features/web/components/WebSectionShell";
 import {
   RightRequestFilterSidebar,

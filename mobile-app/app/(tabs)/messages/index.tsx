@@ -4,7 +4,7 @@
  * Mobile/Tablet: existing inbox flow
  */
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -31,9 +31,6 @@ import type { HelpRequest } from "@/features/helpRequest/types/helpRequest.types
 import { formatRequestBudget, formatRequestLocation } from "@/features/helpRequest/utils/requestDisplay";
 import { APP_ROUTES } from "@/config/routes";
 import { getCloudinaryVariantUrl } from "@/utils/cloudinaryImage";
-
-const VAN_IMAGE =
-  "https://images.unsplash.com/photo-1609521263047-f8f205293f24?auto=format&fit=crop&w=900&q=80";
 
 const formatTime = (value?: string | null) => {
   if (!value) return "";
@@ -142,7 +139,6 @@ export default function MessagesScreen() {
   const unreadConversations = conversations.filter((item) => item.unreadCount > 0).length;
   const activePartner = conversation?.members.find((member) => member.id !== currentUserId) ?? null;
   const request = conversation?.request;
-  const hasImageInThread = messages.some((item) => (item.images?.length ?? 0) > 0);
   const visibleNotifications = notifications.slice(0, 4);
 
   const handleSend = async () => {

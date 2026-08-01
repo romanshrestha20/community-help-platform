@@ -3,7 +3,6 @@ import {
   Animated,
   StyleProp,
   StyleSheet,
-  View,
   ViewStyle,
 } from "react-native";
 

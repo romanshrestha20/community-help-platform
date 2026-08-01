@@ -44,7 +44,11 @@ export const WebSectionShell = ({
   const router = useRouter();
   const { handleLogout } = useAuth();
   const user = useAuthStore((state) => state.user);
-  const { value: userLocation, setValue: setUserLocation, useCurrentLocation } = useLocationPicker({
+  const {
+    value: userLocation,
+    setValue: setUserLocation,
+    useCurrentLocation: requestCurrentLocation,
+  } = useLocationPicker({
     autoUseCurrentLocationOnMount: true,
   });
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
@@ -82,7 +86,7 @@ export const WebSectionShell = ({
       showErrorToast("Logout failed", "Please try again.");
     }
   };
-  const locationOptions: Array<{ id: string; label: string; location: AppLocation }> = [
+  const locationOptions: { id: string; label: string; location: AppLocation }[] = [
     {
       id: "helsinki",
       label: "Helsinki",
@@ -138,7 +142,7 @@ export const WebSectionShell = ({
           selectedLocationId={selectedLocationId}
           onSelectLocation={handleSelectLocation}
           onUseCurrentLocation={() => {
-            void useCurrentLocation();
+            void requestCurrentLocation();
           }}
           fullName={user?.fullName || user?.profile?.fullName}
           avatarUrl={user?.avatarUrl}

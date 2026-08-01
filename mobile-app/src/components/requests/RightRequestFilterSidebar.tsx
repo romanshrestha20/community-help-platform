@@ -27,7 +27,7 @@ type Props = {
   onClear: () => void;
 };
 
-const DISTANCE_OPTIONS: Array<{ label: string; value: Exclude<DistanceOption, "ANY"> }> = [
+const DISTANCE_OPTIONS: { label: string; value: Exclude<DistanceOption, "ANY"> }[] = [
   { label: "Within 1 km", value: "1" },
   { label: "Within 5 km", value: "5" },
   { label: "Within 10 km", value: "10" },

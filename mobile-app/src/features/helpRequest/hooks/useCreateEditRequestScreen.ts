@@ -13,7 +13,6 @@ import {
     parseBudgetInput,
     validateRequestDraftFields,
 } from "../utils/requestValidation";
-import { AppCategory } from "@/features/category/types/category.types";
 import { resolveRequestCategoryId } from "../utils/resolveRequestCategoryId";
 import {
     DEFAULT_REQUEST_FORM,
