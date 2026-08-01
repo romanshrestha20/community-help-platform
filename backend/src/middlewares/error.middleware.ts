@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import AppError from '../utils/appError.js';
+import { logger } from '../lib/logger.js';
 
 export const notFound = (req: Request, _res: Response, next: NextFunction) => {
   next(new AppError(`Route not found: ${req.originalUrl}`, 404));
@@ -16,9 +17,10 @@ export const errorHandler = (
   const message = isOperational ? err.message : 'Internal server error';
 
   if (statusCode >= 500) {
-    console.error("Request failed with server error", {
+    logger.error("http_request_error", {
+      requestId: res.locals.requestId,
       method: req.method,
-      path: req.originalUrl,
+      path: req.path,
       statusCode,
       message: err.message,
       stack: err.stack,
@@ -31,6 +33,7 @@ export const errorHandler = (
     error: {
       message,
       statusCode,
+      requestId: res.locals.requestId,
     },
   });
 };

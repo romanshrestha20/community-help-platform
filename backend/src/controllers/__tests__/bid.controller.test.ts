@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Prisma } from "../../../generated/prisma/client.js";
 import { makeNext, makeReq, makeRes } from "./test-utils.js";
 
 const { prismaMock } = vi.hoisted(() => ({
@@ -119,6 +120,39 @@ describe("bid.controller", () => {
         );
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: "Bid placed" }));
         expect(next).not.toHaveBeenCalled();
+    });
+
+    it("placeBid: maps a concurrent duplicate bid to a conflict", async () => {
+        prismaMock.helpRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            title: "Need help",
+            status: "OPEN",
+            requesterId: "requester-1",
+        });
+        prismaMock.bid.findFirst.mockResolvedValue(null);
+        prismaMock.bid.create.mockRejectedValue(
+            new Prisma.PrismaClientKnownRequestError("duplicate bid", {
+                code: "P2002",
+                clientVersion: "test",
+            }),
+        );
+
+        const req = makeReq({
+            user: { userId: "helper-1" },
+            body: { helpRequestId: "req-1", message: "I can help", amount: 40 },
+        });
+        const res = makeRes();
+        const next = makeNext();
+
+        await placeBid(req, res, next);
+
+        expect(next).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: "You have already bid on this request",
+                statusCode: 409,
+            }),
+        );
+        expect(res.json).not.toHaveBeenCalled();
     });
 
     it("respondToBid: accepts bid and updates request state", async () => {
