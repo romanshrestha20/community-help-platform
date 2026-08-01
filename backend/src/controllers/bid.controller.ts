@@ -250,6 +250,13 @@ export const placeBid = async (req: Request, res: Response, next: NextFunction) 
     sendResponse(res, formatBid(bid), "Bid placed");
 
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return next(new AppError("You have already bid on this request", 409));
+    }
+
     console.error("Place Bid Error:", error);
     next(new AppError("Failed to place bid", 500));
   }
