@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import BrowseRequestsScreen from "@/features/helpRequest/screens/BrowseRequestsScreen";
+import { BrowseRequestsScreen } from "@/features/helpRequest/screens/BrowseRequestsScreen";
 import { WebSectionShell } from "@/features/web/components/WebSectionShell";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 

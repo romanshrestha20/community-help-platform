@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import FavoriteRequestsScreen from "@/features/favorites/screens/FavoriteRequestsScreen";
+import { FavoriteRequestsScreen } from "@/features/favorites/screens/FavoriteRequestsScreen";
 import { WebSectionShell } from "@/features/web/components/WebSectionShell";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
 
@@ -15,7 +15,7 @@ export default function FavoritesWebRoute() {
         <View style={[styles.panel, { borderColor: palette.border, backgroundColor: palette.surface }]}> 
           <Text style={[styles.title, { color: palette.textPrimary }]}>Saved Requests</Text>
           <Text style={[styles.body, { color: palette.textSecondary }]}>
-            Quickly revisit requests you bookmarked and take action when you're ready.
+            Quickly revisit requests you bookmarked and take action when you&apos;re ready.
           </Text>
         </View>
       }

@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import MyBidsScreen from "@/features/bid/screens/MyBidsScreen";
+import { MyBidsScreen } from "@/features/bid/screens/MyBidsScreen";
 import { WebSectionShell } from "@/features/web/components/WebSectionShell";
 import { ProfileTabsBar } from "@/features/web/components/ProfileTabsBar";
 import { useThemeContext } from "@/features/settings/hooks/useThemeContext";
