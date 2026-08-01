@@ -3,8 +3,17 @@ import { createClient } from "redis";
 const redisUrl = process.env.REDIS_URL?.trim();
 const isProduction = process.env.NODE_ENV === "production";
 
+export const isRedisConfigured = Boolean(redisUrl);
+
 let redisClient: ReturnType<typeof createClient> | null = null;
 let hasInitAttempted = false;
+let connectPromise: Promise<ReturnType<typeof createClient> | null> | null = null;
+let retryAfter = 0;
+
+const retryCooldownMs = Math.max(
+  1_000,
+  Number(process.env.REDIS_RETRY_COOLDOWN_MS) || 30_000,
+);
 
 const buildClient = () => {
   if (!redisUrl) {
@@ -38,7 +47,8 @@ const buildClient = () => {
         : {}),
       reconnectStrategy: (retries) => {
         // Stop retrying after a short burst to avoid log spam.
-        if (retries > 5) return false;
+        const maxRetries = isProduction ? 5 : 2;
+        if (retries > maxRetries) return false;
         return Math.min(retries * 200, 1500);
       },
     },
@@ -50,27 +60,57 @@ export const getRedisClient = async () => {
     return redisClient;
   }
 
-  if (!hasInitAttempted) {
-    hasInitAttempted = true;
-    redisClient = buildClient();
+  if (Date.now() < retryAfter) {
+    return null;
+  }
+
+  if (connectPromise) {
+    return connectPromise;
+  }
+
+  connectPromise = (async () => {
+    if (!hasInitAttempted) {
+      hasInitAttempted = true;
+      redisClient = buildClient();
+      if (!redisClient) {
+        return null;
+      }
+
+      // Connection failures are surfaced to the caller and logged once with
+      // operation context. An error listener is still required by node-redis.
+      redisClient.on("error", () => undefined);
+    }
+
     if (!redisClient) {
       return null;
     }
 
-    redisClient.on("error", (error) => {
-      console.error("[redis] client error", error);
-    });
-  }
+    try {
+      if (!redisClient.isOpen) {
+        await redisClient.connect();
+      }
 
-  if (!redisClient) {
-    return null;
-  }
+      retryAfter = 0;
+      return redisClient;
+    } catch (error) {
+      try {
+        redisClient.destroy();
+      } catch {
+        // The socket may already have been destroyed by the failed connection.
+      }
 
-  if (!redisClient.isOpen) {
-    await redisClient.connect();
-  }
+      redisClient = null;
+      hasInitAttempted = false;
+      retryAfter = Date.now() + retryCooldownMs;
+      throw error;
+    }
+  })();
 
-  return redisClient;
+  try {
+    return await connectPromise;
+  } finally {
+    connectPromise = null;
+  }
 };
 
 export const assertRedisReady = async () => {
@@ -85,4 +125,15 @@ export const assertRedisReady = async () => {
 
   await client.ping();
   return client;
+};
+
+export const closeRedisClient = async () => {
+  if (redisClient?.isOpen) {
+    await redisClient.quit();
+  }
+
+  redisClient = null;
+  hasInitAttempted = false;
+  connectPromise = null;
+  retryAfter = 0;
 };
