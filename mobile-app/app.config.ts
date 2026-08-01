@@ -18,6 +18,8 @@ const config: ExpoConfig = {
 
   web: {
     favicon: "./assets/images/favicon.png",
+    bundler: "metro",
+    output: "single",
   },
 
   ios: {

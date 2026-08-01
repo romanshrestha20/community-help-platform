@@ -177,6 +177,12 @@ npm run check
 This runs TypeScript, ESLint, and the mobile unit tests. GitHub Actions runs the
 backend and mobile checks for every pull request and every push to `main`.
 
+### Vercel Web Deployment
+
+Create a Vercel project from this repository with `mobile-app` as its Root
+Directory and `Other` as its Framework Preset. The committed `vercel.json`
+exports Expo Router with Metro to `dist` and configures SPA route rewrites.
+
 ## Health Checks and Shutdown
 
 - `GET /health/live` reports whether the API process is running.
